@@ -23,7 +23,7 @@ def shrink(path: Path) -> bytes:
         img = img.convert("RGB")
         img.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
         # Step the quality down until the file fits.
-        for quality in range(85, 40, -5):
+        for quality in range(85, 35, -5):
             buf = io.BytesIO()
             img.save(buf, "JPEG", quality=quality, optimize=True, progressive=True)
             if buf.tell() <= MAX_BYTES:

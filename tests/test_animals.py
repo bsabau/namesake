@@ -17,6 +17,6 @@ def test_every_photo_has_a_web_sized_copy(roster):
     for image in images:
         path = WEB_PHOTOS / image
         assert path.exists(), f"missing {path}; run scripts/make_web_photos.py"
-        assert path.stat().st_size < 150 * 1024
+        assert path.stat().st_size <= 150 * 1024
         with Image.open(path) as img:
             assert max(img.size) <= 800

@@ -26,9 +26,12 @@ def test_start_page_offers_every_preset_with_the_first_selected():
 
 
 def test_location_query_parameter_preselects_a_preset():
-    assert _checked_id(client.get("/?location=austin").text) == "austin"
+    locations = load_locations(get_settings().locations_file)
+    # Not the first preset, so the parameter is what selects it.
+    other = locations[-1].id
+    assert _checked_id(client.get(f"/?location={other}").text) == other
     # An unknown id falls back to the first preset rather than failing.
-    assert _checked_id(client.get("/?location=nowhere").text) == "park-slope"
+    assert _checked_id(client.get("/?location=nowhere").text) == locations[0].id
 
 
 def test_map_gets_every_preset_point():
