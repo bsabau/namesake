@@ -1,0 +1,14 @@
+.git
+.venv
+.env
+.env.*
+**/__pycache__
+.pytest_cache
+.ruff_cache
+*.sqlite
+.DS_Store
+tests
+docs
+scripts
+# Originals are ~650 KB each; the app serves the web-sized copies in app/static.
+data/animals/*.jpg

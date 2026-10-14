@@ -1,0 +1,32 @@
+[
+  {
+    "id": "park-slope",
+    "label": "Park Slope",
+    "region": "Brooklyn, New York",
+    "query": "Park Slope, Brooklyn",
+    "city": "New York City",
+    "latitude": 40.672,
+    "longitude": -73.978,
+    "zoom": 14
+  },
+  {
+    "id": "astoria",
+    "label": "Astoria",
+    "region": "Queens, New York",
+    "query": "Astoria, Queens",
+    "city": "New York City",
+    "latitude": 40.764,
+    "longitude": -73.923,
+    "zoom": 14
+  },
+  {
+    "id": "austin",
+    "label": "Austin",
+    "region": "Texas",
+    "query": "Austin, TX",
+    "city": "Austin, TX",
+    "latitude": 30.267,
+    "longitude": -97.743,
+    "zoom": 11
+  }
+]

@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[oc]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets: names only go in .env.example
+.env
+.env.*
+!.env.example
+
+# Local Qloo cache
+*.sqlite
+*.sqlite-journal
+
+# macOS
+.DS_Store
+
+# Personal Claude Code settings
+.claude/settings.local.json

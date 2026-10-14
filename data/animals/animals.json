@@ -1,0 +1,192 @@
+[
+  {
+    "id": "cat-01",
+    "species": "cat",
+    "group": "adult cat",
+    "sex": "female",
+    "age": "9 years",
+    "look": "black domestic shorthair, yellow-green eyes",
+    "temperament": "shy and slow to trust; once settled, a quiet lap cat",
+    "facts": [
+      "in the shelter for five months",
+      "fine with calm adults",
+      "hides when it is noisy"
+    ],
+    "image": "cat-01.jpg"
+  },
+  {
+    "id": "cat-02",
+    "species": "cat",
+    "group": "adult cat",
+    "sex": "male",
+    "age": "3 years",
+    "look": "large orange tabby, amber eyes",
+    "temperament": "confident, talkative, greets every visitor",
+    "facts": [
+      "gets on with dogs",
+      "likes to be carried",
+      "came in as a stray"
+    ],
+    "image": "cat-02.jpg"
+  },
+  {
+    "id": "cat-03",
+    "species": "cat",
+    "group": "adult cat",
+    "sex": "female",
+    "age": "6 years",
+    "look": "tortoiseshell, one eye (left eye removed and healed)",
+    "temperament": "independent and playful; strong opinions",
+    "facts": [
+      "loves wand toys",
+      "prefers to be the only pet",
+      "healthy and needs no special care"
+    ],
+    "image": "cat-03.jpg"
+  },
+  {
+    "id": "kitten-01",
+    "species": "cat",
+    "group": "kitten",
+    "litter": "litter-a",
+    "sex": "male",
+    "age": "10 weeks",
+    "look": "grey tabby",
+    "temperament": "the bold one, always first to explore",
+    "facts": [
+      "climbs everything",
+      "fearless with new people"
+    ],
+    "image": "kitten-01.jpg"
+  },
+  {
+    "id": "kitten-02",
+    "species": "cat",
+    "group": "kitten",
+    "litter": "litter-a",
+    "sex": "female",
+    "age": "10 weeks",
+    "look": "grey and white",
+    "temperament": "the athlete; jumps and pounces constantly",
+    "facts": [
+      "plays hardest of the litter",
+      "sleeps deeply afterwards"
+    ],
+    "image": "kitten-02.jpg"
+  },
+  {
+    "id": "kitten-03",
+    "species": "cat",
+    "group": "kitten",
+    "litter": "litter-a",
+    "sex": "male",
+    "age": "10 weeks",
+    "look": "black and white tuxedo",
+    "temperament": "the sleepy cuddler",
+    "facts": [
+      "purrs as soon as he is picked up",
+      "follows his sisters around"
+    ],
+    "image": "kitten-03.jpg"
+  },
+  {
+    "id": "kitten-04",
+    "species": "cat",
+    "group": "kitten",
+    "litter": "litter-a",
+    "sex": "female",
+    "age": "10 weeks",
+    "look": "calico, smallest of the litter",
+    "temperament": "vocal and determined",
+    "facts": [
+      "meows for attention",
+      "holds her own against bigger siblings"
+    ],
+    "image": "kitten-04.jpg"
+  },
+  {
+    "id": "litter-group",
+    "species": "cat",
+    "group": "litter photo",
+    "litter": "litter-a",
+    "members": [
+      "kitten-01",
+      "kitten-02",
+      "kitten-03",
+      "kitten-04"
+    ],
+    "image": "litter-group.jpg"
+  },
+  {
+    "id": "puppy-01",
+    "species": "dog",
+    "group": "puppy",
+    "sex": "female",
+    "age": "12 weeks",
+    "look": "mixed breed, chocolate brown, white chest, floppy ears",
+    "temperament": "clumsy, affectionate, very food-motivated",
+    "facts": [
+      "learning to sit",
+      "falls asleep mid-play"
+    ],
+    "image": "puppy-01.jpg"
+  },
+  {
+    "id": "puppy-02",
+    "species": "dog",
+    "group": "puppy",
+    "sex": "male",
+    "age": "4 months",
+    "look": "scruffy terrier mix, wiry tan coat",
+    "temperament": "energetic and toy-obsessed",
+    "facts": [
+      "needs an active home",
+      "already walks well on a lead"
+    ],
+    "image": "puppy-02.jpg"
+  },
+  {
+    "id": "dog-01",
+    "species": "dog",
+    "group": "adult dog",
+    "sex": "male",
+    "age": "10 years",
+    "look": "Labrador-type mix, yellow coat, grey muzzle",
+    "temperament": "calm and gentle; a slow-walk companion",
+    "facts": [
+      "house-trained",
+      "good with children",
+      "owner could no longer care for him"
+    ],
+    "image": "dog-01.jpg"
+  },
+  {
+    "id": "dog-02",
+    "species": "dog",
+    "group": "adult dog",
+    "sex": "female",
+    "age": "4 years",
+    "look": "large mixed breed, short brindle coat, broad head",
+    "temperament": "strong but gentle; leans on people for attention",
+    "facts": [
+      "in the shelter for eight months",
+      "needs an owner comfortable with a big dog",
+      "knows basic commands"
+    ],
+    "image": "dog-02.jpg"
+  },
+  {
+    "id": "dog-03",
+    "species": "dog",
+    "group": "adult dog",
+    "sex": "male",
+    "age": "2 years",
+    "look": "border collie-type mix, black and white, medium-length coat",
+    "temperament": "very active and clever; needs a job to do",
+    "facts": [
+      "learns tricks in minutes",
+      "not suited to being left alone all day"
+    ],
+    "image": "dog-03.jpg"
+  }
+]
