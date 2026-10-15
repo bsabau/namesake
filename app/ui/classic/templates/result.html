@@ -30,6 +30,7 @@
       {{ view.listing.word_count }} words, every one from the shelter's records.
       <button type="button" class="copy" data-copy-target="listing-text">Copy listing</button>
     </p>
+    {% if view.listing.short_note %}<p class="short-note">{{ view.listing.short_note }}</p>{% endif %}
     <ul class="left-out">
       {% for line in view.listing.left_out %}<li>{{ line }}</li>{% endfor %}
     </ul>

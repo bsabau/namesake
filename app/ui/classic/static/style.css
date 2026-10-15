@@ -284,6 +284,13 @@ button.animal-card:hover, button.animal-card:focus-visible {
   cursor: pointer;
 }
 
+.short-note {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent);
+  font-size: 0.85rem;
+}
+
 .left-out { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 0.85rem; }
 
 .plan { margin: 0; padding-left: 20px; }

@@ -49,7 +49,7 @@ def test_unknown_checks_are_not_mentioned():
 
 def test_a_bite_on_record_is_stated_plainly():
     text = templated_listing(animal(checks=Checks(bite_history="yes"))).text
-    assert "She has a bite on record" in text
+    assert "She has a bite on record; ask the shelter for the details." in text
     assert (
         "She has no bite on record."
         in templated_listing(animal(checks=Checks(bite_history="no"))).text

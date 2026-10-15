@@ -1,3 +1,5 @@
+import pytest
+
 from app.locations import load_locations
 from app.profile import LocationProfile, build_profile
 from app.views.build import (
@@ -7,7 +9,15 @@ from app.views.build import (
     result_id,
     sentences,
 )
-from tests.qloo_fakes import LOCATION, SEEDS, FakeQloo, standard_script
+from tests.qloo_fakes import (
+    BASELINE,
+    LOCATION,
+    SEEDS,
+    FakeQloo,
+    envelope,
+    key,
+    standard_script,
+)
 
 
 def profile() -> LocationProfile:
@@ -30,7 +40,8 @@ def test_result_venues_put_distinctive_suitable_places_first(roster):
     assert "Hookah Corner" not in names
     assert names[:2] == ["Community Hall", "Garden Cafe"]
     assert view.venues[0].stands_out and not view.venues[-1].stands_out
-    assert "not among the top" in view.venues[0].evidence
+    # The baseline's own count, not the pet list's.
+    assert "not among the 2 places for fans of Example Drama" in view.venues[0].evidence
 
 
 def test_plan_separates_research_qloo_and_our_suggestions(roster):
@@ -79,3 +90,54 @@ def test_result_id():
 def test_sentences_trims_at_a_sentence_end():
     assert sentences("One. Two is cut mid-wo") == "One."
     assert sentences(None) == ""
+
+
+def baseline_key():
+    return key(
+        "recommend",
+        {
+            "target_type": "place",
+            "signals": [BASELINE],
+            "filter_location": LOCATION.query,
+            "limit": 15,
+        },
+    )
+
+
+def test_without_a_baseline_venues_say_not_compared(roster):
+    script = standard_script()
+    del script[baseline_key()]
+    view = build_result_view(
+        roster.get("dog-02"), LOCATION, build_profile(FakeQloo(script), LOCATION, SEEDS)
+    )
+    assert {v.badge for v in view.venues} == {"Not compared"}
+    assert not any(v.stands_out for v in view.venues)
+    assert all("not compared with a baseline" in v.evidence for v in view.venues)
+
+
+@pytest.mark.parametrize("status", ["partial", "degraded"])
+def test_an_incomplete_baseline_is_not_used_for_comparison(roster, status):
+    script = standard_script()
+    script[baseline_key()] = envelope(
+        "recommend", status, results=script[baseline_key()].results, warnings=["thin"]
+    )
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    assert not any(v.distinctive for v in p.venues)
+    assert p.baseline_venue_count is None
+    assert any(f"was {status}" in n for n in p.notes)
+
+
+def test_short_listings_say_so_instead_of_padding(roster):
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    assert view.listing.word_count < 75
+    assert view.listing.short_note and "only a few facts" in view.listing.short_note
+
+
+def test_locations_carry_the_shelter_radius(roster):
+    from app.config import get_settings
+
+    locations = load_locations(get_settings().locations_file)
+    view = build_start_view(roster, locations, locations[0].id)
+    by_id = {loc.id: loc for loc in view.locations}
+    assert by_id["park-slope"].shelter_radius_m == 800
+    assert by_id["austin"].shelter_radius_m == 6400

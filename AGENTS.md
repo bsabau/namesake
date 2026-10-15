@@ -44,7 +44,7 @@ These shape most decisions below, so keep them in mind when making trade-offs. C
 - **Listings state only recorded facts.**
   - Every sentence of a bio traces to the animal's recorded facts. Anything unrecorded stays unmentioned.
   - A bite history or guarding is stated plainly, every time.
-  - Write in the third person, with behaviour toward people first, in plain words, at 75 to 150 words.
+  - Write in the third person, with behaviour toward people first, in plain words, at 75 to 150 words. When the recorded facts cannot fill 75 words, the listing stays short and says so; it is never padded.
   - Describe the animal as it is now. Leave out backstories, pity and urgency.
   - The cultural reference appears only in the name and one hook line, and the hook says nothing about temperament.
 - **Names are screened.**

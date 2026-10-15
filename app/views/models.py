@@ -24,6 +24,7 @@ class LocationOption(BaseModel):
     latitude: float
     longitude: float
     zoom: int
+    shelter_radius_m: float
     selected: bool = False
 
 
@@ -71,6 +72,8 @@ class ListingView(BaseModel):
     text: str
     sentences: list[ListingSentence]
     word_count: int
+    # Set when the recorded facts cannot fill a full listing; the text is never padded.
+    short_note: str | None = None
     left_out: list[str]
     copy_text: str
 

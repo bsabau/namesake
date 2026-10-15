@@ -33,7 +33,7 @@ CHECK_SENTENCES: dict[str, dict[str, str]] = {
         "no": "{they} {is} not house-trained yet.",
     },
     "bite_history": {
-        "yes": "{they} {has} a bite on record; the shelter explains the details before a meeting.",
+        "yes": "{they} {has} a bite on record; ask the shelter for the details.",
         "no": "{they} {has} no bite on record.",
     },
 }
@@ -45,8 +45,18 @@ class Sentence(BaseModel):
     source: str
 
 
+# The length a bio should reach. The template never pads: when the recorded facts
+# fall short, the listing stays short and says so.
+MIN_WORDS = 75
+MAX_WORDS = 150
+
+
 class Listing(BaseModel):
     sentences: list[Sentence]
+
+    @property
+    def too_short(self) -> bool:
+        return self.word_count < MIN_WORDS
 
     @property
     def text(self) -> str:

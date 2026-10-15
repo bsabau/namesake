@@ -114,6 +114,8 @@ class LocationProfile(BaseModel):
     pet_entities: list[Entity] = Field(default_factory=list)
     baseline: Entity | None = None
     venues: list[Venue] = Field(default_factory=list)
+    # How many venues the baseline's list held, when it was available to compare.
+    baseline_venue_count: int | None = None
     cells: list[LiftCell] = Field(default_factory=list)
     calls: list[QlooCall] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
@@ -189,7 +191,10 @@ class _Builder:
             why=seed.why,
         )
 
-    def venues(self, signals: list[str], location: Location, purpose: str) -> list[dict] | None:
+    def venues(
+        self, signals: list[str], location: Location, purpose: str, *, complete: bool = False
+    ) -> list[dict] | None:
+        """Venue results, or None. With `complete`, a partial or degraded answer counts as none."""
         env = self.call(
             "recommend",
             {
@@ -204,6 +209,11 @@ class _Builder:
             return None
         if not env.has_results:
             self.profile.notes.append(f"Qloo returned no venues for {purpose}.")
+            return None
+        if complete and env.status != "ok":
+            self.profile.notes.append(
+                f"Qloo's answer for {purpose} was {env.status}, so it is not used for comparison."
+            )
             return None
         return env.results
 
@@ -243,9 +253,15 @@ def build_profile(qloo: QlooClient, location: Location, seeds: Seeds) -> Locatio
     )
     base_venues = None
     if p.baseline is not None:
+        # An incomplete baseline would make missing venues look distinctive.
         base_venues = b.venues(
-            [p.baseline.id], location, f"venues near {location.label} for the baseline show"
+            [p.baseline.id],
+            location,
+            f"venues near {location.label} for the baseline show",
+            complete=True,
         )
+    if base_venues is not None:
+        p.baseline_venue_count = len(base_venues)
     baseline_ranks = {r["entity_id"]: i for i, r in enumerate(base_venues or [], start=1)}
 
     for rank, r in enumerate(pet_venues or [], start=1):

@@ -3,7 +3,7 @@
 import re
 
 from app.animals import Animal, LitterPhoto, Roster
-from app.listing import CHECK_SENTENCES, templated_listing
+from app.listing import CHECK_SENTENCES, MIN_WORDS, templated_listing
 from app.locations import Location
 from app.profile import LocationProfile, Venue
 from app.qloo.geohash import bounds
@@ -83,8 +83,14 @@ def location_option(location: Location, selected: bool = False) -> LocationOptio
         latitude=location.latitude,
         longitude=location.longitude,
         zoom=location.zoom,
+        shelter_radius_m=shelter_radius(location),
         selected=selected,
     )
+
+
+def shelter_radius(location: Location) -> float:
+    """The circle around the fictional shelter, in metres: wider for a city."""
+    return 800 * 2 ** (14 - location.zoom)
 
 
 def animal_card(animal: Animal) -> AnimalCard:
@@ -153,6 +159,13 @@ def listing_view(animal: Animal) -> ListingView:
         text=listing.text,
         sentences=sentences,
         word_count=listing.word_count,
+        short_note=(
+            "Short because the shelter has recorded only a few facts. Add observations "
+            "(behaviour with people, other animals, on the lead) for a full listing of "
+            f"{MIN_WORDS} words or more."
+            if listing.too_short
+            else None
+        ),
         left_out=left_out,
         copy_text=listing.text,
     )
@@ -183,7 +196,7 @@ def map_view(location: Location, profile: LocationProfile) -> MapView:
         latitude=location.latitude,
         longitude=location.longitude,
         zoom=location.zoom,
-        shelter_radius_m=800 * 2 ** (14 - location.zoom),
+        shelter_radius_m=shelter_radius(location),
         cells=cells,
         legend=(
             f"Warm cells: fans of {pet} rank this part of {location.label} higher than fans of "
@@ -207,17 +220,20 @@ def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueV
         f"Ranked {ordinal(v.rank)} of {total} places near {location.label} for fans of {pets}"
     )
     if not v.compared or base is None:
-        evidence += "."
+        evidence += "; not compared with a baseline."
+        badge = "Not compared"
     elif v.distinctive:
-        evidence += f"; not among the top {len(profile.venues)} for fans of {base}."
+        evidence += f"; not among the {profile.baseline_venue_count} places for fans of {base}."
+        badge = "Stands out for pet-show fans"
     else:
         evidence += f"; also {ordinal(v.baseline_rank)} for fans of {base}."
+        badge = "Popular nearby generally"
     return VenueView(
         name=v.name,
         place=", ".join(x for x in [v.neighbourhood, v.address] if x),
         description=sentences(v.description) or None,
         stands_out=v.distinctive,
-        badge="Stands out for pet-show fans" if v.distinctive else "Popular nearby generally",
+        badge=badge,
         evidence=evidence,
     )
 

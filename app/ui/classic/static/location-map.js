@@ -29,12 +29,9 @@
   const accent = getComputedStyle(document.documentElement)
     .getPropertyValue("--accent").trim() || "#c2410c";
 
-  // A city is shown wider than a neighbourhood, so the circle grows as the zoom drops.
-  const radiusFor = (p) => 800 * 2 ** (14 - p.zoom);
-
   // A soft circle, not a pin: the shelter is fictional, so we only show an area.
   const area = L.circle([start.latitude, start.longitude], {
-    radius: radiusFor(start),
+    radius: start.shelter_radius_m,
     color: accent,
     weight: 2,
     fillOpacity: 0.15,
@@ -45,7 +42,7 @@
     input.addEventListener("change", () => {
       const p = points[input.value];
       if (!p) return;
-      area.setLatLng([p.latitude, p.longitude]).setRadius(radiusFor(p));
+      area.setLatLng([p.latitude, p.longitude]).setRadius(p.shelter_radius_m);
       map.flyTo([p.latitude, p.longitude], zoomFor(p), { duration: 1.2 });
       container.setAttribute("aria-label", `Map of the area around the shelter in ${p.label}`);
     });
