@@ -4,12 +4,13 @@ import pytest
 
 from app.agent.checks import (
     check_bio,
+    check_character,
     check_hook,
     check_name,
-    check_reference,
     check_why,
     fact_keys,
     is_bully_type,
+    reference_text,
     syllables,
 )
 from app.animals import Animal
@@ -30,8 +31,8 @@ def animal(**overrides) -> Animal:
     return Animal.model_validate({**data, **overrides})
 
 
-def name(name: str, *, source="pet", reference_kind="character", strict=False) -> list[str]:
-    return check_name(name, source=source, reference_kind=reference_kind, strict=strict)
+def name(name: str, *, source="pet", role="character", strict=False) -> list[str]:
+    return check_name(name, source=source, role=role, strict=strict)
 
 
 # syllables
@@ -114,7 +115,7 @@ def test_more_than_fourteen_characters_fails():
 
 
 def test_a_person_reference_fails():
-    assert name("Bingo", reference_kind="person") == [
+    assert name("Bingo", role="person") == [
         "name 'Bingo' refers to a real person; use a character or object"
     ]
 
@@ -247,7 +248,7 @@ def test_a_loves_claim_fails():
 # Regression: whole-word matching, after OpenCode found substring false positives.
 @pytest.mark.parametrize("name", ["Edward", "Warren", "Killian", "Deadwood"])
 def test_innocent_names_containing_a_blocked_word_pass(name):
-    assert check_name(name, source="pet", reference_kind="character", strict=False) == []
+    assert check_name(name, source="pet", role="character", strict=False) == []
 
 
 def test_a_word_containing_nip_is_not_a_bite():
@@ -270,7 +271,7 @@ def test_a_villain_or_tragic_role_fails(role):
     problems = check_name(
         "Rex",
         source="pet",
-        reference_kind="character",
+        role="character",
         strict=False,
         reference="Rex",
         reference_role=role,
@@ -280,7 +281,7 @@ def test_a_villain_or_tragic_role_fails(role):
 
 def test_a_famous_villain_in_the_reference_fails():
     problems = check_name(
-        "Kitty", source="pet", reference_kind="character", strict=False, reference="Cruella's cat"
+        "Kitty", source="pet", role="character", strict=False, reference="Cruella's cat"
     )
     assert any("'cruella'" in p for p in problems)
 
@@ -299,24 +300,37 @@ def test_a_reason_may_only_restate_the_facts():
     assert any("toddlers" in p for p in problems)
 
 
-def test_a_reference_must_name_its_title():
-    assert check_reference("Bingo, a puppy in Bluey", "Bluey") == []
-    assert check_reference("Bingo, a puppy", "Bluey") == [
-        "reference 'Bingo, a puppy' must name its title, 'Bluey'"
-    ]
-
-
 def test_a_weapon_in_the_reference_fails_even_for_an_object_name():
     problems = check_name(
         "Rifle",
         source="pet",
-        reference_kind="object",
+        role="object",
         strict=True,
         reference="a rifle in Example Dog Show",
     )
     assert problems == ["name 'Rifle' contains 'rifle'"]
 
 
-def test_punctuation_inside_the_title_is_not_a_second_sentence():
-    title = "Scooby-Doo, Where Are You!"
-    assert check_reference("Scooby-Doo, a dog in Scooby-Doo, Where Are You!", title) == []
+def test_a_character_is_a_plain_name():
+    assert check_character("Thomas O'Malley", "cat") == []
+    assert check_character("Mr. Peanutbutter", "dog") == []
+    assert check_character("ignored for a title", "title") == []
+    assert any("claim about tastes" in p for p in check_character("a dog who loves", "dog"))
+
+
+def test_references_are_written_by_code():
+    assert reference_text("Bingo", "puppy", "Bluey") == "Bingo, a puppy in Bluey"
+    assert reference_text("Rubble", "character", "PAW Patrol") == "Rubble in PAW Patrol"
+    assert reference_text("x", "title", "Lassie") == "Lassie"
+
+
+def test_reordered_words_that_reverse_a_fact_fail():
+    pet = animal(facts=["guards food but not toys", "fine with calm adults"])
+    bio = [
+        ("She is strong but gentle.", ["temperament"]),
+        ("She guards toys but not food.", ["fact:0"]),
+        ("She is fine with calm adults.", ["fact:1"]),
+    ]
+    assert any("reorders fact:0" in p for p in check_bio(pet, bio))
+    bio[1] = ("She guards food but not toys.", ["fact:0"])
+    assert check_bio(pet, bio) == []

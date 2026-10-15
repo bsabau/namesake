@@ -111,7 +111,7 @@ def check_name(
     name: str,
     *,
     source: str,
-    reference_kind: str,
+    role: str,
     strict: bool,
     reference: str = "",
     reference_role: str = "neutral",
@@ -130,7 +130,7 @@ def check_name(
         problems.append(f"name {name!r} refers to {villain!r}, a villain or tragic animal")
     if reference_role in BAD_ROLES:
         problems.append(f"name {name!r} refers to a {reference_role} character")
-    if reference_kind == "person":
+    if role == "person":
         problems.append(f"name {name!r} refers to a real person; use a character or object")
     if strict and source != "pet":
         problems.append(
@@ -164,6 +164,22 @@ def _stem(word: str) -> str:
 def _content(text: str) -> set[str]:
     words = re.findall(r"[a-z]+", text.lower())
     return {_stem(w) for w in words if len(w) > 2 and w not in STOPWORDS and w not in GLUE}
+
+
+def _sequence(text: str) -> list[str]:
+    """Content words and negations, in order, for checking that a fact keeps its shape."""
+    words = re.findall(r"[a-z']+", text.lower())
+    return [
+        "not" if w in NEGATIONS else _stem(w)
+        for w in words
+        if w in NEGATIONS or (len(w) > 2 and w not in STOPWORDS and w not in GLUE)
+    ]
+
+
+def _in_order(needle: list[str], haystack: list[str]) -> bool:
+    """Whether `needle` appears in `haystack` as a subsequence (other words may sit between)."""
+    it = iter(haystack)
+    return all(word in it for word in needle)
 
 
 def fact_texts(animal: Animal) -> dict[str, str]:
@@ -229,6 +245,9 @@ def check_grounded(
         dropped = find_word(fact, NEGATIONS)
         if dropped and not find_word(text, NEGATIONS):
             problems.append(f"{label} drops the {dropped!r} in {key}; keep its meaning")
+        elif not missing and not _in_order(_sequence(fact), _sequence(text)):
+            # Same words in a new order can reverse a fact ("guards toys but not food").
+            problems.append(f"{label} reorders {key}; keep its words in their order")
     return problems + _topics_and_tone(text, source, label)
 
 
@@ -299,34 +318,33 @@ def check_why(animal: Animal, why: str, name: str) -> list[str]:
     return problems
 
 
-def check_reference(reference: str, title: str) -> list[str]:
-    """What a name refers to: one short phrase naming its title, and nothing else.
+ROLES = ("puppy", "dog", "cat", "kitten", "animal", "character", "object", "title")
 
-    It becomes the hook ("Named after ..."), so it may not carry a second sentence,
-    temperament or a claim about tastes.
-    """
+
+def reference_text(character: str, role: str, title: str) -> str:
+    """What a name refers to, assembled by code from a name, a fixed role and Qloo's title."""
+    if role == "title":
+        return title
+    if role in ("character", "object"):
+        return f"{character} in {title}"
+    return f"{character}, a {role} in {title}"
+
+
+def check_character(character: str, role: str) -> list[str]:
+    """The character's or thing's own name: a few plain words, nothing descriptive."""
     problems = []
-    if len(reference.split()) > 12:
-        problems.append(
-            f"reference {reference!r} is too long; keep it to who or what, and the title"
-        )
-    # Punctuation inside the title itself ("Scooby-Doo, Where Are You!") is not a break.
-    outside_title = re.sub(re.escape(title), "", reference, flags=re.I)
-    if re.search(r"[.!?;:]", ABBREVIATIONS.sub(r"\1", outside_title.strip().rstrip("."))):
-        problems.append(f"reference {reference!r} must be one short phrase, not sentences")
-    title_words = _content(title)
-    if title_words and not (title_words & _content(reference)):
-        problems.append(f"reference {reference!r} must name its title, {title!r}")
-    for words in UNKNOWN_TOPICS.values():
-        hit = find_word(reference, words)
+    if role == "title":
+        return problems
+    if not re.fullmatch(r"[A-Za-z][A-Za-z'. -]{0,30}", character) or len(character.split()) > 4:
+        problems.append(f"character {character!r} must be a name of up to four words, nothing else")
+    for words, what in (
+        (HOOK_TRAIT_WORDS, "temperament"),
+        (HOOK_CLAIMS, "a claim about tastes"),
+        (tuple(w for ws in UNKNOWN_TOPICS.values() for w in ws), "a check topic"),
+    ):
+        hit = find_word(character, words)
         if hit:
-            problems.append(f"reference {reference!r} mentions {hit!r}")
-    trait = find_word(reference, HOOK_TRAIT_WORDS)
-    if trait:
-        problems.append(f"reference {reference!r} describes temperament ({trait!r})")
-    claim = find_word(reference, HOOK_CLAIMS)
-    if claim:
-        problems.append(f"reference {reference!r} makes a claim about tastes ({claim!r})")
+            problems.append(f"character {character!r} contains {what} ({hit!r})")
     return problems
 
 

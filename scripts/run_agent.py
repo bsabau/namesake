@@ -72,8 +72,8 @@ async def main() -> None:
         log.finish()
     print("\nfallback:", result.fallback_reason)
     if result.draft:
-        for n in result.draft.names:
-            print(f"  name: {n.name} ({n.source}) — {n.reference} — {n.why}")
+        for n, ref in zip(result.draft.names, result.references, strict=True):
+            print(f"  name: {n.name} ({n.source}) — {ref} — {n.why}")
         print("  bio:", " ".join(s.text for s in result.bio))
         print("  hook:", result.hook)
     print(f"live Qloo calls: {qloo.live_calls}")

@@ -15,7 +15,12 @@ from pydantic_ai.exceptions import AgentRunError, ModelHTTPError
 from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
 
-from app.agent.listing_agent import BioSentence, ListingDeps, build_listing_agent, hook_for
+from app.agent.listing_agent import (
+    BioSentence,
+    ListingDeps,
+    build_listing_agent,
+    reference_for,
+)
 from app.agent.profile_agent import ProfileDeps, build_profile_agent
 from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import StepLog
@@ -210,7 +215,10 @@ async def write_listing(
             BioSentence(text=c.text, facts=[c.source])
             for c in check_sentences(animal.checks, pronouns(animal.sex))
         ]
-        result.hook = hook_for(run.output.names[0])
+        result.references = [
+            reference_for(o, titles[o.entity_id][0].name) for o in run.output.names
+        ]
+        result.hook = f"Named after {result.references[0]}."
     except AGENT_FAILURES as exc:
         log.add("error", f"The listing did not pass its checks ({type(exc).__name__})")
         result.fallback_reason = (

@@ -7,7 +7,7 @@ from app.agent.steps import Step
 
 # Raised whenever the listing checks change; saved results from an older version are
 # rerun instead of shown, since they were never held to the current rules.
-CHECKS_VERSION = 3
+CHECKS_VERSION = 4
 
 
 class ListingResult(BaseModel):
@@ -19,6 +19,8 @@ class ListingResult(BaseModel):
     draft: ListingDraft | None = None
     # The bio as shown: the agent's sentences, then the confirmed checks added by code.
     bio: list[BioSentence] = []
+    # Built by code from each name's character, role and Qloo title, in name order.
+    references: list[str] = []
     # Built by code from the first name's reference; None without a draft.
     hook: str | None = None
     fallback_reason: str | None = None

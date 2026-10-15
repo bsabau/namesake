@@ -40,10 +40,13 @@ class NameOption(BaseModel):
     name: str
     source: Source = Field(description='"pet" for a pet-themed title, "local" for a local taste.')
     entity_id: str = Field(description="The Qloo ID of the title the name comes from.")
-    reference: str = Field(
-        description='Who or what the name refers to, with its title: "Bingo, a puppy in Bluey".'
+    character: str = Field(
+        description='The name of the character or thing in the title, e.g. "Bingo". '
+        'Use the title itself when role is "title".'
     )
-    reference_kind: Literal["character", "title", "place", "object", "word", "person"]
+    role: Literal["puppy", "dog", "cat", "kitten", "animal", "character", "object", "title"] = (
+        Field(description="What the character is; code writes the reference from it.")
+    )
     reference_role: Literal["hero", "friend", "neutral", "villain", "tragic"] = Field(
         description="The character's role in the story; villains and tragic figures are refused."
     )
@@ -71,7 +74,8 @@ Rules:
 - Third person, plain words, behaviour toward people first, up to 150 words. If the facts
   are few, the bio is short; never pad it.
 - Offer 3 to 5 name options. Each comes from one of the titles below (a character, the
-  title, or an object in it), with that title's entity_id and source. Short and easy to
+  title, or an object in it), with that title's entity_id and source, the character's own
+  name as it appears in the story, and its role from the list. Short and easy to
   say: one to three syllables. No villains, violent or tragic characters, weapons, real
   people, or names coded to a race, religion or political identity.
 - Each name's reason only restates the animal's facts ("It suits a dog who knows basic
@@ -117,7 +121,7 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
             title, source = deps.titles[option.entity_id]
             if source != option.source:
                 problems.append(f"name {option.name!r} has the wrong source")
-            problems += checks.check_reference(option.reference, title.name)
+            problems += checks.check_character(option.character, option.role)
         if option.name.lower() in seen_names:
             problems.append(f"name {option.name!r} is offered twice")
         if option.name.lower() in deps.taken_names:
@@ -127,9 +131,9 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
         problems += checks.check_name(
             option.name,
             source=option.source,
-            reference_kind=option.reference_kind,
+            role=option.role,
             strict=deps.strict,
-            reference=option.reference,
+            reference=option.character,
             reference_role=option.reference_role,
         )
     appended = check_sentences(deps.animal.checks, pronouns(deps.animal.sex))
@@ -138,7 +142,9 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
         [(s.text, s.facts) for s in draft.bio],
         extra_words=sum(len(c.text.split()) for c in appended),
     )
-    problems += checks.check_hook(hook_for(draft.names[0]))
+    first = draft.names[0]
+    if first.entity_id in deps.titles:
+        problems += checks.check_hook(hook_for(first, deps.titles[first.entity_id][0].name))
     if problems:
         deps.log.add("check", "Sent back for a fix: " + "; ".join(problems))
         raise ModelRetry("Fix these and answer again: " + "; ".join(problems))
@@ -174,6 +180,11 @@ def build_listing_agent(
     return agent
 
 
-def hook_for(option: NameOption) -> str:
-    """The local version's one line, built by code so it can say nothing else."""
-    return f"Named after {option.reference.strip().rstrip('.')}."
+def reference_for(option: NameOption, title: str) -> str:
+    return checks.reference_text(option.character.strip(), option.role, title)
+
+
+def hook_for(option: NameOption, title: str) -> str:
+    """The local version's one line, assembled by code from a name, a fixed role and
+    Qloo's title, so it carries no text the model wrote beyond the character's name."""
+    return f"Named after {reference_for(option, title)}."

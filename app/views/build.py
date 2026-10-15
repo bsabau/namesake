@@ -210,6 +210,7 @@ def name_view(result: ListingResult | None, profile: LocationProfile) -> NameVie
             placeholder="No name yet: the agent's name options appear after a run.",
         )
     titles = {e.id: e.name for e in profile.pet_entities + profile.local_tastes}
+    refs = result.references if result else []
     return NameView(
         value=draft.names[0].name,
         placeholder="",
@@ -217,11 +218,11 @@ def name_view(result: ListingResult | None, profile: LocationProfile) -> NameVie
             NameOptionView(
                 name=o.name,
                 badge=name_badge(o.source, o.entity_id, profile),
-                reference=o.reference,
-                title=titles.get(o.entity_id, o.reference),
+                reference=refs[i] if i < len(refs) else o.character,
+                title=titles.get(o.entity_id, o.character),
                 why=o.why,
             )
-            for o in draft.names
+            for i, o in enumerate(draft.names)
         ],
     )
 

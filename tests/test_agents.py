@@ -81,8 +81,8 @@ DRAFT = {
             "name": "Bingo",
             "source": "pet",
             "entity_id": DOG_SHOW,
-            "reference": "a dog in Example Dog Show",
-            "reference_kind": "character",
+            "character": "Bingo",
+            "role": "dog",
             "reference_role": "friend",
             "why": "It suits a dog who knows basic commands.",
         },
@@ -90,8 +90,8 @@ DRAFT = {
             "name": "Biscuit",
             "source": "pet",
             "entity_id": CAT_SHOW,
-            "reference": "a cat in Example Cat Show",
-            "reference_kind": "character",
+            "character": "Biscuit",
+            "role": "cat",
             "reference_role": "friend",
             "why": "It fits her short brindle coat.",
         },
@@ -99,8 +99,8 @@ DRAFT = {
             "name": "Scout",
             "source": "pet",
             "entity_id": DOG_SHOW,
-            "reference": "a puppy in Example Dog Show",
-            "reference_kind": "character",
+            "character": "Scout",
+            "role": "puppy",
             "reference_role": "friend",
             "why": "It suits a big dog.",
         },
@@ -191,7 +191,9 @@ def test_full_run_uses_the_agents_choices(roster):
     assert profile.local_tastes[0].name == "Example Drama"
     assert result.draft.names[0].name == "Bingo" and result.fallback_reason is None
     # The hook is built by code from the first name's reference.
-    assert store.get_listing("dog-02", LOCATION.id).hook == "Named after a dog in Example Dog Show."
+    saved = store.get_listing("dog-02", LOCATION.id)
+    assert saved.hook == "Named after Bingo, a dog in Example Dog Show."
+    assert saved.references[1] == "Biscuit, a cat in Example Cat Show"
     kinds = [s.kind for s in log.steps]
     assert "qloo" in kinds and kinds[-1] == "done"
 
@@ -260,7 +262,7 @@ def test_a_name_used_at_the_shelter_is_refused(roster):
             checks_version=CHECKS_VERSION,
         )
     )
-    rubble = {**DRAFT["names"][2], "name": "Rubble", "reference": "a pup in Example Dog Show"}
+    rubble = {**DRAFT["names"][2], "name": "Rubble", "character": "Rubble"}
     renamed = {**DRAFT, "names": [DRAFT["names"][1], DRAFT["names"][2], rubble]}
     second, _, log = run(Script([PLAN], [DRAFT, renamed]), roster, store=store)
     assert any("already used at this shelter" in s.text for s in log.steps)
@@ -360,8 +362,7 @@ def test_a_villain_name_is_sent_back(roster):
     # Regression (Codex, milestone 3): "Scar" passed the name screen.
     villain = {
         **DRAFT,
-        "names": [{**DRAFT["names"][0], "name": "Scar", "reference": "Scar, from a lion film"}]
-        + DRAFT["names"][1:],
+        "names": [{**DRAFT["names"][0], "name": "Scar", "character": "Scar"}] + DRAFT["names"][1:],
     }
     result, _, log = run(Script([PLAN], [villain, DRAFT]), roster)
     assert result.draft.names[0].name == "Bingo"
@@ -472,12 +473,17 @@ def test_a_dropped_negation_or_a_half_cited_fact_is_sent_back(roster):
     assert any("leaves out" in p and "fact:0" in p for p in problems)
 
 
-def test_a_reference_cannot_smuggle_a_second_sentence():
-    from app.agent.checks import check_reference
+def test_the_hook_carries_no_free_text_from_the_model():
+    # Regression (Codex, milestone 3): a free-text reference put "she enjoys cuddles"
+    # into the hook. The model now gives only a character's name and a fixed role.
+    from app.agent.checks import check_character, reference_text
 
-    problems = check_reference("a puppy in Example Dog Show. She is playful", "Example Dog Show")
-    assert any("one short phrase" in p for p in problems)
-    assert any("temperament" in p for p in problems)
+    assert any(
+        "up to four words" in p for p in check_character("Bingo and she enjoys cuddles", "dog")
+    )
+    assert any("temperament" in p for p in check_character("Playful Bingo", "dog"))
+    assert reference_text("Bingo", "puppy", "Bluey") == "Bingo, a puppy in Bluey"
+    assert reference_text("Bluey", "title", "Bluey") == "Bluey"
 
 
 def test_appended_check_sentences_count_toward_the_word_limit(roster):
@@ -498,7 +504,7 @@ def test_concurrent_listings_at_one_shelter_get_different_names(roster):
     # Regression (Codex, milestone 3): two runs both read "no names taken" and saved Bingo.
     store = Store(_tmp_db())
     twin = roster.get("dog-02").model_copy(update={"id": "dog-02-twin"})
-    rubble = {**DRAFT["names"][2], "name": "Rubble", "reference": "a pup in Example Dog Show"}
+    rubble = {**DRAFT["names"][2], "name": "Rubble", "character": "Rubble"}
     renamed = {**DRAFT, "names": [DRAFT["names"][1], DRAFT["names"][2], rubble]}
 
     async def go():
@@ -528,7 +534,7 @@ def test_a_badge_reports_qloos_position_even_for_a_dropped_title(roster):
     from app.views.build import name_badge
 
     dog_only = {**PLAN, "titles": [PLAN["titles"][0]]}
-    rubble = {**DRAFT["names"][2], "name": "Rubble", "reference": "a pup in Example Dog Show"}
+    rubble = {**DRAFT["names"][2], "name": "Rubble", "character": "Rubble"}
     dog_names = {**DRAFT, "names": [DRAFT["names"][0], DRAFT["names"][2], rubble]}
     _, store, _ = run(Script([dog_only], [dog_names]), roster)
     profile = store.get_profile(LOCATION.id, "dog")
