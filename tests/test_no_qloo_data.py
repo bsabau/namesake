@@ -22,22 +22,28 @@ TEXT_SUFFIXES = {".py", ".json", ".md", ".html", ".js", ".css", ".toml", ".txt",
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
 SYNTHETIC_UUID = re.compile(r"00000000-0000-4000-8000-[0-9a-f]{12}", re.I)
 CORRELATION_ID = re.compile(r"exec-" + UUID.pattern, re.I)
-URL = re.compile(r"https?://\S+")
+# A URL ends at whitespace or at the quote, bracket or parenthesis around it.
+URL = re.compile(r"""https?://[^\s"'<>()\[\]]+""")
 
 
-def publishable_files() -> list[Path]:
+def publishable_files(root: Path = ROOT) -> list[Path]:
     """Tracked files plus new files git would pick up; everything on disk outside git."""
     try:
         out = subprocess.run(
-            ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
-            cwd=ROOT,
+            ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+            cwd=root,
             capture_output=True,
-            text=True,
             check=True,
         ).stdout
-        return [ROOT / line for line in out.splitlines()]
+        return [root / name for name in out.decode("utf-8").split("\0") if name]
     except (OSError, subprocess.CalledProcessError):
-        return [p for p in ROOT.rglob("*") if p.relative_to(ROOT).parts[0] not in SKIP_DIRS]
+        return [p for p in root.rglob("*") if p.relative_to(root).parts[0] not in SKIP_DIRS]
+
+
+def non_synthetic_ids(text: str) -> list[str]:
+    # An ID inside a URL (a cited article, say) is not Qloo data.
+    ids = [u for u in UUID.findall(URL.sub("", text)) if not SYNTHETIC_UUID.fullmatch(u)]
+    return ids + CORRELATION_ID.findall(text)
 
 
 def repo_text_files():
@@ -51,19 +57,31 @@ def read(path: Path) -> str:
 
 
 def test_only_synthetic_ids_in_the_repo():
-    # An ID inside a URL (a cited article, say) is not Qloo data.
     found = [
-        f"{path.relative_to(ROOT)}: {uuid}"
+        f"{path.relative_to(ROOT)}: {token}"
         for path in repo_text_files()
-        for uuid in UUID.findall(URL.sub("", read(path)))
-        if not SYNTHETIC_UUID.fullmatch(uuid)
-    ]
-    found += [
-        f"{path.relative_to(ROOT)}: {cid}"
-        for path in repo_text_files()
-        for cid in CORRELATION_ID.findall(read(path))
+        for token in non_synthetic_ids(read(path))
     ]
     assert not found, "IDs that look like real Qloo data:\n" + "\n".join(found)
+
+
+def test_a_url_does_not_hide_the_id_next_to_it():
+    # Built from parts so this file doesn't trip the repo-wide check itself.
+    real = "-".join(["AAAAAAAA", "BBBB", "4CCC", "8DDD", "EEEEEEEEEEEE"])
+    assert non_synthetic_ids(f'{{"url":"https://example.invalid","entity_id":"{real}"}}') == [real]
+    assert non_synthetic_ids(f"[a](https://example.invalid/{real.lower()}) and {real}") == [real]
+    assert non_synthetic_ids(f"see https://example.invalid/{real.lower()}") == []
+
+
+def test_unusual_filenames_are_scanned(tmp_path):
+    try:
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    except (OSError, subprocess.CalledProcessError):
+        pytest.skip("git is not available")
+    for name in ["café.md", 'quote".json', "tab\there.sqlite"]:
+        (tmp_path / name).write_text("x", encoding="utf-8")
+    names = {p.name for p in publishable_files(tmp_path)}
+    assert names == {"café.md", 'quote".json', "tab\there.sqlite"}
 
 
 def test_envelopes_only_in_the_synthetic_folder():
