@@ -45,6 +45,8 @@ Ranking ten pet-themed series by name returned `needs_input` in both Park Slope 
 
 Ranking the resolved list was refused with `QLOO_RATE_LIMIT` on four attempts across two sessions, while other workflows sent in between went through. `rank` with ten options seems to have a tighter limit than the rest. Milestone 3 will rank shorter lists and record whether that helps.
 
+**Later observation (milestone 4, 15 October).** Shorter lists (4 or 5 films) were not refused. Two such calls answered `ok` with no results, though. That was for Park Slope and Astoria, while building the cat and dog profiles for the examples. Qloo's `interpretation` showed every ID resolved and the location passed. Both lists included the film *Clifford the Big Red Dog*. No list that returned a ranking included it. That is a pattern from two calls, not a cause. The app treats an empty ranking like a refused one: it keeps the agent's order and says so on the result page (decision 3).
+
 ## Heatmaps (P6 and the earlier recordings)
 
 From the five citywide heatmaps recorded on 3 October:

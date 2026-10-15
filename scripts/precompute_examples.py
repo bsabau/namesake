@@ -80,7 +80,7 @@ async def main() -> None:
         if args.force or any(store.get_listing(k.id, location.id) is None for k in kittens):
             print(f"The litter in {location.label}")
             log = echo_log()
-            for result in await run_litter(kittens, location, log=log, **common):
+            for result in await run_litter(kittens, location, log=log, force=args.force, **common):
                 show(result)
             log.finish()
     print(f"live Qloo calls: {qloo.live_calls}")

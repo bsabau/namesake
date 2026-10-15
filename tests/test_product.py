@@ -12,7 +12,7 @@ import app.main as main
 import app.runs as runs
 from app.agent import checks
 from app.agent.listing_agent import ListingDraft
-from app.agent.pipeline import run_litter
+from app.agent.pipeline import run_litter, run_pipeline
 from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import StepLog
 from app.animals import Animal, Checks
@@ -530,7 +530,7 @@ def test_zoom_fits_a_neighbourhood_and_a_city():
 
 def test_a_checked_location_is_saved_and_offered(client, monkeypatch):
     text, script = location_script(results=cells(6))
-    monkeypatch.setattr(main, "qloo_client", lambda settings: FakeQloo(script))
+    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo(script))
     monkeypatch.setattr(main, "load_seeds", lambda path: SEEDS)
     response = client.post("/locations", data={"text": text}, follow_redirects=False)
     assert response.status_code == 303
@@ -539,14 +539,14 @@ def test_a_checked_location_is_saved_and_offered(client, monkeypatch):
     page = client.get("/", params={"location": loc_id}).text
     assert "Example Heights" in page
     # Typing it again costs nothing: it is served from the store.
-    monkeypatch.setattr(main, "qloo_client", lambda settings: FakeQloo({}))
+    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo({}))
     again = client.post("/locations", data={"text": text}, follow_redirects=False)
     assert again.status_code == 303
 
 
 def test_thin_and_ambiguous_locations_stay_on_the_start_page(client, monkeypatch):
     text, script = location_script(results=cells(1))
-    monkeypatch.setattr(main, "qloo_client", lambda settings: FakeQloo(script))
+    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo(script))
     monkeypatch.setattr(main, "load_seeds", lambda path: SEEDS)
     response = client.post("/locations", data={"text": text})
     assert response.status_code == 400 and "too little data" in response.text
@@ -556,6 +556,7 @@ def test_new_locations_are_capped_per_day(client, monkeypatch):
     settings = main.get_settings()
     monkeypatch.setattr(settings, "new_locations_per_day", 0)
     monkeypatch.setattr(settings, "allow_live_qloo", True)
+    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo({}))
     monkeypatch.setattr(main, "qloo_client", lambda settings: FakeQloo({}))
     response = client.post("/locations", data={"text": "Example Heights"})
     assert response.status_code == 429 and "limit of 0 new locations" in response.text
@@ -668,15 +669,38 @@ def test_naming_the_litter_again_keeps_members_already_named(roster):
     assert store.get_listing("dog-02", LOCATION.id).draft.names[0].name == "Bingo"
 
 
-def test_a_cached_location_check_is_not_counted(client, monkeypatch):
+def test_a_cached_location_check_is_free_even_at_the_cap(client, monkeypatch):
+    settings = main.get_settings()
+    monkeypatch.setattr(settings, "new_locations_per_day", 0)
+    monkeypatch.setattr(settings, "allow_live_qloo", True)
+    monkeypatch.setattr(main, "load_seeds", lambda path: SEEDS)
+    text, script = location_script(results=cells(1))  # thin, and never stored
+    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo(script))
+    for _ in range(2):
+        assert client.post("/locations", data={"text": text}).status_code == 400
+
+
+def test_a_location_check_without_a_live_call_gives_its_slot_back(client, monkeypatch):
     settings = main.get_settings()
     monkeypatch.setattr(settings, "new_locations_per_day", 1)
     monkeypatch.setattr(settings, "allow_live_qloo", True)
     monkeypatch.setattr(main, "load_seeds", lambda path: SEEDS)
-    for n in (1, 2):
-        text, script = location_script(results=cells(1))
-        monkeypatch.setattr(main, "qloo_client", lambda settings, s=script: FakeQloo(s))
-        assert client.post("/locations", data={"text": text}).status_code == 400, n
+    text, script = location_script(results=cells(1))
+    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo({}))
+    # The fake makes no live calls, as if every answer had come from the cache.
+    monkeypatch.setattr(main, "qloo_client", lambda settings: FakeQloo(script))
+    for _ in range(3):
+        assert client.post("/locations", data={"text": text}).status_code == 400
+
+
+def test_the_location_cap_is_reserved_before_the_call(tmp_path):
+    limits = Limits(tmp_path / "db.sqlite", per_visitor_per_hour=10, runs_per_day=5,
+                    locations_per_day=1)  # fmt: skip
+    limits.charge("a", "location")
+    with pytest.raises(LimitReached):
+        limits.charge("b", "location")
+    limits.refund("a", "location")
+    limits.charge("b", "location")
 
 
 def test_places_qloo_cannot_tell_apart_ask_for_the_state():
@@ -703,3 +727,45 @@ def test_each_name_option_carries_its_own_copy_text(roster, profile):
     view = build_result_view(roster.get("dog-02"), LOCATION, profile, saved_listing())
     second = view.name.options[1]
     assert second.copy_text == f"Meet Biscuit.\n\n{second.hook}\n\n{view.listing.text}"
+
+
+def test_a_name_approved_for_one_animal_is_taken_for_the_others(client):
+    save(saved_listing())
+    save(saved_listing("dog-03"))  # dog-03's first name is Bingo too, by the fixture
+    # dog-03 is approved under its alternative, Scout.
+    response = client.post(
+        "/approve",
+        data={"animal": "dog-03", "location": "park-slope", "variant": "local",
+              "local_name": "Scout", "text": "Hi."},
+    )  # fmt: skip
+    assert response.status_code == 200
+    assert approve(client, variant="local", local_name="Scout", text="Hi.").status_code == 409
+
+
+def test_the_first_litter_member_named_alone_takes_one_title(roster):
+    log = StepLog()
+    asyncio.run(
+        run_pipeline(
+            roster.get("kitten-01"),
+            LOCATION,
+            qloo=FakeQloo(full_script()),
+            store=Store(_db()),
+            seeds=SEEDS,
+            model_factory=lambda: FunctionModel(Script([PLAN], litter_answers()[:2])),
+            log=log,
+            litter_mates={"kitten-02"},
+        )
+    )
+    # The kitten's facts differ from the drafts, so only the litter rule is checked here.
+    assert "takes all its names from one title" in " ".join(s.text for s in log.steps)
+
+
+def test_a_refused_edit_keeps_the_chosen_names_source(client, profile):
+    profile.ranked = [CAT_SHOW, DOG_SHOW]  # Qloo ranked the cat show first here
+    save(saved_listing("cat-03"))
+    response = approve(
+        client, animal="cat-03", variant="local", local_name="Biscuit", text="She loves toys."
+    )
+    assert "Not approved" in response.text
+    local = response.text.split('data-role="version-local"')[1].split("<textarea")[0]
+    assert "Biscuit" in local and "ranked 1st of 2" in local and "Bingo" not in local

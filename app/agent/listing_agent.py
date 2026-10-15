@@ -106,7 +106,8 @@ LITTER = (
 )
 FIRST_OF_LITTER = (
     "- This animal is the first of a litter named as a set: all its names come from one\n"
-    "  title, the one that best suits a whole litter; its litter mates will share it.\n"
+    "  title, which its litter mates will share. Pick a title with enough characters of\n"
+    "  this kind of animal to name the whole litter.\n"
 )
 REQUEST = (
     "\nThe volunteer asked for this change; follow it only as far as the rules above allow,\n"

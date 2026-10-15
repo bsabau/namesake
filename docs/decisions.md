@@ -117,7 +117,7 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 **Decided:**
 - Refined listings, added animals and their photos live in an in-memory session behind a random cookie. They are never written to disk and expire after two hours, or on restart.
 - Precomputed and shared listings change only through a run for an animal that has none, or through `scripts/precompute_examples.py`.
-- Approval records the approval ID, animal, area, version, name, the name's source, whether the text was edited, and the time. The text itself is never recorded. An added animal is recorded as `added`.
+- Approval records the approval ID, animal, area, version, name, the name's source, whether the text was edited, and the time. The text itself is never recorded. An added animal is recorded by its random ID, which identifies nothing outside the visit.
 
 **Why:** the demo has no accounts, and every judge sees the same examples. If one visitor's "less childish" overwrote the shared result, the next visitor would see it. Keeping the text out of the log keeps free text, which could contain anything, out of storage. The trial needs only the version and the name.
 
@@ -149,7 +149,7 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:**
 - Only work that can reach Qloo or a model is counted. With no model and Qloo in replay, a run is a free fallback.
-- A location check counts only if it actually called Qloo; an area checked before comes from the cache for free.
+- A location check is tried against the cache first. An answer Qloo gave before, even a thin or ambiguous one, is free. A check that needs Qloo reserves its slot before the call, so two at once cannot both pass a cap. The slot is given back if no live call was made.
 - Reopening an added animal's result, kept in the session, is free like any saved result.
 - uvicorn runs with `--proxy-headers`. `FORWARDED_ALLOW_IPS` names the host's proxy, so the client address is the real visitor's.
 
@@ -179,7 +179,7 @@ The refusal keeps the edit and names the missing words.
 - All of the first member's name options come from one title, which becomes the litter's title.
 - Every later member may draw names only from that title, and no name repeats within the litter: a litter shares a title, never a name.
 - Members already named are kept, and their title is followed. Naming the litter again only fills the gaps, and so does writing or refining one member on its own. Only `scripts/precompute_examples.py --force` rewrites them.
-- Approval refuses a name another animal at the shelter has been given since the page loaded.
+- Approval refuses a name another animal at the shelter has, whether it is that animal's saved first name or a name approved for it. Every name check, for the agent and the generic list too, counts approved names as taken.
 
 **Why:** "two animals in one shelter never share a reference, except a litter named as a set." Letting the first listing choose keeps the agent's judgement, and restricting the others to one title is a check code can enforce: a name from another title is refused like any invented ID.
 

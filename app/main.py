@@ -197,6 +197,13 @@ def find_location(location_id: str | None) -> Location:
     return location
 
 
+def replay_client(settings) -> QlooClient:
+    """The cache and recordings only: never a live call."""
+    return QlooClient(
+        Cache(settings.cache_db), mode="replay", recordings=settings.qloo_recordings, env={}
+    )
+
+
 def location_profile(location: Location, species: str) -> LocationProfile:
     settings = get_settings()
     saved = Store(settings.cache_db).get_profile(location.id, species)
@@ -204,10 +211,7 @@ def location_profile(location: Location, species: str) -> LocationProfile:
         return saved
     # No agent run yet: the fixed lookup, in replay only, so a page never spends
     # quota. A missing profile shows as notes.
-    qloo = QlooClient(
-        Cache(settings.cache_db), mode="replay", recordings=settings.qloo_recordings, env={}
-    )
-    return build_profile(qloo, location, load_seeds(settings.seeds_file))
+    return build_profile(replay_client(settings), location, load_seeds(settings.seeds_file))
 
 
 def ui_suffix(request: Request, ui: str | None) -> str:
@@ -485,15 +489,15 @@ def approve(
         # Keep what the volunteer picked, so only the text needs fixing.
         for v in view.listing.versions:
             v.selected = v.variant == variant
-            if v.variant == "local":
-                v.name, v.hook = name if variant == "local" else v.name, hook or v.hook
-                v.copy_text = copy_block(v.name, v.hook, view.listing.text)
+            if v.variant == "local" and variant == "local":
+                v.name, v.hook, v.name_source = name, hook, option.badge
+                v.copy_text = option.copy_text
         view.chosen_name = name if variant == "local" else view.name.value
         return render(request, chosen_ui, "result.html", view)
 
     approval = Approval(
         id=uuid.uuid4().hex[:10],
-        animal_id="added" if animal.startswith(ADDED_PREFIX) else animal,
+        animal_id=animal,
         location_id=view.location.id,
         variant=variant,
         name=name,
@@ -645,18 +649,20 @@ def add_location(request: Request, text: str = Form(""), ui: str | None = Form(N
             return RedirectResponse(
                 f"/?location={known.id}{ui_suffix(request, ui)}", status_code=303
             )
-    limits = limits_for(settings)
-    try:
-        if cleaned is not None and settings.allow_live_qloo:
-            limits.check(visitor(request), "location")
-    except LimitReached as exc:
-        return back(LocationForm(message=str(exc), value=typed), 429)
-
-    qloo = qloo_client(settings)
-    checked = check_location(qloo, typed, load_seeds(settings.seeds_file))
-    # Counted only when it reached Qloo; a check served from the cache is free.
-    if getattr(qloo, "live_calls", 0):
-        limits.record(visitor(request), "location")
+    seeds = load_seeds(settings.seeds_file)
+    # First from the cache and recordings only: an answer Qloo gave before is free.
+    checked = check_location(replay_client(settings), typed, seeds)
+    if checked.status == "unavailable" and settings.allow_live_qloo:
+        limits = limits_for(settings)
+        try:
+            # Reserved before the call, so two checks at once cannot both pass a cap.
+            limits.charge(visitor(request), "location")
+        except LimitReached as exc:
+            return back(LocationForm(message=str(exc), value=typed), 429)
+        qloo = qloo_client(settings)
+        checked = check_location(qloo, typed, seeds)
+        if not getattr(qloo, "live_calls", 0):
+            limits.refund(visitor(request), "location")
     if checked.status != "ok" or checked.location is None:
         status = 400 if checked.status in ("invalid", "thin", "needs_input") else 503
         form = LocationForm(message=checked.message, value=typed, candidates=checked.candidates)

@@ -138,6 +138,17 @@ class Store:
                 ),
             )
 
+    def approved_names(self, location_id: str) -> dict[str, set[str]]:
+        """Names approved at one shelter location, by animal (lower case)."""
+        with sqlite3.connect(self.path) as db:
+            rows = db.execute(
+                "SELECT animal_id, name FROM approvals WHERE location_id = ?", (location_id,)
+            ).fetchall()
+        names: dict[str, set[str]] = {}
+        for animal_id, name in rows:
+            names.setdefault(animal_id, set()).add(name.lower())
+        return names
+
     def approvals(self) -> list[Approval]:
         with sqlite3.connect(self.path) as db:
             rows = db.execute("SELECT * FROM approvals ORDER BY approved_at").fetchall()

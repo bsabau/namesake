@@ -166,12 +166,16 @@ async def _build_profile(
 
 
 def taken_names(animal: Animal, location: Location, store: Store) -> frozenset[str]:
-    """First names already given to other animals at this shelter, litter mates included:
-    a litter shares a title, never a name."""
+    """Names other animals at this shelter have: each saved listing's first name, and
+    every name approved for another animal. Litter mates included: a litter shares a
+    title, never a name."""
     names = set()
     for other in store.listings_at(location.id):
         if other.animal_id != animal.id and other.draft is not None:
             names.add(other.draft.names[0].name.lower())
+    for animal_id, approved in store.approved_names(location.id).items():
+        if animal_id != animal.id:
+            names |= approved
     return frozenset(names)
 
 
@@ -283,6 +287,7 @@ async def run_pipeline(
         output_mode=output_mode,
     )
     async with _listing_locks[(id(asyncio.get_running_loop()), location.id)]:
+        theme = litter_theme(location, store, litter_mates or set())
         result = await write_listing(
             animal,
             location,
@@ -292,8 +297,10 @@ async def run_pipeline(
             output_mode=output_mode,
             taken=taken_names(animal, location, store),
             request=request,
-            # A litter member written on its own keeps to the title its mates share.
-            theme=litter_theme(location, store, litter_mates or set()),
+            # A litter member written on its own keeps to the title its mates share,
+            # or, as the first one named, takes all its names from one title.
+            theme=theme,
+            first_of_litter=bool(litter_mates) and theme is None,
         )
         result.steps = list(log.steps)
         (save or store.put_listing)(result)

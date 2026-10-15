@@ -55,17 +55,17 @@ class Limits:
             self._check(visitor, kind)
             self._record(visitor, kind)
 
-    def check(self, visitor: str, kind: Kind) -> None:
-        """Raise LimitReached if this work would go over a limit; count nothing.
-
-        For work that may turn out to be cached: check first, then `record` it only if
-        it reached Qloo or the model."""
+    def refund(self, visitor: str, kind: Kind) -> None:
+        """Give back a charge for work that turned out to need no live call."""
         with self._lock:
-            self._check(visitor, kind)
-
-    def record(self, visitor: str, kind: Kind) -> None:
-        with self._lock:
-            self._record(visitor, kind)
+            recent = self._recent_for(visitor)
+            if recent:
+                recent.pop()
+            with sqlite3.connect(self.db, timeout=10) as conn:
+                conn.execute(
+                    "UPDATE usage SET count = max(count - 1, 0) WHERE day = ? AND kind = ?",
+                    (_today(), kind),
+                )
 
     def _recent_for(self, visitor: str) -> deque[float]:
         recent = self._recent[visitor]
