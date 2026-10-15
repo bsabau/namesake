@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0-preview.1",
+  "operation": "recommend",
+  "status": "partial",
+  "interpretation": {
+    "target_type": "urn:entity:tv_show",
+    "signals": [],
+    "signal_tags": [],
+    "signal_location": "Example Neighbourhood",
+    "include_tags": [
+      "urn:tag:keyword:example:dogs"
+    ],
+    "exclude_tags": []
+  },
+  "result_count": 2,
+  "results": [
+    {
+      "entity_id": "00000000-0000-4000-8000-000000000011",
+      "name": "Example Dog Show",
+      "type": "urn:entity:tv_show",
+      "subtype": "urn:entity:tv_show",
+      "affinity": 0.99,
+      "popularity": 0.8
+    },
+    {
+      "entity_id": "00000000-0000-4000-8000-000000000012",
+      "name": "Example Cat Show",
+      "type": "urn:entity:tv_show",
+      "subtype": "urn:entity:tv_show",
+      "affinity": 0.97,
+      "popularity": 0.6
+    }
+  ],
+  "execution": {
+    "transport": "direct",
+    "transport_name": "Qloo API",
+    "correlation_id": "exec-synthetic-recommend-partial",
+    "duration_ms": 1200
+  },
+  "warnings": [
+    "One signal could not be applied."
+  ]
+}

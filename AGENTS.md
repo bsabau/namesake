@@ -39,7 +39,7 @@ These shape most decisions below, so keep them in mind when making trade-offs. C
 - **How results are worded:** Qloo returns aggregate affinities. Write "people in this area tend to like X", never a claim or probability about an individual. Do not infer sensitive traits (politics, health, finances, race, religion) from taste data.
 - **Provenance:** in the UI, keep what Qloo returned visibly separate from the app's interpretation of it.
 - **Ambiguity:** when Qloo cannot resolve a name it returns candidates. Show them or pick with a stated reason; do not force a fuzzy match through.
-- **Quota:** the hackathon key's quota is not published, so treat live calls as scarce. Tests never call Qloo or a model. Cache every live Qloo result.
+- **Quota:** the hackathon key's quota is not published, so treat live calls as scarce. Tests never call Qloo or a model. Cache every live Qloo result. The key is rate-limited (refused after about 12 calls in 20 minutes on 15 October), so every live call goes through `QlooClient`, which spaces calls at least `QLOO_MIN_INTERVAL` seconds apart (default 5) across processes.
 - **Supported Qloo surfaces:** only the harness commands `qloo mcp`, `qloo exec` and `qloo api`. Do not call the HTTP API directly from Python.
 - **Listings state only recorded facts.**
   - Every sentence of a bio traces to the animal's recorded facts. Anything unrecorded stays unmentioned.
@@ -164,7 +164,7 @@ Qloo silently ignores parameters it does not recognise and then returns empty re
 
 - `status`: `ok`, `empty`, `needs_input`, `partial`, `degraded` or `error`.
 - `results`: a list.
-  - For `where_popular`, each item is a map cell: `location.latitude`, `location.longitude`, `location.geohash` (six characters, roughly a kilometre across) and `query.affinity`, `query.popularity`.
+  - For `where_popular`, each item is a map cell: `location.latitude`, `location.longitude`, `location.geohash` (six characters, about a kilometre, for a city; seven, about 150 m, within a neighbourhood) and `query.affinity`, `query.popularity`.
   - For `recommend` and `rank`, each item is an entity: `entity_id`, `name`, `type`, `popularity`, `affinity`.
 - `interpretation`: what the harness actually sent, for example `signal_location` or `target_type`.
 - `resolution.issues[].candidates[]` when status is `needs_input`: each has `id`, `name`, `type`, `popularity`, `description`.
@@ -176,20 +176,16 @@ Qloo silently ignores parameters it does not recognise and then returns empty re
 
 **Deployment constraint.** `qloo mcp` is a local stdio process with no hosted URL. Qloo's kit says to run on a VM or container and that serverless functions are unsupported, so the app needs a long-lived process.
 
-## What the data shows so far
+## What the data shows
 
-From the recordings in `var/qloo-recordings/`, analysed offline. Milestone 1 confirms these, fills the gaps, and writes them up in `docs/qloo-findings.md`.
+`docs/qloo-findings.md` has the milestone 1 answers and the proposal for the agent; read it before building anything that calls Qloo. In short:
 
-1. **Area to tastes.** A location on its own returns TV shows, but every affinity is about 1.0. Park Slope and Austin share 4 of their top 10, and Park Slope and Brooklyn share 5. Artists with a location returned nothing. The list is mostly national hits, so the agent starts from entities, the pet-themed ones in particular.
-2. **Location and ranking.** The Yankees and the Mets swap order between the Bronx and Queens, but both score 1.0. Order carries signal and raw affinity saturates, so the app uses order and heatmap lift.
-3. **Taste or foot traffic.** The Mets' top cells are in Queens and the Yankees' in the Bronx, which is real taste. Bluey, Yellowstone and The Other Two land mostly in Manhattan, which is mostly density. For broad entities, compare against a baseline entity: lift is the useful number.
-4. **Small areas.** "Park Slope, Brooklyn" resolves. Park Slope given as a map point shares only 2 of its top 10 with the name, so use one form consistently and record which.
-5. **Risk.** The Brooklyn lists lean on titles coded to a racial identity, which is why names are screened.
-
-Still open for milestone 1:
-- Do pet tags exist and return local results?
-- Do place recommendations work near a shelter?
-- Does Astoria work as a preset?
+- Pet tags exist but filter TV and films down to almost nothing, and lifestyle tags change nothing as a signal. The agent proposes pet-themed titles itself.
+- Pet-themed titles as signals give venues near the shelter. Most are just popular nearby, so venues are ranked against a baseline show and screened for event suitability.
+- Citywide heatmaps rarely reach the shelter. Heatmaps within the neighbourhood work, and lift against a baseline show is the map layer.
+- Names are often ambiguous; resolving them with a stated reason is an agent step.
+- Raw affinity saturates; use order within a call and lift against a baseline.
+- The key is rate-limited, `rank` most of all.
 
 The demo uses New York City because US coverage is likely to be deepest.
 

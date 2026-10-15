@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     qloo_api_key: SecretStr | None = None
     qloo_base_url: str | None = None
     qloo_trusted_base_url: str | None = None
+    # Seconds between live Qloo calls, across processes. The key is rate-limited.
+    qloo_min_interval: float = 5.0
 
     # The agent's model. Configuration, never code.
     agent_base_url: str | None = None
@@ -29,7 +31,9 @@ class Settings(BaseSettings):
 
     animals_file: Path = ROOT / "data" / "animals" / "animals.json"
     locations_file: Path = ROOT / "data" / "locations.json"
-    cache_db: Path = ROOT / "data" / "cache.sqlite"
+    # Real Qloo data: git-ignored, never committed, deployed privately.
+    cache_db: Path = ROOT / "var" / "cache.sqlite"
+    qloo_recordings: Path = ROOT / "var" / "qloo-recordings"
 
 
 @lru_cache

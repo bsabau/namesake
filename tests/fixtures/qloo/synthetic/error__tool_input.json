@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "TOOL_INPUT",
+    "layer": "tool_input",
+    "retryable": false,
+    "recovery": "Correct the reported tool arguments and submit the operation once more."
+  },
+  "operation": "where_popular",
+  "correlation_id": "exec-synthetic-tool-input"
+}

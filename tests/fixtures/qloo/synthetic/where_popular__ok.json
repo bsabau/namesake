@@ -45,17 +45,21 @@
       },
       "query": {
         "affinity": 0.9,
-        "affinity_rank": 3,
+        "affinity_rank": 0.95,
         "popularity": 0.99
       }
     }
   ],
   "provenance": {
+    "source": "Qloo API",
+    "endpoint": "/v2/insights",
+    "documentation": "https://docs.qloo.com/reference/heatmaps-use-case",
+    "transport": "direct",
     "requests": [
       {
         "method": "GET",
         "path": "/v2/insights",
-        "params": {
+        "query": {
           "filter.type": "urn:heatmap",
           "signal.interests.entities": "00000000-0000-4000-8000-000000000001",
           "filter.location.query": "Example City",

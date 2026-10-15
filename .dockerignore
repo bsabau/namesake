@@ -12,3 +12,4 @@ docs
 scripts
 # Originals are ~650 KB each; the app serves the web-sized copies in app/static.
 data/animals/*.jpg
+var
