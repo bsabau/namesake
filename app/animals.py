@@ -8,6 +8,9 @@ from pydantic import BaseModel, Field
 
 Answer = Literal["yes", "no", "unknown"]
 
+# IDs of animals a visitor added for one visit (`app/session.py`); never shared.
+ADDED_PREFIX = "added-"
+
 
 class Checks(BaseModel):
     """What the shelter has confirmed. Anything not confirmed stays `unknown`."""

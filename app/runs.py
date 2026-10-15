@@ -95,6 +95,25 @@ def qloo_client(settings: Settings) -> QlooClient:
     )
 
 
+def visit_names(
+    session: Session | None, animal_id: str, location_id: str, store: Store
+) -> frozenset[str]:
+    """Names this visitor has given other animals here: the first names of their own
+    listings, and names they approved for animals they added."""
+    if session is None:
+        return frozenset()
+    names = set()
+    for key, listing in session.listings.items():
+        other, _, place = key.partition("@")
+        if other != animal_id and place == location_id and listing.draft is not None:
+            names.add(listing.draft.names[0].name.lower())
+    approved = store.approved_names(location_id)
+    for other in session.animals:
+        if other != animal_id:
+            names |= approved.get(other, set())
+    return frozenset(names)
+
+
 def live_work_possible(settings: Settings) -> bool:
     """Whether a run can reach a model or Qloo; without either it is a free fallback."""
     return settings.allow_live_qloo or model_factory(settings) is not None
@@ -184,6 +203,10 @@ async def start_run(
             litter_mates=roster_litter_mates(animal, settings),
             request=request,
             save=keep if personal else None,
+            # A visit's own names bind only its own listings, never a shared one.
+            also_taken=visit_names(session, animal.id, location.id, store)
+            if personal
+            else frozenset(),
         ),
     )
     return run

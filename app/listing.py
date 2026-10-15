@@ -143,13 +143,14 @@ GENERIC_NAMES = (
 )  # fmt: skip
 
 
-def generic_name(seed: int, taken: set[str] | frozenset[str] = frozenset()) -> str:
-    """A name from GENERIC_NAMES, starting at `seed` and skipping names already taken."""
+def generic_name(seed: int, taken: set[str] | frozenset[str] = frozenset()) -> str | None:
+    """A name from GENERIC_NAMES, starting at `seed` and skipping names already taken;
+    None when every one is taken, rather than a name another animal has."""
     for i in range(len(GENERIC_NAMES)):
         name = GENERIC_NAMES[(seed + i) % len(GENERIC_NAMES)]
         if name.lower() not in taken:
             return name
-    return GENERIC_NAMES[seed % len(GENERIC_NAMES)]
+    return None
 
 
 # Recorded words that warn an adopter: a volunteer's edit may reword the rest, never drop these.

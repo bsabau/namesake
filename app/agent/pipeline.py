@@ -24,7 +24,7 @@ from app.agent.listing_agent import (
 from app.agent.profile_agent import ProfileDeps, build_profile_agent
 from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import StepLog
-from app.animals import Animal
+from app.animals import ADDED_PREFIX, Animal
 from app.listing import check_sentences, pronouns
 from app.locations import Location
 from app.profile import (
@@ -165,16 +165,19 @@ async def _build_profile(
     return profile
 
 
-def taken_names(animal: Animal, location: Location, store: Store) -> frozenset[str]:
+def taken_names(
+    animal: Animal, location: Location, store: Store, also: frozenset[str] = frozenset()
+) -> frozenset[str]:
     """Names other animals at this shelter have: each saved listing's first name, and
-    every name approved for another animal. Litter mates included: a litter shares a
-    title, never a name."""
-    names = set()
+    every name approved for another shared animal. Litter mates included: a litter shares
+    a title, never a name. Names approved for animals a visitor added stay private to
+    that visit (decision 9); the caller passes the visit's own names as `also`."""
+    names = set(also)
     for other in store.listings_at(location.id):
         if other.animal_id != animal.id and other.draft is not None:
             names.add(other.draft.names[0].name.lower())
     for animal_id, approved in store.approved_names(location.id).items():
-        if animal_id != animal.id:
+        if animal_id != animal.id and not animal_id.startswith(ADDED_PREFIX):
             names |= approved
     return frozenset(names)
 
@@ -270,6 +273,7 @@ async def run_pipeline(
     litter_mates: set[str] | None = None,
     request: str | None = None,
     save: Save | None = None,
+    also_taken: frozenset[str] = frozenset(),
 ) -> ListingResult:
     """Profile, then listing. The caller finishes the log, after reporting any error.
 
@@ -295,7 +299,7 @@ async def run_pipeline(
             model_factory=model_factory,
             log=log,
             output_mode=output_mode,
-            taken=taken_names(animal, location, store),
+            taken=taken_names(animal, location, store, also_taken),
             request=request,
             # A litter member written on its own keeps to the title its mates share,
             # or, as the first one named, takes all its names from one title.

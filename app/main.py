@@ -32,17 +32,24 @@ from app.locations import Location, load_locations
 from app.profile import LocationProfile, build_profile, load_seeds
 from app.qloo.cache import Cache
 from app.qloo.exec import QlooClient
-from app.runs import RUNS, limits_for, qloo_client, start_litter_run, start_run
+from app.runs import (
+    RUNS,
+    limits_for,
+    qloo_client,
+    start_litter_run,
+    start_run,
+    visit_names,
+)
 from app.session import (
     ADDED_PREFIX,
     COOKIE,
     MAX_ANIMALS,
     MAX_PHOTO_BYTES,
+    SECURE_COOKIE,
     SESSIONS,
     TTL,
     Photo,
     Session,
-    Sessions,
     photo_type,
 )
 from app.store import Approval, Store
@@ -129,19 +136,24 @@ async def upload_size(request: Request, call_next):
     return await call_next(request)
 
 
+def cookie_name(request: Request) -> str:
+    return SECURE_COOKIE if request.url.scheme == "https" else COOKIE
+
+
 @app.middleware("http")
 async def session_cookie(request: Request, call_next):
-    """Give each visitor a random session ID; the cookie holds nothing else."""
-    session_id = request.cookies.get(COOKIE) or ""
-    fresh = not re.fullmatch(r"[\w-]{20,40}", session_id)
-    if fresh:
-        session_id = Sessions.new_id()
-    request.state.session_id = session_id
+    """Find the visitor's session. Only IDs the server made are used: an unknown ID is
+    ignored, and a new session always gets a new ID (no fixation). The cookie is set only
+    when a session is created, and holds nothing but its random ID."""
+    presented = request.cookies.get(cookie_name(request), "")
+    known = SESSIONS.get(presented) if re.fullmatch(r"[\w-]{20,40}", presented) else None
+    request.state.session_id = known.id if known else None
+    request.state.new_session_id = None
     response = await call_next(request)
-    if fresh:
+    if request.state.new_session_id:
         response.set_cookie(
-            COOKIE,
-            session_id,
+            cookie_name(request),
+            request.state.new_session_id,
             max_age=TTL,
             httponly=True,
             samesite="lax",
@@ -155,7 +167,12 @@ def session_of(request: Request) -> Session | None:
 
 
 def own_session(request: Request) -> Session:
-    return SESSIONS.ensure(request.state.session_id)
+    """The visitor's session, created under a new server-made ID if they have none."""
+    session = session_of(request)
+    if session is None:
+        session = SESSIONS.create()
+        request.state.session_id = request.state.new_session_id = session.id
+    return session
 
 
 def visitor(request: Request) -> str:
@@ -291,7 +308,8 @@ def result_view(animal_id: str, location_id: str | None, session: Session | None
     if listing is None and not animal.id.startswith(ADDED_PREFIX):
         listing = store.get_listing(animal.id, location.id)
     own = {o.name.lower() for o in listing.draft.names} if listing and listing.draft else set()
-    taken = taken_names(animal, location, store) | own
+    visit = visit_names(session, animal.id, location.id, store)
+    taken = taken_names(animal, location, store, visit) | own
     added = animal.id.startswith(ADDED_PREFIX)
     return build_result_view(
         animal,
@@ -452,6 +470,7 @@ def approve(
     variant: str = Form(...),
     text: str = Form(...),
     local_name: str | None = Form(None),
+    generic_name: str | None = Form(None),
     ui: str | None = Form(None),
 ) -> HTMLResponse:
     """Record the approval (never the text) and show the copy-ready listing."""
@@ -471,13 +490,22 @@ def approve(
         option = next((o for o in view.name.options if o.name == local_name), None)
         if option is None:
             raise HTTPException(400, "pick one of the name options")
-        taken = taken_names(find_animal(animal, session), find_location(location), store)
-        if option.name.lower() in taken:
-            raise HTTPException(409, f"{option.name} is now used by another animal here")
         name, hook = option.name, option.hook
         source = f"Qloo, {option.badge.lower()}: {option.title}"
     else:
         name, source = version.name, "a fixed list of common pet names, not Qloo"
+        # The generic name is worked out afresh; approve only the one the volunteer saw.
+        if generic_name != name:
+            raise HTTPException(409, f"{generic_name} is now used by another animal here")
+    # Checked again now: another animal here may have been given the name since.
+    taken = taken_names(
+        find_animal(animal, session),
+        find_location(location),
+        store,
+        visit_names(session, animal, view.location.id, store),
+    )
+    if name.lower() in taken:
+        raise HTTPException(409, f"{name} is now used by another animal here")
 
     missing = missing_cautions(find_animal(animal, session), edited)
     if missing:

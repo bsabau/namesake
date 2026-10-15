@@ -197,7 +197,7 @@ def listing_view(
     animal: Animal,
     result: ListingResult | None,
     profile: LocationProfile,
-    generic: str,
+    generic: str | None,
     refined: str | None = None,
 ) -> ListingView:
     draft = result.draft if result else None
@@ -230,11 +230,14 @@ def listing_view(
         ListingVersion(
             variant="generic",
             label="Generic",
-            available=True,
+            available=generic is not None,
             name=generic,
             name_source="A common pet name from a fixed list, not from Qloo.",
-            copy_text=copy_block(generic, None, text),
-            selected=draft is None,
+            copy_text=copy_block(generic, None, text) if generic else "",
+            note=None
+            if generic
+            else "Every name on the generic list is already used at this shelter.",
+            selected=draft is None and generic is not None,
         ),
         ListingVersion(
             variant="local",
@@ -522,7 +525,7 @@ def build_result_view(
     profile: LocationProfile,
     listing: ListingResult | None = None,
     *,
-    generic: str = "Biscuit",
+    generic: str | None = "Biscuit",
     refined: str | None = None,
     litter: list[LitterMateView] | None = None,
     image_url: str | None = None,

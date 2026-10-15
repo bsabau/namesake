@@ -116,6 +116,7 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 
 **Decided:**
 - Refined listings, added animals and their photos live in an in-memory session behind a random cookie. They are never written to disk and expire after two hours, or on restart.
+- The cookie is set only when a visit has something to keep. Its ID is always made by the server: an ID a client presents is used only if the server issued it. Over HTTPS the cookie takes the `__Host-` prefix, so a sibling subdomain cannot plant one.
 - Precomputed and shared listings change only through a run for an animal that has none, or through `scripts/precompute_examples.py`.
 - Approval records the approval ID, animal, area, version, name, the name's source, whether the text was edited, and the time. The text itself is never recorded. An added animal is recorded by its random ID, which identifies nothing outside the visit.
 
@@ -180,6 +181,9 @@ The refusal keeps the edit and names the missing words.
 - Every later member may draw names only from that title, and no name repeats within the litter: a litter shares a title, never a name.
 - Members already named are kept, and their title is followed. Naming the litter again only fills the gaps, and so does writing or refining one member on its own. Only `scripts/precompute_examples.py --force` rewrites them.
 - Approval refuses a name another animal at the shelter has, whether it is that animal's saved first name or a name approved for it. Every name check, for the agent and the generic list too, counts approved names as taken.
+- Names approved for an animal a visitor added count only within that visit: they bind the visitor's other animals, never the shared roster or other visitors.
+- The generic name is approved only as the volunteer saw it. If another animal took it meanwhile, approval is refused instead of quietly recording a different name.
+- When every generic name is taken at a shelter, the generic version says so instead of reusing one.
 
 **Why:** "two animals in one shelter never share a reference, except a litter named as a set." Letting the first listing choose keeps the agent's judgement, and restricting the others to one title is a check code can enforce: a name from another title is refused like any invented ID.
 

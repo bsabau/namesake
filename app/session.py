@@ -13,14 +13,17 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 
 from app.agent.results import ListingResult
-from app.animals import Animal
+from app.animals import ADDED_PREFIX, Animal
+
+__all__ = ["ADDED_PREFIX"]
 
 COOKIE = "namesake_session"
+# Over HTTPS the cookie takes the __Host- prefix: only this host, over HTTPS, may set it.
+SECURE_COOKIE = "__Host-namesake_session"
 TTL = 2 * 3600
 MAX_SESSIONS = 500
 MAX_ANIMALS = 3
 MAX_PHOTO_BYTES = 3 * 1024 * 1024
-ADDED_PREFIX = "added-"
 
 # Only these formats, recognised from their first bytes, never from a name or a header.
 PHOTO_TYPES = {
@@ -81,6 +84,10 @@ class Sessions:
                 session.last_seen = time.monotonic()
                 self._items.move_to_end(session_id)
             return session
+
+    def create(self) -> Session:
+        """A new session under an ID the server made: a client never chooses its own."""
+        return self.ensure(self.new_id())
 
     def ensure(self, session_id: str) -> Session:
         with self._lock:

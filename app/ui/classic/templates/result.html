@@ -18,6 +18,9 @@
       <input type="hidden" name="animal" value="{{ view.animal.id }}">
       <input type="hidden" name="location" value="{{ view.location.id }}">
       {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
+      {% for version in view.listing.versions if version.variant == 'generic' and version.name %}
+      <input type="hidden" name="generic_name" value="{{ version.name }}">
+      {% endfor %}
 
       <fieldset class="version-toggle" data-role="version-toggle">
         <legend>Version</legend>

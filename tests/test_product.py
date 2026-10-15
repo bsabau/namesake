@@ -63,6 +63,13 @@ def test_generic_name_skips_names_already_taken():
     assert generic_name(3 + len(GENERIC_NAMES)) == first
 
 
+def test_when_every_generic_name_is_taken_none_is_reused(roster, profile):
+    assert generic_name(0, {n.lower() for n in GENERIC_NAMES}) is None
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile, None, generic=None)
+    generic = view.listing.versions[0]
+    assert not generic.available and "already used" in generic.note
+
+
 # Cautions: an edit may reword the rest, never drop these
 
 
@@ -169,7 +176,16 @@ def save(listing: ListingResult, location_id: str = "park-slope") -> None:
 
 
 def approve(client, **fields):
-    data = {"animal": "dog-02", "location": "park-slope", "variant": "generic", **fields}
+    """Approve as the page would: with the generic name it showed."""
+    animal = fields.get("animal", "dog-02")
+    shown = client.get(f"/api/results/{animal}@park-slope").json()["listing"]["versions"][0]
+    data = {
+        "animal": animal,
+        "location": "park-slope",
+        "variant": "generic",
+        "generic_name": shown["name"],
+        **fields,
+    }
     return client.post("/approve", data=data)
 
 
@@ -769,3 +785,45 @@ def test_a_refused_edit_keeps_the_chosen_names_source(client, profile):
     assert "Not approved" in response.text
     local = response.text.split('data-role="version-local"')[1].split("<textarea")[0]
     assert "Biscuit" in local and "ranked 1st of 2" in local and "Bingo" not in local
+
+
+# Regressions from the second reviewer (muse), milestone 4
+
+
+def test_a_name_approved_for_an_added_animal_stays_in_that_visit(client):
+    animal_id = added_id(add(client))
+    page = client.get("/api/results/" + f"{animal_id}@park-slope").json()
+    name = page["listing"]["versions"][0]["name"]
+    assert approve(client, animal=animal_id, text=page["listing"]["text"]).status_code == 200
+    store = Store(main.get_settings().cache_db)
+    roster_animal = main.find_animal("dog-03")
+    place = main.find_location("park-slope")
+    assert name.lower() not in main.taken_names(roster_animal, place, store)
+    # Within the visit, the name is taken for the visitor's other animals.
+    session = next(s for s in main.SESSIONS._items.values() if animal_id in s.animals)
+    assert name.lower() in main.visit_names(session, "added-other", "park-slope", store)
+
+
+def test_the_generic_name_is_checked_again_on_approval(client):
+    page = client.get("/api/results/dog-02@park-slope").json()
+    name = page["listing"]["versions"][0]["name"]
+    other = saved_listing("dog-03")
+    other.draft.names[0].name = name  # dog-03 is given the same name meanwhile
+    save(other)
+    response = approve(client, text="Hi.", generic_name=name)
+    assert response.status_code == 409
+    assert Store(main.get_settings().cache_db).approvals() == []
+
+
+def test_a_session_id_the_server_did_not_make_is_never_adopted(client):
+    client.cookies.set("namesake_session", "attacker-chosen-id-1234567890")
+    response = add(client)
+    assert response.status_code == 303
+    issued = response.cookies.get("namesake_session")
+    assert issued and issued != "attacker-chosen-id-1234567890"
+    assert main.SESSIONS.get("attacker-chosen-id-1234567890") is None
+
+
+def test_no_cookie_is_set_until_a_visit_has_something_to_keep(client):
+    assert "set-cookie" not in client.get("/").headers
+    assert "set-cookie" in add(client).headers
