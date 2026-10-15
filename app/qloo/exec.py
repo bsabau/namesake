@@ -128,13 +128,11 @@ class QlooClient:
         raise QlooExecError(f"qloo exec {operation} exited {proc.returncode} ({meaning})")
 
     def _space_out(self) -> None:
-        """Wait until `min_interval` seconds have passed since the last live call."""
-        last = self.cache.last_live_call()
-        if last is not None:
-            wait = last + self.min_interval - self.clock()
-            if wait > 0:
-                self.sleep(wait)
-        self.cache.mark_live_call(self.clock())
+        """Wait for this call's slot, at least `min_interval` after the last live call."""
+        start = self.cache.reserve_live_slot(self.clock(), self.min_interval)
+        wait = start - self.clock()
+        if wait > 0:
+            self.sleep(wait)
 
     def _recording_path(self, operation: str, input_: dict[str, Any]) -> Path | None:
         if self.recordings is None:

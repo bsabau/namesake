@@ -65,12 +65,22 @@ class Cache:
                 ),
             )
 
-    def last_live_call(self) -> float | None:
-        """When the harness was last called live, as a Unix time, by any process."""
-        with self._connect() as db:
-            row = db.execute("SELECT value FROM qloo_meta WHERE name = 'last_live_call'").fetchone()
-        return row[0] if row else None
+    def reserve_live_slot(self, now: float, interval: float) -> float:
+        """Claim the next start time for a live call, at least `interval` after the last.
 
-    def mark_live_call(self, when: float) -> None:
-        with self._connect() as db:
-            db.execute("INSERT OR REPLACE INTO qloo_meta VALUES ('last_live_call', ?)", (when,))
+        The read and the write happen in one write transaction, so two processes
+        sharing the database never claim the same slot.
+        """
+        db = sqlite3.connect(self.path, isolation_level=None, timeout=30)
+        try:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT value FROM qloo_meta WHERE name = 'last_live_call'").fetchone()
+            start = now if row is None else max(now, row[0] + interval)
+            db.execute("INSERT OR REPLACE INTO qloo_meta VALUES ('last_live_call', ?)", (start,))
+            db.execute("COMMIT")
+        except BaseException:
+            db.execute("ROLLBACK")
+            raise
+        finally:
+            db.close()
+        return start

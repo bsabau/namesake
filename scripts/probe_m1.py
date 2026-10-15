@@ -64,9 +64,16 @@ CHOICE = {
 }
 
 
-def legacy(name: str) -> Envelope:
-    """A recording made before the wrapper existed, stored as a bare envelope."""
-    return Envelope.parse(json.loads((RECORDINGS / f"{name}.json").read_text(encoding="utf-8")))
+def legacy(name: str) -> Envelope | None:
+    """A recording made before the wrapper existed, stored as a bare envelope.
+
+    These hold the seed entities for later probes. They are private, so a fresh
+    clone has none, and the probes that need them are skipped.
+    """
+    path = RECORDINGS / f"{name}.json"
+    if not path.is_file():
+        return None
+    return Envelope.parse(json.loads(path.read_text(encoding="utf-8")))
 
 
 def pick(candidates: list[Candidate], name: str, phrase: str) -> Candidate:
@@ -163,8 +170,20 @@ def main() -> None:
     if tagged:
         print(f"   distinct affinities: {sorted({e.affinity for e in tagged.entities()})}")
 
-    bluey = legacy("where_popular__bluey__nyc").interpretation["entity"]
-    yellowstone = legacy("where_popular__yellowstone__nyc").interpretation["entity"]
+    seeds = seed_entities(p)
+    if seeds is None:
+        print("\n## P3, P6 and the citywide comparison skipped: seed recordings are missing")
+    else:
+        venue_and_heatmap_probes(p, *seeds)
+
+    rank_probes(p)
+    print(f"\nlive calls this run: {qloo.live_calls}; not available: {p.missing or 'none'}")
+
+
+def seed_entities(p: Probes):
+    """Bluey, Yellowstone and My Cat from Hell, from earlier recordings, or None."""
+    bluey_env = legacy("where_popular__bluey__nyc")
+    yellowstone_env = legacy("where_popular__yellowstone__nyc")
     pet_tv = p.qloo.cache.get(
         "recommend",
         {
@@ -175,8 +194,21 @@ def main() -> None:
             "limit": 15,
         },
     )
-    cat_show = next(e for e in Envelope.parse(pet_tv).entities() if e.name == "My Cat from Hell")
+    if bluey_env is None or yellowstone_env is None or pet_tv is None:
+        return None
+    cat_show = next(
+        (e for e in Envelope.parse(pet_tv).entities() if e.name == "My Cat from Hell"), None
+    )
+    if cat_show is None:
+        return None
+    return (
+        bluey_env.interpretation["entity"],
+        yellowstone_env.interpretation["entity"],
+        cat_show,
+    )
 
+
+def venue_and_heatmap_probes(p: Probes, bluey: dict, yellowstone: dict, cat_show) -> None:
     venues = {}
     for label, signals in [
         ("pet shows", [bluey["entityId"], cat_show.entity_id]),
@@ -193,7 +225,7 @@ def main() -> None:
             },
         )
         venues[label] = names(env)
-        if env:
+        if env and env.has_results:
             affs = [e.affinity for e in env.entities()]
             print(f"   affinity {min(affs):.3f}-{max(affs):.3f}: {venues[label]}")
     if all(venues.values()):
@@ -211,30 +243,6 @@ def main() -> None:
         },
     )
     print(f"   {names(env)}")
-
-    # P4. Ranking pet shows by name: ambiguous names come back as candidates.
-    rank_by_name = {}
-    for loc in [PARK_SLOPE, ASTORIA]:
-        env = p.run(
-            f"P4 rank pet shows by name, {loc}",
-            "rank",
-            {"option_type": "tv_show", "options": PET_SHOWS, "signal_location": loc},
-        )
-        if env:
-            rank_by_name[loc] = env
-            print(f"   ambiguous: {sorted({c.name for c in env.candidates})}")
-
-    # P5. The same ranking with each ambiguous name settled by its description.
-    if rank_by_name:
-        candidates = next(iter(rank_by_name.values())).candidates
-        options = [pick(candidates, n, CHOICE[n]).id if n in CHOICE else n for n in PET_SHOWS]
-        for loc in [PARK_SLOPE, ASTORIA]:
-            env = p.run(
-                f"P5 rank resolved pet shows, {loc}",
-                "rank",
-                {"option_type": "tv_show", "options": options, "signal_location": loc},
-            )
-            print(f"   {names(env)}")
 
     # P6. Heatmaps inside the neighbourhood, pet show against a baseline show.
     local = {}
@@ -263,7 +271,10 @@ def main() -> None:
     # Offline: how close do citywide top-20 heatmap cells come to each shelter?
     print("\n## Citywide heatmaps near the shelters (recorded earlier)")
     for name in ["bluey", "yellowstone", "the-other-two", "mets", "yankees"]:
-        cells = legacy(f"where_popular__{name}__nyc").cells()
+        env = legacy(f"where_popular__{name}__nyc")
+        if env is None:
+            continue
+        cells = env.cells()
         parts = []
         for loc, (lat, lon) in SHELTERS.items():
             c = nearest(cells, lat, lon)
@@ -272,7 +283,31 @@ def main() -> None:
             parts.append(f"{loc.split(',')[0]}: nearest {km:.1f} km, {near} within 3 km")
         print(f"   {name:14} " + " | ".join(parts))
 
-    print(f"\nlive calls this run: {qloo.live_calls}; not available: {p.missing or 'none'}")
+
+def rank_probes(p: Probes) -> None:
+    # P4. Ranking pet shows by name: ambiguous names come back as candidates.
+    rank_by_name = {}
+    for loc in [PARK_SLOPE, ASTORIA]:
+        env = p.run(
+            f"P4 rank pet shows by name, {loc}",
+            "rank",
+            {"option_type": "tv_show", "options": PET_SHOWS, "signal_location": loc},
+        )
+        if env:
+            rank_by_name[loc] = env
+            print(f"   ambiguous: {sorted({c.name for c in env.candidates})}")
+
+    # P5. The same ranking with each ambiguous name settled by its description.
+    if rank_by_name:
+        candidates = next(iter(rank_by_name.values())).candidates
+        options = [pick(candidates, n, CHOICE[n]).id if n in CHOICE else n for n in PET_SHOWS]
+        for loc in [PARK_SLOPE, ASTORIA]:
+            env = p.run(
+                f"P5 rank resolved pet shows, {loc}",
+                "rank",
+                {"option_type": "tv_show", "options": options, "signal_location": loc},
+            )
+            print(f"   {names(env)}")
 
 
 if __name__ == "__main__":

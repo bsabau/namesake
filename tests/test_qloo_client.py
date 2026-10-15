@@ -181,3 +181,17 @@ def test_harness_env_passes_settings_through(monkeypatch):
     assert env["PATH"] == "/bin"
     assert env["QLOO_API_KEY"] == "test-key"
     assert env["QLOO_BASE_URL"] == env["QLOO_TRUSTED_BASE_URL"] == "https://example.invalid"
+
+
+def test_slots_are_reserved_atomically_across_processes(tmp_path):
+    import multiprocessing
+
+    path = tmp_path / "cache.sqlite"
+    Cache(path)
+    with multiprocessing.get_context("spawn").Pool(6) as pool:
+        starts = sorted(pool.starmap(_reserve, [(path, 1000.0)] * 6))
+    assert starts == [1000.0 + 5 * i for i in range(6)]
+
+
+def _reserve(path, now):
+    return Cache(path).reserve_live_slot(now, 5)
