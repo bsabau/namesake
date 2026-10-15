@@ -117,8 +117,9 @@ class NameOptionView(BaseModel):
     # Our reading: the reference code built from the agent's pick, and the agent's reason.
     reference: str
     why: str
-    # The hook the local version carries when this name is chosen.
+    # The local version as it reads when this name is chosen.
     hook: str
+    copy_text: str
 
 
 class NameView(BaseModel):

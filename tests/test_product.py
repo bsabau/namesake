@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from pydantic_ai.models.function import FunctionModel
 
 import app.main as main
+import app.runs as runs
 from app.agent import checks
 from app.agent.listing_agent import ListingDraft
 from app.agent.pipeline import run_litter
@@ -374,6 +375,8 @@ def test_the_daily_cap_holds_across_restarts(tmp_path):
 def test_saved_results_are_free_and_live_runs_are_limited(client, monkeypatch):
     settings = main.get_settings()
     monkeypatch.setattr(settings, "live_runs_per_visitor_per_hour", 1)
+    # Count runs as live while Qloo stays in replay and no model is configured.
+    monkeypatch.setattr(runs, "live_work_possible", lambda settings: True)
     save(saved_listing())
     for _ in range(3):
         response = client.post("/runs", data={"animal": "dog-02", "location": "park-slope"})
@@ -387,7 +390,16 @@ def test_saved_results_are_free_and_live_runs_are_limited(client, monkeypatch):
 
 
 def litter_answers():
-    """Bingo from the dog show first; the rest must come from the same title."""
+    """The first member's names all from the dog show; the next must follow it."""
+    first = {
+        **DRAFT,
+        "names": [
+            DRAFT["names"][0],
+            DRAFT["names"][2],
+            {**DRAFT["names"][0], "name": "Muffin", "character": "Muffin"},
+        ],
+    }
+    mixed = DRAFT  # Bingo from the dog show, Biscuit from the cat show: refused
     second = {
         **DRAFT,
         "names": [
@@ -397,7 +409,7 @@ def litter_answers():
         ],
     }
     off_theme = {**second, "names": [DRAFT["names"][1], *second["names"][1:]]}
-    return [DRAFT, off_theme, second]
+    return [mixed, first, off_theme, second]
 
 
 def test_a_litter_shares_one_title_and_never_repeats_a_name(roster):
@@ -422,7 +434,8 @@ def test_a_litter_shares_one_title_and_never_repeats_a_name(roster):
     assert {n.entity_id for n in results[1].draft.names} == {DOG_SHOW}
     messages = " ".join(s.text for s in log.steps)
     assert "names will all come from Example Dog Show" in messages
-    # The draft with a name from another title was sent back.
+    # The first member's mixed draft, then the later off-title draft, were sent back.
+    assert "takes all its names from one title" in messages
     assert "cites a title that was not offered" in messages
     assert store.get_listing("dog-02b", LOCATION.id).draft.names[0].name == "Scout"
 
@@ -542,6 +555,8 @@ def test_thin_and_ambiguous_locations_stay_on_the_start_page(client, monkeypatch
 def test_new_locations_are_capped_per_day(client, monkeypatch):
     settings = main.get_settings()
     monkeypatch.setattr(settings, "new_locations_per_day", 0)
+    monkeypatch.setattr(settings, "allow_live_qloo", True)
+    monkeypatch.setattr(main, "qloo_client", lambda settings: FakeQloo({}))
     response = client.post("/locations", data={"text": "Example Heights"})
     assert response.status_code == 429 and "limit of 0 new locations" in response.text
 
@@ -569,3 +584,122 @@ def test_the_litter_button_runs_every_member_and_opens_the_first(client, roster)
     again = client.post("/runs", data={"animal": "litter-group", "location": "park-slope"})
     # A second time, nothing live happens: every member is saved.
     assert "This listing was made before" in again.text
+
+
+# Regressions from the review of milestone 4
+
+
+def test_a_private_run_is_hidden_from_other_visitors(client):
+    animal_id = added_id(add(client))
+    response = client.post("/runs", data={"animal": animal_id, "location": "park-slope"})
+    run_id = response.url.path.rsplit("/", 1)[1]
+    assert client.get(f"/api/runs/{run_id}").status_code == 200
+    stranger = TestClient(main.app)
+    for path in (f"/runs/{run_id}", f"/api/runs/{run_id}", f"/api/runs/{run_id}/events"):
+        assert stranger.get(path).status_code == 404, path
+
+
+def test_reopening_an_added_animals_result_is_free(client):
+    animal_id = added_id(add(client))
+    first = client.post("/runs", data={"animal": animal_id, "location": "park-slope"})
+    asyncio.run(_wait(main.RUNS[first.url.path.rsplit("/", 1)[1]]))
+    again = client.post("/runs", data={"animal": animal_id, "location": "park-slope"})
+    assert "This listing was made before" in again.text
+
+
+@pytest.mark.parametrize(
+    "fact", ["has guarded his food", "scratched a volunteer", "snarls at brooms", "lunged once"]
+)
+def test_every_form_of_a_caution_word_counts(fact):
+    animal = caution_animal()
+    animal.facts = [fact]
+    assert fact in cautions(animal)
+
+
+def test_uploads_must_declare_a_size_and_stay_small(client):
+    big = b"\xff\xd8\xff" + b"0" * (4 * 1024 * 1024)
+    assert add(client, photo=big).status_code == 413
+    response = client.post(
+        "/animals",
+        content=b"--x--",
+        headers={"content-type": "multipart/form-data; boundary=x", "transfer-encoding": "chunked"},
+    )
+    assert response.status_code in (411, 413)
+
+
+def test_a_name_taken_since_the_page_loaded_cannot_be_approved(client):
+    save(saved_listing())
+    other = saved_listing("dog-03")
+    other.draft.names = [other.draft.names[1], *other.draft.names[:1], other.draft.names[2]]
+    save(other)  # dog-03 is now Biscuit
+    response = approve(client, variant="local", local_name="Biscuit", text="Hi.")
+    assert response.status_code == 409
+
+
+def test_a_litter_member_written_alone_keeps_the_litters_title(roster):
+    from app.agent.pipeline import litter_theme
+
+    store = Store(_db())
+    store.put_listing(saved_listing("kitten-02").model_copy(update={"location_id": LOCATION.id}))
+    assert litter_theme(LOCATION, store, {"kitten-02", "kitten-03"}) == DOG_SHOW
+    assert litter_theme(LOCATION, store, {"kitten-03"}) is None
+
+
+def test_naming_the_litter_again_keeps_members_already_named(roster):
+    first = roster.get("dog-02")
+    members = [first, first.model_copy(update={"id": "dog-02b"})]
+    store = Store(_db())
+    kept = saved_listing("dog-02").model_copy(update={"location_id": LOCATION.id})
+    store.put_listing(kept)
+    script = Script([PLAN], litter_answers()[2:])  # only the second member is written
+    results = asyncio.run(
+        run_litter(
+            members,
+            LOCATION,
+            qloo=FakeQloo(full_script()),
+            store=store,
+            seeds=SEEDS,
+            model_factory=lambda: FunctionModel(script),
+            log=StepLog(),
+        )
+    )
+    assert results[0].draft.names[0].name == "Bingo"
+    assert results[1].draft.names[0].name == "Scout"
+    assert store.get_listing("dog-02", LOCATION.id).draft.names[0].name == "Bingo"
+
+
+def test_a_cached_location_check_is_not_counted(client, monkeypatch):
+    settings = main.get_settings()
+    monkeypatch.setattr(settings, "new_locations_per_day", 1)
+    monkeypatch.setattr(settings, "allow_live_qloo", True)
+    monkeypatch.setattr(main, "load_seeds", lambda path: SEEDS)
+    for n in (1, 2):
+        text, script = location_script(results=cells(1))
+        monkeypatch.setattr(main, "qloo_client", lambda settings, s=script: FakeQloo(s))
+        assert client.post("/locations", data={"text": text}).status_code == 400, n
+
+
+def test_places_qloo_cannot_tell_apart_ask_for_the_state():
+    text, script = location_script(
+        "needs_input",
+        resolution={
+            "issues": [
+                {
+                    "input": "Example Heights, Example City",
+                    "kind": "ambiguous",
+                    "candidates": [
+                        {"id": CAT_SHOW, "name": "Example Heights, Example City", "type": "x"},
+                        {"id": DOG_SHOW, "name": "Example Heights, Example City", "type": "x"},
+                    ],
+                }
+            ]
+        },
+    )
+    checked = check_location(FakeQloo(script), text, SEEDS)
+    assert checked.candidates == [] and "Add the city or state" in checked.message
+
+
+def test_each_name_option_carries_its_own_copy_text(roster, profile):
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile, saved_listing())
+    second = view.name.options[1]
+    assert second.copy_text == f"Meet Biscuit.\n\n{second.hook}\n\n{view.listing.text}"

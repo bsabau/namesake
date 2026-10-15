@@ -39,7 +39,7 @@
           <div class="version version-{{ version.variant }}" data-role="version-{{ version.variant }}">
             <h1 data-role="name" class="{{ 'name' if version.name else 'name name-empty' }}">
               {{ version.name or view.name.placeholder }}</h1>
-            {% if version.name_source %}<p class="name-source">{% if version.variant == 'local' %}<span class="from-qloo">Qloo</span> {% endif %}{{ version.name_source }}</p>{% endif %}
+            {% if version.name_source %}<p class="name-source">{% if version.variant == 'local' %}<span class="from-qloo">Qloo</span> {% endif %}<span class="name-source-text">{{ version.name_source }}</span></p>{% endif %}
             {% if version.hook %}<p class="hook" data-role="hook">{{ version.hook }}</p>{% endif %}
             {% if version.note %}<p class="version-note">{{ version.note }}</p>{% endif %}
             <textarea id="copy-{{ version.variant }}" hidden>{{ version.copy_text }}</textarea>
@@ -65,7 +65,8 @@
           {% for option in view.name.options %}
           <li class="name-option">
             <label><input type="radio" name="local_name" value="{{ option.name }}"
-                          data-hook="{{ option.hook }}" {% if option.name == view.chosen_name %}checked{% endif %}>
+                          data-hook="{{ option.hook }}" data-badge="{{ option.badge }}"
+                          data-copy="{{ option.copy_text }}" {% if option.name == view.chosen_name %}checked{% endif %}>
               <strong>{{ option.name }}</strong></label>
             <p class="evidence"><span>Qloo:</span> {{ option.title }}. {{ option.badge }}.</p>
             <p class="reading"><span>Agent's reading:</span> {{ option.reference }}. {{ option.why }}</p>

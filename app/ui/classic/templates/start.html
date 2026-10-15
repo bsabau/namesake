@@ -100,7 +100,10 @@
     </div>
   </section>
   {% endfor %}
-</form>
 
-<p class="add-animal"><a href="{{ view.add_animal_url }}?location={{ (view.locations|selectattr('selected')|first).id }}{{ ui_query }}">{{ view.add_animal_label }}</a></p>
+  <p class="add-animal">
+    <button type="submit" class="link-button" formaction="{{ view.add_animal_url }}"
+            formmethod="get" formnovalidate>{{ view.add_animal_label }}</button>
+  </p>
+</form>
 {% endblock %}

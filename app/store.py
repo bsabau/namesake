@@ -97,6 +97,12 @@ class Store:
     def put_listing(self, result: ListingResult) -> None:
         self._put(f"listing:{result.animal_id}@{result.location_id}", result)
 
+    def delete_listing(self, animal_id: str, location_id: str) -> None:
+        with sqlite3.connect(self.path) as db:
+            db.execute(
+                "DELETE FROM agent_results WHERE key = ?", (f"listing:{animal_id}@{location_id}",)
+            )
+
     def listings_at(self, location_id: str) -> list[ListingResult]:
         """Every saved listing for one shelter location."""
         with sqlite3.connect(self.path) as db:

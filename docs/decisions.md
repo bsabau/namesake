@@ -123,6 +123,8 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 
 **Follows:**
 - Photos are checked by their first bytes (JPEG, PNG or WebP, at most 3 MB). They are served only to the session that added them, with `no-store`. No model ever sees them.
+- Uploads stay in memory: Starlette's spool limit is raised above the largest accepted request, and larger requests, or ones without a declared size, are refused before they are read.
+- A run over an added animal or a refined listing, its Working page and its event stream are visible only to the session that started it.
 - An added animal's facts go to the model, never to Qloo. The listing checks hold them to the same rules as the roster's facts.
 
 ## 10. A volunteer's edit may reword a listing, never drop a caution
@@ -130,7 +132,7 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 **Decided:** approval is refused if the edited text no longer contains the cautions the shelter recorded, word for word:
 - each confirmed "no" (for example "would do best in a home without cats")
 - a bite on record
-- any recorded phrase about biting, nipping, guarding, growling, snapping or scratching
+- any recorded phrase about biting, nipping, guarding, growling, snapping, snarling, scratching, swatting, lunging, aggression or resource guarding, in any form ("guarded", "lunges")
 
 The refusal keeps the edit and names the missing words.
 
@@ -145,7 +147,11 @@ The refusal keeps the edit and names the missing words.
 
 **Why:** the hackathon key's quota is unknown and the development model is a coding plan. A judge clicking around must never exhaust either. The daily caps protect the quota even if per-visitor counting is fooled, for example behind a shared proxy.
 
-**Follows:** uvicorn runs with `--proxy-headers`. `FORWARDED_ALLOW_IPS` names the host's proxy, so the client address is the real visitor's.
+**Follows:**
+- Only work that can reach Qloo or a model is counted. With no model and Qloo in replay, a run is a free fallback.
+- A location check counts only if it actually called Qloo; an area checked before comes from the cache for free.
+- Reopening an added animal's result, kept in the session, is free like any saved result.
+- uvicorn runs with `--proxy-headers`. `FORWARDED_ALLOW_IPS` names the host's proxy, so the client address is the real visitor's.
 
 ## 12. A typed location goes to Qloo as typed, and is checked once before any run
 
@@ -168,7 +174,12 @@ The refusal keeps the edit and names the missing words.
 
 ## 13. A litter is named as a set by the first member's choice
 
-**Decided:** a litter run builds one profile, then writes each member's listing in turn. The first member's first name sets the title. Every later member may draw names only from that title, and no name repeats within the litter.
+**Decided:**
+- A litter run builds one profile, then writes each member's listing in turn.
+- All of the first member's name options come from one title, which becomes the litter's title.
+- Every later member may draw names only from that title, and no name repeats within the litter: a litter shares a title, never a name.
+- Members already named are kept, and their title is followed. Naming the litter again only fills the gaps, and so does writing or refining one member on its own. Only `scripts/precompute_examples.py --force` rewrites them.
+- Approval refuses a name another animal at the shelter has been given since the page loaded.
 
 **Why:** "two animals in one shelter never share a reference, except a litter named as a set." Letting the first listing choose keeps the agent's judgement, and restricting the others to one title is a check code can enforce: a name from another title is refused like any invented ID.
 

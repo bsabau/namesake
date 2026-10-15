@@ -3,6 +3,8 @@
 Each visitor gets a few per hour, counted in memory. The whole app gets a daily
 cap, counted in the cache database so a restart does not reset it. Results that
 were made before cost nothing and are never limited.
+
+The lock makes check-and-count atomic within the one web process the app runs as.
 """
 
 import sqlite3
@@ -50,41 +52,59 @@ class Limits:
     def charge(self, visitor: str, kind: Kind) -> None:
         """Count one piece of live work, or raise LimitReached without counting it."""
         with self._lock:
-            now = time.monotonic()
-            recent = self._recent[visitor]
-            while recent and recent[0] < now - 3600:
-                recent.popleft()
-            if len(recent) >= self.per_visitor:
-                raise LimitReached(
-                    f"You have started {self.per_visitor} new runs in the last hour, the most "
-                    "one visitor can start. The examples and earlier results still open "
-                    "instantly."
-                )
-            self._charge_day(kind)
-            recent.append(now)
+            self._check(visitor, kind)
+            self._record(visitor, kind)
 
-    def _charge_day(self, kind: Kind) -> None:
-        day = datetime.now(UTC).date().isoformat()
-        conn = sqlite3.connect(self.db, isolation_level=None, timeout=10)
-        try:
-            conn.execute("BEGIN IMMEDIATE")
-            row = conn.execute(
-                "SELECT count FROM usage WHERE day = ? AND kind = ?", (day, kind)
-            ).fetchone()
-            used = row[0] if row else 0
-            if used >= self.daily[kind]:
-                conn.execute("ROLLBACK")
-                what = "new runs" if kind == "run" else "new locations"
-                raise LimitReached(
-                    f"The demo has reached today's limit of {self.daily[kind]} {what}, which "
-                    "keeps it within its Qloo and model quota. The examples and earlier "
-                    "results still open instantly; new ones open again tomorrow (UTC)."
-                )
+    def check(self, visitor: str, kind: Kind) -> None:
+        """Raise LimitReached if this work would go over a limit; count nothing.
+
+        For work that may turn out to be cached: check first, then `record` it only if
+        it reached Qloo or the model."""
+        with self._lock:
+            self._check(visitor, kind)
+
+    def record(self, visitor: str, kind: Kind) -> None:
+        with self._lock:
+            self._record(visitor, kind)
+
+    def _recent_for(self, visitor: str) -> deque[float]:
+        recent = self._recent[visitor]
+        now = time.monotonic()
+        while recent and recent[0] < now - 3600:
+            recent.popleft()
+        return recent
+
+    def _check(self, visitor: str, kind: Kind) -> None:
+        if len(self._recent_for(visitor)) >= self.per_visitor:
+            raise LimitReached(
+                f"You have started {self.per_visitor} new runs in the last hour, the most "
+                "one visitor can start. The examples and earlier results still open "
+                "instantly."
+            )
+        if self._used_today(kind) >= self.daily[kind]:
+            what = "new runs" if kind == "run" else "new locations"
+            raise LimitReached(
+                f"The demo has reached today's limit of {self.daily[kind]} {what}, which "
+                "keeps it within its Qloo and model quota. The examples and earlier "
+                "results still open instantly; new ones open again tomorrow (UTC)."
+            )
+
+    def _record(self, visitor: str, kind: Kind) -> None:
+        self._recent_for(visitor).append(time.monotonic())
+        with sqlite3.connect(self.db, timeout=10) as conn:
             conn.execute(
                 "INSERT INTO usage VALUES (?, ?, 1) "
                 "ON CONFLICT(day, kind) DO UPDATE SET count = count + 1",
-                (day, kind),
+                (_today(), kind),
             )
-            conn.execute("COMMIT")
-        finally:
-            conn.close()
+
+    def _used_today(self, kind: Kind) -> int:
+        with sqlite3.connect(self.db, timeout=10) as conn:
+            row = conn.execute(
+                "SELECT count FROM usage WHERE day = ? AND kind = ?", (_today(), kind)
+            ).fetchone()
+        return row[0] if row else 0
+
+
+def _today() -> str:
+    return datetime.now(UTC).date().isoformat()

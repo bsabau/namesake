@@ -19,6 +19,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response, Streamin
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
+from starlette.formparsers import MultiPartParser
 
 from app.agent.pipeline import taken_names
 from app.animals import Animal, Checks, load_roster
@@ -108,6 +109,24 @@ def render(request: Request, ui: str, template: str, view, **extra) -> HTMLRespo
     ui_query = f"&ui={ui}" if request.query_params.get("ui") else ""
     context = {"view": view, "ui": ui, "ui_static": ui_static, "ui_query": ui_query, **extra}
     return templates_for(ui).TemplateResponse(request, template, context)
+
+
+# Uploads up to this size stay in memory: Starlette spools larger ones to disk, so the
+# limit is raised past the largest request accepted, and larger requests are refused
+# before they are read (decision 9: added photos are never written to disk).
+MAX_UPLOAD_REQUEST = MAX_PHOTO_BYTES + 64 * 1024
+MultiPartParser.spool_max_size = MAX_UPLOAD_REQUEST
+
+
+@app.middleware("http")
+async def upload_size(request: Request, call_next):
+    if request.headers.get("content-type", "").startswith("multipart/"):
+        length = request.headers.get("content-length")
+        if length is None:
+            return Response("A content length is required.", status_code=411)
+        if not length.isdigit() or int(length) > MAX_UPLOAD_REQUEST:
+            return Response("The upload is too large: photos are up to 3 MB.", status_code=413)
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -268,7 +287,7 @@ def result_view(animal_id: str, location_id: str | None, session: Session | None
     if listing is None and not animal.id.startswith(ADDED_PREFIX):
         listing = store.get_listing(animal.id, location.id)
     own = {o.name.lower() for o in listing.draft.names} if listing and listing.draft else set()
-    taken = taken_names(animal, location, store, set()) | own
+    taken = taken_names(animal, location, store) | own
     added = animal.id.startswith(ADDED_PREFIX)
     return build_result_view(
         animal,
@@ -282,9 +301,11 @@ def result_view(animal_id: str, location_id: str | None, session: Session | None
     )
 
 
-def find_run(run_id: str):
+def find_run(run_id: str, request: Request):
+    """A run, if this visitor may see it: a run over an added animal or a refined
+    listing belongs to the session that started it."""
     run = RUNS.get(run_id)
-    if run is None:
+    if run is None or (run.session_id and run.session_id != request.state.session_id):
         raise HTTPException(404, "no such run; runs are kept until the server restarts")
     return run
 
@@ -432,6 +453,7 @@ def approve(
     """Record the approval (never the text) and show the copy-ready listing."""
     chosen_ui = pick_ui(ui)
     session = session_of(request)
+    store = Store(get_settings().cache_db)
     view = result_view(animal, location, session)
     version = next((v for v in view.listing.versions if v.variant == variant and v.available), None)
     if version is None:
@@ -445,6 +467,9 @@ def approve(
         option = next((o for o in view.name.options if o.name == local_name), None)
         if option is None:
             raise HTTPException(400, "pick one of the name options")
+        taken = taken_names(find_animal(animal, session), find_location(location), store)
+        if option.name.lower() in taken:
+            raise HTTPException(409, f"{option.name} is now used by another animal here")
         name, hook = option.name, option.hook
         source = f"Qloo, {option.badge.lower()}: {option.title}"
     else:
@@ -476,7 +501,7 @@ def approve(
         edited=" ".join(edited.split()) != " ".join(view.listing.text.split()),
         approved_at=datetime.now(UTC).isoformat(),
     )
-    Store(get_settings().cache_db).record_approval(approval)
+    store.record_approval(approval)
     approved = build_approved_view(
         approval.id,
         view,
@@ -620,13 +645,18 @@ def add_location(request: Request, text: str = Form(""), ui: str | None = Form(N
             return RedirectResponse(
                 f"/?location={known.id}{ui_suffix(request, ui)}", status_code=303
             )
+    limits = limits_for(settings)
     try:
-        if cleaned is not None:
-            limits_for(settings).charge(visitor(request), "location")
+        if cleaned is not None and settings.allow_live_qloo:
+            limits.check(visitor(request), "location")
     except LimitReached as exc:
         return back(LocationForm(message=str(exc), value=typed), 429)
 
-    checked = check_location(qloo_client(settings), typed, load_seeds(settings.seeds_file))
+    qloo = qloo_client(settings)
+    checked = check_location(qloo, typed, load_seeds(settings.seeds_file))
+    # Counted only when it reached Qloo; a check served from the cache is free.
+    if getattr(qloo, "live_calls", 0):
+        limits.record(visitor(request), "location")
     if checked.status != "ok" or checked.location is None:
         status = 400 if checked.status in ("invalid", "thin", "needs_input") else 503
         form = LocationForm(message=checked.message, value=typed, candidates=checked.candidates)
@@ -640,19 +670,19 @@ def add_location(request: Request, text: str = Form(""), ui: str | None = Form(N
 @app.get("/runs/{run_id}", response_class=HTMLResponse)
 def working(request: Request, run_id: str, ui: str | None = None) -> HTMLResponse:
     chosen = pick_ui(ui)
-    view = working_view(find_run(run_id), f"&ui={chosen}" if ui else "")
+    view = working_view(find_run(run_id, request), f"&ui={chosen}" if ui else "")
     return render(request, chosen, "working.html", view)
 
 
 @app.get("/api/runs/{run_id}")
-def api_run(run_id: str) -> WorkingView:
-    return working_view(find_run(run_id))
+def api_run(request: Request, run_id: str) -> WorkingView:
+    return working_view(find_run(run_id, request))
 
 
 @app.get("/api/runs/{run_id}/events")
-async def run_events(run_id: str) -> StreamingResponse:
+async def run_events(request: Request, run_id: str) -> StreamingResponse:
     """The step log as server-sent events: one `step` per step, then `done`."""
-    run = find_run(run_id)
+    run = find_run(run_id, request)
 
     async def stream():
         async for step in run.log.follow():

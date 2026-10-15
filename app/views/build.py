@@ -291,7 +291,7 @@ def name_badge(source: str, entity_id: str, profile: LocationProfile) -> str:
     return "Pet-themed title"
 
 
-def name_view(result: ListingResult | None, profile: LocationProfile) -> NameView:
+def name_view(result: ListingResult | None, profile: LocationProfile, text: str) -> NameView:
     draft = result.draft if result else None
     if draft is None:
         return NameView(
@@ -311,6 +311,7 @@ def name_view(result: ListingResult | None, profile: LocationProfile) -> NameVie
                 reference=reference,
                 why=o.why,
                 hook=f"Named after {reference}.",
+                copy_text=copy_block(o.name, f"Named after {reference}.", text),
             )
         )
     return NameView(value=draft.names[0].name, placeholder="", options=options)
@@ -529,14 +530,15 @@ def build_result_view(
     ordered = venue_order(profile)
     returned, reading = why(location, profile)
     named = [m for m in litter or [] if m.name]
+    listing_ = listing_view(animal, listing, profile, generic, refined)
     return ResultView(
         id=result_id(animal.id, location.id),
         animal=animal_card(animal, image_url),
         location=location_option(location, True),
         litter=litter or [],
         litter_note=("Named as a set with the rest of the litter:" if len(named) > 1 else None),
-        name=name_view(listing, profile),
-        listing=listing_view(animal, listing, profile, generic, refined),
+        name=name_view(listing, profile, listing_.text),
+        listing=listing_,
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
         map=map_view(location, profile),
         venues=[venue_view(v, location, profile) for v in ordered[:VENUES_SHOWN]],

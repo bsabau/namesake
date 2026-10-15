@@ -165,17 +165,23 @@ async def _build_profile(
     return profile
 
 
-def taken_names(
-    animal: Animal, location: Location, store: Store, roster_litter: set[str]
-) -> frozenset[str]:
-    """First names already given to other animals at this shelter, except litter mates."""
+def taken_names(animal: Animal, location: Location, store: Store) -> frozenset[str]:
+    """First names already given to other animals at this shelter, litter mates included:
+    a litter shares a title, never a name."""
     names = set()
     for other in store.listings_at(location.id):
-        if other.animal_id == animal.id or other.animal_id in roster_litter:
-            continue
-        if other.draft is not None:
+        if other.animal_id != animal.id and other.draft is not None:
             names.add(other.draft.names[0].name.lower())
     return frozenset(names)
+
+
+def litter_theme(location: Location, store: Store, mates: set[str]) -> str | None:
+    """The title a litter's saved members were named from, if any have been."""
+    for mate in sorted(mates):
+        saved = store.get_listing(mate, location.id)
+        if saved is not None and saved.draft is not None:
+            return saved.draft.names[0].entity_id
+    return None
 
 
 async def write_listing(
@@ -189,9 +195,11 @@ async def write_listing(
     taken: frozenset[str] = frozenset(),
     request: str | None = None,
     theme: str | None = None,
+    first_of_litter: bool = False,
 ) -> ListingResult:
-    """One listing. `request` is a volunteer's refine request; `theme` limits the names
-    to one title, for a litter named as a set."""
+    """One listing. `request` is a volunteer's refine request. For a litter named as a
+    set, `theme` limits the names to the litter's title, and the first member's names
+    must all come from one title, which becomes the theme."""
     result = ListingResult(
         animal_id=animal.id, location_id=location.id, checks_version=CHECKS_VERSION
     )
@@ -219,6 +227,7 @@ async def write_listing(
                 taken_names=taken,
                 request=request,
                 litter_title=titles[theme][0].name if theme else None,
+                first_of_litter=first_of_litter,
             ),
             usage_limits=LISTING_LIMITS,
         )
@@ -281,8 +290,10 @@ async def run_pipeline(
             model_factory=model_factory,
             log=log,
             output_mode=output_mode,
-            taken=taken_names(animal, location, store, litter_mates or set()),
+            taken=taken_names(animal, location, store),
             request=request,
+            # A litter member written on its own keeps to the title its mates share.
+            theme=litter_theme(location, store, litter_mates or set()),
         )
         result.steps = list(log.steps)
         (save or store.put_listing)(result)
@@ -300,9 +311,14 @@ async def run_litter(
     model_factory: ModelFactory | None,
     log: StepLog,
     output_mode: str = "native",
+    force: bool = False,
 ) -> list[ListingResult]:
-    """A litter named as a set: the first member's first name picks the title, and the
-    others draw their names from the same title without repeating one another."""
+    """A litter named as a set. The first member's names all come from one title, which
+    becomes the litter's; the others draw from it without repeating a name.
+
+    Members already saved are kept and their title followed, so naming the litter again
+    only fills the gaps. `force` rewrites every member (the examples script only).
+    """
     profile = await get_profile(
         members[0],
         location,
@@ -313,14 +329,20 @@ async def run_litter(
         log=log,
         output_mode=output_mode,
     )
-    mate_ids = {m.id for m in members}
+    ids = {m.id for m in members}
     results: list[ListingResult] = []
     async with _listing_locks[(id(asyncio.get_running_loop()), location.id)]:
-        theme: str | None = None
-        chosen: set[str] = set()
-        for animal in members:
-            log.add("start", f"Litter member {len(results) + 1} of {len(members)}")
-            taken = taken_names(animal, location, store, mate_ids - {animal.id}) | chosen
+        if force:
+            for m in members:
+                store.delete_listing(m.id, location.id)
+        theme = litter_theme(location, store, ids)
+        for i, animal in enumerate(members, 1):
+            saved = store.get_listing(animal.id, location.id)
+            if saved is not None:
+                log.add("note", f"Litter member {i} of {len(members)} is already named")
+                results.append(saved)
+                continue
+            log.add("start", f"Litter member {i} of {len(members)}")
             result = await write_listing(
                 animal,
                 location,
@@ -328,18 +350,16 @@ async def run_litter(
                 model_factory=model_factory,
                 log=log,
                 output_mode=output_mode,
-                taken=frozenset(taken),
+                taken=taken_names(animal, location, store),
                 theme=theme,
+                first_of_litter=theme is None,
             )
-            if result.draft is not None:
-                first = result.draft.names[0]
-                chosen.add(first.name.lower())
-                if theme is None:
-                    theme = first.entity_id
-                    title = next(
-                        e.name for e in profile.pet_entities + profile.local_tastes if e.id == theme
-                    )
-                    log.add("decision", f"The litter's names will all come from {title}")
+            if result.draft is not None and theme is None:
+                theme = result.draft.names[0].entity_id
+                title = next(
+                    e.name for e in profile.pet_entities + profile.local_tastes if e.id == theme
+                )
+                log.add("decision", f"The litter's names will all come from {title}")
             result.steps = list(log.steps)
             store.put_listing(result)
             results.append(result)

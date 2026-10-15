@@ -153,9 +153,10 @@ def generic_name(seed: int, taken: set[str] | frozenset[str] = frozenset()) -> s
 
 
 # Recorded words that warn an adopter: a volunteer's edit may reword the rest, never drop these.
+# Stems, so every form counts: "guarded", "scratching", "lunges".
 CAUTION_WORDS = re.compile(
-    r"\b(bit|bite|bites|bitten|biting|nip|nips|nipped|nipping|guard|guards|guarding|growl|"
-    r"growls|growling|snap|snaps|snapped|snapping|scratch|scratches|swat|swats)\b",
+    r"\b(bit|bit(e|es|ten|ing)|nip\w*|guard\w*|growl\w*|snap\w*|snarl\w*|scratch\w*|"
+    r"swat\w*|lung(e|es|ed|ing)|aggress\w*|resource)\b",
     re.IGNORECASE,
 )
 

@@ -1,17 +1,15 @@
-// Picking another name option updates the local version's name, hook and copy text.
-// Everything shown comes from the view model; nothing is worked out here.
+// Picking another name option shows the local version as it reads with that name.
+// Every value comes from the view model, carried on the option; nothing is built here.
 document.addEventListener("change", (event) => {
   const input = event.target;
   if (input.name !== "local_name") return;
   const version = document.querySelector(".version-local");
   if (!version) return;
-  const name = version.querySelector("h1");
+  version.querySelector("h1").textContent = input.value;
   const hook = version.querySelector(".hook");
-  const copy = document.getElementById("copy-local");
-  const bio = document.getElementById("bio-text");
-  name.textContent = input.value;
   if (hook) hook.textContent = input.dataset.hook;
-  if (copy && bio) {
-    copy.value = `Meet ${input.value}.\n\n${input.dataset.hook}\n\n${bio.textContent.trim()}`;
-  }
+  const source = version.querySelector(".name-source-text");
+  if (source) source.textContent = input.dataset.badge;
+  const copy = document.getElementById("copy-local");
+  if (copy) copy.value = input.dataset.copy;
 });

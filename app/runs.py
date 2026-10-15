@@ -95,6 +95,16 @@ def qloo_client(settings: Settings) -> QlooClient:
     )
 
 
+def live_work_possible(settings: Settings) -> bool:
+    """Whether a run can reach a model or Qloo; without either it is a free fallback."""
+    return settings.allow_live_qloo or model_factory(settings) is not None
+
+
+def charge(settings: Settings, visitor: str) -> None:
+    if live_work_possible(settings):
+        limits_for(settings).charge(visitor, "run")
+
+
 def _new_run(animal_id: str, location_id: str, session_id: str | None = None) -> Run:
     run = Run(
         id=uuid.uuid4().hex[:12],
@@ -143,12 +153,15 @@ async def start_run(
     personal = added or request is not None
     if personal and session is None:
         raise ValueError("a refined listing or an added animal needs the visitor's session")
-    if not personal and store.get_listing(animal.id, location.id) is not None:
-        return _saved(_new_run(animal.id, location.id))
-
-    limits_for(settings).charge(visitor, "run")
-    run = _new_run(animal.id, location.id, session.id if personal else None)
     key = f"{animal.id}@{location.id}"
+    if request is None and (
+        (added and key in session.listings)
+        or (not added and store.get_listing(animal.id, location.id) is not None)
+    ):
+        return _saved(_new_run(animal.id, location.id, session.id if added else None))
+
+    charge(settings, visitor)
+    run = _new_run(animal.id, location.id, session.id if personal else None)
 
     def keep(result: ListingResult) -> None:
         session.listings[key] = result
@@ -186,7 +199,7 @@ async def start_litter_run(
     if all(store.get_listing(m.id, location.id) is not None for m in members):
         return _saved(_new_run(members[0].id, location.id))
 
-    limits_for(settings).charge(visitor, "run")
+    charge(settings, visitor)
     run = _new_run(members[0].id, location.id)
     _launch(
         run,

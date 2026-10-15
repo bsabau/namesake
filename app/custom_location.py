@@ -91,12 +91,17 @@ def check_location(qloo: QlooClient, typed: str, seeds: Seeds) -> LocationCheck:
         return unavailable
 
     if env.status == "needs_input":
+        # Qloo's candidates carry no region, so only distinct names make useful buttons.
         names = list(dict.fromkeys(c.name for c in env.candidates))
-        return LocationCheck(
-            status="needs_input",
-            message=f"Qloo knows more than one place matching “{text}”. Pick one:",
-            candidates=[n for n in names if n.lower() != text.lower()][:6],
-        )
+        buttons = [n for n in names if n.lower() != text.lower()][:6]
+        if buttons:
+            message = f"Qloo knows more than one place matching “{text}”. Pick one:"
+        else:
+            message = (
+                f"Qloo knows several places called “{text}” and cannot tell them apart. "
+                "Add the city or state, such as “Springfield, Illinois”."
+            )
+        return LocationCheck(status="needs_input", message=message, candidates=buttons)
     if env.status == "error":
         return unavailable
     cells = env.cells() if env.has_results else []
