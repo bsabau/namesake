@@ -331,6 +331,24 @@ def test_reordered_words_that_reverse_a_fact_fail():
         ("She guards toys but not food.", ["fact:0"]),
         ("She is fine with calm adults.", ["fact:1"]),
     ]
-    assert any("reorders fact:0" in p for p in check_bio(pet, bio))
+    assert any("changes the wording of fact:0" in p for p in check_bio(pet, bio))
     bio[1] = ("She guards food but not toys.", ["fact:0"])
     assert check_bio(pet, bio) == []
+
+
+def test_words_slipped_into_a_fact_fail():
+    # Regression (Codex, milestone 3): "but not when she has toys" softened a guarding fact.
+    pet = animal(facts=["guards food but not toys", "fine with calm adults"])
+    bio = [
+        ("She is strong but gentle.", ["temperament"]),
+        ("She guards food but not when she has toys.", ["fact:0"]),
+        ("She is fine with calm adults.", ["fact:1"]),
+    ]
+    assert any("changes the wording of fact:0" in p for p in check_bio(pet, bio))
+
+
+def test_a_description_is_not_a_character_name():
+    # Regression (Codex, milestone 3): "Bingo who enjoys cuddles" reached the hook.
+    problems = check_character("Bingo who enjoys cuddles", "dog")
+    assert any("must be a proper name" in p for p in problems)
+    assert check_character("Puss in Boots", "cat") == []

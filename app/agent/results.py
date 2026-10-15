@@ -7,7 +7,7 @@ from app.agent.steps import Step
 
 # Raised whenever the listing checks change; saved results from an older version are
 # rerun instead of shown, since they were never held to the current rules.
-CHECKS_VERSION = 4
+CHECKS_VERSION = 5
 
 
 class ListingResult(BaseModel):

@@ -166,28 +166,22 @@ def _content(text: str) -> set[str]:
     return {_stem(w) for w in words if len(w) > 2 and w not in STOPWORDS and w not in GLUE}
 
 
-def _sequence(text: str) -> list[str]:
-    """Content words and negations, in order, for checking that a fact keeps its shape."""
-    words = re.findall(r"[a-z']+", text.lower())
-    return [
-        "not" if w in NEGATIONS else _stem(w)
-        for w in words
-        if w in NEGATIONS or (len(w) > 2 and w not in STOPWORDS and w not in GLUE)
-    ]
+def _normal(text: str) -> str:
+    return " " + " ".join(re.findall(r"[a-z0-9']+", text.lower())) + " "
 
 
-def _in_order(needle: list[str], haystack: list[str]) -> bool:
-    """Whether `needle` appears in `haystack` as a subsequence (other words may sit between)."""
-    it = iter(haystack)
-    return all(word in it for word in needle)
+def _segments(fact: str) -> list[str]:
+    """A fact's phrases: temperament and look are lists joined by ; , and :."""
+    return [seg.strip() for seg in re.split(r"[;,:]", fact) if seg.strip()]
 
 
 def fact_texts(animal: Animal) -> dict[str, str]:
-    from app.listing import CHECK_SENTENCES
+    from app.listing import CHECK_SENTENCES, age_phrase
 
     texts = {
         "temperament": animal.temperament,
-        "look": f"{animal.age} {animal.sex} {animal.species} {animal.look}",
+        # The same wording the agent is shown, so a faithful copy passes.
+        "look": f"{age_phrase(animal.age)} {animal.sex} {animal.species}: {animal.look}",
     }
     texts |= {f"fact:{i}": f for i, f in enumerate(animal.facts)}
     for field, answers in CHECK_SENTENCES.items():
@@ -245,9 +239,13 @@ def check_grounded(
         dropped = find_word(fact, NEGATIONS)
         if dropped and not find_word(text, NEGATIONS):
             problems.append(f"{label} drops the {dropped!r} in {key}; keep its meaning")
-        elif not missing and not _in_order(_sequence(fact), _sequence(text)):
-            # Same words in a new order can reverse a fact ("guards toys but not food").
-            problems.append(f"{label} reorders {key}; keep its words in their order")
+        # Each phrase of the fact must appear word for word: reordering ("guards toys but
+        # not food") or slipping words in ("but not when she has toys") can change it.
+        changed = [seg for seg in _segments(fact) if _normal(seg) not in _normal(text)]
+        if changed and not missing:
+            problems.append(
+                f"{label} changes the wording of {key}; keep these words exactly: {changed}"
+            )
     return problems + _topics_and_tone(text, source, label)
 
 
@@ -318,6 +316,7 @@ def check_why(animal: Animal, why: str, name: str) -> list[str]:
     return problems
 
 
+NAME_JOINERS = ("in", "of", "the", "and", "de", "da", "von", "van", "le", "la")
 ROLES = ("puppy", "dog", "cat", "kitten", "animal", "character", "object", "title")
 
 
@@ -337,6 +336,11 @@ def check_character(character: str, role: str) -> list[str]:
         return problems
     if not re.fullmatch(r"[A-Za-z][A-Za-z'. -]{0,30}", character) or len(character.split()) > 4:
         problems.append(f"character {character!r} must be a name of up to four words, nothing else")
+    # A proper name: capitalised words, with only the small joining words names use
+    # ("Puss in Boots"). "Bingo who enjoys cuddles" is a description, not a name.
+    lower = [w for w in character.split() if not w[:1].isupper() and w not in NAME_JOINERS]
+    if lower:
+        problems.append(f"character {character!r} must be a proper name; {lower} are not")
     for words, what in (
         (HOOK_TRAIT_WORDS, "temperament"),
         (HOOK_CLAIMS, "a claim about tastes"),

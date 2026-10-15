@@ -93,3 +93,10 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 - A bite on record is always stated, in the same words.
 - The agent's bio can be stiff when the facts are few, which is the honest outcome.
 - The hook can never describe temperament or tastes.
+
+**Tightened after review (15 October):**
+- Each cited fact must appear word for word, phrase by phrase. The temperament and look are split at their commas, semicolons and colons. That stops reordering ("guards toys but not food") and slipped-in conditions ("but not when she has toys").
+- A name's character is a proper name: capitalised words, plus the joining words names use, such as "Puss in Boots".
+- Code writes the reference from that name, a role from a fixed list, and Qloo's title. The hook therefore carries no description written by the model.
+
+**Remaining risk, stated plainly:** checking text by rule cannot prove that the meaning was kept, only that the words were. The rules make the safe path the easy one: copy the shelter's phrases, add only joining words. A volunteer still reviews the listing before using it (milestone 4 adds approval).
