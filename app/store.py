@@ -65,3 +65,14 @@ class Store:
 
     def put_listing(self, result: ListingResult) -> None:
         self._put(f"listing:{result.animal_id}@{result.location_id}", result)
+
+    def listings_at(self, location_id: str) -> list[ListingResult]:
+        """Every saved listing for one shelter location."""
+        with sqlite3.connect(self.path) as db:
+            keys = [
+                row[0]
+                for row in db.execute(
+                    "SELECT key FROM agent_results WHERE key LIKE ?", (f"listing:%@{location_id}",)
+                )
+            ]
+        return [r for r in (self._load(ListingResult, k) for k in keys) if r is not None]

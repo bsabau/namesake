@@ -57,22 +57,25 @@ async def main() -> None:
         return original_add(kind, text)
 
     log.add = echo
-    result = await run_pipeline(
-        animal,
-        location,
-        qloo=qloo,
-        store=store,
-        seeds=load_seeds(settings.seeds_file),
-        model_factory=lambda: build_model(settings),
-        log=log,
-        output_mode=settings.agent_output_mode,
-    )
+    try:
+        result = await run_pipeline(
+            animal,
+            location,
+            qloo=qloo,
+            store=store,
+            seeds=load_seeds(settings.seeds_file),
+            model_factory=lambda: build_model(settings),
+            log=log,
+            output_mode=settings.agent_output_mode,
+        )
+    finally:
+        log.finish()
     print("\nfallback:", result.fallback_reason)
     if result.draft:
         for n in result.draft.names:
             print(f"  name: {n.name} ({n.source}) — {n.reference} — {n.why}")
-        print("  bio:", " ".join(s.text for s in result.draft.bio))
-        print("  hook:", result.draft.hook.text)
+        print("  bio:", " ".join(s.text for s in result.bio))
+        print("  hook:", result.hook)
     print(f"live Qloo calls: {qloo.live_calls}")
 
 

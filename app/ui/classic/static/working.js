@@ -21,9 +21,13 @@
 
   source.addEventListener("done", (event) => {
     source.close();
+    const outcome = JSON.parse(event.data);
+    if (outcome.failed) {
+      status.textContent = "The run stopped before it finished. The steps above show where.";
+      return;
+    }
     status.textContent = "Finished. Opening the result…";
-    const url = JSON.parse(event.data).result_url || root.dataset.resultUrl;
-    setTimeout(() => { window.location.href = root.dataset.resultUrl || url; }, 800);
+    setTimeout(() => { window.location.href = root.dataset.resultUrl; }, 800);
   });
 
   source.onerror = () => {

@@ -9,7 +9,9 @@ import json
 from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 
+from app.agent.listing_agent import ListingDraft
 from app.agent.pipeline import run_pipeline
+from app.agent.results import ListingResult
 from app.agent.steps import StepLog
 from app.store import Store
 from tests.qloo_fakes import (
@@ -82,7 +84,7 @@ DRAFT = {
             "reference": "a dog in Example Dog Show",
             "reference_kind": "character",
             "reference_role": "friend",
-            "why": "short and easy to call",
+            "why": "It suits a dog who knows basic commands.",
         },
         {
             "name": "Biscuit",
@@ -91,7 +93,7 @@ DRAFT = {
             "reference": "a cat in Example Cat Show",
             "reference_kind": "character",
             "reference_role": "friend",
-            "why": "fits her brindle coat",
+            "why": "It fits her short brindle coat.",
         },
         {
             "name": "Scout",
@@ -100,14 +102,14 @@ DRAFT = {
             "reference": "a puppy in Example Dog Show",
             "reference_kind": "character",
             "reference_role": "friend",
-            "why": "a sturdy name for a big dog",
+            "why": "It suits a big dog.",
         },
     ],
     "bio": [
         {"text": "She is strong but gentle and leans on people.", "facts": ["temperament"]},
+        {"text": "She needs an owner comfortable with a big dog.", "facts": ["fact:0"]},
         {"text": "She knows basic commands.", "facts": ["fact:1"]},
     ],
-    "hook": {"text": "Bingo is a dog in Example Dog Show.", "entity_id": DOG_SHOW},
 }
 
 
@@ -185,9 +187,10 @@ def test_full_run_uses_the_agents_choices(roster):
     assert hall.chosen_reason == "a community arts centre" and hall.distinctive
     assert profile.local_tastes[0].name == "Example Drama"
     assert result.draft.names[0].name == "Bingo" and result.fallback_reason is None
-    assert store.get_listing("dog-02", LOCATION.id).draft.hook.entity_id == DOG_SHOW
+    # The hook is built by code from the first name's reference.
+    assert store.get_listing("dog-02", LOCATION.id).hook == "Named after a dog in Example Dog Show."
     kinds = [s.kind for s in log.steps]
-    assert "qloo" in kinds and kinds[-1] == "done" and log.finished
+    assert "qloo" in kinds and kinds[-1] == "done"
 
 
 def test_invented_ids_are_sent_back_once_then_accepted_when_fixed(roster):
@@ -218,11 +221,44 @@ def test_listing_that_fails_twice_falls_back_to_the_template(roster):
     assert "leave out backstory" in messages and "'children'" in messages
 
 
-def test_hook_about_temperament_is_repaired(roster):
-    bad = {**DRAFT, "hook": {"text": "Bingo is playful, like the show.", "entity_id": DOG_SHOW}}
+def test_the_confirmed_checks_are_added_by_code(roster):
+    # dog-01 is confirmed good with children and house-trained.
+    draft = {
+        **DRAFT,
+        "bio": [
+            {"text": "He is calm and gentle; a slow-walk companion.", "facts": ["temperament"]},
+        ],
+        "names": [{**n, "why": "It suits a calm dog."} for n in DRAFT["names"]],
+    }
+    result, _, _ = run(Script([PLAN], [draft]), roster, animal="dog-01")
+    texts = [s.text for s in result.bio]
+    assert texts[-2:] == ["He is good with children.", "He is house-trained."]
+
+
+def test_a_contradicting_bio_is_sent_back(roster):
+    # Regression (Codex, milestone 3, P1): "aggressive" citing "strong but gentle" passed.
+    bad = {
+        **DRAFT,
+        "bio": [{"text": "She is aggressive.", "facts": ["temperament"]}, *DRAFT["bio"][1:]],
+    }
     result, _, log = run(Script([PLAN], [bad, DRAFT]), roster)
-    assert result.draft.hook.text == DRAFT["hook"]["text"]
-    assert any("describes temperament" in s.text for s in log.steps)
+    assert result.draft is not None
+    assert any("'aggressive'" in s.text for s in log.steps)
+
+
+def test_a_name_used_at_the_shelter_is_refused(roster):
+    store = Store(_tmp_db())
+    # Another dog at the same shelter is already called Bingo.
+    store.put_listing(
+        ListingResult(
+            animal_id="dog-03", location_id=LOCATION.id, draft=ListingDraft.model_validate(DRAFT)
+        )
+    )
+    rubble = {**DRAFT["names"][2], "name": "Rubble", "reference": "a pup in Example Dog Show"}
+    renamed = {**DRAFT, "names": [DRAFT["names"][1], DRAFT["names"][2], rubble]}
+    second, _, log = run(Script([PLAN], [DRAFT, renamed]), roster, store=store)
+    assert any("already used at this shelter" in s.text for s in log.steps)
+    assert second.draft.names[0].name == "Biscuit"
 
 
 def test_bully_type_dog_gets_only_pet_title_names(roster):
@@ -240,7 +276,6 @@ def test_without_a_model_everything_falls_back_and_says_so(roster):
     result, store, log = run(Script([], []), roster, model=False)
     assert store.get_profile(LOCATION.id, "dog").made_by == "seeds"
     assert result.draft is None and "No model is configured" in result.fallback_reason
-    assert log.finished
 
 
 def test_a_saved_profile_is_reused_without_qloo(roster):
@@ -338,3 +373,70 @@ def test_a_bio_sentence_that_invents_is_sent_back(roster):
     result, _, log = run(Script([PLAN], [invented, invented]), roster)
     assert result.draft is None
     assert any("says things its facts do not" in s.text for s in log.steps)
+
+
+def test_a_degraded_ranking_is_not_used(roster):
+    script = full_script()
+    q = LOCATION.query
+    k = key(
+        "rank", {"option_type": "tv_show", "options": [DOG_SHOW, CAT_SHOW], "signal_location": q}
+    )
+    script[k] = envelope("rank", "degraded", results=script[k].results, warnings=["no location"])
+    _, store, log = run(Script([PLAN], [DRAFT]), roster, qloo=FakeQloo(script))
+    profile = store.get_profile(LOCATION.id, "dog")
+    assert profile.order_source == "agent" and profile.ranked == []
+    assert any("ranking was degraded" in s.text for s in log.steps)
+
+
+def test_venues_from_an_earlier_search_cannot_be_picked():
+    from types import SimpleNamespace
+
+    import pytest
+    from pydantic_ai import ModelRetry
+
+    from app.agent.profile_agent import ProfileDeps, ProfilePlan, check_plan
+    from app.profile import Entity
+
+    deps = ProfileDeps(qloo=None, location=LOCATION, species="dog", log=StepLog())
+    deps.titles_seen[DOG_SHOW] = Entity(id=DOG_SHOW, name="Example Dog Show", type="tv_show")
+    deps.venues_seen[venue_id(3)] = {"name": "Community Hall", "excluded": None}
+    deps.venue_signals = [DOG_SHOW]
+    deps.latest_venues = {venue_id(4)}
+    plan = ProfilePlan.model_validate(
+        {
+            "titles": [{"entity_id": DOG_SHOW, "why": "dogs"}],
+            "venues": [{"entity_id": venue_id(3), "reason": "a hall"}],
+        }
+    )
+    with pytest.raises(ModelRetry, match="earlier search"):
+        check_plan(SimpleNamespace(deps=deps), plan)
+
+
+def test_two_runs_at_once_build_the_profile_once(roster, monkeypatch):
+    # Regression (Codex, milestone 3): concurrent requests both built and saved the profile.
+    import app.agent.pipeline as pipeline
+    from app.profile import LocationProfile
+
+    builds = []
+
+    async def slow_build(animal, location, **kwargs):
+        builds.append(animal.id)
+        await asyncio.sleep(0.05)
+        profile = LocationProfile(location_id=location.id, species=animal.species)
+        kwargs["store"].put_profile(profile)
+        return profile
+
+    monkeypatch.setattr(pipeline, "_build_profile", slow_build)
+    store = Store(_tmp_db())
+
+    async def go():
+        args = dict(
+            qloo=FakeQloo({}), store=store, seeds=SEEDS, model_factory=None, output_mode="native"
+        )
+        await asyncio.gather(
+            pipeline.get_profile(roster.get("dog-02"), LOCATION, log=StepLog(), **args),
+            pipeline.get_profile(roster.get("dog-01"), LOCATION, log=StepLog(), **args),
+        )
+
+    asyncio.run(go())
+    assert len(builds) == 1

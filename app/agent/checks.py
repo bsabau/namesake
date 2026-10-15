@@ -18,7 +18,9 @@ NAME_BLOCKLIST = (
     "kill", "killer", "killa", "death", "deadly", "dead", "gun", "guns", "gunner", "knife",
     "war", "blood", "bloody", "devil", "demon", "satan", "murder", "bomb", "bomber", "slave",
     "nazi", "venom", "rage", "psycho", "villain", "toxic", "crack", "booze", "whiskey",
-    "vodka", "joker", "riot", "chaos",
+    "vodka", "joker", "riot", "chaos", "rifle", "pistol", "shotgun", "sword", "dagger",
+    "blade", "axe", "grenade", "missile", "bullet", "cannon", "sniper", "spear", "taser",
+    "weapon", "assassin", "hitman", "terror", "poison", "corpse", "skull",
 )  # fmt: skip
 
 # Well-known villains and tragic animals: the model also declares each reference's role,
@@ -120,7 +122,7 @@ def check_name(
     total = sum(syllables(w) for w in re.split(r"[ -]", name) if w)
     if total > 3:
         problems.append(f"name {name!r} has {total} syllables; use one to three")
-    hit = find_word(name, NAME_BLOCKLIST)
+    hit = find_word(f"{name} {reference}", NAME_BLOCKLIST)
     if hit:
         problems.append(f"name {name!r} contains {hit!r}")
     villain = find_word(f"{name} {reference}", FAMOUS_VILLAINS)
@@ -186,43 +188,104 @@ def unsupported_words(animal: Animal, sentence: str, keys: list[str]) -> list[st
     return sorted(_content(sentence) - source)
 
 
-def check_bio(animal: Animal, sentences: list[tuple[str, list[str]]]) -> list[str]:
+NEGATIONS = ("not", "no", "never", "nor", "without", "isn't", "doesn't", "won't", "can't")
+# Words a name's "why" may use on top of the facts.
+WHY_GLUE = ("suit", "suits", "fit", "fits", "name", "names", "named", "call", "calls")
+
+
+def agent_fact_keys(animal: Animal) -> list[str]:
+    """What the agent's bio may cite: confirmed checks are added by code, not written."""
+    return ["temperament", "look"] + [f"fact:{i}" for i in range(len(animal.facts))]
+
+
+def _texts_for(animal: Animal, keys: list[str]) -> str:
+    texts = fact_texts(animal)
+    return " ".join(texts[k] for k in keys if k in texts)
+
+
+def check_grounded(animal: Animal, text: str, keys: list[str], label: str) -> list[str]:
+    """Text must say only what the cited facts say: no new words, no new negation,
+    and nothing about the shelter's checks unless the fact itself does."""
     problems = []
-    allowed = fact_keys(animal)
-    text = " ".join(s for s, _ in sentences)
+    source = _texts_for(animal, keys)
+    extra = sorted(_content(text) - _content(source))
+    if extra:
+        problems.append(f"{label} says things its facts do not: {extra}; restate only the facts")
+    negation = find_word(text, NEGATIONS)
+    if negation and not find_word(source, NEGATIONS):
+        problems.append(f"{label} adds a negation ({negation!r}) that its facts do not have")
+    for words in UNKNOWN_TOPICS.values():
+        hit = find_word(text, words)
+        if hit and not find_word(source, words):
+            problems.append(
+                f"{label} mentions {hit!r}; children, other animals, house-training and bites "
+                "come only from the shelter's confirmed checks, which are added separately"
+            )
     lowered = f" {text.lower()} "
-    for i, (_sentence, facts) in enumerate(sentences, start=1):
-        if not facts:
-            problems.append(f"bio sentence {i} cites no fact")
-        bad = [f for f in facts if f not in allowed]
-        if bad:
-            problems.append(f"bio sentence {i} cites facts that do not exist: {bad}")
-        elif facts:
-            extra = unsupported_words(animal, _sentence, facts)
-            # One linking word is fine; more means the sentence says something its facts don't.
-            if len(extra) > 1:
-                problems.append(
-                    f"bio sentence {i} says things its facts do not: {extra}; "
-                    "restate only the cited facts"
-                )
-    words = len(text.split())
-    if words > MAX_WORDS:
-        problems.append(f"bio is {words} words; keep it to {MAX_WORDS} or fewer")
-    if FIRST_PERSON.search(text):
-        problems.append("write the bio in the third person")
-    for field, words_ in UNKNOWN_TOPICS.items():
-        if getattr(animal.checks, field) == "unknown":
-            hit = find_word(text, words_)
-            if hit:
-                problems.append(f"the bio mentions {hit!r}, which the shelter has not confirmed")
-    if animal.checks.bite_history == "yes" and not find_word(text, UNKNOWN_TOPICS["bite_history"]):
-        problems.append("the shelter recorded a bite; the bio must say so plainly")
     for phrase in BACKSTORY:
         if phrase in lowered:
-            problems.append(f"leave out backstory ({phrase.strip()!r})")
+            problems.append(f"{label}: leave out backstory ({phrase.strip()!r})")
     for phrase in PITY_URGENCY:
         if phrase in lowered:
-            problems.append(f"leave out pity and urgency ({phrase.strip()!r})")
+            problems.append(f"{label}: leave out pity and urgency ({phrase.strip()!r})")
+    if FIRST_PERSON.search(text):
+        problems.append(f"{label}: write in the third person")
+    return problems
+
+
+def check_bio(animal: Animal, sentences: list[tuple[str, list[str]]]) -> list[str]:
+    """The agent's bio: every sentence grounded in the facts it cites, every fact used."""
+    problems = []
+    allowed = agent_fact_keys(animal)
+    texts = fact_texts(animal)
+    cited: set[str] = set()
+    for i, (sentence, facts) in enumerate(sentences, start=1):
+        label = f"bio sentence {i}"
+        if not facts:
+            problems.append(f"{label} cites no fact")
+            continue
+        bad = [f for f in facts if f not in allowed]
+        if bad:
+            problems.append(f"{label} cites keys it may not use: {bad}; use {allowed}")
+            continue
+        cited |= set(facts)
+        problems += check_grounded(animal, sentence, facts, label)
+    missing = [k for k in allowed if k != "look" and k not in cited]
+    if missing:
+        listed = "; ".join(f"{k} ({texts[k]!r})" for k in missing)
+        problems.append(f"the bio leaves out {listed}; include every recorded fact")
+    words = len(" ".join(s for s, _ in sentences).split())
+    if words > MAX_WORDS:
+        problems.append(f"bio is {words} words; keep it to {MAX_WORDS} or fewer")
+    return problems
+
+
+def check_why(animal: Animal, why: str, name: str) -> list[str]:
+    """A name's reason may only restate the animal's facts (plus "suits", "fits", the name)."""
+    label = f"the reason for {name!r}"
+    keys = agent_fact_keys(animal)
+    problems = [p for p in check_grounded(animal, why, keys, label) if "says things" not in p]
+    allowed = _content(_texts_for(animal, keys)) | _content(" ".join(WHY_GLUE)) | _content(name)
+    extra = sorted(_content(why) - allowed)
+    if extra:
+        problems.append(f"{label} says things the facts do not: {extra}")
+    return problems
+
+
+def check_reference(reference: str, title: str) -> list[str]:
+    """What a name refers to must name its title and stay a plain description."""
+    problems = []
+    if len(reference.split()) > 14:
+        problems.append(
+            f"reference {reference!r} is too long; keep it to who or what, and the title"
+        )
+    title_words = _content(title)
+    if title_words and not (title_words & _content(reference)):
+        problems.append(f"reference {reference!r} must name its title, {title!r}")
+    for words in UNKNOWN_TOPICS.values():
+        hit = find_word(reference, words)
+        if hit:
+            problems.append(f"reference {reference!r} mentions {hit!r}")
     return problems
 
 

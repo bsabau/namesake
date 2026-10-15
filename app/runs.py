@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from app.agent.model import ModelNotConfigured, build_model
 from app.agent.pipeline import run_pipeline
 from app.agent.steps import StepLog
-from app.animals import Animal
+from app.animals import Animal, load_roster
 from app.config import Settings
 from app.locations import Location
 from app.profile import load_seeds
@@ -31,11 +31,23 @@ class Run:
     error: str | None = field(default=None)
 
     @property
+    def failed(self) -> bool:
+        return self.error is not None
+
+    @property
     def result_url(self) -> str:
         return f"/result?animal={self.animal_id}&location={self.location_id}"
 
 
 RUNS: dict[str, Run] = {}
+
+
+def roster_litter_mates(animal: Animal, settings: Settings) -> set[str]:
+    """The other members of the animal's litter, who may share a naming theme."""
+    if animal.litter is None:
+        return set()
+    roster = load_roster(settings.animals_file)
+    return {a.id for a in roster.animals if a.litter == animal.litter and a.id != animal.id}
 
 
 def model_factory(settings: Settings):
@@ -69,6 +81,8 @@ async def start_run(animal: Animal, location: Location, settings: Settings) -> R
         min_interval=settings.qloo_min_interval,
     )
 
+    litter = roster_litter_mates(animal, settings)
+
     async def go() -> None:
         try:
             await run_pipeline(
@@ -80,10 +94,13 @@ async def start_run(animal: Animal, location: Location, settings: Settings) -> R
                 model_factory=model_factory(settings),
                 log=run.log,
                 output_mode=settings.agent_output_mode,
+                litter_mates=litter,
             )
         except Exception as exc:  # noqa: BLE001 - shown on the Working page, never swallowed
             run.error = type(exc).__name__
             run.log.add("error", f"The run stopped: {type(exc).__name__}")
+        finally:
+            # After any error is logged, so a follower always sees it before the end.
             run.log.finish()
 
     run.task = asyncio.create_task(go())

@@ -121,6 +121,10 @@ class LocationProfile(BaseModel):
     made_by: str = "seeds"
     # Where the titles' order came from: Qloo's `rank`, or the agent when rank failed.
     order_source: str | None = None
+    # The titles Qloo ranked for this area, in its order (empty when rank was unavailable).
+    ranked: list[str] = Field(default_factory=list)
+    # The titles the venues were asked for: the evidence names these, not every title.
+    venue_signals: list[str] = Field(default_factory=list)
     pet_entities: list[Entity] = Field(default_factory=list)
     baseline: Entity | None = None
     venues: list[Venue] = Field(default_factory=list)
@@ -282,8 +286,9 @@ def assemble_profile(
         return p
 
     pet_names = {e.id: e.name for e in p.pet_entities}
+    p.venue_signals = venue_signals or list(pet_names)
     pet_venues = b.venues(
-        venue_signals or list(pet_names),
+        p.venue_signals,
         location,
         f"venues near {location.label} for fans of pet-themed titles",
     )

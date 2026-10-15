@@ -190,6 +190,7 @@ async def run_events(run_id: str) -> StreamingResponse:
         async for step in run.log.follow():
             payload = json.dumps({"kind": step.kind, "text": step.text})
             yield f"event: step\ndata: {payload}\n\n"
-        yield f"event: done\ndata: {json.dumps({'result_url': run.result_url})}\n\n"
+        payload = {"result_url": run.result_url, "failed": run.failed, "error": run.error}
+        yield f"event: done\ndata: {json.dumps(payload)}\n\n"
 
     return StreamingResponse(stream(), media_type="text/event-stream")

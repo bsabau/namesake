@@ -71,3 +71,31 @@ def test_ui_folders_never_reach_for_data(ui):
 
 def test_unknown_ui_is_a_404(client):
     assert client.get("/", params={"ui": "no-such-ui"}).status_code == 404
+
+
+def test_a_failed_run_reports_its_error_and_does_not_send_to_a_result(monkeypatch):
+    # Regression (Codex, milestone 3): the stream ended before the error and said "done".
+    import app.runs as runs
+
+    async def broken(*args, **kwargs):
+        import asyncio
+
+        log = kwargs["log"]
+        log.add("qloo", "Looking something up")
+        # Fail only once the page is listening, which is when the old order lost the error.
+        while not log._listeners:
+            await asyncio.sleep(0.01)
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(runs, "run_pipeline", broken)
+    # One client for both requests, so the run's task and the stream share an event
+    # loop, as they do under a real server.
+    with TestClient(main.app) as client:
+        location = client.post(
+            "/runs", data={"animal": "dog-02", "location": "park-slope"}, follow_redirects=False
+        ).headers["location"]
+        run_id = location.rsplit("/", 1)[-1]
+        with client.stream("GET", f"/api/runs/{run_id}/events") as stream:
+            lines = [line for line in stream.iter_lines() if line.startswith("data:")]
+    assert "The run stopped: RuntimeError" in lines[-2]
+    assert '"failed": true' in lines[-1]

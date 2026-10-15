@@ -78,3 +78,18 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 **Follows:**
 - The paid model chosen in milestone 5 can use whichever mode suits it, by changing the setting.
 - OpenCode Go is designed for coding-agent traffic. That is one more reason the judged demo runs on a paid model, as planned.
+
+## 7. Code writes the risky sentences; the model only restates facts
+
+**Decided:**
+- The listing agent writes the bio from the temperament, look and recorded facts only. Every fact must appear, and no word may appear that the cited facts lack. That includes new negations, and anything about children, other animals, house-training or bites.
+- The sentences for the shelter's confirmed checks (children, dogs, cats, house-training, bite history) come from fixed templates appended by code.
+- The hook is built by code from the first name's reference: "Named after Bingo, a puppy in Bluey."
+- Each name's reason must restate the facts. Its reference must name its title. A name already given to another animal at the same shelter is refused, except within a litter.
+
+**Why:** the review of milestone 3 showed that word-overlap checks alone could not stop a model from contradicting a fact ("no bite on record" when a bite was recorded; "aggressive" citing "strong but gentle") or from making claims in the hook and the reasons. The safest sentence is one the model never writes. The rest are held to the facts' own words: both real drafts already met that standard, so the cost in quality is small.
+
+**Follows:**
+- A bite on record is always stated, in the same words.
+- The agent's bio can be stiff when the facts are few, which is the honest outcome.
+- The hook can never describe temperament or tastes.

@@ -37,6 +37,9 @@ class ProfileDeps:
     ambiguous: dict[str, int] = field(default_factory=dict)
     venues_seen: dict[str, dict[str, Any]] = field(default_factory=dict)
     venue_signals: list[str] | None = None
+    # The venues from the latest find_venues call: the only ones the plan may pick,
+    # because the profile is assembled from that search.
+    latest_venues: set[str] = field(default_factory=set)
     rank_order: list[str] | None = None
     rank_attempted: bool = False
 
@@ -169,8 +172,14 @@ def rank_titles(
         "rank",
         {"option_type": kind, "options": ids, "signal_location": deps.location.query},
     )
-    if isinstance(env, str) or not env.has_results:
-        status = env if isinstance(env, str) else "unavailable: no ranking returned"
+    if isinstance(env, str) or not env.has_results or env.status != "ok":
+        if isinstance(env, str):
+            status = env
+        elif not env.has_results:
+            status = "unavailable: no ranking returned"
+        else:
+            # A partial or degraded ranking may have lost the location signal.
+            status = f"unavailable: Qloo's ranking was {env.status}"
         deps.log.add("note", f"Ranking {status}; keeping the agent's own order")
         return {"status": status}
     order = [e.entity_id for e in env.entities()]
@@ -206,6 +215,7 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
         deps.log.add("note", f"Venues: {status}")
         return {"status": status}
     deps.venue_signals = ids
+    deps.latest_venues = {r["entity_id"] for r in env.results}
     baseline = deps.baseline_venues
     venues = []
     for rank, r in enumerate(env.results, start=1):
@@ -241,6 +251,11 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
         info = deps.venues_seen.get(v.entity_id)
         if info is None:
             problems.append(f"venue {v.entity_id} was not returned by find_venues")
+        elif v.entity_id not in deps.latest_venues:
+            problems.append(
+                f"venue {info['name']} is from an earlier search; pick from your latest "
+                "find_venues results"
+            )
         elif info["excluded"]:
             problems.append(f"venue {info['name']} is {info['excluded']}")
     if deps.titles_seen and deps.venue_signals is None and not plan.venues:

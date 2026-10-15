@@ -6,6 +6,8 @@ from app.agent.checks import (
     check_bio,
     check_hook,
     check_name,
+    check_reference,
+    check_why,
     fact_keys,
     is_bully_type,
     syllables,
@@ -127,70 +129,84 @@ def test_the_non_strict_screen_allows_a_non_pet_source():
     assert name("Bingo", source="show") == []
 
 
-# check_bio
+# check_bio: every sentence grounded in the facts it cites, every fact used
+
+FACTS = [("She knows basic commands.", ["fact:0"]), ("She is fine with calm adults.", ["fact:1"])]
+TEMPERAMENT = ("She is strong but gentle.", ["temperament"])
+
+
+def clean_bio():
+    return [TEMPERAMENT, *FACTS]
 
 
 def test_a_clean_bio_passes():
-    assert check_bio(animal(), [("Bingo knows basic commands.", ["fact:0"])]) == []
+    assert check_bio(animal(), clean_bio()) == []
 
 
 def test_a_sentence_citing_no_fact_fails():
-    assert check_bio(animal(), [("Bingo is a dog.", [])]) == ["bio sentence 1 cites no fact"]
+    assert "bio sentence 1 cites no fact" in check_bio(animal(), [("She is here.", []), *FACTS])
 
 
-def test_a_sentence_citing_an_unknown_fact_fails():
-    problems = check_bio(animal(), [("Bingo knows basic commands.", ["fact:9"])])
-    assert problems == ["bio sentence 1 cites facts that do not exist: ['fact:9']"]
+def test_check_keys_are_not_the_agents_to_cite():
+    problems = check_bio(
+        animal(checks={"bite_history": "yes"}), [*clean_bio(), ("x", ["check:bite_history"])]
+    )
+    assert any("cites keys it may not use" in p for p in problems)
+
+
+def test_a_missing_fact_fails():
+    problems = check_bio(animal(), [TEMPERAMENT, FACTS[0]])
+    assert any("leaves out fact:1" in p for p in problems)
 
 
 def test_a_bio_over_one_hundred_and_fifty_words_fails():
-    long_text = " ".join(["word"] * 155)
-    assert check_bio(animal(), [(long_text, ["fact:0"])]) == [
-        "bio is 155 words; keep it to 150 or fewer"
-    ]
+    long = ("She knows basic commands. " * 40, ["fact:0"])
+    problems = check_bio(animal(), [TEMPERAMENT, long, FACTS[1]])
+    assert any("keep it to 150 or fewer" in p for p in problems)
 
 
 def test_first_person_fails():
-    problems = check_bio(animal(), [("I would like my own bed.", ["fact:0"])])
-    assert "write the bio in the third person" in problems
+    problems = check_bio(animal(), [("I know basic commands.", ["fact:0"]), TEMPERAMENT, FACTS[1]])
+    assert any("third person" in p for p in problems)
 
 
-def test_mentioning_children_when_the_check_is_unknown_fails():
-    problems = check_bio(animal(), [("Bingo is good with children.", ["fact:0"])])
-    assert "the bio mentions 'children', which the shelter has not confirmed" in problems
+@pytest.mark.parametrize(
+    ("sentence", "word"),
+    [
+        ("She is good with children.", "children"),
+        ("She is house-trained.", "house-trained"),
+        ("She has never bitten.", "bitten"),
+    ],
+)
+def test_check_topics_are_left_to_the_confirmed_checks(sentence, word):
+    problems = check_bio(animal(), [(sentence, ["temperament"]), *FACTS])
+    assert any(f"mentions {word!r}" in p for p in problems)
 
 
-def test_mentioning_house_training_when_the_check_is_unknown_fails():
-    problems = check_bio(animal(), [("Bingo is house-trained.", ["fact:0"])])
-    assert "the bio mentions 'house-trained', which the shelter has not confirmed" in problems
-
-
-def test_mentioning_a_bite_when_the_check_is_unknown_fails():
-    problems = check_bio(animal(), [("Bingo has a bite on record.", ["fact:0"])])
-    assert "the bio mentions 'bite', which the shelter has not confirmed" in problems
+def test_a_check_topic_is_fine_when_the_fact_itself_says_it():
+    pet = animal(facts=["knows basic commands", "fine with calm adults", "good with children"])
+    bio = [*clean_bio(), ("She is good with children.", ["fact:2"])]
+    assert check_bio(pet, bio) == []
 
 
 def test_backstory_fails():
-    problems = check_bio(animal(), [("Bingo came in as a stray.", ["fact:0"])])
-    assert "leave out backstory ('stray')" in problems
+    problems = check_bio(animal(), [("She came in as a stray.", ["fact:0"]), TEMPERAMENT, FACTS[1]])
+    assert any("leave out backstory ('stray')" in p for p in problems)
 
 
 def test_pity_and_urgency_fails():
-    problems = check_bio(animal(), [("Bingo deserves a last chance.", ["fact:0"])])
-    assert "leave out pity and urgency ('last chance')" in problems
+    problems = check_bio(animal(), [("Her last chance.", ["fact:0"]), TEMPERAMENT, FACTS[1]])
+    assert any("leave out pity and urgency ('last chance')" in p for p in problems)
 
 
-def test_a_recorded_bite_must_be_stated():
-    a = animal(checks={"bite_history": "yes"})
-    assert check_bio(a, [("Bingo knows basic commands.", ["fact:0"])]) == [
-        "the shelter recorded a bite; the bio must say so plainly"
-    ]
+def test_an_added_negation_fails():
+    problems = check_bio(animal(), [("She is not gentle.", ["temperament"]), *FACTS])
+    assert any("adds a negation" in p for p in problems)
 
 
-def test_a_topic_is_allowed_once_its_check_is_yes():
-    a = animal(checks={"good_with_children": "yes"})
-    sentence = ("She is good with children.", ["check:good_with_children"])
-    assert check_bio(a, [sentence]) == []
+def test_a_contradicting_word_fails():
+    problems = check_bio(animal(), [("She is aggressive.", ["temperament"]), *FACTS])
+    assert any("says things its facts do not: ['aggressive']" in p for p in problems)
 
 
 # check_hook
@@ -236,7 +252,8 @@ def test_innocent_names_containing_a_blocked_word_pass(name):
 
 def test_a_word_containing_nip_is_not_a_bite():
     pet = animal(facts=["likes turnip-shaped toys"])
-    assert check_bio(pet, [("She likes turnip-shaped toys.", ["fact:0"])]) == []
+    bio = [TEMPERAMENT, ("She likes turnip-shaped toys.", ["fact:0"])]
+    assert check_bio(pet, bio) == []
 
 
 def test_an_abbreviation_does_not_split_the_hook():
@@ -270,6 +287,31 @@ def test_a_famous_villain_in_the_reference_fails():
 
 def test_a_restatement_passes_and_an_invention_fails():
     pet = animal()
-    assert check_bio(pet, [("She knows basic commands.", ["fact:0"])]) == []
-    problems = check_bio(pet, [("She knows basic commands and surfs at weekends.", ["fact:0"])])
+    assert check_bio(pet, clean_bio()) == []
+    surfs = ("She knows basic commands and surfs at weekends.", ["fact:0"])
+    problems = check_bio(pet, [TEMPERAMENT, surfs, FACTS[1]])
     assert any("says things its facts do not" in p for p in problems)
+
+
+def test_a_reason_may_only_restate_the_facts():
+    assert check_why(animal(), "It suits a dog who knows basic commands.", "Bingo") == []
+    problems = check_why(animal(), "She adores toddlers.", "Bingo")
+    assert any("toddlers" in p for p in problems)
+
+
+def test_a_reference_must_name_its_title():
+    assert check_reference("Bingo, a puppy in Bluey", "Bluey") == []
+    assert check_reference("Bingo, a puppy", "Bluey") == [
+        "reference 'Bingo, a puppy' must name its title, 'Bluey'"
+    ]
+
+
+def test_a_weapon_in_the_reference_fails_even_for_an_object_name():
+    problems = check_name(
+        "Rifle",
+        source="pet",
+        reference_kind="object",
+        strict=True,
+        reference="a rifle in Example Dog Show",
+    )
+    assert problems == ["name 'Rifle' contains 'rifle'"]

@@ -7,6 +7,7 @@ Every failure has a fallback that is said out loud in the step log and on the pa
 """
 
 import asyncio
+from collections import defaultdict
 from collections.abc import Callable
 
 from pydantic_ai import UnexpectedModelBehavior
@@ -14,11 +15,12 @@ from pydantic_ai.exceptions import AgentRunError, ModelHTTPError
 from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
 
-from app.agent.listing_agent import ListingDeps, build_listing_agent
+from app.agent.listing_agent import BioSentence, ListingDeps, build_listing_agent, hook_for
 from app.agent.profile_agent import ProfileDeps, build_profile_agent
 from app.agent.results import ListingResult
 from app.agent.steps import StepLog
 from app.animals import Animal
+from app.listing import check_sentences, pronouns
 from app.locations import Location
 from app.profile import (
     Entity,
@@ -38,6 +40,10 @@ PROFILE_LIMITS = UsageLimits(request_limit=16, tool_calls_limit=14)
 LISTING_LIMITS = UsageLimits(request_limit=4)
 
 ModelFactory = Callable[[], Model]
+
+# One profile build per location and species at a time; a second request waits and
+# then finds the saved profile instead of spending quota on the same work.
+_profile_locks: defaultdict[tuple[int, str, str], asyncio.Lock] = defaultdict(asyncio.Lock)
 AGENT_FAILURES = (UnexpectedModelBehavior, AgentRunError, ModelHTTPError, OSError, ValueError)
 
 
@@ -84,6 +90,7 @@ async def agent_profile(
         venue.rejected_reason = rejects.get(venue.entity_id)
     profile.made_by = "agent"
     profile.order_source = "qloo_rank" if deps.rank_order else "agent"
+    profile.ranked = [i for i in (deps.rank_order or []) if i in chosen]
     return profile
 
 
@@ -99,10 +106,36 @@ async def get_profile(
     output_mode: str,
 ) -> LocationProfile:
     species = animal.species
-    saved = store.get_profile(location.id, species)
-    if saved is not None:
-        log.add("note", f"Using the saved profile for {species}s in {location.label}")
-        return saved
+    loop = id(asyncio.get_running_loop())
+    async with _profile_locks[(loop, location.id, species)]:
+        saved = store.get_profile(location.id, species)
+        if saved is not None:
+            log.add("note", f"Using the saved profile for {species}s in {location.label}")
+            return saved
+        return await _build_profile(
+            animal,
+            location,
+            qloo=qloo,
+            store=store,
+            seeds=seeds,
+            model_factory=model_factory,
+            log=log,
+            output_mode=output_mode,
+        )
+
+
+async def _build_profile(
+    animal: Animal,
+    location: Location,
+    *,
+    qloo: QlooClient,
+    store: Store,
+    seeds: Seeds,
+    model_factory: ModelFactory | None,
+    log: StepLog,
+    output_mode: str,
+) -> LocationProfile:
+    species = animal.species
 
     profile = None
     if model_factory is not None:
@@ -123,6 +156,19 @@ async def get_profile(
     return profile
 
 
+def taken_names(
+    animal: Animal, location: Location, store: Store, roster_litter: set[str]
+) -> frozenset[str]:
+    """First names already given to other animals at this shelter, except litter mates."""
+    names = set()
+    for other in store.listings_at(location.id):
+        if other.animal_id == animal.id or other.animal_id in roster_litter:
+            continue
+        if other.draft is not None:
+            names.add(other.draft.names[0].name.lower())
+    return frozenset(names)
+
+
 async def write_listing(
     animal: Animal,
     location: Location,
@@ -131,6 +177,7 @@ async def write_listing(
     model_factory: ModelFactory | None,
     log: StepLog,
     output_mode: str,
+    taken: frozenset[str] = frozenset(),
 ) -> ListingResult:
     result = ListingResult(animal_id=animal.id, location_id=location.id)
     if model_factory is None:
@@ -148,10 +195,16 @@ async def write_listing(
     try:
         run = await agent.run(
             "Write the listing.",
-            deps=ListingDeps(animal=animal, titles=titles, log=log),
+            deps=ListingDeps(animal=animal, titles=titles, log=log, taken_names=taken),
             usage_limits=LISTING_LIMITS,
         )
         result.draft = run.output
+        # The confirmed checks come from fixed sentences, never from the model.
+        result.bio = list(run.output.bio) + [
+            BioSentence(text=c.text, facts=[c.source])
+            for c in check_sentences(animal.checks, pronouns(animal.sex))
+        ]
+        result.hook = hook_for(run.output.names[0])
     except AGENT_FAILURES as exc:
         log.add("error", f"The listing did not pass its checks ({type(exc).__name__})")
         result.fallback_reason = (
@@ -171,29 +224,29 @@ async def run_pipeline(
     model_factory: ModelFactory | None,
     log: StepLog,
     output_mode: str = "native",
+    litter_mates: set[str] | None = None,
 ) -> ListingResult:
-    try:
-        profile = await get_profile(
-            animal,
-            location,
-            qloo=qloo,
-            store=store,
-            seeds=seeds,
-            model_factory=model_factory,
-            log=log,
-            output_mode=output_mode,
-        )
-        result = await write_listing(
-            animal,
-            location,
-            profile,
-            model_factory=model_factory,
-            log=log,
-            output_mode=output_mode,
-        )
-        result.steps = list(log.steps)
-        store.put_listing(result)
-        log.add("done", "Done")
-        return result
-    finally:
-        log.finish()
+    """Profile, then listing. The caller finishes the log, after reporting any error."""
+    profile = await get_profile(
+        animal,
+        location,
+        qloo=qloo,
+        store=store,
+        seeds=seeds,
+        model_factory=model_factory,
+        log=log,
+        output_mode=output_mode,
+    )
+    result = await write_listing(
+        animal,
+        location,
+        profile,
+        model_factory=model_factory,
+        log=log,
+        output_mode=output_mode,
+        taken=taken_names(animal, location, store, litter_mates or set()),
+    )
+    result.steps = list(log.steps)
+    store.put_listing(result)
+    log.add("done", "Done")
+    return result

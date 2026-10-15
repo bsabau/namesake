@@ -79,7 +79,7 @@ def _capitalise(text: str) -> str:
     return text[:1].upper() + text[1:]
 
 
-def _age_phrase(age: str) -> str:
+def age_phrase(age: str) -> str:
     """'4 years' -> '4-year-old'."""
     match = re.fullmatch(r"(\d+)\s+(year|month|week)s?", age.strip())
     if not match:
@@ -119,7 +119,7 @@ def templated_listing(animal: Animal) -> Listing:
         ),
         Sentence(
             text=_capitalise(
-                f"{they} {p['is']} a {_age_phrase(animal.age)} {animal.sex or ''} "
+                f"{they} {p['is']} a {age_phrase(animal.age)} {animal.sex or ''} "
                 f"{animal.species}: {animal.look}."
             ).replace("  ", " "),
             source="look",

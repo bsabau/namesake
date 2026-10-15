@@ -141,3 +141,39 @@ def test_locations_carry_the_shelter_radius(roster):
     by_id = {loc.id: loc for loc in view.locations}
     assert by_id["park-slope"].shelter_radius_m == 800
     assert by_id["austin"].shelter_radius_m == 6400
+
+
+def agent_profile():
+    p = profile()
+    p.made_by = "agent"
+    p.venue_signals = [p.pet_entities[1].id]  # the venues were asked for the cat show only
+    p.ranked = [p.pet_entities[1].id, p.pet_entities[0].id]
+    for v in p.venues:
+        v.chosen_reason = "a community arts centre" if v.name == "Community Hall" else None
+    return p
+
+
+def test_an_agent_profile_suggests_only_the_agents_picks(roster):
+    # Regression (Codex, milestone 3): unpicked venues reached the plan.
+    view = build_result_view(roster.get("dog-02"), LOCATION, agent_profile())
+    assert [v.name for v in view.venues] == ["Community Hall"]
+    assert view.venues[0].reason == "a community arts centre"
+    qloo_items = [i.text for i in view.plan if i.basis == "Qloo"]
+    assert qloo_items == ["Ask Community Hall about hosting an adoption event or a flyer."]
+
+
+def test_venue_evidence_names_only_the_titles_searched(roster):
+    view = build_result_view(roster.get("dog-02"), LOCATION, agent_profile())
+    assert "for fans of Example Cat Show;" in view.venues[0].evidence
+    assert "Example Dog Show" not in view.venues[0].evidence
+
+
+def test_a_pet_name_claims_local_strength_only_when_qloo_ranked_it():
+    from app.views.build import name_badge
+
+    p = agent_profile()
+    cat, dog = p.pet_entities[1].id, p.pet_entities[0].id
+    assert name_badge("pet", cat, p) == "Pet-themed title, ranked 1st of 2 here by Qloo"
+    p.ranked = []
+    assert name_badge("pet", dog, p) == "Pet-themed title"
+    assert name_badge("local", dog, p) == "Watched locally"

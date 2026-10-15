@@ -148,7 +148,7 @@ def basis_label(key: str) -> str:
 def listing_view(animal: Animal, result: ListingResult | None = None) -> ListingView:
     draft = result.draft if result else None
     if draft is not None:
-        bio = [(s.text, s.facts) for s in draft.bio]
+        bio = [(s.text, s.facts) for s in (result.bio or draft.bio)]
         written_by = "Written by the agent from the shelter's records, then checked by code."
     else:
         bio = [(s.text, [s.source]) for s in templated_listing(animal).sentences]
@@ -170,7 +170,7 @@ def listing_view(animal: Animal, result: ListingResult | None = None) -> Listing
     if animal.history:
         left_out.append("Backstory and time in the shelter are kept for staff, not printed.")
     name = draft.names[0].name if draft else None
-    hook = draft.hook.text if draft else None
+    hook = result.hook if draft else None
     copy_text = "\n\n".join(x for x in [f"Meet {name}." if name else None, hook, text] if x)
     return ListingView(
         heading=f"Meet {name}" if name else f"Adoptable {animal.species}",
@@ -192,6 +192,16 @@ def listing_view(animal: Animal, result: ListingResult | None = None) -> Listing
     )
 
 
+def name_badge(source: str, entity_id: str, profile: LocationProfile) -> str:
+    """Claim local strength only where Qloo's ranking for this area says so."""
+    if source == "local":
+        return "Watched locally"
+    if entity_id in profile.ranked:
+        place = profile.ranked.index(entity_id) + 1
+        return f"Pet-themed title, ranked {ordinal(place)} of {len(profile.ranked)} here by Qloo"
+    return "Pet-themed title"
+
+
 def name_view(result: ListingResult | None, profile: LocationProfile) -> NameView:
     draft = result.draft if result else None
     if draft is None:
@@ -206,7 +216,7 @@ def name_view(result: ListingResult | None, profile: LocationProfile) -> NameVie
         options=[
             NameOptionView(
                 name=o.name,
-                badge="Pet-themed title, strong here" if o.source == "pet" else "Watched locally",
+                badge=name_badge(o.source, o.entity_id, profile),
                 reference=o.reference,
                 title=titles.get(o.entity_id, o.reference),
                 why=o.why,
@@ -252,14 +262,23 @@ def map_view(location: Location, profile: LocationProfile) -> MapView:
     )
 
 
-def venue_order(venues: list[Venue]) -> list[Venue]:
-    """The agent's picks first, then places that stand out, then the rest; never screened ones."""
-    suitable = [v for v in venues if v.unsuitable is None and v.rejected_reason is None]
-    return sorted(suitable, key=lambda v: (v.chosen_reason is None, not v.distinctive, v.rank))
+def venue_order(profile: LocationProfile) -> list[Venue]:
+    """The venues to suggest, never screened ones.
+
+    When the agent built the profile, only the places it chose: its judgement is a
+    positive selection, not just the absence of a rejection. The fixed lookup has no
+    judgement, so it suggests places that stand out, then the rest.
+    """
+    suitable = [v for v in profile.venues if v.unsuitable is None]
+    if profile.made_by == "agent":
+        return sorted((v for v in suitable if v.chosen_reason), key=lambda v: v.rank)
+    return sorted(suitable, key=lambda v: (not v.distinctive, v.rank))
 
 
 def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueView:
-    pets = and_list([e.name for e in profile.pet_entities])
+    # Name only the titles the venues were asked for.
+    asked = set(profile.venue_signals) or {e.id for e in profile.pet_entities}
+    pets = and_list([e.name for e in profile.pet_entities if e.id in asked])
     base = profile.baseline.name if profile.baseline else None
     total = len(profile.venues)
     evidence = (
@@ -412,7 +431,7 @@ def build_result_view(
     profile: LocationProfile,
     listing: ListingResult | None = None,
 ) -> ResultView:
-    ordered = venue_order(profile.venues)
+    ordered = venue_order(profile)
     returned, reading = why(location, profile)
     return ResultView(
         id=result_id(animal.id, location.id),
