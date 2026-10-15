@@ -151,34 +151,33 @@ def test_a_bio_over_one_hundred_and_fifty_words_fails():
 
 
 def test_first_person_fails():
-    assert check_bio(animal(), [("I would like my own bed.", ["fact:0"])]) == [
-        "write the bio in the third person"
-    ]
+    problems = check_bio(animal(), [("I would like my own bed.", ["fact:0"])])
+    assert "write the bio in the third person" in problems
 
 
 def test_mentioning_children_when_the_check_is_unknown_fails():
     problems = check_bio(animal(), [("Bingo is good with children.", ["fact:0"])])
-    assert problems == ["the bio mentions 'children', which the shelter has not confirmed"]
+    assert "the bio mentions 'children', which the shelter has not confirmed" in problems
 
 
 def test_mentioning_house_training_when_the_check_is_unknown_fails():
     problems = check_bio(animal(), [("Bingo is house-trained.", ["fact:0"])])
-    assert problems == ["the bio mentions 'house-trained', which the shelter has not confirmed"]
+    assert "the bio mentions 'house-trained', which the shelter has not confirmed" in problems
 
 
 def test_mentioning_a_bite_when_the_check_is_unknown_fails():
     problems = check_bio(animal(), [("Bingo has a bite on record.", ["fact:0"])])
-    assert problems == ["the bio mentions 'bite', which the shelter has not confirmed"]
+    assert "the bio mentions 'bite', which the shelter has not confirmed" in problems
 
 
 def test_backstory_fails():
     problems = check_bio(animal(), [("Bingo came in as a stray.", ["fact:0"])])
-    assert problems == ["leave out backstory ('stray')"]
+    assert "leave out backstory ('stray')" in problems
 
 
 def test_pity_and_urgency_fails():
     problems = check_bio(animal(), [("Bingo deserves a last chance.", ["fact:0"])])
-    assert problems == ["leave out pity and urgency ('last chance')"]
+    assert "leave out pity and urgency ('last chance')" in problems
 
 
 def test_a_recorded_bite_must_be_stated():
@@ -190,7 +189,8 @@ def test_a_recorded_bite_must_be_stated():
 
 def test_a_topic_is_allowed_once_its_check_is_yes():
     a = animal(checks={"good_with_children": "yes"})
-    assert check_bio(a, [("Bingo is good with children.", ["fact:0"])]) == []
+    sentence = ("She is good with children.", ["check:good_with_children"])
+    assert check_bio(a, [sentence]) == []
 
 
 # check_hook
@@ -246,3 +246,30 @@ def test_an_abbreviation_does_not_split_the_hook():
 @pytest.mark.parametrize("word", ["loved", "loving"])
 def test_other_forms_of_love_are_taste_claims(word):
     assert any("claim about tastes" in p for p in check_hook(f"Max is {word} in the films."))
+
+
+@pytest.mark.parametrize("role", ["villain", "tragic"])
+def test_a_villain_or_tragic_role_fails(role):
+    problems = check_name(
+        "Rex",
+        source="pet",
+        reference_kind="character",
+        strict=False,
+        reference="Rex",
+        reference_role=role,
+    )
+    assert problems == [f"name 'Rex' refers to a {role} character"]
+
+
+def test_a_famous_villain_in_the_reference_fails():
+    problems = check_name(
+        "Kitty", source="pet", reference_kind="character", strict=False, reference="Cruella's cat"
+    )
+    assert any("'cruella'" in p for p in problems)
+
+
+def test_a_restatement_passes_and_an_invention_fails():
+    pet = animal()
+    assert check_bio(pet, [("She knows basic commands.", ["fact:0"])]) == []
+    problems = check_bio(pet, [("She knows basic commands and surfs at weekends.", ["fact:0"])])
+    assert any("says things its facts do not" in p for p in problems)

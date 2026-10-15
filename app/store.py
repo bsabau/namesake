@@ -9,7 +9,7 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.agent.results import ListingResult
 from app.profile import LocationProfile
@@ -44,16 +44,24 @@ class Store:
                 (key, value.model_dump_json(), datetime.now(UTC).isoformat()),
             )
 
+    def _load(self, model: type[BaseModel], key: str):
+        """A saved result, or None when missing or saved under an older shape (rerun it)."""
+        data = self._get(key)
+        if data is None:
+            return None
+        try:
+            return model.model_validate(data)
+        except ValidationError:
+            return None
+
     def get_profile(self, location_id: str, species: str) -> LocationProfile | None:
-        data = self._get(f"profile:{location_id}:{species}")
-        return LocationProfile.model_validate(data) if data else None
+        return self._load(LocationProfile, f"profile:{location_id}:{species}")
 
     def put_profile(self, profile: LocationProfile) -> None:
         self._put(f"profile:{profile.location_id}:{profile.species}", profile)
 
     def get_listing(self, animal_id: str, location_id: str) -> ListingResult | None:
-        data = self._get(f"listing:{animal_id}@{location_id}")
-        return ListingResult.model_validate(data) if data else None
+        return self._load(ListingResult, f"listing:{animal_id}@{location_id}")
 
     def put_listing(self, result: ListingResult) -> None:
         self._put(f"listing:{result.animal_id}@{result.location_id}", result)

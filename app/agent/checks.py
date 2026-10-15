@@ -21,6 +21,15 @@ NAME_BLOCKLIST = (
     "vodka", "joker", "riot", "chaos",
 )  # fmt: skip
 
+# Well-known villains and tragic animals: the model also declares each reference's role,
+# but a code list catches the famous ones even when it gets that wrong.
+FAMOUS_VILLAINS = (
+    "scar", "shere khan", "cruella", "cujo", "jafar", "ursula", "maleficent", "voldemort",
+    "thanos", "vader", "sauron", "pennywise", "chucky", "hannibal", "lecter", "gaston",
+    "hades", "mojo jojo", "old yeller",
+)  # fmt: skip
+BAD_ROLES = ("villain", "tragic")
+
 HOOK_TRAIT_WORDS = (
     "gentle", "calm", "playful", "friendly", "loyal", "energetic", "shy", "sweet", "loving",
     "affectionate", "brave", "bold", "cuddly", "clever", "smart", "independent", "curious",
@@ -96,7 +105,15 @@ def fact_keys(animal: Animal) -> set[str]:
     return keys
 
 
-def check_name(name: str, *, source: str, reference_kind: str, strict: bool) -> list[str]:
+def check_name(
+    name: str,
+    *,
+    source: str,
+    reference_kind: str,
+    strict: bool,
+    reference: str = "",
+    reference_role: str = "neutral",
+) -> list[str]:
     problems = []
     if not re.fullmatch(r"[A-Za-z][A-Za-z' -]{0,13}", name):
         problems.append(f"name {name!r} must be letters only, at most 14 characters")
@@ -106,6 +123,11 @@ def check_name(name: str, *, source: str, reference_kind: str, strict: bool) -> 
     hit = find_word(name, NAME_BLOCKLIST)
     if hit:
         problems.append(f"name {name!r} contains {hit!r}")
+    villain = find_word(f"{name} {reference}", FAMOUS_VILLAINS)
+    if villain:
+        problems.append(f"name {name!r} refers to {villain!r}, a villain or tragic animal")
+    if reference_role in BAD_ROLES:
+        problems.append(f"name {name!r} refers to a {reference_role} character")
     if reference_kind == "person":
         problems.append(f"name {name!r} refers to a real person; use a character or object")
     if strict and source != "pet":
@@ -113,6 +135,55 @@ def check_name(name: str, *, source: str, reference_kind: str, strict: bool) -> 
             f"name {name!r}: for this dog use only names drawn from the pet-themed titles"
         )
     return problems
+
+
+STOPWORDS = frozenset((
+    "a", "an", "and", "are", "as", "at", "be", "been", "but", "by", "for", "from", "has",
+    "have", "he", "her", "him", "his", "in", "is", "it", "its", "of", "on", "or", "she", "so",
+    "than", "that", "the", "their", "them", "they", "this", "to", "was", "were", "with", "who",
+    "will", "would", "can", "also", "very", "much", "more", "most", "just", "well", "when",
+    "while", "into", "about", "after", "before", "over", "under",
+))  # fmt: skip
+# Words a plain restatement may add without changing what a fact says.
+GLUE = frozenset((
+    "always", "often", "usually", "likes", "enjoys", "seems", "tends", "quite", "really",
+    "little", "bit", "both", "each", "every", "old", "year", "years", "week", "weeks", "month",
+    "months", "male", "female", "dog", "cat", "kitten", "puppy", "one", "ones",
+))  # fmt: skip
+
+
+def _stem(word: str) -> str:
+    for suffix in ("ing", "ed", "es", "ly", "s"):
+        if word.endswith(suffix) and len(word) - len(suffix) >= 3:
+            return word[: -len(suffix)]
+    return word
+
+
+def _content(text: str) -> set[str]:
+    words = re.findall(r"[a-z]+", text.lower())
+    return {_stem(w) for w in words if len(w) > 2 and w not in STOPWORDS and w not in GLUE}
+
+
+def fact_texts(animal: Animal) -> dict[str, str]:
+    from app.listing import CHECK_SENTENCES
+
+    texts = {
+        "temperament": animal.temperament,
+        "look": f"{animal.age} {animal.sex} {animal.species} {animal.look}",
+    }
+    texts |= {f"fact:{i}": f for i, f in enumerate(animal.facts)}
+    for field, answers in CHECK_SENTENCES.items():
+        answer = getattr(animal.checks, field)
+        if answer in answers:
+            texts[f"check:{field}"] = answers[answer]
+    return texts
+
+
+def unsupported_words(animal: Animal, sentence: str, keys: list[str]) -> list[str]:
+    """Content words in `sentence` that none of its cited facts contains."""
+    texts = fact_texts(animal)
+    source = set().union(*(_content(texts[k]) for k in keys if k in texts))
+    return sorted(_content(sentence) - source)
 
 
 def check_bio(animal: Animal, sentences: list[tuple[str, list[str]]]) -> list[str]:
@@ -126,6 +197,14 @@ def check_bio(animal: Animal, sentences: list[tuple[str, list[str]]]) -> list[st
         bad = [f for f in facts if f not in allowed]
         if bad:
             problems.append(f"bio sentence {i} cites facts that do not exist: {bad}")
+        elif facts:
+            extra = unsupported_words(animal, _sentence, facts)
+            # One linking word is fine; more means the sentence says something its facts don't.
+            if len(extra) > 1:
+                problems.append(
+                    f"bio sentence {i} says things its facts do not: {extra}; "
+                    "restate only the cited facts"
+                )
     words = len(text.split())
     if words > MAX_WORDS:
         problems.append(f"bio is {words} words; keep it to {MAX_WORDS} or fewer")

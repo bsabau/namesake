@@ -81,6 +81,7 @@ DRAFT = {
             "entity_id": DOG_SHOW,
             "reference": "a dog in Example Dog Show",
             "reference_kind": "character",
+            "reference_role": "friend",
             "why": "short and easy to call",
         },
         {
@@ -89,6 +90,7 @@ DRAFT = {
             "entity_id": CAT_SHOW,
             "reference": "a cat in Example Cat Show",
             "reference_kind": "character",
+            "reference_role": "friend",
             "why": "fits her brindle coat",
         },
         {
@@ -97,6 +99,7 @@ DRAFT = {
             "entity_id": DOG_SHOW,
             "reference": "a puppy in Example Dog Show",
             "reference_kind": "character",
+            "reference_role": "friend",
             "why": "a sturdy name for a big dog",
         },
     ],
@@ -266,3 +269,72 @@ def test_the_step_log_replays_and_then_follows():
         return seen
 
     assert asyncio.run(go()) == ["one", "two"]
+
+
+def test_a_step_added_from_a_thread_just_before_finish_is_streamed():
+    # Regression (Codex, milestone 3): a reader that pauses between steps, as a
+    # streaming response does, missed a step added and finished meanwhile.
+    import threading
+
+    async def go():
+        log = StepLog(asyncio.get_running_loop())
+        log.add("start", "first")
+        got_first = asyncio.Event()
+        seen = []
+
+        async def reader():
+            async for step in log.follow():
+                seen.append(step.text)
+                got_first.set()
+                await asyncio.sleep(0.01)
+
+        task = asyncio.create_task(reader())
+        await got_first.wait()
+
+        def worker():
+            log.add("qloo", "final Qloo step")
+            log.finish()
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        thread.join()
+        await asyncio.wait_for(task, 1)
+        return seen
+
+    assert asyncio.run(go()) == ["first", "final Qloo step"]
+
+
+def test_following_a_finished_log_replays_everything():
+    async def go():
+        log = StepLog(asyncio.get_running_loop())
+        log.add("start", "one")
+        log.add("done", "two")
+        log.finish()
+        return [s.text async for s in log.follow()]
+
+    assert asyncio.run(go()) == ["one", "two"]
+
+
+def test_a_villain_name_is_sent_back(roster):
+    # Regression (Codex, milestone 3): "Scar" passed the name screen.
+    villain = {
+        **DRAFT,
+        "names": [{**DRAFT["names"][0], "name": "Scar", "reference": "Scar, from a lion film"}]
+        + DRAFT["names"][1:],
+    }
+    result, _, log = run(Script([PLAN], [villain, DRAFT]), roster)
+    assert result.draft.names[0].name == "Bingo"
+    assert any("villain" in s.text for s in log.steps)
+
+
+def test_a_bio_sentence_that_invents_is_sent_back(roster):
+    # Regression (Codex, milestone 3): a sentence citing a real fact could say anything.
+    invented = {
+        **DRAFT,
+        "bio": [
+            {"text": "She loves swimming at the beach and chasing balls.", "facts": ["fact:1"]}
+        ],
+    }
+    result, _, log = run(Script([PLAN], [invented, invented]), roster)
+    assert result.draft is None
+    assert any("says things its facts do not" in s.text for s in log.steps)

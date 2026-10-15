@@ -39,6 +39,9 @@ class NameOption(BaseModel):
     entity_id: str = Field(description="The Qloo ID of the title the name comes from.")
     reference: str = Field(description='What the name refers to, e.g. "Bingo, a dog in Bluey".')
     reference_kind: Literal["character", "title", "place", "object", "word", "person"]
+    reference_role: Literal["hero", "friend", "neutral", "villain", "tragic"] = Field(
+        description="The character's role in the story; villains and tragic figures are refused."
+    )
     why: str = Field(description="One sentence on why it suits this animal's look or facts.")
 
 
@@ -121,6 +124,8 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
             source=option.source,
             reference_kind=option.reference_kind,
             strict=deps.strict,
+            reference=option.reference,
+            reference_role=option.reference_role,
         )
     problems += checks.check_bio(deps.animal, [(s.text, s.facts) for s in draft.bio])
     if draft.hook.entity_id not in {o.entity_id for o in draft.names}:
