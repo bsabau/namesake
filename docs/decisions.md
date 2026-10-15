@@ -100,3 +100,76 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 - Code writes the reference from that name, a role from a fixed list, and Qloo's title. The hook therefore carries no description written by the model.
 
 **Remaining risk, stated plainly:** checking text by rule cannot prove that the meaning was kept, only that the words were. The rules make the safe path the easy one: copy the shelter's phrases, add only joining words. A volunteer still reviews the listing before using it (milestone 4 adds approval).
+
+## 8. The generic version gets a plain pet name, so the toggle isolates Qloo
+
+**Decided:** both versions share the bio. The generic version is named from a fixed list of common pet names (`GENERIC_NAMES` in `app/listing.py`). The local version uses the agent's name from Qloo's titles and adds the one hook line. The volunteer picks a version with the toggle, and approval records which one.
+
+**Why:**
+- A real listing needs a name, and the demo animals have none.
+- If only the local version had a name, a trial would compare "named" against "unnamed". With a name in both, the difference is exactly what Qloo adds: where the name comes from, and the hook.
+- The list has no human first names, so it is safe for every dog, including the strictest screen. A test runs every name through that screen.
+
+**Follows:** the generic name skips names already given at the shelter. It is picked by the animal's place in the roster, so it stays the same between visits.
+
+## 9. What a visitor does stays theirs; shared results are never changed by a visit
+
+**Decided:**
+- Refined listings, added animals and their photos live in an in-memory session behind a random cookie. They are never written to disk and expire after two hours, or on restart.
+- Precomputed and shared listings change only through a run for an animal that has none, or through `scripts/precompute_examples.py`.
+- Approval records the approval ID, animal, area, version, name, the name's source, whether the text was edited, and the time. The text itself is never recorded. An added animal is recorded as `added`.
+
+**Why:** the demo has no accounts, and every judge sees the same examples. If one visitor's "less childish" overwrote the shared result, the next visitor would see it. Keeping the text out of the log keeps free text, which could contain anything, out of storage. The trial needs only the version and the name.
+
+**Follows:**
+- Photos are checked by their first bytes (JPEG, PNG or WebP, at most 3 MB). They are served only to the session that added them, with `no-store`. No model ever sees them.
+- An added animal's facts go to the model, never to Qloo. The listing checks hold them to the same rules as the roster's facts.
+
+## 10. A volunteer's edit may reword a listing, never drop a caution
+
+**Decided:** approval is refused if the edited text no longer contains the cautions the shelter recorded, word for word:
+- each confirmed "no" (for example "would do best in a home without cats")
+- a bite on record
+- any recorded phrase about biting, nipping, guarding, growling, snapping or scratching
+
+The refusal keeps the edit and names the missing words.
+
+**Why:** "a bite history or guarding is stated plainly, every time" applies to what leaves the app, and the volunteer's edit is the last step before posting. Overselling is the harm the evidence review found.
+
+## 11. Limits on live work, and nothing else
+
+**Decided:**
+- Saved results open freely.
+- Live work is limited: each visitor may start 6 new runs or location checks an hour, counted in memory by client address. The whole app may start 60 new runs and check 10 new locations a day, counted in SQLite so a restart does not reset them.
+- All of these numbers are settings.
+
+**Why:** the hackathon key's quota is unknown and the development model is a coding plan. A judge clicking around must never exhaust either. The daily caps protect the quota even if per-visitor counting is fooled, for example behind a shared proxy.
+
+**Follows:** uvicorn runs with `--proxy-headers`. `FORWARDED_ALLOW_IPS` names the host's proxy, so the client address is the real visitor's.
+
+## 12. A typed location goes to Qloo as typed, and is checked once before any run
+
+**Decided:**
+- One fixed call checks a typed area: the baseline title's heatmap within it. The profile later makes the same call, so the check costs nothing extra.
+- Five or more cells: the area is accepted. Its map centre and zoom come from the cells.
+- Fewer cells: the app says the data is too thin and stops.
+- `needs_input`: Qloo's candidates become buttons.
+- Text with digits is refused, which keeps street addresses away from Qloo.
+
+**Why:**
+- Qloo returns no coordinates for a place name.
+- Its locality lookup (`describe` with type `locality`) did not help. Probed live on 15 October:
+  - "Springfield" gave five candidates all named "Springfield", with no state.
+  - "Springfield, IL" and "Williamsburg, Brooklyn" still came back ambiguous, mixed with unrelated places.
+  - Describing a candidate by ID returned only its name.
+- Buttons that all read "Springfield" would not help anyone. The heatmap tells us both whether Qloo has data there and where "there" is.
+
+**Follows:** accepted areas are kept in the store, so typing the same text again costs nothing. A new area's first run builds its profile, at about 8 Qloo calls.
+
+## 13. A litter is named as a set by the first member's choice
+
+**Decided:** a litter run builds one profile, then writes each member's listing in turn. The first member's first name sets the title. Every later member may draw names only from that title, and no name repeats within the litter.
+
+**Why:** "two animals in one shelter never share a reference, except a litter named as a set." Letting the first listing choose keeps the agent's judgement, and restricting the others to one title is a check code can enforce: a name from another title is refused like any invented ID.
+
+**Follows:** a member whose draft cannot be fixed falls back to the template, as any listing does. The result page lists the litter's names with links.

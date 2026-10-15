@@ -271,7 +271,10 @@ app/
   main.py            FastAPI app and routes
   config.py          settings from the environment
   agent/             the two PydanticAI agents, their checks, the step log and the run pipeline
-  runs.py, store.py  web runs (background task + step log) and saved agent results
+  runs.py, store.py  web runs (background task + step log), saved agent results, approvals
+  session.py         per-visitor state in memory: added animals, photos, refined listings
+  limits.py          per-visitor and daily limits on live runs and new locations
+  custom_location.py checks a typed shelter area with Qloo before any run
   qloo/              exec wrapper, envelope types, cache, geohash helpers
   views/             UI-neutral view models, one per screen, also served as JSON
   ui/<name>/         one folder per UI: templates/ and static/ (classic is the default)
@@ -297,6 +300,7 @@ uv run uvicorn app.main:app --reload
 uv run python scripts/make_web_photos.py      # web-sized photos into app/static/animals
 uv run python scripts/build_profiles.py       # fixed-lookup profiles from the cache; --live fills gaps from Qloo
 uv run python scripts/run_agent.py dog-02 park-slope   # one live agent run (Qloo and the model), steps printed
+uv run python scripts/precompute_examples.py  # the start page's examples into var/cache.sqlite, live
 uv run pytest
 uv run pytest tests/test_app.py::test_health   # one test (-k <expr> also works)
 uv run ruff check . && uv run ruff format --check .

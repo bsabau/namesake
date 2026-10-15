@@ -13,7 +13,20 @@ from tests.qloo_fakes import SEEDS, FakeQloo, standard_script
 REQUIRED = {
     "start": ["map", "photo-credit", "qloo-credit"],
     "working": ["working", "steps", "status", "photo-credit", "qloo-credit"],
-    "result": ["name", "qloo-returned", "our-reading", "map", "photo-credit", "qloo-credit"],
+    "result": [
+        "name",
+        "version-toggle",
+        "version-generic",
+        "version-local",
+        "approve",
+        "refine",
+        "qloo-returned",
+        "our-reading",
+        "map",
+        "photo-credit",
+        "qloo-credit",
+    ],
+    "add_animal": ["add-animal", "photo-credit", "qloo-credit"],
 }
 
 
@@ -99,3 +112,10 @@ def test_a_failed_run_reports_its_error_and_does_not_send_to_a_result(monkeypatc
             lines = [line for line in stream.iter_lines() if line.startswith("data:")]
     assert "The run stopped: RuntimeError" in lines[-2]
     assert '"failed": true' in lines[-1]
+
+
+@pytest.mark.parametrize("ui", main.UIS)
+def test_add_animal_screen_meets_the_contract(client, ui):
+    html = client.get("/animals/new", params={"location": "park-slope", "ui": ui}).text
+    for role in REQUIRED["add_animal"]:
+        assert f'data-role="{role}"' in html, f"{ui} add animal: missing {role}"

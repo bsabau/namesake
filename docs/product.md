@@ -26,7 +26,7 @@ The review found no study showing that names or wording speed adoption. Being se
 - Every sentence traces to a fact. Code checks this after the model writes.
 - Difficult behaviour is stated plainly with a management suggestion.
 
-**Generic and local versions** share the same bio. The local version adds the chosen name and one hook line. The toggle therefore shows exactly what Qloo contributed.
+**Generic and local versions** share the same bio. The generic version takes a common pet name from a fixed list; the local version takes the chosen name from Qloo's titles and adds one hook line. The toggle therefore shows exactly what Qloo contributed (`docs/decisions.md` #8).
 
 **Volunteer approval.** The volunteer edits and approves the text, then copies a block ready to paste into shelter software.
 
@@ -65,7 +65,7 @@ The plan's success measure is adoptions and returns; likes and reach are left ou
 | E. General local tastes | `recommend` with `signal_location` per type | agent proposes, screens, keeps | location |
 | F. Check each name's reference | resolve and `describe`; `needs_input` goes to candidate buttons or a pick with a stated reason | agent | entity |
 
-Steps A to E run once per location and every animal reuses them, so quota cost grows with locations, not animals. Fixed calls, such as the heatmap, use `qloo exec` from code. Calls the agent chooses use `qloo mcp`.
+Steps A to E run once per location and every animal reuses them, so quota cost grows with locations, not animals. Fixed calls, such as the heatmap, use `qloo exec` from code. Calls the agent chooses go through function tools over the same client, so they are cached and spaced too (`docs/decisions.md` #5).
 
 **Use lift, not raw affinity.** Raw affinity saturates near 1.0, and a broad entity's heatmap mostly shows where people are. Lift against a baseline entity is the number that carries taste. See `docs/qloo-findings.md` once milestone 1 writes it.
 
@@ -75,7 +75,7 @@ The result screen must be legible in a single screenshot. It shows:
 - the photo and chosen name
 - the generic/local toggle
 - the name options with their source badges
-- a map of local lift with venue pins
+- a map of local lift, with the venues listed beside it (`docs/decisions.md` #4)
 - the exposure checklist
 - a "Why" drawer with two columns, "Qloo returned" and "Our reading"
 

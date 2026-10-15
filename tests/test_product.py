@@ -211,15 +211,6 @@ def test_an_edit_that_drops_a_caution_is_refused_and_kept(client):
     assert Store(main.get_settings().cache_db).approvals() == []
 
 
-def test_the_whole_version_toggle_is_in_the_page_for_every_ui(client):
-    for ui in main.UIS:
-        page = client.get(
-            "/result", params={"animal": "dog-02", "location": "park-slope", "ui": ui}
-        ).text
-        for role in ("version-toggle", "version-generic", "version-local", "approve", "refine"):
-            assert f'data-role="{role}"' in page, (ui, role)
-
-
 # Sessions and added animals
 
 
@@ -564,3 +555,17 @@ def test_the_start_page_offers_only_examples_that_are_ready(client):
     page = client.get("/").text
     assert 'data-role="examples"' in page and "The lead dog in Park Slope" in page
     assert "The same dog in Astoria" not in page
+
+
+def test_the_litter_button_runs_every_member_and_opens_the_first(client, roster):
+    response = client.post("/runs", data={"animal": "litter-group", "location": "park-slope"})
+    run = main.RUNS[response.url.path.rsplit("/", 1)[1]]
+    asyncio.run(_wait(run))
+    members = next(lit for lit in roster.litters if lit.id == "litter-group").members
+    assert run.animal_id == members[0] and not run.failed
+    store = Store(main.get_settings().cache_db)
+    # No model in tests: every member falls back to the template, and each is saved.
+    assert all(store.get_listing(m, "park-slope") is not None for m in members)
+    again = client.post("/runs", data={"animal": "litter-group", "location": "park-slope"})
+    # A second time, nothing live happens: every member is saved.
+    assert "This listing was made before" in again.text
