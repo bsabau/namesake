@@ -315,3 +315,8 @@ def test_a_weapon_in_the_reference_fails_even_for_an_object_name():
         reference="a rifle in Example Dog Show",
     )
     assert problems == ["name 'Rifle' contains 'rifle'"]
+
+
+def test_punctuation_inside_the_title_is_not_a_second_sentence():
+    title = "Scooby-Doo, Where Are You!"
+    assert check_reference("Scooby-Doo, a dog in Scooby-Doo, Where Are You!", title) == []

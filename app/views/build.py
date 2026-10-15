@@ -148,7 +148,7 @@ def basis_label(key: str) -> str:
 def listing_view(animal: Animal, result: ListingResult | None = None) -> ListingView:
     draft = result.draft if result else None
     if draft is not None:
-        bio = [(s.text, s.facts) for s in (result.bio or draft.bio)]
+        bio = [(s.text, s.facts) for s in result.bio]
         written_by = "Written by the agent from the shelter's records, then checked by code."
     else:
         bio = [(s.text, [s.source]) for s in templated_listing(animal).sentences]

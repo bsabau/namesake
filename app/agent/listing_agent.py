@@ -15,7 +15,7 @@ from pydantic_ai.models import Model
 from app.agent import checks
 from app.agent.steps import StepLog
 from app.animals import Animal
-from app.listing import age_phrase, pronouns
+from app.listing import age_phrase, check_sentences, pronouns
 from app.profile import Entity
 
 Source = Literal["pet", "local"]
@@ -132,7 +132,13 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
             reference=option.reference,
             reference_role=option.reference_role,
         )
-    problems += checks.check_bio(deps.animal, [(s.text, s.facts) for s in draft.bio])
+    appended = check_sentences(deps.animal.checks, pronouns(deps.animal.sex))
+    problems += checks.check_bio(
+        deps.animal,
+        [(s.text, s.facts) for s in draft.bio],
+        extra_words=sum(len(c.text.split()) for c in appended),
+    )
+    problems += checks.check_hook(hook_for(draft.names[0]))
     if problems:
         deps.log.add("check", "Sent back for a fix: " + "; ".join(problems))
         raise ModelRetry("Fix these and answer again: " + "; ".join(problems))

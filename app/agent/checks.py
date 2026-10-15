@@ -203,17 +203,37 @@ def _texts_for(animal: Animal, keys: list[str]) -> str:
     return " ".join(texts[k] for k in keys if k in texts)
 
 
-def check_grounded(animal: Animal, text: str, keys: list[str], label: str) -> list[str]:
-    """Text must say only what the cited facts say: no new words, no new negation,
-    and nothing about the shelter's checks unless the fact itself does."""
-    problems = []
+def check_grounded(
+    animal: Animal, text: str, keys: list[str], label: str, *, whole: bool = True
+) -> list[str]:
+    """Text must say what its cited facts say, whole, and nothing more.
+
+    No content word the facts lack, every content word of each cited fact, each fact's
+    negation kept and none added, and nothing about the shelter's checks unless the
+    fact itself says it.
+    """
+    texts = fact_texts(animal)
     source = _texts_for(animal, keys)
+    problems = []
     extra = sorted(_content(text) - _content(source))
     if extra:
         problems.append(f"{label} says things its facts do not: {extra}; restate only the facts")
     negation = find_word(text, NEGATIONS)
     if negation and not find_word(source, NEGATIONS):
         problems.append(f"{label} adds a negation ({negation!r}) that its facts do not have")
+    for key in keys if whole else []:
+        fact = texts.get(key, "")
+        missing = sorted(_content(fact) - _content(text))
+        if missing:
+            problems.append(f"{label} cites {key} but leaves out {missing}; restate it whole")
+        dropped = find_word(fact, NEGATIONS)
+        if dropped and not find_word(text, NEGATIONS):
+            problems.append(f"{label} drops the {dropped!r} in {key}; keep its meaning")
+    return problems + _topics_and_tone(text, source, label)
+
+
+def _topics_and_tone(text: str, source: str, label: str) -> list[str]:
+    problems = []
     for words in UNKNOWN_TOPICS.values():
         hit = find_word(text, words)
         if hit and not find_word(source, words):
@@ -233,7 +253,9 @@ def check_grounded(animal: Animal, text: str, keys: list[str], label: str) -> li
     return problems
 
 
-def check_bio(animal: Animal, sentences: list[tuple[str, list[str]]]) -> list[str]:
+def check_bio(
+    animal: Animal, sentences: list[tuple[str, list[str]]], extra_words: int = 0
+) -> list[str]:
     """The agent's bio: every sentence grounded in the facts it cites, every fact used."""
     problems = []
     allowed = agent_fact_keys(animal)
@@ -254,9 +276,12 @@ def check_bio(animal: Animal, sentences: list[tuple[str, list[str]]]) -> list[st
     if missing:
         listed = "; ".join(f"{k} ({texts[k]!r})" for k in missing)
         problems.append(f"the bio leaves out {listed}; include every recorded fact")
-    words = len(" ".join(s for s, _ in sentences).split())
+    # `extra_words`: the confirmed-check sentences code appends count toward the limit.
+    words = len(" ".join(s for s, _ in sentences).split()) + extra_words
     if words > MAX_WORDS:
-        problems.append(f"bio is {words} words; keep it to {MAX_WORDS} or fewer")
+        problems.append(
+            f"bio is {words} words with the confirmed checks; keep it to {MAX_WORDS} or fewer"
+        )
     return problems
 
 
@@ -264,7 +289,9 @@ def check_why(animal: Animal, why: str, name: str) -> list[str]:
     """A name's reason may only restate the animal's facts (plus "suits", "fits", the name)."""
     label = f"the reason for {name!r}"
     keys = agent_fact_keys(animal)
-    problems = [p for p in check_grounded(animal, why, keys, label) if "says things" not in p]
+    # A reason draws on some facts, so it need not restate any of them whole.
+    grounded = check_grounded(animal, why, keys, label, whole=False)
+    problems = [p for p in grounded if "says things" not in p]
     allowed = _content(_texts_for(animal, keys)) | _content(" ".join(WHY_GLUE)) | _content(name)
     extra = sorted(_content(why) - allowed)
     if extra:
@@ -273,12 +300,20 @@ def check_why(animal: Animal, why: str, name: str) -> list[str]:
 
 
 def check_reference(reference: str, title: str) -> list[str]:
-    """What a name refers to must name its title and stay a plain description."""
+    """What a name refers to: one short phrase naming its title, and nothing else.
+
+    It becomes the hook ("Named after ..."), so it may not carry a second sentence,
+    temperament or a claim about tastes.
+    """
     problems = []
-    if len(reference.split()) > 14:
+    if len(reference.split()) > 12:
         problems.append(
             f"reference {reference!r} is too long; keep it to who or what, and the title"
         )
+    # Punctuation inside the title itself ("Scooby-Doo, Where Are You!") is not a break.
+    outside_title = re.sub(re.escape(title), "", reference, flags=re.I)
+    if re.search(r"[.!?;:]", ABBREVIATIONS.sub(r"\1", outside_title.strip().rstrip("."))):
+        problems.append(f"reference {reference!r} must be one short phrase, not sentences")
     title_words = _content(title)
     if title_words and not (title_words & _content(reference)):
         problems.append(f"reference {reference!r} must name its title, {title!r}")
@@ -286,6 +321,12 @@ def check_reference(reference: str, title: str) -> list[str]:
         hit = find_word(reference, words)
         if hit:
             problems.append(f"reference {reference!r} mentions {hit!r}")
+    trait = find_word(reference, HOOK_TRAIT_WORDS)
+    if trait:
+        problems.append(f"reference {reference!r} describes temperament ({trait!r})")
+    claim = find_word(reference, HOOK_CLAIMS)
+    if claim:
+        problems.append(f"reference {reference!r} makes a claim about tastes ({claim!r})")
     return problems
 
 

@@ -5,10 +5,15 @@ from pydantic import BaseModel
 from app.agent.listing_agent import BioSentence, ListingDraft
 from app.agent.steps import Step
 
+# Raised whenever the listing checks change; saved results from an older version are
+# rerun instead of shown, since they were never held to the current rules.
+CHECKS_VERSION = 3
+
 
 class ListingResult(BaseModel):
     animal_id: str
     location_id: str
+    checks_version: int = 0
     # None when the agent's draft failed its checks or the model was unavailable;
     # the page then shows the templated listing and says why.
     draft: ListingDraft | None = None

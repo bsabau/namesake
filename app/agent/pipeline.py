@@ -17,7 +17,7 @@ from pydantic_ai.usage import UsageLimits
 
 from app.agent.listing_agent import BioSentence, ListingDeps, build_listing_agent, hook_for
 from app.agent.profile_agent import ProfileDeps, build_profile_agent
-from app.agent.results import ListingResult
+from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import StepLog
 from app.animals import Animal
 from app.listing import check_sentences, pronouns
@@ -44,6 +44,9 @@ ModelFactory = Callable[[], Model]
 # One profile build per location and species at a time; a second request waits and
 # then finds the saved profile instead of spending quota on the same work.
 _profile_locks: defaultdict[tuple[int, str, str], asyncio.Lock] = defaultdict(asyncio.Lock)
+# One listing at a time per shelter, so the names already taken are read and the new
+# listing saved without another run giving out the same name in between.
+_listing_locks: defaultdict[tuple[int, str], asyncio.Lock] = defaultdict(asyncio.Lock)
 AGENT_FAILURES = (UnexpectedModelBehavior, AgentRunError, ModelHTTPError, OSError, ValueError)
 
 
@@ -90,7 +93,8 @@ async def agent_profile(
         venue.rejected_reason = rejects.get(venue.entity_id)
     profile.made_by = "agent"
     profile.order_source = "qloo_rank" if deps.rank_order else "agent"
-    profile.ranked = [i for i in (deps.rank_order or []) if i in chosen]
+    # Qloo's full order, so a badge reports the position Qloo actually gave.
+    profile.ranked = list(deps.rank_order or [])
     return profile
 
 
@@ -179,7 +183,9 @@ async def write_listing(
     output_mode: str,
     taken: frozenset[str] = frozenset(),
 ) -> ListingResult:
-    result = ListingResult(animal_id=animal.id, location_id=location.id)
+    result = ListingResult(
+        animal_id=animal.id, location_id=location.id, checks_version=CHECKS_VERSION
+    )
     if model_factory is None:
         result.fallback_reason = "No model is configured, so this is the templated listing."
         return result
@@ -237,16 +243,17 @@ async def run_pipeline(
         log=log,
         output_mode=output_mode,
     )
-    result = await write_listing(
-        animal,
-        location,
-        profile,
-        model_factory=model_factory,
-        log=log,
-        output_mode=output_mode,
-        taken=taken_names(animal, location, store, litter_mates or set()),
-    )
-    result.steps = list(log.steps)
-    store.put_listing(result)
+    async with _listing_locks[(id(asyncio.get_running_loop()), location.id)]:
+        result = await write_listing(
+            animal,
+            location,
+            profile,
+            model_factory=model_factory,
+            log=log,
+            output_mode=output_mode,
+            taken=taken_names(animal, location, store, litter_mates or set()),
+        )
+        result.steps = list(log.steps)
+        store.put_listing(result)
     log.add("done", "Done")
     return result

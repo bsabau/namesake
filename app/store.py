@@ -11,7 +11,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ValidationError
 
-from app.agent.results import ListingResult
+from app.agent.results import CHECKS_VERSION, ListingResult
 from app.profile import LocationProfile
 
 SCHEMA = """
@@ -61,7 +61,8 @@ class Store:
         self._put(f"profile:{profile.location_id}:{profile.species}", profile)
 
     def get_listing(self, animal_id: str, location_id: str) -> ListingResult | None:
-        return self._load(ListingResult, f"listing:{animal_id}@{location_id}")
+        result = self._load(ListingResult, f"listing:{animal_id}@{location_id}")
+        return result if result is not None and _current(result) else None
 
     def put_listing(self, result: ListingResult) -> None:
         self._put(f"listing:{result.animal_id}@{result.location_id}", result)
@@ -75,4 +76,10 @@ class Store:
                     "SELECT key FROM agent_results WHERE key LIKE ?", (f"listing:%@{location_id}",)
                 )
             ]
-        return [r for r in (self._load(ListingResult, k) for k in keys) if r is not None]
+        results = (self._load(ListingResult, k) for k in keys)
+        return [r for r in results if r is not None and _current(r)]
+
+
+def _current(result: ListingResult) -> bool:
+    """Held to today's checks. A templated fallback has no draft and is always current."""
+    return result.draft is None or result.checks_version == CHECKS_VERSION

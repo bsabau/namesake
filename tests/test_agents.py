@@ -11,7 +11,7 @@ from pydantic_ai.models.function import FunctionModel
 
 from app.agent.listing_agent import ListingDraft
 from app.agent.pipeline import run_pipeline
-from app.agent.results import ListingResult
+from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import StepLog
 from app.store import Store
 from tests.qloo_fakes import (
@@ -106,7 +106,10 @@ DRAFT = {
         },
     ],
     "bio": [
-        {"text": "She is strong but gentle and leans on people.", "facts": ["temperament"]},
+        {
+            "text": "She is strong but gentle and leans on people for attention.",
+            "facts": ["temperament"],
+        },
         {"text": "She needs an owner comfortable with a big dog.", "facts": ["fact:0"]},
         {"text": "She knows basic commands.", "facts": ["fact:1"]},
     ],
@@ -251,7 +254,10 @@ def test_a_name_used_at_the_shelter_is_refused(roster):
     # Another dog at the same shelter is already called Bingo.
     store.put_listing(
         ListingResult(
-            animal_id="dog-03", location_id=LOCATION.id, draft=ListingDraft.model_validate(DRAFT)
+            animal_id="dog-03",
+            location_id=LOCATION.id,
+            draft=ListingDraft.model_validate(DRAFT),
+            checks_version=CHECKS_VERSION,
         )
     )
     rubble = {**DRAFT["names"][2], "name": "Rubble", "reference": "a pup in Example Dog Show"}
@@ -440,3 +446,93 @@ def test_two_runs_at_once_build_the_profile_once(roster, monkeypatch):
 
     asyncio.run(go())
     assert len(builds) == 1
+
+
+def test_an_old_saved_draft_is_rerun_not_shown(roster):
+    # Regression (Codex, milestone 3): drafts saved before the current checks were shown.
+    store = Store(_tmp_db())
+    old = ListingResult(
+        animal_id="dog-02", location_id=LOCATION.id, draft=ListingDraft.model_validate(DRAFT)
+    )
+    store.put_listing(old)
+    assert store.get_listing("dog-02", LOCATION.id) is None
+
+
+def test_a_dropped_negation_or_a_half_cited_fact_is_sent_back(roster):
+    # Regression (Codex, milestone 3, P1): "not suited" without "not" passed.
+    from app.agent.checks import check_bio
+
+    dog = roster.get("dog-03")
+    temperament = (f"He is {dog.temperament}.", ["temperament"])
+    tricks = ("He learns tricks in minutes.", ["fact:0"])
+    dropped = ("He is suited to being left alone all day.", ["fact:1"])
+    assert any("drops the 'not'" in p for p in check_bio(dog, [temperament, tricks, dropped]))
+    half = ("He is very active.", ["temperament", "fact:0"])
+    problems = check_bio(dog, [half, ("He is not suited to being left alone all day.", ["fact:1"])])
+    assert any("leaves out" in p and "fact:0" in p for p in problems)
+
+
+def test_a_reference_cannot_smuggle_a_second_sentence():
+    from app.agent.checks import check_reference
+
+    problems = check_reference("a puppy in Example Dog Show. She is playful", "Example Dog Show")
+    assert any("one short phrase" in p for p in problems)
+    assert any("temperament" in p for p in problems)
+
+
+def test_appended_check_sentences_count_toward_the_word_limit(roster):
+    from app.agent.checks import check_bio
+
+    dog = roster.get("dog-02")
+    words = "She knows basic commands. " * 30  # 120 words
+    bio = [
+        ("She is strong but gentle; leans on people for attention.", ["temperament"]),
+        ("She needs an owner comfortable with a big dog.", ["fact:0"]),
+        (words.strip(), ["fact:1"]),
+    ]
+    assert not any("150" in p for p in check_bio(dog, bio))
+    assert any("150" in p for p in check_bio(dog, bio, extra_words=20))
+
+
+def test_concurrent_listings_at_one_shelter_get_different_names(roster):
+    # Regression (Codex, milestone 3): two runs both read "no names taken" and saved Bingo.
+    store = Store(_tmp_db())
+    twin = roster.get("dog-02").model_copy(update={"id": "dog-02-twin"})
+    rubble = {**DRAFT["names"][2], "name": "Rubble", "reference": "a pup in Example Dog Show"}
+    renamed = {**DRAFT, "names": [DRAFT["names"][1], DRAFT["names"][2], rubble]}
+
+    async def go():
+        qloo = FakeQloo(full_script())
+
+        def one(animal, answers):
+            return run_pipeline(
+                animal,
+                LOCATION,
+                qloo=qloo,
+                store=store,
+                seeds=SEEDS,
+                model_factory=lambda: FunctionModel(Script([PLAN], answers)),
+                log=StepLog(),
+            )
+
+        return await asyncio.gather(
+            one(roster.get("dog-02"), [DRAFT, renamed]), one(twin, [DRAFT, renamed])
+        )
+
+    first, second = asyncio.run(go())
+    assert {first.draft.names[0].name, second.draft.names[0].name} == {"Bingo", "Biscuit"}
+
+
+def test_a_badge_reports_qloos_position_even_for_a_dropped_title(roster):
+    # Regression (Codex, milestone 3): keeping only Qloo's 2nd title made it "1st of 1".
+    from app.views.build import name_badge
+
+    dog_only = {**PLAN, "titles": [PLAN["titles"][0]]}
+    rubble = {**DRAFT["names"][2], "name": "Rubble", "reference": "a pup in Example Dog Show"}
+    dog_names = {**DRAFT, "names": [DRAFT["names"][0], DRAFT["names"][2], rubble]}
+    _, store, _ = run(Script([dog_only], [dog_names]), roster)
+    profile = store.get_profile(LOCATION.id, "dog")
+    assert profile.ranked == [CAT_SHOW, DOG_SHOW]
+    assert name_badge("pet", DOG_SHOW, profile) == (
+        "Pet-themed title, ranked 2nd of 2 here by Qloo"
+    )
