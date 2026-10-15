@@ -125,8 +125,4 @@ Most Qloo work depends on the location and the species, not the individual anima
 
 The agentic steps are 1, 2, 3, 5 and 8: the model reads Qloo's answers and decides what to try next. The three presets are precomputed, so the demo spends no quota. A custom location costs about 8 calls, roughly a minute with the spacing, shown in the live log.
 
-**Decisions needed:**
-
-- One location profile shared by all animals of a species, as above, or a full run per animal?
-- Venue suitability: a code blocklist by place category plus the agent's judgement, as above, or the agent's judgement alone?
-- `rank` is the tightest call. Keep it for step 3, or let the agent order the titles by running `recommend` with the location as a signal and reading the order?
+**Decided:** see `docs/decisions.md`, entries 1 to 5 (15 October 2026).
