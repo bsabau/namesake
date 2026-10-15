@@ -20,6 +20,8 @@ class Location(BaseModel):
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
     zoom: int = Field(default=13, ge=1, le=18)  # map zoom: ~14 for a neighbourhood, ~11 for a city
+    # A channel beyond the usual audience, for the exposure plan. Our suggestion, not Qloo's.
+    community_channel: str | None = None
 
 
 def load_locations(path: Path) -> list[Location]:

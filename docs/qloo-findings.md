@@ -80,6 +80,21 @@ That is a usable map layer: where in the neighbourhood the pet show's fans stand
 
 About 12 calls went through in roughly 20 minutes before Qloo answered `QLOO_RATE_LIMIT`. The harness marks it retryable; a retry after 5 seconds failed too, and so did later attempts over several minutes. The window is not published. The wrapper retries once, as the harness's recovery text says, and never caches an error.
 
+## Building the location profiles (milestone 2)
+
+`scripts/build_profiles.py` runs the fixed lookup for every preset: resolve the seed titles, venues for the pet shows and for the baseline, and heatmaps within the area. With 5 seconds between calls, all 8 new calls went through without a rate limit.
+
+| Location | Venues that stand out for pet-show fans | Also popular generally | Left out by the screen | Map cells with lift |
+|---|---|---|---|---|
+| Park Slope | 6 | 9 | 0 | 8 of 15 |
+| Astoria | 3 | 12 | 3 (hookah lounges) | 8 of 8 |
+| Austin | 9 | 6 | 0 | 3 of 20 |
+
+- Astoria's pet-show venues overlap the baseline's far more than Park Slope's do, so there the venue list is mostly "popular nearby". The result says so through each venue's badge.
+- Austin is a whole city, so its map cells are 6-character geohashes and overlap with the baseline is thin (3 cells).
+- Austin's list includes two sorority houses: places the keyword screen cannot judge, which is why milestone 3 adds the agent's suitability check.
+- **Venues have no coordinates.** Place results carry an address and a neighbourhood name but no latitude or longitude, and `describe` on a place returns only its ID, name and type. Venues are therefore listed, not pinned on the map. Pins would need a geocoder outside Qloo.
+
 ## Preset locations
 
 Keep the provisional three: **Park Slope**, **Astoria** and **Austin**.

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}{{ view.listing.heading }} · {{ view.location.label }} · Namesake{% endblock %}
+
+{% block head %}
+{% include "leaflet.html" %}
+<script defer src="{{ ui_static('result-map.js') }}"></script>
+<script defer src="{{ ui_static('copy.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<p class="back"><a href="/?location={{ view.location.id }}{{ ui_query }}">&larr; Pick another animal</a></p>
+
+<div class="result">
+  <section class="result-listing">
+    <div class="who">
+      <img src="{{ view.animal.image_url }}" alt="{{ view.animal.alt }}" width="160" height="160">
+      <div>
+        <p class="animal-meta">{{ view.animal.meta }}
+          {% for badge in view.animal.badges %}<span class="badge">{{ badge }}</span>{% endfor %}</p>
+        <h1 data-role="name" class="{{ 'name' if view.name.value else 'name name-empty' }}">
+          {{ view.name.value or view.name.placeholder }}</h1>
+        <p class="where-label">Shelter area: {{ view.location.label }}, {{ view.location.region }}</p>
+      </div>
+    </div>
+
+    <h2>{{ view.listing.heading }}</h2>
+    <p class="listing-text" id="listing-text">{{ view.listing.text }}</p>
+    <p class="listing-meta">
+      {{ view.listing.word_count }} words, every one from the shelter's records.
+      <button type="button" class="copy" data-copy-target="listing-text">Copy listing</button>
+    </p>
+    <ul class="left-out">
+      {% for line in view.listing.left_out %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+
+    <h2>{{ view.plan_heading }}</h2>
+    <ol class="plan">
+      {% for item in view.plan %}
+      <li><span class="basis basis-{{ item.basis|lower|replace(' ', '-') }}">{{ item.basis }}</span> {{ item.text }}</li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  <section class="result-local">
+    <figure class="result-map">
+      <div id="result-map" data-role="map" role="img"
+           aria-label="Map of where pet-show fans stand out around {{ view.location.label }}"></div>
+      <figcaption>{{ view.map.empty_message or view.map.legend }}</figcaption>
+    </figure>
+    <script type="application/json" id="map-data">{{ view.map|plain|tojson }}</script>
+
+    <h2>Places to ask</h2>
+    <ul class="venues">
+      {% for venue in view.venues %}
+      <li class="venue">
+        <p><strong>{{ venue.name }}</strong>
+          <span class="tag {{ 'tag-strong' if venue.stands_out }}">{{ venue.badge }}</span></p>
+        <p class="venue-place">{{ venue.place }}</p>
+        {% if venue.description %}<p class="venue-description">{{ venue.description }}</p>{% endif %}
+        <p class="venue-evidence">{{ venue.evidence }}</p>
+      </li>
+      {% else %}
+      <li>No venues for this area yet.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+
+{% if view.notes %}
+<section class="notes">
+  <h2>Gaps in the data</h2>
+  <ul>{% for note in view.notes %}<li>{{ note }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+<section class="why" aria-label="Why these suggestions">
+  <h2>Why</h2>
+  <div class="why-columns">
+    <div class="why-column" data-role="qloo-returned">
+      <h3>What Qloo returned</h3>
+      <dl>
+        {% for item in view.qloo_returned %}<dt>{{ item.title }}</dt><dd>{{ item.detail }}</dd>{% endfor %}
+      </dl>
+    </div>
+    <div class="why-column" data-role="our-reading">
+      <h3>Our reading of it</h3>
+      <dl>
+        {% for item in view.our_reading %}<dt>{{ item.title }}</dt><dd>{{ item.detail }}</dd>{% endfor %}
+      </dl>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -7,7 +7,8 @@
     "city": "New York City",
     "latitude": 40.672,
     "longitude": -73.978,
-    "zoom": 14
+    "zoom": 14,
+    "community_channel": "Spanish- and Chinese-language community noticeboards and groups in nearby Sunset Park"
   },
   {
     "id": "astoria",
@@ -17,7 +18,8 @@
     "city": "New York City",
     "latitude": 40.764,
     "longitude": -73.923,
-    "zoom": 14
+    "zoom": 14,
+    "community_channel": "Greek-, Arabic- and Spanish-language community noticeboards and groups in Astoria"
   },
   {
     "id": "austin",
@@ -27,6 +29,7 @@
     "city": "Austin, TX",
     "latitude": 30.267,
     "longitude": -97.743,
-    "zoom": 11
+    "zoom": 11,
+    "community_channel": "Spanish-language community radio and noticeboards in East Austin"
   }
 ]

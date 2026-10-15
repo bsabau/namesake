@@ -1,0 +1,8 @@
+{
+  "_comment": "Fixed Qloo entities for milestone 2's lookup, before the agent chooses its own. Names only, never Qloo IDs: each is resolved through the harness, and when Qloo returns candidates the one whose description contains `choose` is taken.",
+  "pet": [
+    {"name": "Bluey", "type": "tv_show", "choose": "2018", "why": "children's series about a family of dogs"},
+    {"name": "My Cat from Hell", "type": "tv_show", "choose": "", "why": "series about cat behaviour and the people who live with cats"}
+  ],
+  "baseline": {"name": "Yellowstone", "type": "tv_show", "choose": "2018", "why": "a widely watched drama with nothing to do with pets"}
+}

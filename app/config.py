@@ -29,8 +29,12 @@ class Settings(BaseSettings):
     agent_model: str | None = None
     agent_api: str = "chat"
 
+    # Default interface: a folder under app/ui/. `?ui=<name>` overrides it per request.
+    ui: str = "classic"
+
     animals_file: Path = ROOT / "data" / "animals" / "animals.json"
     locations_file: Path = ROOT / "data" / "locations.json"
+    seeds_file: Path = ROOT / "data" / "seeds.json"
     # Real Qloo data: git-ignored, never committed, deployed privately.
     cache_db: Path = ROOT / "var" / "cache.sqlite"
     qloo_recordings: Path = ROOT / "var" / "qloo-recordings"

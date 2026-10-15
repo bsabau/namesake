@@ -2,8 +2,21 @@
 
 import json
 from pathlib import Path
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+Answer = Literal["yes", "no", "unknown"]
+
+
+class Checks(BaseModel):
+    """What the shelter has confirmed. Anything not confirmed stays `unknown`."""
+
+    good_with_children: Answer = "unknown"
+    good_with_dogs: Answer = "unknown"
+    good_with_cats: Answer = "unknown"
+    house_trained: Answer = "unknown"
+    bite_history: Answer = "unknown"
 
 
 class Animal(BaseModel):
@@ -14,7 +27,11 @@ class Animal(BaseModel):
     age: str
     look: str
     temperament: str
+    # Present-tense observations; the only facts a listing may state.
     facts: list[str]
+    # Backstory and time in the shelter: for staff, never printed in a listing.
+    history: list[str] = Field(default_factory=list)
+    checks: Checks = Field(default_factory=Checks)
     image: str
     litter: str | None = None
 

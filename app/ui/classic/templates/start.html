@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block head %}
+{% include "leaflet.html" %}
+<script defer src="{{ ui_static('location-map.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<section class="intro">
+  <h1>{{ view.title }}</h1>
+  <p>{{ view.intro }}</p>
+</section>
+
+<form action="/result" method="get">
+  {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
+  <section class="where">
+    <fieldset class="locations">
+      <legend><h2>Where is the shelter?</h2></legend>
+      <div class="location-options">
+        {% for location in view.locations %}
+        <label class="location-option">
+          <input type="radio" name="location" value="{{ location.id }}"
+                 {% if location.selected %}checked{% endif %}>
+          <span class="location-label">{{ location.label }}</span>
+          <span class="location-region">{{ location.region }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <figure class="location-map">
+      <div id="location-map" data-role="map" role="img"
+           aria-label="Map of the area around the shelter"></div>
+      <figcaption>The circle marks the area around the fictional shelter, not a real address.</figcaption>
+    </figure>
+    <script type="application/json" id="map-points">{{ view.locations|plain|tojson }}</script>
+  </section>
+
+  <h2 class="step-heading">Pick an animal</h2>
+
+  <ul class="animal-grid">
+    {% for animal in view.animals %}
+    <li id="{{ animal.id }}">
+      <button class="animal-card" type="submit" name="animal" value="{{ animal.id }}">
+        <img src="{{ animal.image_url }}" alt="{{ animal.alt }}" width="800" height="800" loading="lazy">
+        <span class="animal-body">
+          <span class="animal-meta">
+            {{ animal.meta }}
+            {% for badge in animal.badges %}<span class="badge">{{ badge }}</span>{% endfor %}
+          </span>
+          <span class="animal-look">{{ animal.look }}</span>
+          <span class="animal-temperament">{{ animal.temperament }}</span>
+        </span>
+      </button>
+    </li>
+    {% endfor %}
+  </ul>
+</form>
+
+{% for litter in view.litters %}
+<section class="litter" id="{{ litter.id }}">
+  <img src="{{ litter.image_url }}" alt="{{ litter.alt }}" width="800" height="800" loading="lazy">
+  <div>
+    <h2>{{ litter.title }}</h2>
+    <p>{{ litter.text }}</p>
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

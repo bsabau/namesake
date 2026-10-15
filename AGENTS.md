@@ -294,6 +294,7 @@ README.md
 uv sync
 uv run uvicorn app.main:app --reload
 uv run python scripts/make_web_photos.py      # web-sized photos into app/static/animals
+uv run python scripts/build_profiles.py       # location profiles from the cache; --live fills gaps from Qloo
 uv run pytest
 uv run pytest tests/test_app.py::test_health   # one test (-k <expr> also works)
 uv run ruff check . && uv run ruff format --check .
@@ -302,11 +303,11 @@ docker build -t namesake .
 
 ## Milestones
 
-Work on one milestone at a time, in order, and stop at the end of each for review. Dates are targets. Current milestone: **1**.
+Work on one milestone at a time, in order, and stop at the end of each for review. Dates are targets. Current milestone: **2**. The decisions asked for at the end of `docs/qloo-findings.md` are still open; they shape milestone 3, not 2.
 
 **0. Scaffold.** Done 15 October. The uv project, the settings module, a health route, the start page with the animal grid and web-sized photos, and a Dockerfile with Python, Node and the pinned harness.
 
-**1. Qloo layer and findings (16–18 October).**
+**1. Qloo layer and findings.** Done 15 October; see `docs/qloo-findings.md`. The original brief:
 - Write a typed wrapper around `qloo exec` that:
   - parses the envelope and handles every status
   - caches in SQLite at `settings.cache_db`

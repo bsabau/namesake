@@ -38,16 +38,17 @@ def test_map_gets_every_preset_point():
     html = client.get("/").text
     assert 'id="location-map"' in html
     start = html.index('id="map-points">') + len('id="map-points">')
-    points = json.loads(html[start : html.index("</script>", start)])
+    points = {p["id"]: p for p in json.loads(html[start : html.index("</script>", start)])}
     for loc in load_locations(get_settings().locations_file):
         assert points[loc.id]["latitude"] == loc.latitude
         assert points[loc.id]["longitude"] == loc.longitude
 
 
-def test_map_script_is_served_and_credits_openstreetmap():
-    js = client.get("/static/location-map.js")
-    assert js.status_code == 200
-    assert "OpenStreetMap" in js.text
+def test_map_scripts_are_served_and_credit_openstreetmap():
+    for name in ["location-map.js", "result-map.js"]:
+        js = client.get(f"/ui/classic/static/{name}")
+        assert js.status_code == 200
+        assert "OpenStreetMap" in js.text
 
 
 def _checked_id(html: str) -> str:

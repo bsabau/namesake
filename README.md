@@ -37,7 +37,15 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
-Open http://localhost:8000.
+Pages never call Qloo live; they read location profiles from the cache in `var/`. Build them
+once (this spends quota, spaced a few seconds apart):
+
+```sh
+uv run python scripts/build_profiles.py --live
+```
+
+Open http://localhost:8000. Add `?ui=<name>` to try another interface from `app/ui/`, and
+`/api/start` or `/api/results/dog-02@park-slope` for the same data as JSON.
 
 Tests and lint:
 

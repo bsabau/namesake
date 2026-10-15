@@ -1,0 +1,123 @@
+"""The templated listing: plain sentences built only from an animal's recorded facts.
+
+It is the generic version of every listing and the fallback when the agent's
+text fails its checks. Each sentence records where it came from, so a check can
+prove nothing was invented. Backstory (`Animal.history`) is never used.
+"""
+
+import re
+
+from pydantic import BaseModel
+
+from app.animals import Animal, Checks
+
+# Third-person verbs that start some facts ("knows basic commands"); adjectives
+# ending in "s" are listed so they take "is" instead.
+ADJECTIVES_ENDING_IN_S = {"fearless", "nervous", "anxious", "curious", "gorgeous", "famous"}
+
+CHECK_SENTENCES: dict[str, dict[str, str]] = {
+    "good_with_children": {
+        "yes": "{they} {is} good with children.",
+        "no": "{they} {is} not a match for a home with children.",
+    },
+    "good_with_dogs": {
+        "yes": "{they} {gets} on with dogs.",
+        "no": "{they} would do best in a home without other dogs.",
+    },
+    "good_with_cats": {
+        "yes": "{they} {gets} on with cats.",
+        "no": "{they} would do best in a home without cats.",
+    },
+    "house_trained": {
+        "yes": "{they} {is} house-trained.",
+        "no": "{they} {is} not house-trained yet.",
+    },
+    "bite_history": {
+        "yes": "{they} {has} a bite on record; the shelter explains the details before a meeting.",
+        "no": "{they} {has} no bite on record.",
+    },
+}
+
+
+class Sentence(BaseModel):
+    text: str
+    # What the sentence restates: "temperament", "look", "fact:<n>" or "check:<field>".
+    source: str
+
+
+class Listing(BaseModel):
+    sentences: list[Sentence]
+
+    @property
+    def text(self) -> str:
+        return " ".join(s.text for s in self.sentences)
+
+    @property
+    def word_count(self) -> int:
+        return len(self.text.split())
+
+
+def pronouns(sex: str | None) -> dict[str, str]:
+    if sex == "female":
+        return {"they": "she", "is": "is", "gets": "gets", "has": "has"}
+    if sex == "male":
+        return {"they": "he", "is": "is", "gets": "gets", "has": "has"}
+    return {"they": "they", "is": "are", "gets": "get", "has": "have"}
+
+
+def _capitalise(text: str) -> str:
+    return text[:1].upper() + text[1:]
+
+
+def _age_phrase(age: str) -> str:
+    """'4 years' -> '4-year-old'."""
+    match = re.fullmatch(r"(\d+)\s+(year|month|week)s?", age.strip())
+    if not match:
+        return age
+    return f"{match.group(1)}-{match.group(2)}-old"
+
+
+def fact_sentence(fact: str, they: str, is_: str) -> str:
+    first = fact.split()[0].lower()
+    starts_with_verb = first == "already" or (
+        first.endswith("s") and first not in ADJECTIVES_ENDING_IN_S
+    )
+    body = f"{they} {fact}" if starts_with_verb else f"{they} {is_} {fact}"
+    return _capitalise(body.rstrip(".")) + "."
+
+
+def check_sentences(checks: Checks, p: dict[str, str]) -> list[Sentence]:
+    out = []
+    for field, answers in CHECK_SENTENCES.items():
+        answer = getattr(checks, field)
+        if answer in answers:
+            out.append(
+                Sentence(text=_capitalise(answers[answer].format(**p)), source=f"check:{field}")
+            )
+    return out
+
+
+def templated_listing(animal: Animal) -> Listing:
+    p = pronouns(animal.sex)
+    they = p["they"]
+    sentences = [
+        # Behaviour toward people first, in the shelter's own words.
+        Sentence(
+            text=f"Staff describe {('her' if they == 'she' else 'him' if they == 'he' else 'them')}"
+            f" as {animal.temperament.rstrip('.')}.",
+            source="temperament",
+        ),
+        Sentence(
+            text=_capitalise(
+                f"{they} {p['is']} a {_age_phrase(animal.age)} {animal.sex or ''} "
+                f"{animal.species}: {animal.look}."
+            ).replace("  ", " "),
+            source="look",
+        ),
+    ]
+    sentences += [
+        Sentence(text=fact_sentence(fact, they, p["is"]), source=f"fact:{i}")
+        for i, fact in enumerate(animal.facts)
+    ]
+    sentences += check_sentences(animal.checks, p)
+    return Listing(sentences=sentences)
