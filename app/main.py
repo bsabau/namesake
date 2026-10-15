@@ -495,6 +495,8 @@ def approve(
     else:
         name, source = version.name, "a fixed list of common pet names, not Qloo"
         # The generic name is worked out afresh; approve only the one the volunteer saw.
+        if not generic_name:
+            raise HTTPException(400, "the generic name shown on the page is missing")
         if generic_name != name:
             raise HTTPException(409, f"{generic_name} is now used by another animal here")
     # Checked again now: another animal here may have been given the name since.

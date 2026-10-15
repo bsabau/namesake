@@ -827,3 +827,11 @@ def test_a_session_id_the_server_did_not_make_is_never_adopted(client):
 def test_no_cookie_is_set_until_a_visit_has_something_to_keep(client):
     assert "set-cookie" not in client.get("/").headers
     assert "set-cookie" in add(client).headers
+
+
+def test_a_generic_approval_without_the_shown_name_is_refused_plainly(client):
+    response = client.post(
+        "/approve",
+        data={"animal": "dog-02", "location": "park-slope", "variant": "generic", "text": "Hi."},
+    )
+    assert response.status_code == 400 and "None" not in response.text
