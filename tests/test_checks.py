@@ -352,3 +352,12 @@ def test_a_description_is_not_a_character_name():
     problems = check_character("Bingo who enjoys cuddles", "dog")
     assert any("must be a proper name" in p for p in problems)
     assert check_character("Puss in Boots", "cat") == []
+
+
+def test_reference_text_uses_an_before_a_vowel():
+    from app.agent.checks import reference_text
+
+    assert reference_text("Roquefort", "animal", "Example Film") == (
+        "Roquefort, an animal in Example Film"
+    )
+    assert reference_text("Bingo", "dog", "Example Show") == "Bingo, a dog in Example Show"

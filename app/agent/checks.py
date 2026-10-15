@@ -326,7 +326,8 @@ def reference_text(character: str, role: str, title: str) -> str:
         return title
     if role in ("character", "object"):
         return f"{character} in {title}"
-    return f"{character}, a {role} in {title}"
+    article = "an" if role[0] in "aeiou" else "a"
+    return f"{character}, {article} {role} in {title}"
 
 
 def check_character(character: str, role: str) -> list[str]:
