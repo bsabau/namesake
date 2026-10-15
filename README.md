@@ -37,11 +37,17 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
-Pages never call Qloo live; they read location profiles from the cache in `var/`. Build them
-once (this spends quota, spaced a few seconds apart):
+Picking an animal starts an agent run, shown live on a Working page: the agent proposes
+pet-themed titles, settles ambiguous names, ranks them for the area, picks venues, then
+writes name options, a bio from the recorded facts and a hook. Plain code checks every
+answer; failures fall back to the fixed lookup and the templated listing, and say so.
+
+Qloo calls are cached in `var/` and spaced a few seconds apart; set `ALLOW_LIVE_QLOO=false`
+to use only the cache. To fill the cache for the preset locations without the agent:
 
 ```sh
 uv run python scripts/build_profiles.py --live
+uv run python scripts/run_agent.py dog-02 park-slope   # one agent run from the terminal
 ```
 
 Open http://localhost:8000. Add `?ui=<name>` to try another interface from `app/ui/`, and

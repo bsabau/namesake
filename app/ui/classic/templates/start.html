@@ -11,7 +11,7 @@
   <p>{{ view.intro }}</p>
 </section>
 
-<form action="/result" method="get">
+<form action="/runs" method="post">
   {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
   <section class="where">
     <fieldset class="locations">

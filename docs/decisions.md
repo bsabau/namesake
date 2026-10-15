@@ -65,3 +65,16 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 **Follows:**
 - The theme requirement still holds: the model decides what to look up and what to do with the answer.
 - `qloo mcp` stays available for exploring by hand. `AGENTS.md`'s stack table now names the client.
+
+## 6. Native structured output, and OpenCode Go's session headers
+
+**Decided:** both agents return their typed output as native JSON-schema output, set by `AGENT_OUTPUT_MODE` (`native`, `prompted` or `tool`). Every model request sends `x-opencode-session` with a fresh ID per agent run, and a `namesake/0.1` user agent.
+
+**Why:**
+- The development model (muse-spark through OpenCode Go) accepts only `tool_choice: "auto"`. PydanticAI's default tool-based output asks for `"required"` and is refused.
+- Native output worked first time: a tool call plus typed output in about 5 seconds. Prompted output also worked, but was slower.
+- OpenCode Go refuses direct API calls without a session header. Its documentation allows calling it directly, provided each conversation sends a stable session ID and the client uses its own user agent. Endpoints that are not OpenCode ignore both headers.
+
+**Follows:**
+- The paid model chosen in milestone 5 can use whichever mode suits it, by changing the setting.
+- OpenCode Go is designed for coding-agent traffic. That is one more reason the judged demo runs on a paid model, as planned.

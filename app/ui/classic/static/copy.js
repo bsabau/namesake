@@ -4,7 +4,7 @@ document.addEventListener("click", (event) => {
   if (!button) return;
   const target = document.getElementById(button.dataset.copyTarget);
   if (!target || !navigator.clipboard) return;
-  navigator.clipboard.writeText(target.textContent.trim()).then(() => {
+  navigator.clipboard.writeText((target.value || target.textContent).trim()).then(() => {
     const label = button.textContent;
     button.textContent = "Copied";
     setTimeout(() => { button.textContent = label; }, 1500);

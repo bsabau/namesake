@@ -6,11 +6,12 @@ profile comes from the cache and recordings, built ahead by
 `scripts/build_profiles.py`.
 """
 
+import json
 from functools import cache
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -21,8 +22,10 @@ from app.locations import Location, load_locations
 from app.profile import LocationProfile, build_profile, load_seeds
 from app.qloo.cache import Cache
 from app.qloo.exec import QlooClient
-from app.views.build import build_result_view, build_start_view
-from app.views.models import ResultView, StartView
+from app.runs import RUNS, start_run
+from app.store import Store
+from app.views.build import build_result_view, build_start_view, build_working_view
+from app.views.models import ResultView, StartView, WorkingView
 
 HERE = Path(__file__).resolve().parent
 UI_ROOT = HERE / "ui"
@@ -86,9 +89,13 @@ def find_location(location_id: str | None) -> Location:
     return location
 
 
-def location_profile(location: Location) -> LocationProfile:
+def location_profile(location: Location, species: str) -> LocationProfile:
     settings = get_settings()
-    # Replay only: a page never spends quota. A missing profile shows as notes.
+    saved = Store(settings.cache_db).get_profile(location.id, species)
+    if saved is not None:
+        return saved
+    # No agent run yet: the fixed lookup, in replay only, so a page never spends
+    # quota. A missing profile shows as notes.
     qloo = QlooClient(
         Cache(settings.cache_db), mode="replay", recordings=settings.qloo_recordings, env={}
     )
@@ -105,7 +112,22 @@ def start_view(location: str | None) -> StartView:
 
 def result_view(animal_id: str, location_id: str | None) -> ResultView:
     location = find_location(location_id)
-    return build_result_view(find_animal(animal_id), location, location_profile(location))
+    animal = find_animal(animal_id)
+    listing = Store(get_settings().cache_db).get_listing(animal.id, location.id)
+    return build_result_view(animal, location, location_profile(location, animal.species), listing)
+
+
+def find_run(run_id: str):
+    run = RUNS.get(run_id)
+    if run is None:
+        raise HTTPException(404, "no such run; runs are kept until the server restarts")
+    return run
+
+
+def working_view(run, ui_query: str = "") -> WorkingView:
+    return build_working_view(
+        run, find_animal(run.animal_id), find_location(run.location_id), ui_query
+    )
 
 
 @app.get("/health")
@@ -136,3 +158,38 @@ def api_result(result_id: str) -> ResultView:
     if not location_id:
         raise HTTPException(404, "a result id looks like <animal>@<location>")
     return result_view(animal_id, location_id)
+
+
+@app.post("/runs")
+async def create_run(
+    animal: str = Form(...), location: str = Form(...), ui: str | None = Form(None)
+) -> RedirectResponse:
+    run = await start_run(find_animal(animal), find_location(location), get_settings())
+    suffix = f"?ui={pick_ui(ui)}" if ui else ""
+    return RedirectResponse(f"/runs/{run.id}{suffix}", status_code=303)
+
+
+@app.get("/runs/{run_id}", response_class=HTMLResponse)
+def working(request: Request, run_id: str, ui: str | None = None) -> HTMLResponse:
+    chosen = pick_ui(ui)
+    view = working_view(find_run(run_id), f"&ui={chosen}" if ui else "")
+    return render(request, chosen, "working.html", view)
+
+
+@app.get("/api/runs/{run_id}")
+def api_run(run_id: str) -> WorkingView:
+    return working_view(find_run(run_id))
+
+
+@app.get("/api/runs/{run_id}/events")
+async def run_events(run_id: str) -> StreamingResponse:
+    """The step log as server-sent events: one `step` per step, then `done`."""
+    run = find_run(run_id)
+
+    async def stream():
+        async for step in run.log.follow():
+            payload = json.dumps({"kind": step.kind, "text": step.text})
+            yield f"event: step\ndata: {payload}\n\n"
+        yield f"event: done\ndata: {json.dumps({'result_url': run.result_url})}\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream")

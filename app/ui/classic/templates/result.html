@@ -20,12 +20,27 @@
           {% for badge in view.animal.badges %}<span class="badge">{{ badge }}</span>{% endfor %}</p>
         <h1 data-role="name" class="{{ 'name' if view.name.value else 'name name-empty' }}">
           {{ view.name.value or view.name.placeholder }}</h1>
+        {% if view.listing.hook %}<p class="hook">{{ view.listing.hook }}</p>{% endif %}
         <p class="where-label">Shelter area: {{ view.location.label }}, {{ view.location.region }}</p>
       </div>
     </div>
 
+    {% if view.name.options %}
+    <h2>Name options</h2>
+    <ul class="name-options" data-role="name-options">
+      {% for option in view.name.options %}
+      <li class="name-option"><strong>{{ option.name }}</strong>
+        <span class="tag {{ 'tag-strong' if loop.first }}">{{ option.badge }}</span><br>
+        <span class="venue-place">{{ option.reference }}. {{ option.why }}</span></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
     <h2>{{ view.listing.heading }}</h2>
-    <p class="listing-text" id="listing-text">{{ view.listing.text }}</p>
+    <p class="written-by">{{ view.listing.written_by }}</p>
+    {% if view.listing.fallback_note %}<p class="fallback-note">{{ view.listing.fallback_note }}</p>{% endif %}
+    <p class="listing-text">{{ view.listing.text }}</p>
+    <textarea id="listing-text" hidden>{{ view.listing.copy_text }}</textarea>
     <p class="listing-meta">
       {{ view.listing.word_count }} words, every one from the shelter's records.
       <button type="button" class="copy" data-copy-target="listing-text">Copy listing</button>
@@ -59,7 +74,8 @@
           <span class="tag {{ 'tag-strong' if venue.stands_out }}">{{ venue.badge }}</span></p>
         <p class="venue-place">{{ venue.place }}</p>
         {% if venue.description %}<p class="venue-description">{{ venue.description }}</p>{% endif %}
-        <p class="venue-evidence">{{ venue.evidence }}</p>
+        <p class="venue-evidence">Qloo: {{ venue.evidence }}</p>
+        {% if venue.reason %}<p class="venue-reason"><span>Agent's reading:</span> {{ venue.reason }}</p>{% endif %}
       </li>
       {% else %}
       <li>No venues for this area yet.</li>

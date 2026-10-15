@@ -65,6 +65,8 @@ class Entity(BaseModel):
     # How the name was settled: "resolved" directly, or "chosen" among candidates.
     resolution: str = "resolved"
     alternatives: int = 0
+    # The reason given for the choice among candidates (the agent's, or the seed rule).
+    choice_reason: str | None = None
 
 
 class Venue(BaseModel):
@@ -81,6 +83,9 @@ class Venue(BaseModel):
     # Score each pet entity contributed, by entity name (Qloo's explainability).
     contributions: dict[str, float] = Field(default_factory=dict)
     unsuitable: str | None = None
+    # The agent's judgement, when an agent built the profile.
+    chosen_reason: str | None = None
+    rejected_reason: str | None = None
 
     @property
     def distinctive(self) -> bool:
@@ -111,12 +116,19 @@ class QlooCall(BaseModel):
 
 class LocationProfile(BaseModel):
     location_id: str
+    species: str | None = None
+    # "seeds" for the fixed lookup, "agent" when the agent chose the titles and venues.
+    made_by: str = "seeds"
+    # Where the titles' order came from: Qloo's `rank`, or the agent when rank failed.
+    order_source: str | None = None
     pet_entities: list[Entity] = Field(default_factory=list)
     baseline: Entity | None = None
     venues: list[Venue] = Field(default_factory=list)
     # How many venues the baseline's list held, when it was available to compare.
     baseline_venue_count: int | None = None
     cells: list[LiftCell] = Field(default_factory=list)
+    # What the area watches in general: the second source for names.
+    local_tastes: list[Entity] = Field(default_factory=list)
     calls: list[QlooCall] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 
@@ -238,18 +250,42 @@ def screen(description: str | None) -> str | None:
 
 
 def build_profile(qloo: QlooClient, location: Location, seeds: Seeds) -> LocationProfile:
+    """The fixed lookup: seed titles, resolved by name, then the shared assembly."""
     b = _Builder(qloo, location)
-    p = b.profile
+    pets = [e for e in (b.resolve(s) for s in seeds.pet) if e is not None]
+    baseline = b.resolve(seeds.baseline)
+    return assemble_profile(b, location, pets, baseline)
 
-    p.pet_entities = [e for e in (b.resolve(s) for s in seeds.pet) if e is not None]
-    p.baseline = b.resolve(seeds.baseline)
+
+def resolve_baseline(qloo: QlooClient, location: Location, seed: Seed) -> Entity | None:
+    """The baseline title on its own, for an agent-built profile."""
+    return _Builder(qloo, location).resolve(seed)
+
+
+def assemble_profile(
+    b: "_Builder",
+    location: Location,
+    pets: list[Entity],
+    baseline: Entity | None,
+    venue_signals: list[str] | None = None,
+) -> LocationProfile:
+    """Venues for the pet titles and the baseline, compared, and the lift map.
+
+    `venue_signals` are the titles the venues are asked for, when not all of
+    `pets` (an agent asks for venues with its top few). Same input, same cache key.
+    """
+    p = b.profile
+    p.pet_entities = pets
+    p.baseline = baseline
     if not p.pet_entities:
         p.notes.append("No pet-themed entity could be resolved, so there is nothing to look up.")
         return p
 
     pet_names = {e.id: e.name for e in p.pet_entities}
     pet_venues = b.venues(
-        list(pet_names), location, f"venues near {location.label} for fans of pet-themed shows"
+        venue_signals or list(pet_names),
+        location,
+        f"venues near {location.label} for fans of pet-themed titles",
     )
     base_venues = None
     if p.baseline is not None:
@@ -304,3 +340,47 @@ def build_profile(qloo: QlooClient, location: Location, seeds: Seeds) -> Locatio
             )
         )
     return p
+
+
+def profile_from(
+    qloo: QlooClient,
+    location: Location,
+    pets: list[Entity],
+    baseline: Entity | None,
+    venue_signals: list[str] | None = None,
+) -> LocationProfile:
+    """Assemble a profile around titles chosen elsewhere (by the agent)."""
+    return assemble_profile(_Builder(qloo, location), location, pets, baseline, venue_signals)
+
+
+def baseline_venue_ids(qloo: QlooClient, location: Location, baseline: Entity) -> list[str] | None:
+    """The baseline's venues in rank order, or None when there is no complete answer."""
+    b = _Builder(qloo, location)
+    results = b.venues(
+        [baseline.id],
+        location,
+        f"venues near {location.label} for the baseline show",
+        complete=True,
+    )
+    return None if results is None else [r["entity_id"] for r in results]
+
+
+def local_tastes(qloo: QlooClient, location: Location, limit: int = 10) -> list[Entity]:
+    """What the area watches in general, the second source for names."""
+    b = _Builder(qloo, location)
+    env = b.call(
+        "recommend",
+        {"target_type": "tv_show", "signal_location": location.query, "limit": limit},
+        f"TV shows people around {location.label} tend to like",
+    )
+    if env is None or not env.has_results:
+        return []
+    return [
+        Entity(
+            id=r["entity_id"],
+            name=r["name"],
+            type=r.get("type", "urn:entity:tv_show"),
+            description=(r.get("properties") or {}).get("short_description"),
+        )
+        for r in env.results
+    ]

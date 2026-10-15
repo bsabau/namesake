@@ -2,6 +2,7 @@
 
 import re
 
+from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
 from app.listing import CHECK_SENTENCES, MIN_WORDS, templated_listing
 from app.locations import Location
@@ -15,12 +16,15 @@ from app.views.models import (
     LocationOption,
     MapCell,
     MapView,
+    NameOptionView,
     NameView,
     PlanItem,
     ResultView,
     StartView,
+    StepView,
     VenueView,
     WhyItem,
+    WorkingView,
 )
 
 # The demo leads with the profile the research names as the US bottleneck.
@@ -133,16 +137,27 @@ def build_start_view(roster: Roster, locations: list[Location], selected_id: str
     )
 
 
-def listing_view(animal: Animal) -> ListingView:
-    listing = templated_listing(animal)
-    basis = {"temperament": "Temperament, as staff describe it", "look": "Recorded look"}
+def basis_label(key: str) -> str:
+    if key == "temperament":
+        return "Temperament, as staff describe it"
+    if key == "look":
+        return "Recorded look"
+    return "Recorded fact" if key.startswith("fact:") else "Confirmed by the shelter"
+
+
+def listing_view(animal: Animal, result: ListingResult | None = None) -> ListingView:
+    draft = result.draft if result else None
+    if draft is not None:
+        bio = [(s.text, s.facts) for s in draft.bio]
+        written_by = "Written by the agent from the shelter's records, then checked by code."
+    else:
+        bio = [(s.text, [s.source]) for s in templated_listing(animal).sentences]
+        written_by = "Built from the shelter's records by a fixed template."
+    text = " ".join(t for t, _ in bio)
+    word_count = len(text.split())
     sentences = [
-        ListingSentence(
-            text=s.text,
-            basis=basis.get(s.source)
-            or ("Recorded fact" if s.source.startswith("fact:") else "Confirmed by the shelter"),
-        )
-        for s in listing.sentences
+        ListingSentence(text=t, basis=", ".join(dict.fromkeys(basis_label(k) for k in keys)))
+        for t, keys in bio
     ]
     unknown = [
         CHECK_LABELS[field]
@@ -154,20 +169,50 @@ def listing_view(animal: Animal) -> ListingView:
         left_out.append(f"Not yet known, so not mentioned: {and_list(unknown)}.")
     if animal.history:
         left_out.append("Backstory and time in the shelter are kept for staff, not printed.")
+    name = draft.names[0].name if draft else None
+    hook = draft.hook.text if draft else None
+    copy_text = "\n\n".join(x for x in [f"Meet {name}." if name else None, hook, text] if x)
     return ListingView(
-        heading=f"Adoptable {animal.species}",
-        text=listing.text,
+        heading=f"Meet {name}" if name else f"Adoptable {animal.species}",
+        text=text,
         sentences=sentences,
-        word_count=listing.word_count,
+        word_count=word_count,
         short_note=(
             "Short because the shelter has recorded only a few facts. Add observations "
             "(behaviour with people, other animals, on the lead) for a full listing of "
             f"{MIN_WORDS} words or more."
-            if listing.too_short
+            if word_count < MIN_WORDS
             else None
         ),
         left_out=left_out,
-        copy_text=listing.text,
+        copy_text=copy_text,
+        hook=hook,
+        fallback_note=result.fallback_reason if result else None,
+        written_by=written_by,
+    )
+
+
+def name_view(result: ListingResult | None, profile: LocationProfile) -> NameView:
+    draft = result.draft if result else None
+    if draft is None:
+        return NameView(
+            value=None,
+            placeholder="No name yet: the agent's name options appear after a run.",
+        )
+    titles = {e.id: e.name for e in profile.pet_entities + profile.local_tastes}
+    return NameView(
+        value=draft.names[0].name,
+        placeholder="",
+        options=[
+            NameOptionView(
+                name=o.name,
+                badge="Pet-themed title, strong here" if o.source == "pet" else "Watched locally",
+                reference=o.reference,
+                title=titles.get(o.entity_id, o.reference),
+                why=o.why,
+            )
+            for o in draft.names
+        ],
     )
 
 
@@ -208,8 +253,9 @@ def map_view(location: Location, profile: LocationProfile) -> MapView:
 
 
 def venue_order(venues: list[Venue]) -> list[Venue]:
-    suitable = [v for v in venues if v.unsuitable is None]
-    return sorted(suitable, key=lambda v: (not v.distinctive, v.rank))
+    """The agent's picks first, then places that stand out, then the rest; never screened ones."""
+    suitable = [v for v in venues if v.unsuitable is None and v.rejected_reason is None]
+    return sorted(suitable, key=lambda v: (v.chosen_reason is None, not v.distinctive, v.rank))
 
 
 def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueView:
@@ -235,6 +281,8 @@ def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueV
         stands_out=v.distinctive,
         badge=badge,
         evidence=evidence,
+        chosen=v.chosen_reason is not None,
+        reason=v.chosen_reason,
     )
 
 
@@ -292,7 +340,23 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         else:
             returned.append(WhyItem(title=f"{e.name} ({kind})", detail=sentences(e.description)))
     for e in profile.pet_entities:
-        reading.append(WhyItem(title=f"Why {e.name}", detail=f"A pet-themed pick: {e.why}."))
+        detail = f"A pet-themed pick: {e.why.rstrip('.')}."
+        if e.choice_reason:
+            detail += f" {cap(e.choice_reason.rstrip('.'))}."
+        reading.append(WhyItem(title=f"Why {e.name}", detail=detail))
+    if profile.made_by == "agent":
+        reading.append(
+            WhyItem(
+                title="Who chose",
+                detail="The agent proposed the titles, settled ambiguous names and picked the "
+                "venues; code checked that each came from Qloo. "
+                + (
+                    "The order of the titles is Qloo's ranking for this area."
+                    if profile.order_source == "qloo_rank"
+                    else "Qloo's ranking was unavailable, so the order is the agent's."
+                ),
+            )
+        )
     if profile.baseline:
         reading.append(
             WhyItem(
@@ -342,18 +406,20 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
     return returned, reading
 
 
-def build_result_view(animal: Animal, location: Location, profile: LocationProfile) -> ResultView:
+def build_result_view(
+    animal: Animal,
+    location: Location,
+    profile: LocationProfile,
+    listing: ListingResult | None = None,
+) -> ResultView:
     ordered = venue_order(profile.venues)
     returned, reading = why(location, profile)
     return ResultView(
         id=result_id(animal.id, location.id),
         animal=animal_card(animal),
         location=location_option(location, True),
-        name=NameView(
-            value=None,
-            placeholder="No name yet. Name options drawn from local taste data come next.",
-        ),
-        listing=listing_view(animal),
+        name=name_view(listing, profile),
+        listing=listing_view(animal, listing),
         map=map_view(location, profile),
         venues=[venue_view(v, location, profile) for v in ordered[:VENUES_SHOWN]],
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
@@ -361,4 +427,17 @@ def build_result_view(animal: Animal, location: Location, profile: LocationProfi
         qloo_returned=returned,
         our_reading=reading,
         notes=profile.notes,
+    )
+
+
+def build_working_view(run, animal: Animal, location: Location, ui_query: str = "") -> WorkingView:
+    return WorkingView(
+        run_id=run.id,
+        title=f"Working on the listing for this {animal.species} in {location.label}",
+        animal=animal_card(animal),
+        location=location_option(location, True),
+        events_url=f"/api/runs/{run.id}/events",
+        result_url=run.result_url + ui_query,
+        steps=[StepView(kind=s.kind, text=s.text) for s in run.log.steps],
+        finished=run.log.finished,
     )

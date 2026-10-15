@@ -12,6 +12,7 @@ from tests.qloo_fakes import SEEDS, FakeQloo, standard_script
 
 REQUIRED = {
     "start": ["map", "photo-credit", "qloo-credit"],
+    "working": ["working", "steps", "status", "photo-credit", "qloo-credit"],
     "result": ["name", "qloo-returned", "our-reading", "map", "photo-credit", "qloo-credit"],
 }
 
@@ -19,7 +20,7 @@ REQUIRED = {
 @pytest.fixture
 def client(monkeypatch):
     # Pages read the profile through this function; give them a synthetic one.
-    def fake_profile(location):
+    def fake_profile(location, species):
         from tests.qloo_fakes import LOCATION
 
         return build_profile(FakeQloo(standard_script()), LOCATION.model_copy(), SEEDS)
@@ -47,6 +48,14 @@ def test_result_screen_meets_the_contract(client, ui):
     assert response.status_code == 200
     for role in REQUIRED["result"]:
         assert f'data-role="{role}"' in response.text, f"{ui} result: missing {role}"
+
+
+@pytest.mark.parametrize("ui", main.UIS)
+def test_working_screen_meets_the_contract(client, ui):
+    response = client.post("/runs", data={"animal": "dog-02", "location": "park-slope", "ui": ui})
+    assert response.status_code == 200
+    for role in REQUIRED["working"]:
+        assert f'data-role="{role}"' in response.text, f"{ui} working: missing {role}"
 
 
 @pytest.mark.parametrize("ui", main.UIS)

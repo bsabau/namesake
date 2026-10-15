@@ -57,9 +57,18 @@ class StartView(BaseModel):
     credits: Credits = Credits()
 
 
+class NameOptionView(BaseModel):
+    name: str
+    badge: str
+    reference: str
+    title: str
+    why: str
+
+
 class NameView(BaseModel):
     value: str | None
     placeholder: str
+    options: list[NameOptionView] = []
 
 
 class ListingSentence(BaseModel):
@@ -76,6 +85,11 @@ class ListingView(BaseModel):
     short_note: str | None = None
     left_out: list[str]
     copy_text: str
+    # The local version adds the name and this one line; the bio is the same.
+    hook: str | None = None
+    # Why the page shows the templated listing instead of the agent's.
+    fallback_note: str | None = None
+    written_by: str
 
 
 class MapCell(BaseModel):
@@ -105,6 +119,9 @@ class VenueView(BaseModel):
     stands_out: bool
     badge: str
     evidence: str
+    # The agent's reason for suggesting it: our reading, shown apart from the evidence.
+    chosen: bool = False
+    reason: str | None = None
 
 
 class PlanItem(BaseModel):
@@ -115,6 +132,23 @@ class PlanItem(BaseModel):
 class WhyItem(BaseModel):
     title: str
     detail: str
+
+
+class StepView(BaseModel):
+    kind: str
+    text: str
+
+
+class WorkingView(BaseModel):
+    run_id: str
+    title: str
+    animal: AnimalCard
+    location: LocationOption
+    events_url: str
+    result_url: str
+    steps: list[StepView]
+    finished: bool
+    credits: Credits = Credits()
 
 
 class ResultView(BaseModel):

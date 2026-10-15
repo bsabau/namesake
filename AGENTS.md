@@ -191,7 +191,7 @@ The demo uses New York City because US coverage is likely to be deepest.
 
 ## Model configuration
 
-The agent's model is configuration, never code. Four variables:
+The agent's model is configuration, never code. Four variables, plus `AGENT_OUTPUT_MODE` (see `docs/decisions.md` #6):
 
 ```
 AGENT_BASE_URL=https://opencode.ai/zen/go/v1
@@ -202,7 +202,7 @@ AGENT_API=responses        # or "chat"
 
 Development uses a free model through OpenCode Go; the judged demo will switch to a paid one by changing these values. Some models speak the OpenAI "responses" format and others "chat completions", hence `AGENT_API`.
 
-PydanticAI's names changed in 2.x, so use these and not the older `MCPServerStdio` or `mcp_servers=`. This construction is checked against 2.53:
+`app/agent/model.py` builds the model from these settings, with the session header OpenCode Go requires. The agents' Qloo tools are function tools over `QlooClient`, not `qloo mcp` (`docs/decisions.md` #5). For reference, PydanticAI 2.x attaches an MCP server like this, checked against 2.53:
 
 ```python
 import os
@@ -270,7 +270,8 @@ The steps where the model reads results and decides what to try next are what ma
 app/
   main.py            FastAPI app and routes
   config.py          settings from the environment
-  agent/             the PydanticAI agent, instructions, output types
+  agent/             the two PydanticAI agents, their checks, the step log and the run pipeline
+  runs.py, store.py  web runs (background task + step log) and saved agent results
   qloo/              exec wrapper, envelope types, cache, geohash helpers
   views/             UI-neutral view models, one per screen, also served as JSON
   ui/<name>/         one folder per UI: templates/ and static/ (classic is the default)
@@ -294,7 +295,8 @@ README.md
 uv sync
 uv run uvicorn app.main:app --reload
 uv run python scripts/make_web_photos.py      # web-sized photos into app/static/animals
-uv run python scripts/build_profiles.py       # location profiles from the cache; --live fills gaps from Qloo
+uv run python scripts/build_profiles.py       # fixed-lookup profiles from the cache; --live fills gaps from Qloo
+uv run python scripts/run_agent.py dog-02 park-slope   # one live agent run (Qloo and the model), steps printed
 uv run pytest
 uv run pytest tests/test_app.py::test_health   # one test (-k <expr> also works)
 uv run ruff check . && uv run ruff format --check .

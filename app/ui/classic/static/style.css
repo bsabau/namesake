@@ -384,3 +384,31 @@ button.animal-card:hover, button.animal-card:focus-visible {
 .why-column h3 { margin: 0 0 8px; font-size: 1rem; }
 .why-column dt { font-weight: 600; font-size: 0.9rem; }
 .why-column dd { margin: 0 0 8px; color: var(--muted); font-size: 0.85rem; }
+
+/* Working */
+.working-title { font-size: 1.3rem; margin: 2px 0; }
+
+.steps {
+  margin: 20px 0;
+  padding: 12px 16px 12px 36px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+}
+
+.steps li { margin: 4px 0; }
+.step-qloo::marker { color: var(--accent); }
+.step-check { color: var(--muted); }
+.step-error { color: var(--lift-down); font-weight: 600; }
+.step-done { font-weight: 600; }
+.result-link { color: var(--accent); }
+
+/* Names */
+.name-options { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.name-option { font-size: 0.9rem; }
+.name-option strong { font-size: 1rem; }
+.hook { margin: 4px 0 0; font-style: italic; }
+.fallback-note, .written-by { color: var(--muted); font-size: 0.85rem; margin: 6px 0 0; }
+.venue-reason { margin-top: 4px; font-size: 0.85rem; }
+.venue-reason span { color: var(--muted); }

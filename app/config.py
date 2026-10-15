@@ -22,12 +22,17 @@ class Settings(BaseSettings):
     qloo_trusted_base_url: str | None = None
     # Seconds between live Qloo calls, across processes. The key is rate-limited.
     qloo_min_interval: float = 5.0
+    # Whether web runs may call Qloo live. Off, they use only the cache and recordings.
+    allow_live_qloo: bool = True
 
     # The agent's model. Configuration, never code.
     agent_base_url: str | None = None
     agent_api_key: SecretStr | None = None
     agent_model: str | None = None
     agent_api: str = "chat"
+    # How the model returns structured output: "native" (JSON schema), "prompted" or "tool".
+    # The free development model only allows tool_choice "auto", so "tool" fails there.
+    agent_output_mode: str = "native"
 
     # Default interface: a folder under app/ui/. `?ui=<name>` overrides it per request.
     ui: str = "classic"
