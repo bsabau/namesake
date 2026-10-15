@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0-preview.1",
+  "operation": "recommend",
+  "status": "ok",
+  "interpretation": {
+    "target_type": "urn:entity:artist",
+    "signals": [],
+    "signal_tags": [],
+    "signal_location": "Example Neighbourhood",
+    "include_tags": [],
+    "exclude_tags": []
+  },
+  "result_count": 0,
+  "results": [],
+  "execution": {
+    "transport": "direct",
+    "transport_name": "Qloo API",
+    "correlation_id": "exec-synthetic-recommend-empty",
+    "duration_ms": 900
+  }
+}

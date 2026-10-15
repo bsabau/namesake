@@ -19,3 +19,6 @@ __pycache__/
 
 # Personal Claude Code settings
 .claude/settings.local.json
+
+# Real Qloo responses: never in the public repo (Qloo hackathon guide)
+var/

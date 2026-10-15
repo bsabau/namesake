@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "QLOO_UNAUTHORIZED",
+    "layer": "qloo",
+    "retryable": false,
+    "recovery": "Check the API key and base URL."
+  },
+  "operation": "recommend",
+  "correlation_id": "exec-synthetic-error-fatal"
+}

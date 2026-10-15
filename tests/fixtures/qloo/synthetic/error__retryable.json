@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "QLOO_RATE_LIMIT",
+    "layer": "qloo",
+    "retryable": true,
+    "recovery": "Wait for the Qloo rate-limit window, then retry the same interpreted request once."
+  },
+  "operation": "rank",
+  "correlation_id": "exec-synthetic-error-retryable"
+}

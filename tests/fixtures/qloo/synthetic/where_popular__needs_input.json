@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0-preview.1",
+  "operation": "where_popular",
+  "status": "needs_input",
+  "summary": "Choose the intended Qloo entity.",
+  "resolution": {
+    "issues": [
+      {
+        "input": "Example Name",
+        "kind": "ambiguous",
+        "input_kind": "entity",
+        "field": "entity",
+        "candidates": [
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "name": "Example Name",
+            "type": "urn:entity:tv_show",
+            "popularity": 0.8,
+            "description": "A made-up TV show."
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "name": "Example Name",
+            "type": "urn:entity:book",
+            "popularity": 0.4,
+            "description": "A made-up book."
+          }
+        ]
+      }
+    ]
+  },
+  "results": [],
+  "execution": {
+    "transport": "direct",
+    "transport_name": "Qloo API",
+    "correlation_id": "exec-synthetic-where-popular-needs-input",
+    "duration_ms": 450
+  }
+}

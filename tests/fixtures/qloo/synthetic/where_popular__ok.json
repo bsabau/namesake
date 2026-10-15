@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0-preview.1",
+  "operation": "where_popular",
+  "status": "ok",
+  "interpretation": {
+    "entity": {
+      "input": "00000000-0000-4000-8000-000000000001",
+      "entityId": "00000000-0000-4000-8000-000000000001",
+      "name": "Example Dog Show",
+      "type": "urn:entity:tv_show",
+      "match": "identifier"
+    },
+    "within": "Example City"
+  },
+  "results": [
+    {
+      "location": {
+        "latitude": 40.672,
+        "longitude": -73.978,
+        "geohash": "dr5rks"
+      },
+      "query": {
+        "affinity": 0.97,
+        "affinity_rank": 1,
+        "popularity": 0.91
+      }
+    },
+    {
+      "location": {
+        "latitude": 40.68,
+        "longitude": -73.97,
+        "geohash": "dr5rkv"
+      },
+      "query": {
+        "affinity": 0.95,
+        "affinity_rank": 2,
+        "popularity": 0.88
+      }
+    },
+    {
+      "location": {
+        "latitude": 40.76,
+        "longitude": -73.98,
+        "geohash": "dr5rus"
+      },
+      "query": {
+        "affinity": 0.9,
+        "affinity_rank": 3,
+        "popularity": 0.99
+      }
+    }
+  ],
+  "provenance": {
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/v2/insights",
+        "params": {
+          "filter.type": "urn:heatmap",
+          "signal.interests.entities": "00000000-0000-4000-8000-000000000001",
+          "filter.location.query": "Example City",
+          "take": 20
+        }
+      }
+    ]
+  },
+  "execution": {
+    "transport": "direct",
+    "transport_name": "Qloo API",
+    "correlation_id": "exec-synthetic-where-popular-ok",
+    "duration_ms": 2500
+  }
+}

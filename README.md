@@ -1,11 +1,14 @@
 # Namesake
 
-Adoption listings for shelter animals, tuned to what people near the shelter love.
+Accurate adoption listings for shelter animals, with names and a plan to get them seen,
+drawn from local taste data.
 
-A volunteer picks an animal and the shelter's neighbourhood. An agent proposes cultural
-references that fit the animal, checks each one against [Qloo](https://www.qloo.com/) taste
-data for that area, and writes a name, a short bio and a promotion plan from the ones that
-hold up. The same listing is shown in a generic version so the difference is visible.
+A volunteer picks an animal and the shelter's neighbourhood. From the facts the volunteer
+recorded, an agent writes a plain, accurate listing and offers name options. It also builds an
+exposure plan, using [Qloo](https://www.qloo.com/) taste data to find pet-themed shows,
+films, books and brands that are strong near the shelter, and the venues their fans favour.
+A generic version sits beside the local one so Qloo's contribution is visible. The local
+layer is an experiment, and the app records what is needed to test it.
 
 Built for the Qloo Agentic Hackathon.
 
@@ -55,6 +58,8 @@ docker run --rm -p 8000:8000 --env-file .env namesake
 TODO
 
 ## Credits
+
+Taste data from the Qloo API. This project is not affiliated with or endorsed by Qloo.
 
 The animals and the shelter are fictional; the photos are AI-generated. Map tiles ©
 OpenStreetMap contributors.
