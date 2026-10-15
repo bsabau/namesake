@@ -12,6 +12,7 @@ from pathlib import Path
 from pydantic import BaseModel, ValidationError
 
 from app.agent.results import CHECKS_VERSION, ListingResult
+from app.locations import Location
 from app.profile import LocationProfile
 
 SCHEMA = """
@@ -23,12 +24,41 @@ CREATE TABLE IF NOT EXISTS agent_results (
 """
 
 
+APPROVALS = """
+CREATE TABLE IF NOT EXISTS approvals (
+    id TEXT PRIMARY KEY,
+    animal_id TEXT NOT NULL,
+    location_id TEXT NOT NULL,
+    variant TEXT NOT NULL,
+    name TEXT NOT NULL,
+    name_source TEXT NOT NULL,
+    edited INTEGER NOT NULL,
+    approved_at TEXT NOT NULL
+)
+"""
+
+
+class Approval(BaseModel):
+    """One approved listing, as the trial would record it. The text is not kept."""
+
+    id: str
+    animal_id: str
+    location_id: str
+    variant: str
+    name: str
+    # "generic list", or the Qloo source and title the name came from.
+    name_source: str
+    edited: bool
+    approved_at: str
+
+
 class Store:
     def __init__(self, path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
         self.path = path
         with sqlite3.connect(path) as db:
             db.execute(SCHEMA)
+            db.execute(APPROVALS)
 
     def _get(self, key: str) -> dict | None:
         with sqlite3.connect(self.path) as db:
@@ -78,6 +108,35 @@ class Store:
             ]
         results = (self._load(ListingResult, k) for k in keys)
         return [r for r in results if r is not None and _current(r)]
+
+    def get_location(self, location_id: str) -> Location | None:
+        """A location a visitor typed and Qloo had data for."""
+        return self._load(Location, f"location:{location_id}")
+
+    def put_location(self, location: Location) -> None:
+        self._put(f"location:{location.id}", location)
+
+    def record_approval(self, approval: Approval) -> None:
+        with sqlite3.connect(self.path) as db:
+            db.execute(
+                "INSERT INTO approvals VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    approval.id,
+                    approval.animal_id,
+                    approval.location_id,
+                    approval.variant,
+                    approval.name,
+                    approval.name_source,
+                    int(approval.edited),
+                    approval.approved_at,
+                ),
+            )
+
+    def approvals(self) -> list[Approval]:
+        with sqlite3.connect(self.path) as db:
+            rows = db.execute("SELECT * FROM approvals ORDER BY approved_at").fetchall()
+        fields = list(Approval.model_fields)
+        return [Approval.model_validate(dict(zip(fields, row, strict=True))) for row in rows]
 
 
 def _current(result: ListingResult) -> bool:

@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     # The free development model only allows tool_choice "auto", so "tool" fails there.
     agent_output_mode: str = "native"
 
+    # Limits on live work (runs that call the model or Qloo, and new custom locations).
+    # Saved results are free. Per visitor is per hour; the caps are per day (UTC).
+    live_runs_per_visitor_per_hour: int = 6
+    live_runs_per_day: int = 60
+    new_locations_per_day: int = 10
+
     # Default interface: a folder under app/ui/. `?ui=<name>` overrides it per request.
     ui: str = "classic"
 

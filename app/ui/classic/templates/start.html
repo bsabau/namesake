@@ -11,7 +11,20 @@
   <p>{{ view.intro }}</p>
 </section>
 
-<form action="/runs" method="post">
+{% if view.examples %}
+<section class="examples" data-role="examples">
+  <h2>{{ view.examples_heading }}</h2>
+  <ul>
+    {% for example in view.examples %}<li><a class="example" href="{{ example.url }}">{{ example.label }}</a></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<form id="custom-location" action="{{ view.location_form.action }}" method="post">
+  {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
+</form>
+
+<form id="pick" action="/runs" method="post">
   {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
   <section class="where">
     <fieldset class="locations">
@@ -25,6 +38,27 @@
           <span class="location-region">{{ location.region }}</span>
         </label>
         {% endfor %}
+      </div>
+
+      <div class="custom-location" data-role="custom-location">
+        <label for="custom-location-text">{{ view.location_form.label }}</label>
+        <div class="inline-field">
+          <input id="custom-location-text" form="custom-location" type="text" name="text"
+                 maxlength="80" value="{{ view.location_form.value }}"
+                 placeholder="{{ view.location_form.placeholder }}">
+          <button type="submit" form="custom-location">Check with Qloo</button>
+        </div>
+        <p class="hint">{{ view.location_form.hint }}</p>
+        {% if view.location_form.message %}
+        <p class="form-message" role="status">{{ view.location_form.message }}</p>
+        {% endif %}
+        {% if view.location_form.candidates %}
+        <div class="candidates" data-role="candidates">
+          {% for candidate in view.location_form.candidates %}
+          <button type="submit" form="custom-location" name="text" value="{{ candidate }}">{{ candidate }}</button>
+          {% endfor %}
+        </div>
+        {% endif %}
       </div>
     </fieldset>
 
@@ -55,15 +89,18 @@
     </li>
     {% endfor %}
   </ul>
+
+  {% for litter in view.litters %}
+  <section class="litter" id="{{ litter.id }}">
+    <img src="{{ litter.image_url }}" alt="{{ litter.alt }}" width="800" height="800" loading="lazy">
+    <div>
+      <h2>{{ litter.title }}</h2>
+      <p>{{ litter.text }}</p>
+      <button type="submit" name="animal" value="{{ litter.id }}">Name the litter</button>
+    </div>
+  </section>
+  {% endfor %}
 </form>
 
-{% for litter in view.litters %}
-<section class="litter" id="{{ litter.id }}">
-  <img src="{{ litter.image_url }}" alt="{{ litter.alt }}" width="800" height="800" loading="lazy">
-  <div>
-    <h2>{{ litter.title }}</h2>
-    <p>{{ litter.text }}</p>
-  </div>
-</section>
-{% endfor %}
+<p class="add-animal"><a href="{{ view.add_animal_url }}?location={{ (view.locations|selectattr('selected')|first).id }}{{ ui_query }}">{{ view.add_animal_label }}</a></p>
 {% endblock %}

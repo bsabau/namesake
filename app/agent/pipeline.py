@@ -187,7 +187,11 @@ async def write_listing(
     log: StepLog,
     output_mode: str,
     taken: frozenset[str] = frozenset(),
+    request: str | None = None,
+    theme: str | None = None,
 ) -> ListingResult:
+    """One listing. `request` is a volunteer's refine request; `theme` limits the names
+    to one title, for a litter named as a set."""
     result = ListingResult(
         animal_id=animal.id, location_id=location.id, checks_version=CHECKS_VERSION
     )
@@ -197,6 +201,8 @@ async def write_listing(
     titles: dict[str, tuple[Entity, str]] = {e.id: (e, "pet") for e in profile.pet_entities}
     for e in profile.local_tastes:
         titles.setdefault(e.id, (e, "local"))
+    if theme is not None:
+        titles = {k: v for k, v in titles.items() if k == theme}
     if not titles:
         result.fallback_reason = "Qloo returned no titles to draw names from."
         return result
@@ -206,7 +212,14 @@ async def write_listing(
     try:
         run = await agent.run(
             "Write the listing.",
-            deps=ListingDeps(animal=animal, titles=titles, log=log, taken_names=taken),
+            deps=ListingDeps(
+                animal=animal,
+                titles=titles,
+                log=log,
+                taken_names=taken,
+                request=request,
+                litter_title=titles[theme][0].name if theme else None,
+            ),
             usage_limits=LISTING_LIMITS,
         )
         result.draft = run.output
@@ -228,6 +241,9 @@ async def write_listing(
     return result
 
 
+Save = Callable[[ListingResult], None]
+
+
 async def run_pipeline(
     animal: Animal,
     location: Location,
@@ -239,8 +255,14 @@ async def run_pipeline(
     log: StepLog,
     output_mode: str = "native",
     litter_mates: set[str] | None = None,
+    request: str | None = None,
+    save: Save | None = None,
 ) -> ListingResult:
-    """Profile, then listing. The caller finishes the log, after reporting any error."""
+    """Profile, then listing. The caller finishes the log, after reporting any error.
+
+    `save` keeps the listing somewhere other than the shared store: a refined listing
+    or an added animal's listing belongs to one visitor's session.
+    """
     profile = await get_profile(
         animal,
         location,
@@ -260,8 +282,66 @@ async def run_pipeline(
             log=log,
             output_mode=output_mode,
             taken=taken_names(animal, location, store, litter_mates or set()),
+            request=request,
         )
         result.steps = list(log.steps)
-        store.put_listing(result)
+        (save or store.put_listing)(result)
     log.add("done", "Done")
     return result
+
+
+async def run_litter(
+    members: list[Animal],
+    location: Location,
+    *,
+    qloo: QlooClient,
+    store: Store,
+    seeds: Seeds,
+    model_factory: ModelFactory | None,
+    log: StepLog,
+    output_mode: str = "native",
+) -> list[ListingResult]:
+    """A litter named as a set: the first member's first name picks the title, and the
+    others draw their names from the same title without repeating one another."""
+    profile = await get_profile(
+        members[0],
+        location,
+        qloo=qloo,
+        store=store,
+        seeds=seeds,
+        model_factory=model_factory,
+        log=log,
+        output_mode=output_mode,
+    )
+    mate_ids = {m.id for m in members}
+    results: list[ListingResult] = []
+    async with _listing_locks[(id(asyncio.get_running_loop()), location.id)]:
+        theme: str | None = None
+        chosen: set[str] = set()
+        for animal in members:
+            log.add("start", f"Litter member {len(results) + 1} of {len(members)}")
+            taken = taken_names(animal, location, store, mate_ids - {animal.id}) | chosen
+            result = await write_listing(
+                animal,
+                location,
+                profile,
+                model_factory=model_factory,
+                log=log,
+                output_mode=output_mode,
+                taken=frozenset(taken),
+                theme=theme,
+            )
+            if result.draft is not None:
+                first = result.draft.names[0]
+                chosen.add(first.name.lower())
+                if theme is None:
+                    theme = first.entity_id
+                    title = next(
+                        e.name for e in profile.pet_entities + profile.local_tastes if e.id == theme
+                    )
+                    log.add("decision", f"The litter's names will all come from {title}")
+            result.steps = list(log.steps)
+            store.put_listing(result)
+            results.append(result)
+    log.add("done", "Done")
+    return results

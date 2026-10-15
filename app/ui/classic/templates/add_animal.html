@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}{{ view.title }} · Namesake{% endblock %}
+
+{% block content %}
+<p class="back"><a href="/?location={{ view.location_id }}{{ ui_query }}">&larr; Back to the animals</a></p>
+
+<section class="add-animal-form" data-role="add-animal">
+  <h1>{{ view.title }}</h1>
+  <p>{{ view.intro }}</p>
+  {% if view.error %}<p class="form-error" role="alert">{{ view.error }}</p>{% endif %}
+
+  <form action="{{ view.action }}" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="location" value="{{ view.location_id }}">
+    {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
+
+    <fieldset class="choices">
+      <legend>Species</legend>
+      {% for s in view.species %}<label><input type="radio" name="species" value="{{ s }}" required {% if loop.first %}checked{% endif %}> {{ s }}</label>{% endfor %}
+    </fieldset>
+    <fieldset class="choices">
+      <legend>Sex</legend>
+      {% for s in view.sexes %}<label><input type="radio" name="sex" value="{{ s }}" required {% if loop.first %}checked{% endif %}> {{ s }}</label>{% endfor %}
+    </fieldset>
+
+    <label for="age">Age</label>
+    <input id="age" name="age" maxlength="120" required placeholder="such as “3 years” or “10 weeks”">
+    <label for="look">Look</label>
+    <input id="look" name="look" maxlength="120" required placeholder="such as “short black coat, white chest”">
+    <label for="temperament">Temperament, as staff describe it</label>
+    <input id="temperament" name="temperament" maxlength="120" required placeholder="such as “calm and gentle”">
+    <label for="facts">Observed facts, one per line (up to {{ view.max_facts }})</label>
+    <textarea id="facts" name="facts" rows="4" placeholder="walks well on a lead&#10;likes to sit by the window"></textarea>
+
+    <fieldset class="questions">
+      <legend>What the shelter has confirmed</legend>
+      {% for q in view.questions %}
+      <div class="question">
+        <span>{{ q.label }}</span>
+        {% for a in view.answers %}<label><input type="radio" name="{{ q.field }}" value="{{ a }}" {% if a == 'unknown' %}checked{% endif %}> {{ a }}</label>{% endfor %}
+      </div>
+      {% endfor %}
+    </fieldset>
+
+    <label for="photo">Photo</label>
+    <input id="photo" type="file" name="photo" accept="image/jpeg,image/png,image/webp">
+    <p class="hint">{{ view.photo_note }}</p>
+
+    <button type="submit">Add the animal</button>
+  </form>
+</section>
+{% endblock %}

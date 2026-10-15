@@ -185,7 +185,7 @@ button.animal-card:hover, button.animal-card:focus-visible {
   object-fit: cover;
 }
 
-.animal-body { padding: 12px 14px 14px; }
+.animal-body { display: block; padding: 12px 14px 14px; }
 .animal-body p { margin: 0; }
 .animal-body p + p { margin-top: 4px; }
 .animal-meta { color: var(--muted); font-size: 0.85rem; }
@@ -360,7 +360,7 @@ button.animal-card:hover, button.animal-card:focus-visible {
 .notes h2 { font-size: 1rem; margin: 0 0 4px; }
 
 .why { margin-top: 32px; }
-.why h2 { font-size: 1.1rem; }
+.why > summary { font-size: 1.1rem; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
 
 .why-columns {
   display: grid;
@@ -410,5 +410,91 @@ button.animal-card:hover, button.animal-card:focus-visible {
 .name-option strong { font-size: 1rem; }
 .hook { margin: 4px 0 0; font-style: italic; }
 .fallback-note, .written-by { color: var(--muted); font-size: 0.85rem; margin: 6px 0 0; }
-.venue-reason { margin-top: 4px; font-size: 0.85rem; }
-.venue-reason span { color: var(--muted); }
+
+/* Provenance: what Qloo returned, then our reading of it */
+.evidence, .reading { margin: 2px 0 0; font-size: 0.85rem; }
+.evidence { color: var(--muted); }
+.evidence span { color: var(--accent); font-weight: 600; }
+.reading span { color: var(--muted); font-weight: 600; }
+.from-qloo {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--surface);
+  font-size: 0.7rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+/* Generic / local toggle: both versions are in the page; the picked one shows. */
+.version-toggle {
+  display: inline-flex;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.version-toggle legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.version-choice { padding: 4px 12px; border-radius: 999px; cursor: pointer; font-size: 0.9rem; }
+.version-choice:has(input:checked) { background: var(--accent); color: var(--surface); }
+.version-choice:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+.version-choice input { position: absolute; opacity: 0; }
+.listing-form:has(input[name="variant"][value="generic"]:checked) .version-local,
+.listing-form:has(input[name="variant"][value="generic"]:checked) .local-only,
+.listing-form:has(input[name="variant"][value="local"]:checked) .version-generic { display: none; }
+.name-source { color: var(--muted); font-size: 0.85rem; margin: 2px 0 0; }
+.version-note, .toggle-note, .refined-note, .litter-mates { color: var(--muted); font-size: 0.85rem; }
+.toggle-note { margin: 8px 0 0; }
+.name-option label { cursor: pointer; }
+.name-option input { accent-color: var(--accent); }
+
+/* Forms */
+.inline-field { display: flex; gap: 8px; flex-wrap: wrap; }
+.inline-field input { flex: 1 1 220px; }
+input[type="text"], .add-animal-form input:not([type]), .add-animal-form textarea, .approve textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.inline-field input[type="text"] { width: auto; }
+button[type="submit"]:not(.animal-card):not(.link-button), .candidates button {
+  padding: 8px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--surface);
+  font: inherit;
+  cursor: pointer;
+}
+.candidates { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.candidates button { background: var(--surface); color: var(--accent); }
+.link-button { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; }
+.hint { color: var(--muted); font-size: 0.8rem; margin: 4px 0 0; }
+.form-message, .form-error { margin: 8px 0 0; font-size: 0.9rem; }
+.form-error { color: var(--lift-down); font-weight: 600; }
+.custom-location { margin-top: 12px; }
+.custom-location label { display: block; font-weight: 600; margin-bottom: 4px; }
+.approve, .refine { margin-top: 16px; padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.approve summary { font-weight: 600; cursor: pointer; }
+.approve label, .refine label { display: block; font-weight: 600; margin: 8px 0 4px; }
+.approve button[type="submit"] { margin-top: 8px; }
+.examples ul { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 8px 0 0; }
+.example { display: inline-block; padding: 6px 12px; border: 1px solid var(--accent); border-radius: 999px; color: var(--accent); text-decoration: none; }
+.examples h2 { font-size: 1rem; margin: 16px 0 0; }
+.add-animal a, .litter button { margin-top: 8px; }
+.add-animal-form form { display: grid; gap: 6px; max-width: 640px; }
+.add-animal-form label { font-weight: 600; margin-top: 6px; }
+.add-animal-form fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
+.add-animal-form fieldset label { font-weight: 400; margin-right: 12px; }
+.question { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin: 4px 0; }
+.question span { min-width: 12em; }
+.copy-block { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; }
+.recorded { color: var(--muted); font-size: 0.9rem; }
+.notice { max-width: 640px; }

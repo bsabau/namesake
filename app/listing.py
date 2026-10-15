@@ -131,3 +131,59 @@ def templated_listing(animal: Animal) -> Listing:
     ]
     sentences += check_sentences(animal.checks, p)
     return Listing(sentences=sentences)
+
+
+# The generic version's name: a common pet name from this fixed list, never from Qloo,
+# so the generic and local versions differ only in what Qloo adds (decisions.md #8).
+# None reads as a human first name, which keeps the list safe for every dog.
+GENERIC_NAMES = (
+    "Biscuit", "Pepper", "Peanut", "Maple", "Mochi", "Waffles", "Pickles", "Noodle",
+    "Clover", "Pumpkin", "Nugget", "Pretzel", "Sprout", "Acorn", "Toffee", "Bean",
+    "Button", "Sesame", "Cocoa", "Juniper",
+)  # fmt: skip
+
+
+def generic_name(seed: int, taken: set[str] | frozenset[str] = frozenset()) -> str:
+    """A name from GENERIC_NAMES, starting at `seed` and skipping names already taken."""
+    for i in range(len(GENERIC_NAMES)):
+        name = GENERIC_NAMES[(seed + i) % len(GENERIC_NAMES)]
+        if name.lower() not in taken:
+            return name
+    return GENERIC_NAMES[seed % len(GENERIC_NAMES)]
+
+
+# Recorded words that warn an adopter: a volunteer's edit may reword the rest, never drop these.
+CAUTION_WORDS = re.compile(
+    r"\b(bit|bite|bites|bitten|biting|nip|nips|nipped|nipping|guard|guards|guarding|growl|"
+    r"growls|growling|snap|snaps|snapped|snapping|scratch|scratches|swat|swats)\b",
+    re.IGNORECASE,
+)
+
+
+def _plain(text: str) -> str:
+    return " ".join(text.lower().replace("’", "'").split()).rstrip(".")
+
+
+def cautions(animal: Animal) -> list[str]:
+    """What every version of this animal's listing must still say, word for word.
+
+    The shelter's confirmed "no" answers and a bite on record, as the fixed sentences,
+    plus any recorded phrase about biting, guarding, growling, snapping or scratching.
+    """
+    required = [
+        s.text
+        for s in check_sentences(animal.checks, pronouns(animal.sex))
+        if getattr(animal.checks, s.source.removeprefix("check:"))
+        == ("yes" if s.source == "check:bite_history" else "no")
+    ]
+    for phrase in [animal.temperament, *animal.facts]:
+        for part in re.split(r"[,;:]", phrase):
+            if CAUTION_WORDS.search(part):
+                required.append(part.strip())
+    return required
+
+
+def missing_cautions(animal: Animal, text: str) -> list[str]:
+    """The cautions an edited listing dropped or reworded."""
+    plain = _plain(text)
+    return [c for c in cautions(animal) if _plain(c) not in plain]

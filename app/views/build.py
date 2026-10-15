@@ -4,21 +4,28 @@ import re
 
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
-from app.listing import CHECK_SENTENCES, MIN_WORDS, templated_listing
+from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, templated_listing
 from app.locations import Location
 from app.profile import LocationProfile, Venue
 from app.qloo.geohash import bounds
 from app.views.models import (
+    AddAnimalView,
     AnimalCard,
+    ApprovedView,
+    Credits,
+    ExampleLink,
     ListingSentence,
+    ListingVersion,
     ListingView,
     LitterCard,
+    LitterMateView,
     LocationOption,
     MapCell,
     MapView,
     NameOptionView,
     NameView,
     PlanItem,
+    Question,
     ResultView,
     StartView,
     StepView,
@@ -97,17 +104,37 @@ def shelter_radius(location: Location) -> float:
     return 800 * 2 ** (14 - location.zoom)
 
 
-def animal_card(animal: Animal) -> AnimalCard:
+ADDED_PHOTO_CREDIT = (
+    "The animal and its photo were added by you for this visit and are not stored. "
+    "The shelter is fictional."
+)
+PLACEHOLDER_PHOTO = "/static/placeholder.svg"
+# The precomputed examples, in the order the start page offers them.
+EXAMPLES = (
+    ("dog-02", "park-slope", "The lead dog in Park Slope"),
+    ("dog-02", "astoria", "The same dog in Astoria"),
+    ("kitten-01", "park-slope", "The litter, named as a set, in Park Slope"),
+    ("kitten-01", "astoria", "The litter in Astoria"),
+)
+
+
+def added_photo_url(animal: Animal, has_photo: bool) -> str:
+    return f"/photos/{animal.id}" if has_photo else PLACEHOLDER_PHOTO
+
+
+def animal_card(animal: Animal, image_url: str | None = None) -> AnimalCard:
+    added = image_url is not None
     return AnimalCard(
         id=animal.id,
-        image_url=photo_url(animal.image),
+        image_url=image_url or photo_url(animal.image),
         alt=animal.look,
         meta=" · ".join(x for x in [animal.group.capitalize(), animal.sex, animal.age] if x),
         look=animal.look[:1].upper() + animal.look[1:],
         temperament=animal.temperament[:1].upper() + animal.temperament[1:],
         litter=animal.litter is not None,
         featured=animal.id == FEATURED,
-        badges=(["litter"] if animal.litter else [])
+        badges=(["added by you"] if added else [])
+        + (["litter"] if animal.litter else [])
         + (["long stay"] if any("months" in h for h in animal.history) else []),
     )
 
@@ -118,13 +145,30 @@ def litter_card(litter: LitterPhoto) -> LitterCard:
         image_url=photo_url(litter.image),
         alt=f"{len(litter.members)} kittens from the same litter",
         title="The whole litter",
-        text=f"{len(litter.members)} kittens, named together as a set.",
+        text=f"{len(litter.members)} kittens, named together as a set: every name comes from "
+        "one title, and no two are the same.",
     )
 
 
-def build_start_view(roster: Roster, locations: list[Location], selected_id: str) -> StartView:
+def example_links(ready: set[tuple[str, str]], ui_query: str = "") -> list[ExampleLink]:
+    return [
+        ExampleLink(label=label, url=f"/result?animal={a}&location={loc}{ui_query}")
+        for a, loc, label in EXAMPLES
+        if (a, loc) in ready
+    ]
+
+
+def build_start_view(
+    roster: Roster,
+    locations: list[Location],
+    selected_id: str,
+    *,
+    examples: list[ExampleLink] | None = None,
+    added: list[AnimalCard] | None = None,
+) -> StartView:
     animals = sorted(roster.animals, key=lambda a: a.id != FEATURED)
     return StartView(
+        examples=examples or [],
         title="Write an adoption listing",
         intro=(
             "Pick the shelter's area and an animal. Namesake drafts a plain listing from the "
@@ -132,7 +176,7 @@ def build_start_view(roster: Roster, locations: list[Location], selected_id: str
             "taste data about pet-themed shows near the shelter."
         ),
         locations=[location_option(loc, loc.id == selected_id) for loc in locations],
-        animals=[animal_card(a) for a in animals],
+        animals=(added or []) + [animal_card(a) for a in animals],
         litters=[litter_card(lit) for lit in roster.litters],
     )
 
@@ -145,7 +189,17 @@ def basis_label(key: str) -> str:
     return "Recorded fact" if key.startswith("fact:") else "Confirmed by the shelter"
 
 
-def listing_view(animal: Animal, result: ListingResult | None = None) -> ListingView:
+def copy_block(name: str | None, hook: str | None, text: str) -> str:
+    return "\n\n".join(x for x in [f"Meet {name}." if name else None, hook, text] if x)
+
+
+def listing_view(
+    animal: Animal,
+    result: ListingResult | None,
+    profile: LocationProfile,
+    generic: str,
+    refined: str | None = None,
+) -> ListingView:
     draft = result.draft if result else None
     if draft is not None:
         bio = [(s.text, s.facts) for s in result.bio]
@@ -169,11 +223,37 @@ def listing_view(animal: Animal, result: ListingResult | None = None) -> Listing
         left_out.append(f"Not yet known, so not mentioned: {and_list(unknown)}.")
     if animal.history:
         left_out.append("Backstory and time in the shelter are kept for staff, not printed.")
-    name = draft.names[0].name if draft else None
-    hook = result.hook if draft else None
-    copy_text = "\n\n".join(x for x in [f"Meet {name}." if name else None, hook, text] if x)
+
+    local_name = draft.names[0].name if draft else None
+    local_hook = result.hook if draft else None
+    versions = [
+        ListingVersion(
+            variant="generic",
+            label="Generic",
+            available=True,
+            name=generic,
+            name_source="A common pet name from a fixed list, not from Qloo.",
+            copy_text=copy_block(generic, None, text),
+            selected=draft is None,
+        ),
+        ListingVersion(
+            variant="local",
+            label="Local, with Qloo",
+            available=draft is not None,
+            name=local_name,
+            name_source=(
+                name_badge(draft.names[0].source, draft.names[0].entity_id, profile)
+                if draft
+                else ""
+            ),
+            hook=local_hook,
+            copy_text=copy_block(local_name, local_hook, text) if draft else "",
+            note=None if draft else "No local version yet: it needs the agent's name options.",
+            selected=draft is not None,
+        ),
+    ]
     return ListingView(
-        heading=f"Meet {name}" if name else f"Adoptable {animal.species}",
+        heading="The listing",
         text=text,
         sentences=sentences,
         word_count=word_count,
@@ -185,10 +265,19 @@ def listing_view(animal: Animal, result: ListingResult | None = None) -> Listing
             else None
         ),
         left_out=left_out,
-        copy_text=copy_text,
-        hook=hook,
+        versions=versions,
+        toggle_note=(
+            "Both versions share the same bio. The local one adds a name drawn from Qloo "
+            "taste data near the shelter and one line saying where the name comes from."
+        ),
         fallback_note=result.fallback_reason if result else None,
+        refined_note=(
+            f"Refined at your request (“{refined}”). Only you see this version."
+            if refined
+            else None
+        ),
         written_by=written_by,
+        must_keep=cautions(animal),
     )
 
 
@@ -210,21 +299,21 @@ def name_view(result: ListingResult | None, profile: LocationProfile) -> NameVie
             placeholder="No name yet: the agent's name options appear after a run.",
         )
     titles = {e.id: e.name for e in profile.pet_entities + profile.local_tastes}
-    refs = result.references if result else []
-    return NameView(
-        value=draft.names[0].name,
-        placeholder="",
-        options=[
+    refs = result.references
+    options = []
+    for i, o in enumerate(draft.names):
+        reference = refs[i] if i < len(refs) else o.character
+        options.append(
             NameOptionView(
                 name=o.name,
                 badge=name_badge(o.source, o.entity_id, profile),
-                reference=refs[i] if i < len(refs) else o.character,
                 title=titles.get(o.entity_id, o.character),
+                reference=reference,
                 why=o.why,
+                hook=f"Named after {reference}.",
             )
-            for i, o in enumerate(draft.names)
-        ],
-    )
+        )
+    return NameView(value=draft.names[0].name, placeholder="", options=options)
 
 
 def map_view(location: Location, profile: LocationProfile) -> MapView:
@@ -431,15 +520,24 @@ def build_result_view(
     location: Location,
     profile: LocationProfile,
     listing: ListingResult | None = None,
+    *,
+    generic: str = "Biscuit",
+    refined: str | None = None,
+    litter: list[LitterMateView] | None = None,
+    image_url: str | None = None,
 ) -> ResultView:
     ordered = venue_order(profile)
     returned, reading = why(location, profile)
+    named = [m for m in litter or [] if m.name]
     return ResultView(
         id=result_id(animal.id, location.id),
-        animal=animal_card(animal),
+        animal=animal_card(animal, image_url),
         location=location_option(location, True),
+        litter=litter or [],
+        litter_note=("Named as a set with the rest of the litter:" if len(named) > 1 else None),
         name=name_view(listing, profile),
-        listing=listing_view(animal, listing),
+        listing=listing_view(animal, listing, profile, generic, refined),
+        chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
         map=map_view(location, profile),
         venues=[venue_view(v, location, profile) for v in ordered[:VENUES_SHOWN]],
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
@@ -447,17 +545,72 @@ def build_result_view(
         qloo_returned=returned,
         our_reading=reading,
         notes=profile.notes,
+        credits=Credits(photos=ADDED_PHOTO_CREDIT) if image_url else Credits(),
     )
 
 
-def build_working_view(run, animal: Animal, location: Location, ui_query: str = "") -> WorkingView:
+def build_working_view(
+    run, animal: Animal, location: Location, ui_query: str = "", image_url: str | None = None
+) -> WorkingView:
     return WorkingView(
         run_id=run.id,
         title=f"Working on the listing for this {animal.species} in {location.label}",
-        animal=animal_card(animal),
+        animal=animal_card(animal, image_url),
+        credits=Credits(photos=ADDED_PHOTO_CREDIT) if image_url else Credits(),
         location=location_option(location, True),
         events_url=f"/api/runs/{run.id}/events",
         result_url=run.result_url + ui_query,
         steps=[StepView(kind=s.kind, text=s.text) for s in run.log.steps],
         finished=run.log.finished,
+    )
+
+
+def build_approved_view(
+    approval_id: str,
+    result: ResultView,
+    variant_label: str,
+    copy_text: str,
+    name: str,
+    name_source: str,
+    edited: bool,
+    back_url: str,
+) -> ApprovedView:
+    return ApprovedView(
+        id=approval_id,
+        title=f"{name} is ready to post",
+        animal=result.animal,
+        location=result.location,
+        variant_label=variant_label,
+        copy_text=copy_text,
+        recorded=[
+            f"Approval {approval_id}, with the time.",
+            f"The animal and the shelter area ({result.location.label}).",
+            f"The version: {variant_label.lower()}.",
+            f"The name, {name}, and where it came from: {name_source}.",
+            "Whether you edited the text" + (" (you did)." if edited else " (you did not)."),
+            "Not the text itself. This is what a trial of generic against local listings "
+            "would compare against adoption dates and returns.",
+        ],
+        back_url=back_url,
+        credits=result.credits,
+    )
+
+
+def build_add_animal_view(
+    location_id: str, max_facts: int, error: str | None = None
+) -> AddAnimalView:
+    return AddAnimalView(
+        location_id=location_id,
+        questions=[
+            Question(field=field, label=label)
+            for field, label in [
+                ("good_with_children", "Good with children?"),
+                ("good_with_dogs", "Good with dogs?"),
+                ("good_with_cats", "Good with cats?"),
+                ("house_trained", "House-trained?"),
+                ("bite_history", "A bite on record?"),
+            ]
+        ],
+        max_facts=max_facts,
+        error=error,
     )

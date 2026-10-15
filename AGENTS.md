@@ -305,7 +305,7 @@ docker build -t namesake .
 
 ## Milestones
 
-Work on one milestone at a time, in order, and stop at the end of each for review. Dates are targets. Current milestone: **3**. Design decisions are recorded in `docs/decisions.md`; read it before changing how the agent, the profile or the venues work, and add an entry when you make a decision of that size.
+Work on one milestone at a time, in order, and stop at the end of each for review. Dates are targets. Current milestone: **4**. Design decisions are recorded in `docs/decisions.md`; read it before changing how the agent, the profile or the venues work, and add an entry when you make a decision of that size.
 
 **0. Scaffold.** Done 15 October. The uv project, the settings module, a health route, the start page with the animal grid and web-sized photos, and a Dockerfile with Python, Node and the pinned harness.
 
@@ -322,7 +322,7 @@ Work on one milestone at a time, in order, and stop at the end of each for revie
 
 **2. Thin end-to-end slice.** Done 15 October. The original brief: No agent yet. Choose an animal and a location, run one fixed lookup (heatmap lift and venues, from the cache), and draw the cells and venue pins on the map. Render a templated listing from the facts. Add the `yes`/`no`/`unknown` fact fields. Build the UI seam described under "The UI is a replaceable skin": move the start page into `app/ui/classic/`, add view models and `/api/`, and add the shared smoke test. This proves the whole path from form to result.
 
-**3. The agent (16–24 October).** Add the PydanticAI agent with the Qloo tools, structured output, the plain-code checks with one repair round and a templated fallback, and the live step log over server-sent events. Two runs, per `docs/decisions.md`: a profile run per location and species (titles, ranking, venues), and a listing run per animal (names, bio, hook). Tests use PydanticAI's `TestModel` or `FunctionModel` and the synthetic fixtures.
+**3. The agent (16–24 October).** Done 15 October. The original brief: Add the PydanticAI agent with the Qloo tools, structured output, the plain-code checks with one repair round and a templated fallback, and the live step log over server-sent events. Two runs, per `docs/decisions.md`: a profile run per location and species (titles, ranking, venues), and a listing run per animal (names, bio, hook). Tests use PydanticAI's `TestModel` or `FunctionModel` and the synthetic fixtures.
 
 **4. Product (25–27 October).**
 - The generic-versus-local toggle, the Why panel, the refine line, and candidate buttons for `needs_input`.
