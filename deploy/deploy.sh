@@ -6,7 +6,8 @@
 #   NAMESAKE_HOST=user@host deploy/deploy.sh --seed   also install the local cache
 #
 # Optional: NAMESAKE_DIR (default /opt/namesake), PROXY_NETWORK (the Caddy container's
-# Docker network), NAMESAKE_URL (checked over HTTPS at the end, once Caddy has the site).
+# Docker network), NAMESAKE_URL (checked over HTTPS at the end, once Caddy has the site),
+# NAMESAKE_PREV_FROM_TAG=1 (see the swap below).
 # First-time setup, the Caddy site block and rolling back are in deploy/README.md.
 #
 # --env builds the .env locally with deploy/make_env.py (no value is printed), sends it,
@@ -103,12 +104,17 @@ ssh "$HOST" "mkdir $D/src.new"
 git archive --format=tar HEAD | ssh "$HOST" "tar -x -C $D/src.new"
 # Backups left by a deploy that finished but stopped during its cleanup are stale. The
 # image to come back to is the one the app's container uses, running or stopped, found by
-# Compose's labels so no compose file or .env is read; else the current tag. Docker's
-# containerd image store can prune an image a container still runs, so it may be gone.
+# Compose's labels so no compose file or .env is read; with no app container, the current
+# tag. Docker's containerd image store can prune an image a container still runs. Then the
+# current tag may be a build that never ran, so the deploy stops unless
+# NAMESAKE_PREV_FROM_TAG=1 says that tag is a fit rollback image.
+PREV_FROM_TAG=""; [ "${NAMESAKE_PREV_FROM_TAG:-}" = 1 ] && PREV_FROM_TAG=1
 swap="rm -rf src.prev compose.yml.prev .env.prev
   app=\$(docker ps -aq --filter label=com.docker.compose.project=namesake --filter label=com.docker.compose.service=app --filter label=com.docker.compose.oneoff=False | head -n 1)
   img=\$([ -n \"\$app\" ] && docker inspect -f '{{.Image}}' \"\$app\" || true)
   if [ -n \"\$img\" ] && docker image inspect \"\$img\" >/dev/null 2>&1; then docker tag \"\$img\" namesake-app:prev
+  elif [ -n \"\$app\" ] && [ -z '$PREV_FROM_TAG' ]; then
+    echo '✗ The running image is gone (pruned), so there is nothing tested to roll back to. Check that namesake-app is a build of the running version, then run again with NAMESAKE_PREV_FROM_TAG=1.'; exit 1
   elif docker image inspect namesake-app >/dev/null 2>&1; then docker tag namesake-app namesake-app:prev; fi
   touch .deploying
   if [ -d src ]; then mv src src.prev; fi; mv src.new src
