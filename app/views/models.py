@@ -90,6 +90,7 @@ class ShelterBar(BaseModel):
     heading: str = "Shelter area"
     name: str
     region: str = ""
+    chosen: bool = True
     change: str = "Change"
     close: str = "Done"
     panel_heading: str = "Choose the shelter's area"
@@ -105,6 +106,8 @@ class StartView(BaseModel):
     examples: list[ExampleLink] = []
     locations: list[LocationOption]
     shelter: ShelterBar
+    # The caption under the map for the area shown first.
+    map_note: str
     location_form: LocationForm = LocationForm()
     animals: list[AnimalCard]
     litters: list[LitterCard]

@@ -66,3 +66,19 @@ def test_the_shelter_bar_names_the_chosen_area_and_stays_closed():
     assert "Astoria" in bar and "Queens, New York" in bar and "Change" in bar
     assert 'data-role="shelter">' in page  # closed: no "open" attribute
     assert page.index('id="shelter"') < page.index('class="animal-grid"')
+
+
+def test_the_api_carries_the_bar_and_the_map_caption():
+    view = client.get("/api/start", params={"location": "austin"}).json()
+    assert view["shelter"]["name"] == "Austin" and view["shelter"]["open"] is False
+    assert view["map_note"] == next(o for o in view["locations"] if o["selected"])["map_note"]
+
+
+def test_with_no_area_chosen_the_bar_asks_for_one():
+    from app.animals import load_roster
+    from app.views.build import build_start_view
+
+    locations = load_locations(get_settings().locations_file)
+    view = build_start_view(load_roster(get_settings().animals_file), locations, "")
+    assert view.shelter.open and not view.shelter.chosen
+    assert view.shelter.change == "Choose an area"

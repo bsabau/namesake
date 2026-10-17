@@ -29,7 +29,7 @@ A volunteer picks an animal and the shelter's area. In about a minute Namesake's
 
 A **Generic / Local, with Qloo** toggle shows both versions of the listing. They share the same bio; the local one adds a name from Qloo's titles and one line saying where it comes from. That is exactly what Qloo contributes, visible in one click.
 
-A **Why** drawer separates "Qloo returned" from "Our reading" for every choice. The volunteer can refine with one line, edit, approve, and copy a block ready to paste into shelter software. Typing a new area works too: Qloo checks it first, and if the data is thin the app says so instead of producing a weak result.
+A **Why** drawer separates "Qloo returned" from "How Namesake read it" for every choice. The volunteer can refine with one line, edit, approve, and copy a block ready to paste into shelter software. Typing a new area works too: Qloo checks it first, and if the data is thin the app says so instead of producing a weak result.
 
 ## How I built it
 
@@ -51,7 +51,7 @@ A **Why** drawer separates "Qloo returned" from "Our reading" for every choice. 
 ## Accomplishments that I'm proud of
 
 - The generic-versus-local toggle answers "would this work the same without Qloo?" on the result screen itself.
-- Provenance everywhere: what Qloo returned is never blended with the app's reading of it.
+- Provenance everywhere: what Qloo returned is never blended with how Namesake read it.
 - A listing generator held to the record by code, not by the model's good intentions: a sentence with a content word the facts don't contain is sent back, and the volunteer edits and approves the rest. And a name screen built from published research rather than taste.
 - Honest scope: the tool claims what the evidence supports and records what a real trial would need.
 

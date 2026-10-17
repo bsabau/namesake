@@ -13,7 +13,7 @@ from app.profile import build_profile
 from tests.qloo_fakes import SEEDS, FakeQloo, standard_script
 
 REQUIRED = {
-    "start": ["map", "photo-credit", "qloo-credit"],
+    "start": ["shelter", "map", "photo-credit", "qloo-credit"],
     "working": ["working", "steps", "status", "photo-credit", "qloo-credit"],
     "result": [
         "name",

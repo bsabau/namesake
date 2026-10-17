@@ -10,7 +10,7 @@ A volunteer picks an animal and the shelter's area. In about a minute Namesake p
 2. **Name options drawn from Qloo taste data**, each labelled with where it came from and screened for villains, violent or tragic characters, aggression words, real people and identity-coded references.
 3. **A plan to get the animal seen**: the evidence-backed channels (foster networks, outings, timing) plus a few local venues that fans of pet-themed shows and films favour, each with Qloo's evidence beside it.
 
-A **generic version** of the listing sits beside the **local version**, so you can see exactly what Qloo adds. Every Qloo answer is shown apart from the app's reading of it.
+A **generic version** of the listing sits beside the **local version**, so you can see exactly what Qloo adds. Every Qloo answer is shown apart from how Namesake read it.
 
 Built for the [Qloo Agentic Hackathon](https://qloo-hackathon.devpost.com/). Taste data from the Qloo API; not affiliated with Qloo.
 
@@ -61,7 +61,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
    - the **name options**, each with its source badge, Qloo's title and the reason Namesake's AI gives, kept apart
    - a **map** of where pet-show fans stand out within the area, and the **places to ask**, each with Qloo's rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline
    - the **exposure checklist**, each item labelled Research, Qloo or Our suggestion
-   - a **Why** drawer with two columns, "Qloo returned" and "Our reading"
+   - a **Why** drawer with two columns, "Qloo returned" and "How Namesake read it" (Namesake's AI and its code)
 4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software.
 
 The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 8 Qloo calls, and each further animal at most two.
