@@ -14,6 +14,7 @@ from app.views.build import (
 )
 from tests.qloo_fakes import (
     BASELINE,
+    BASELINE_2,
     LOCATION,
     SEEDS,
     FakeQloo,
@@ -44,7 +45,7 @@ def test_result_venues_put_distinctive_suitable_places_first(roster):
     assert names[:2] == ["Community Hall", "Garden Cafe"]
     assert view.venues[0].stands_out and not view.venues[-1].stands_out
     # The baseline's own count, not the pet list's.
-    assert "not among the 2 places for fans of Example Drama" in view.venues[0].evidence
+    assert "not among the 2 places for fans of this area's top shows" in view.venues[0].evidence
 
 
 def test_plan_separates_research_qloo_and_our_suggestions(roster):
@@ -100,7 +101,7 @@ def baseline_key():
         "recommend",
         {
             "target_type": "place",
-            "signals": [BASELINE],
+            "signals": [BASELINE, BASELINE_2],
             "filter_location": LOCATION.query,
             "limit": 15,
         },

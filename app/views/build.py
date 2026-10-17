@@ -8,7 +8,7 @@ from app.animals import Animal, LitterPhoto, Roster
 from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, templated_listing
 from app.locations import Location
 from app.places import MAX_PIN_KM
-from app.profile import LocationProfile, Venue, rank_band
+from app.profile import LocationProfile, Venue, baseline_titles, layer_titles, rank_band
 from app.qloo.geohash import bounds
 from app.views.models import (
     AddAnimalView,
@@ -374,18 +374,34 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
     return NameView(value=draft.names[0].name, placeholder="", options=options)
 
 
+def compared_with(profile: LocationProfile) -> str | None:
+    """Whom the pet titles' fans are compared with, as words: the area's top shows (profile
+    version 2), the single seed show (version 1), or None without a baseline."""
+    if profile.baselines:
+        return "fans of this area's top shows"
+    return f"fans of {profile.baseline.name}" if profile.baseline else None
+
+
+def shows(n: int) -> str:
+    return f" ({n} shows)" if n > 1 else ""
+
+
 def map_view(
     location: Location, profile: LocationProfile, pin: tuple[float, float] | None = None
 ) -> MapView:
-    pet = profile.pet_entities[0].name if profile.pet_entities else "the pet-themed show"
-    base = profile.baseline.name if profile.baseline else "the baseline show"
+    titles = layer_titles(profile)
+    pets = f"fans of {and_list([e.name for e in titles])}" if titles else "pet-show fans"
+    base = compared_with(profile) or "the baseline"
     cells = []
     for c in profile.cells:
         south, west, north, east = bounds(c.geohash)
         if c.lift is None:
-            label = f"Scored for fans of {pet} only; {base} has no score here."
+            label = f"Scored for {pets}{shows(c.pet_count)} only; {base} have no score here."
         else:
-            label = f"Fans of {pet}: {c.pet_score:.2f}; fans of {base}: {c.baseline_score:.2f}."
+            label = (
+                f"{cap(pets)}: {c.pet_score:.2f}{shows(c.pet_count)}; "
+                f"{base}: {c.baseline_score:.2f}{shows(c.baseline_count)}."
+            )
         cells.append(
             MapCell(
                 geohash=c.geohash,
@@ -405,9 +421,15 @@ def map_view(
         pin=Pin(latitude=pin[0], longitude=pin[1]) if pin else None,
         cells=cells,
         legend=(
-            f"Warm cells: fans of {pet} rank this part of {location.label} higher than fans of "
-            f"{base} do. Cool cells: lower. Grey: only {pet}'s fans have a score. Scores are "
-            "ranks within the area, so they compare places here, not with other cities."
+            f"Warm cells: {pets} rank this part of {location.label} higher than {base} do. "
+            "Cool cells: lower. Grey: only the pet shows have a score there. Where several "
+            "shows scored a cell, their scores are averaged. Scores are ranks within the area, "
+            "so they compare places here, not with other cities."
+        ),
+        note=(
+            f"Warm: pet-show fans stand out here more than {base}. Cool: less. Grey: no comparison."
+            if cells
+            else None
         ),
         empty_message=None if cells else "No map data for this area yet.",
     )
@@ -437,7 +459,7 @@ def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueV
     # Name only the titles the venues were asked for.
     asked = set(profile.venue_signals) or {e.id for e in profile.pet_entities}
     pets = and_list([e.name for e in profile.pet_entities if e.id in asked])
-    base = profile.baseline.name if profile.baseline else None
+    base = compared_with(profile)
     total = len(profile.venues)
     evidence = (
         f"Ranked {ordinal(v.rank)} of {total} places near {location.label} for fans of {pets}"
@@ -446,10 +468,10 @@ def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueV
         evidence += "; not compared with a baseline."
         badge = "Not compared"
     elif v.distinctive:
-        evidence += f"; not among the {profile.baseline_venue_count} places for fans of {base}."
+        evidence += f"; not among the {profile.baseline_venue_count} places for {base}."
         badge = "Stands out for pet-show fans"
     else:
-        evidence += f"; also {ordinal(v.baseline_rank)} for fans of {base}."
+        evidence += f"; also {ordinal(v.baseline_rank)} for {base}."
         badge = "Popular nearby generally"
     band = rank_band(v.rank, total)
     return VenueView(
@@ -508,7 +530,7 @@ def plan(animal: Animal, location: Location, venues: list[Venue]) -> list[PlanIt
 
 def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], list[WhyItem]]:
     returned, reading = [], []
-    for e in profile.pet_entities + ([profile.baseline] if profile.baseline else []):
+    for e in profile.pet_entities + baseline_titles(profile):
         kind = e.type.removeprefix("urn:entity:").replace("_", " ")
         if e.resolution == "chosen":
             returned.append(
@@ -539,7 +561,17 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                 ),
             )
         )
-    if profile.baseline:
+    if profile.baselines:
+        reading.append(
+            WhyItem(
+                title="Why compare with this area's top shows",
+                detail=f"{and_list([e.name for e in profile.baselines])}: the TV shows Qloo "
+                f"ranks highest for people around {location.label}, leaving out any about "
+                "animals. A place or map cell that ranks high for their fans too is popular "
+                "here generally, not because of pets.",
+            )
+        )
+    elif profile.baseline:
         reading.append(
             WhyItem(
                 title=f"Why compare with {profile.baseline.name}",
@@ -555,8 +587,8 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                 title=f"{len(profile.venues)} places near {location.label}",
                 detail=f"Ranked for people who like {pets}"
                 + (
-                    f"; {shared} of them also rank for fans of {profile.baseline.name}."
-                    if profile.baseline and profile.venues[0].compared
+                    f"; {shared} of them also rank for {compared_with(profile)}."
+                    if compared_with(profile) and profile.venues[0].compared
                     else "."
                 ),
             )
@@ -574,8 +606,10 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         reading.append(
             WhyItem(
                 title="Lift on the map",
-                detail="The pet show's score minus the baseline's score in the same cell. It is "
-                "relative: where in this area pet-show fans stand out, not how many there are.",
+                detail="The pet shows' score minus the score for "
+                f"{compared_with(profile) or 'the baseline'} in the same cell, each averaged over "
+                "the shows that scored it. It is relative: "
+                "where in this area pet-show fans stand out, not how many there are.",
             )
         )
     for call in profile.calls:

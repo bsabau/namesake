@@ -30,11 +30,11 @@ from app.profile import (
     Entity,
     LocationProfile,
     Seeds,
+    baseline_from_tastes,
     baseline_venue_ids,
     build_profile,
     local_tastes,
     profile_from,
-    resolve_baseline,
 )
 from app.qloo.exec import QlooClient
 from app.store import Store
@@ -64,11 +64,15 @@ async def agent_profile(
     output_mode: str,
 ) -> LocationProfile:
     log.add("start", f"Building the profile for {species}s in {location.label}")
-    baseline = await asyncio.to_thread(resolve_baseline, qloo, location, seeds.baseline)
+    # The baseline is what the area watches most, leaving out pet-themed shows (decision
+    # 18). The step log names no title: the Why panel shows them as Qloo returned them.
+    log.add("qloo", f"Looking up what people around {location.label} tend to watch")
+    tastes = await asyncio.to_thread(local_tastes, qloo, location)
+    baselines = baseline_from_tastes(tastes, [])
     base_ids = None
-    if baseline is not None:
-        log.add("qloo", f"Baseline: places near {location.label} for fans of {baseline.name}")
-        base_ids = await asyncio.to_thread(baseline_venue_ids, qloo, location, baseline)
+    if baselines:
+        log.add("qloo", f"Baseline: places near {location.label} for fans of its top shows")
+        base_ids = await asyncio.to_thread(baseline_venue_ids, qloo, location, baselines)
 
     deps = ProfileDeps(
         qloo=qloo, location=location, species=species, log=log, baseline_venues=base_ids
@@ -87,9 +91,12 @@ async def agent_profile(
         entity.choice_reason = chosen[entity_id].choice_reason
         pets.append(entity)
 
+    # A top show the AI picked as a pet title is not its own baseline.
+    baselines = baseline_from_tastes(tastes, pets)
     profile = await asyncio.to_thread(
-        profile_from, qloo, location, pets, baseline, deps.venue_signals
+        profile_from, qloo, location, pets, baselines, deps.venue_signals
     )
+    profile.local_tastes = tastes
     picks = {v.entity_id: v.reason for v in plan.venues}
     rejects = {v.entity_id: v.reason for v in plan.rejected_venues}
     for venue in profile.venues:
@@ -160,8 +167,9 @@ async def _build_profile(
         profile = await asyncio.to_thread(build_profile, qloo, location, seeds)
 
     profile.species = species
-    log.add("qloo", f"Looking up what people around {location.label} tend to watch")
-    profile.local_tastes = await asyncio.to_thread(local_tastes, qloo, location)
+    if not profile.local_tastes:
+        log.add("qloo", f"Looking up what people around {location.label} tend to watch")
+        profile.local_tastes = await asyncio.to_thread(local_tastes, qloo, location)
     store.put_profile(profile)
     return profile
 

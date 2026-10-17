@@ -1,6 +1,7 @@
 from app.profile import build_profile, screen
 from tests.qloo_fakes import (
     BASELINE,
+    BASELINE_2,
     CAT_SHOW,
     DOG_SHOW,
     LOCATION,
@@ -17,7 +18,8 @@ def test_complete_profile():
     p = build_profile(FakeQloo(standard_script()), LOCATION, SEEDS)
     assert p.complete and p.notes == []
     assert [e.id for e in p.pet_entities] == [DOG_SHOW, CAT_SHOW]
-    assert p.baseline.id == BASELINE
+    assert [e.id for e in p.baselines] == [BASELINE, BASELINE_2] and p.baseline is None
+    assert [e.id for e in p.map_titles] == [DOG_SHOW, CAT_SHOW] and p.version == 2
 
 
 def test_ambiguous_seed_is_settled_by_its_rule_and_says_so():
@@ -57,7 +59,7 @@ def test_without_the_baseline_no_venue_is_called_distinctive():
             "recommend",
             {
                 "target_type": "place",
-                "signals": [BASELINE],
+                "signals": [BASELINE, BASELINE_2],
                 "filter_location": LOCATION.query,
                 "limit": 15,
             },
@@ -77,9 +79,12 @@ def test_unsuitable_venues_are_flagged():
 
 def test_lift_is_pet_minus_baseline_and_missing_where_unscored():
     p = build_profile(FakeQloo(standard_script()), LOCATION, SEEDS)
-    lifts = {c.geohash: c.lift for c in p.cells}
-    assert round(lifts["dr5rks5"], 3) == 0.5
-    assert lifts["dr5rk66"] is None
+    cells = {c.geohash: c for c in p.cells}
+    # dr5rks5: pet maps 0.9 and 0.7, baseline maps 0.4 and 0.2, so 0.8 - 0.3.
+    assert round(cells["dr5rks5"].lift, 3) == 0.5
+    assert (cells["dr5rks5"].pet_count, cells["dr5rks5"].baseline_count) == (2, 2)
+    # dr5rk66: only the dog show's map scored it, and no baseline did.
+    assert cells["dr5rk66"].lift is None and cells["dr5rk66"].pet_count == 1
 
 
 def test_errors_and_gaps_become_notes_not_crashes():
@@ -90,7 +95,8 @@ def test_errors_and_gaps_become_notes_not_crashes():
         "error",
         error={"code": "QLOO_RATE_LIMIT", "layer": "qloo", "retryable": True, "recovery": "wait"},
     )
-    del script[key("where_popular", {"entity": BASELINE, "within": q, "limit": 20})]
+    for entity in (CAT_SHOW, BASELINE, BASELINE_2):
+        del script[key("where_popular", {"entity": entity, "within": q, "limit": 20})]
     p = build_profile(FakeQloo(script), LOCATION, SEEDS)
     assert p.cells == [] and not p.complete
     assert any("QLOO_RATE_LIMIT" in n for n in p.notes)
