@@ -58,7 +58,7 @@ The hackathon asks for an agent, so this is the line that matters: where the mod
 | **Listing** | which names to offer from the area's titles; which lookalike titles to check, and how to retry one that was refused (with look words quoted from the record); the bio, from the facts | the answers about children, other animals, house-training and bites; the hook line; every check |
 | **Typed area** | nothing | the one heatmap that accepts or refuses it |
 
-The AI reads each answer and adapts: an ambiguous title gets a choice or is dropped, an unavailable ranking falls back to its own order, and a check that fails comes back to it once with the reasons.
+The AI reads each answer and adapts: an ambiguous title gets a choice or is dropped, and an unavailable ranking falls back to its own order.
 
 ## A request, end to end
 
@@ -216,7 +216,7 @@ Everything that differs between machines is an environment variable (`.env` loca
 
 - **Qloo**: the hackathon key was refused after about 12 calls in 20 minutes, so every live call goes through `QlooClient`: cached in SQLite, spaced at least `QLOO_MIN_INTERVAL` apart across processes, retried once only when Qloo says the error is retryable, with a 90-second timeout. Pages read Qloo from the cache only; runs and the typed-area check call it live, within the caps.
 - **Visitors**: live runs are capped per visitor per hour and per day; new typed areas per day. Place lookups have their own allowance (30 a minute per visitor, 120 for everyone), and only calls that reach Photon count.
-- **Model**: per-run request and tool-call limits (profile 16 and 14, listing 6 and 4) and one repair round. Then the profile falls back to a fixed lookup with the seed titles, and the listing to a templated one that says why.
+- **Model**: the per-run request and tool-call limits above, and one repair round. Then the profile falls back to a fixed lookup with the seed titles, and the listing to a templated one that says why.
 - **Secrets** live in environment variables (`SecretStr`, never logged) and, on the server, in a `.env` with mode 600 that CI never touches.
 
 ## Testing and delivery
