@@ -20,6 +20,7 @@ from app.agent.pipeline import run_litter, run_pipeline
 from app.agent.results import ListingResult
 from app.agent.steps import StepLog
 from app.animals import Animal, LitterPhoto, load_roster
+from app.classify import classifier_from
 from app.config import Settings
 from app.limits import Limits
 from app.locations import Location
@@ -200,6 +201,7 @@ async def start_run(
             model_factory=model_factory(settings),
             log=run.log,
             output_mode=settings.agent_output_mode,
+            classifier=classifier_from(settings),
             litter_mates=roster_litter_mates(animal, settings),
             request=request,
             save=keep if personal else None,
@@ -235,6 +237,7 @@ async def start_litter_run(
             model_factory=model_factory(settings),
             log=run.log,
             output_mode=settings.agent_output_mode,
+            classifier=classifier_from(settings),
         ),
     )
     return run

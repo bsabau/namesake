@@ -35,11 +35,11 @@ These shape most decisions below, so keep them in mind when making trade-offs. C
 
 - **Secrets:** keys live in environment variables or the harness's private config. Never write a key into the repo, a log line, a test fixture, a browser bundle, or model prompts. `.env` is git-ignored; `.env.example` holds names only.
 - **Qloo data stays out of the repo.** Qloo's terms forbid publishing its response data in a public repository. Live responses go to the SQLite cache and to the git-ignored `var/qloo-recordings/`. Tests use the hand-written envelopes in `tests/fixtures/qloo/synthetic/`, with invented IDs (`00000000-0000-4000-8000-…`) and invented names. `tests/test_no_qloo_data.py` enforces this. Precomputed examples live in the cache database, which is deployed privately and never committed. Screenshots and the README may show entity names and scores; Qloo confirmed this on Discord.
-- **No personal data to Qloo:** send cultural entities and places, never names, emails or identifiers. The app has no accounts.
+- **No personal data to Qloo:** send cultural entities and places, never names, emails or identifiers. The app has no accounts. The same holds for the classifier (TypeSafe's Jev, decision 20): it gets a title's name, kind and Qloo's description, nothing else.
 - **How results are worded:** Qloo returns aggregate affinities. Write "people in this area tend to like X", never a claim or probability about an individual. Do not infer sensitive traits (politics, health, finances, race, religion) from taste data.
 - **Provenance:** in the UI, keep what Qloo returned visibly separate from the app's interpretation of it.
 - **Ambiguity:** when Qloo cannot resolve a name it returns candidates. Show them or pick with a stated reason; do not force a fuzzy match through.
-- **Quota:** the hackathon key's quota is not published, so treat live calls as scarce. Tests never call Qloo or a model. Cache every live Qloo result. The key is rate-limited (refused after about 12 calls in 20 minutes on 15 October), so every live call goes through `QlooClient`, which spaces calls at least `QLOO_MIN_INTERVAL` seconds apart (default 5) across processes.
+- **Quota:** the hackathon key's quota is not published, so treat live calls as scarce. Tests never call Qloo or a model. Cache every live Qloo result. The key is rate-limited (refused after about 12 calls in 20 minutes on 15 October; 30 calls 10 seconds apart passed on 17 October), so every live call goes through `QlooClient`, which spaces calls at least `QLOO_MIN_INTERVAL` seconds apart (default 2) across processes. Raise it if Qloo starts refusing.
 - **Supported Qloo surfaces:** only the harness commands `qloo mcp`, `qloo exec` and `qloo api`. Do not call the HTTP API directly from Python.
 - **Listings state only recorded facts.**
   - Every sentence of a bio traces to the animal's recorded facts. Anything unrecorded stays unmentioned.
@@ -118,6 +118,7 @@ These flags cannot be combined with a custom prompt, which is why the guidelines
 | Agent | PydanticAI 2.x with structured output |
 | Qloo, agent-chosen calls | PydanticAI function tools over `QlooClient` (`qloo exec`), so every call is cached and spaced; see `docs/decisions.md` #5 |
 | Qloo, fixed calls | `QlooClient` (`qloo exec` as a subprocess returning JSON) |
+| Title classifier | TypeSafe's Jev over HTTPS (`app/classify.py`), optional, answers cached in SQLite; see `docs/decisions.md` #20 |
 | Cache | SQLite |
 | Packaging | One Docker image containing Python, Node 22.19+ and the harness |
 | Licence | MIT |
@@ -180,7 +181,7 @@ Qloo silently ignores parameters it does not recognise and then returns empty re
 
 `docs/qloo-findings.md` has the milestone 1 answers and the proposal for the agent, and `docs/decisions.md` what was decided from it; read both before building anything that calls Qloo. In short:
 
-- Pet tags exist but filter TV and films down to almost nothing, and lifestyle tags change nothing as a signal. The agent proposes pet-themed titles itself.
+- Pet tags exist but filter TV and films down to almost nothing, and lifestyle tags change nothing as a signal. The agent proposes pet-themed titles itself, and searches what people around the area who like them also like; a classifier sorts those results (decision 20).
 - Pet-themed titles as signals give venues near the shelter. Most are just popular nearby, so venues are compared with those of the area's own top shows (decision 18) and screened for event suitability.
 - Citywide heatmaps rarely reach the shelter. Heatmaps within the neighbourhood work, and the map layer is the lift of the top two pet titles over the area's top two shows.
 - Names are often ambiguous; resolving them with a stated reason is an agent step.

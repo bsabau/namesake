@@ -20,8 +20,10 @@ class Settings(BaseSettings):
     qloo_api_key: SecretStr | None = None
     qloo_base_url: str | None = None
     qloo_trusted_base_url: str | None = None
-    # Seconds between live Qloo calls, across processes. The key is rate-limited.
-    qloo_min_interval: float = 5.0
+    # Seconds between live Qloo calls, across processes. The key is rate-limited: refused
+    # after about 12 calls in 20 minutes on 15 October, but 30 calls 10 s apart passed on
+    # 17 October (docs/qloo-findings.md). Raise it again if Qloo starts refusing.
+    qloo_min_interval: float = 2.0
     # Whether web runs may call Qloo live. Off, they use only the cache and recordings.
     allow_live_qloo: bool = True
 
@@ -33,6 +35,12 @@ class Settings(BaseSettings):
     # How the model returns structured output: "native" (JSON schema), "prompted" or "tool".
     # The free development model only allows tool_choice "auto", so "tool" fails there.
     agent_output_mode: str = "native"
+
+    # The classifier that sorts titles into pet-themed or not (app/classify.py). Without
+    # a key it is off, and Namesake's AI judges the titles from their descriptions.
+    typesafe_api_key: SecretStr | None = None
+    typesafe_base_url: str = "https://api.typesafe.ai/v1"
+    typesafe_model: str = "jev-latest"
 
     # Limits on live work (runs that call the model or Qloo, and new custom locations).
     # Saved results are free. Per visitor is per hour; the caps are per day (UTC).

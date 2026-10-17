@@ -8,8 +8,10 @@ from app.agent.steps import Step
 # Raised whenever the listing checks change. A saved result from an older version is
 # never shown as it is: app/agent/recheck.py holds it to today's record checks (the bio
 # and the names' reasons) and name screen, and anything it cannot recheck is rerun.
-CHECKS_VERSION = 9
+CHECKS_VERSION = 10
 # What changed since, so which saved drafts a recheck of the record is enough for:
+# - 10 also counts a title as about real people when the classifier says so (decision
+#   20); saved titles from before have no classifier answer, so the recheck covers it;
 # - 9 screened names for real people and identity-coded references, in the name and the
 #   title it comes from (rechecked with the saved profile's titles);
 # - 8 allowed "puppy" and "kitten" only for an animal under a year (bio and reasons);

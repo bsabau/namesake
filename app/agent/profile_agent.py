@@ -1,8 +1,8 @@
 """The profile agent: which pet-themed titles, in what order, and which venues.
 
-The model chooses the Qloo calls (look up titles, rank them, find venues) and
-judges the venues; plain code checks that everything it returns came from
-Qloo, then assembles the profile (baseline comparison, lift map) itself.
+The model chooses the Qloo calls (look up titles, search the area's lists for more, rank
+them, find venues) and judges the venues; plain code checks that everything it returns
+came from Qloo, then assembles the profile (baseline comparison, lift map) itself.
 """
 
 from dataclasses import dataclass, field
@@ -12,17 +12,22 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent, ModelRetry, NativeOutput, PromptedOutput, RunContext, ToolOutput
 from pydantic_ai.models import Model
 
-from app.agent.checks import check_choice_reason
+from app.agent.checks import IDENTITY_CODED, IDENTITY_TERMS, check_choice_reason, find_word
 from app.agent.steps import StepLog
+from app.classify import JevClassifier, bucket
 from app.locations import Location
-from app.profile import VENUE_LIMIT, Entity, rank_band, screen
+from app.profile import VENUE_LIMIT, Entity, FoundIn, rank_band, screen
 from app.qloo.envelope import Envelope
 from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
 
 TitleKind = Literal["tv_show", "movie", "book", "brand"]
 # A lookalike is an animal in a story, so brands are left out.
 StoryKind = Literal["tv_show", "movie", "book"]
-MAX_RANKED = 5
+# Up to 8, so the AI's own titles and the ones found in the area's lists fit one ranking.
+MAX_RANKED = 8
+MAX_LOCAL_SEARCHES = 3
+LOCAL_LIMIT = 20
+KIND_WORDS = {"tv_show": "TV shows", "movie": "films", "book": "books"}
 MAX_VENUE_SIGNALS = 3
 MAX_VENUES = 3
 
@@ -47,6 +52,9 @@ class ProfileDeps:
     latest_venues: set[str] = field(default_factory=set)
     rank_order: list[str] | None = None
     rank_attempted: bool = False
+    # Sorts the titles find_local_titles returns; None leaves them all to the AI.
+    classifier: JevClassifier | None = None
+    local_searches: int = 0
 
 
 class TitleChoice(BaseModel):
@@ -76,16 +84,22 @@ class ProfilePlan(BaseModel):
 
 INSTRUCTIONS = """\
 You help a volunteer at a fictional animal shelter plan where to promote a {species}.
-The shelter is in {place}. You use Qloo, a taste-data service, through three tools.
+The shelter is in {place}. You use Qloo, a taste-data service, through four tools.
 
 1. Think of 4 to 6 well-known titles (TV shows, films, books or brands) that are clearly
    about {species}s or pets, and that a broad US audience recognises. Avoid titles centred
    on an animal's death, on violence, or coded to a race, religion or political identity.
 2. Look each one up with look_up_title. When Qloo offers several candidates, choose the
    pet-themed work you meant and give the reason (year, description). If none fits, drop it.
-3. Call rank_titles once, with up to 5 found titles of the same kind, to order them for this
-   area. If it is unavailable, keep your own order.
-4. Call find_venues with your top 2 or 3 titles. From the venues it returns, and only those,
+3. Call find_local_titles with your strongest found title, for TV shows, then films or
+   books (up to 3 calls): it lists what people around {place} who like that title also
+   like. A classifier has marked the clearly pet-themed ones "kept"; judge the "unsure"
+   ones from their description and keep only titles clearly about {species}s or pets.
+   Local titles you keep are strong evidence: include them.
+4. Call rank_titles once, with up to 8 found titles of the same kind, your own and the
+   local ones together, to order them for this area. If it is unavailable, keep your own
+   order.
+5. Call find_venues with your top 2 or 3 titles. From the venues it returns, and only those,
    choose up to 3 that could host an adoption event or display a flyer: public,
    family-friendly, community places such as cafes, parks, arts centres, bookshops, pet
    shops or breweries with event space. Reject private homes and residences, gyms,
@@ -172,10 +186,98 @@ def baseline_refusal(deps: ProfileDeps, entity_ids: list[str]) -> dict[str, Any]
     }
 
 
+def find_local_titles(
+    ctx: RunContext[ProfileDeps], entity_id: str, kind: StoryKind
+) -> dict[str, Any]:
+    """Titles of one kind that people around the shelter who like this found title also
+    like, best first, sorted by a classifier: "kept" (clearly about pets), "unsure" (yours
+    to judge) and a count of those dropped. Up to 3 calls per run."""
+    deps = ctx.deps
+    if deps.local_searches >= MAX_LOCAL_SEARCHES:
+        return {"status": f"unavailable: find_local_titles can be used {MAX_LOCAL_SEARCHES} times"}
+    if entity_id not in deps.titles_seen:
+        return {"status": f"unknown entity_id {entity_id}; look the title up first"}
+    if refusal := baseline_refusal(deps, [entity_id]):
+        return refusal
+    deps.local_searches += 1
+    signal = deps.titles_seen[entity_id]
+    what = KIND_WORDS[kind]
+    deps.log.add(
+        "qloo",
+        f"Asking Qloo which {what} people around {deps.location.label} who like "
+        f"{signal.name} also like",
+    )
+    env = qloo_call(
+        deps,
+        "recommend",
+        {
+            "target_type": kind,
+            "signals": [entity_id],
+            "signal_location": deps.location.query,
+            "limit": LOCAL_LIMIT,
+        },
+    )
+    if isinstance(env, str) or not env.has_results or env.status != "ok":
+        if isinstance(env, str):
+            status = env
+        elif not env.has_results:
+            status = "unavailable: no titles returned"
+        else:
+            # A partial or degraded answer may have lost the location signal.
+            status = f"unavailable: Qloo's list was {env.status}"
+        deps.log.add("note", f"Local {what}: {status}")
+        return {"status": status}
+    total = len(env.results)
+    kept, unsure, dropped = [], [], 0
+    for position, r in enumerate(env.results, start=1):
+        if r["entity_id"] in deps.titles_seen or r["entity_id"] in deps.baseline_titles:
+            continue
+        props = r.get("properties") or {}
+        entity = Entity(
+            id=r["entity_id"],
+            name=r["name"],
+            type=r.get("type", f"urn:entity:{kind}"),
+            description=props.get("short_description") or props.get("description"),
+            found_in=FoundIn(signal=signal.name, kind=kind, position=position, out_of=total),
+        )
+        entity.verdict = deps.classifier.classify(entity) if deps.classifier else None
+        where = bucket(entity.verdict)
+        if where == "dropped":
+            dropped += 1
+            continue
+        # Only kept and unsure titles may be chosen: check_plan accepts titles_seen.
+        deps.titles_seen[entity.id] = entity
+        info: dict[str, Any] = {
+            "entity_id": entity.id,
+            "name": entity.name,
+            "position": position,
+            "description": _short(entity.description),
+        }
+        if entity.verdict:
+            v = entity.verdict
+            info["classifier"] = {
+                "about_pets": v.pets,
+                "about_dogs": v.dogs,
+                "about_cats": v.cats,
+                "family_friendly": v.family,
+                "about_real_people": v.real_people,
+            }
+        (kept if where == "kept" else unsure).append(info)
+    if deps.classifier:
+        deps.log.add(
+            "qloo",
+            f"{total} {what}: the classifier found {len(kept)} about pets, left {len(unsure)} "
+            f"to Namesake's AI and set {dropped} aside",
+        )
+    else:
+        deps.log.add("qloo", f"{total} {what}: no classifier, so Namesake's AI judges them")
+    return {"status": "found", "out_of": total, "kept": kept, "unsure": unsure, "dropped": dropped}
+
+
 def rank_titles(
     ctx: RunContext[ProfileDeps], entity_ids: list[str], kind: TitleKind
 ) -> dict[str, Any]:
-    """Order up to 5 found titles of one kind by how strong they are in the shelter's area.
+    """Order up to 8 found titles of one kind by how strong they are in the shelter's area.
 
     One call per run; Qloo rate-limits this workflow most.
     """
@@ -280,6 +382,14 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
             problems.append(f"title {t.entity_id} was not returned by look_up_title")
         elif deps.ambiguous.get(t.entity_id) and not t.choice_reason:
             problems.append(f"title {t.entity_id} came back as candidates; give choice_reason")
+        else:
+            # The area's own lists carry identity-coded titles (docs/qloo-findings.md);
+            # descriptions name the cast, so only words nobody bears as a name count there.
+            e = deps.titles_seen[t.entity_id]
+            if find_word(e.name, IDENTITY_CODED) or find_word(e.description or "", IDENTITY_TERMS):
+                problems.append(
+                    f"{e.name} is coded to a religion, race or political identity; leave it out"
+                )
         if t.choice_reason:
             problems += check_choice_reason(t.choice_reason, f"the choice_reason for {t.entity_id}")
     for v in plan.venues:
@@ -319,7 +429,7 @@ def build_profile_agent(
         output_type=output_spec(output_mode),
         # One repair round after a failed check, as the brief asks.
         retries=1,
-        tools=[look_up_title, rank_titles, find_venues],
+        tools=[look_up_title, find_local_titles, rank_titles, find_venues],
     )
 
     @agent.instructions

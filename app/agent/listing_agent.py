@@ -25,6 +25,8 @@ from app.qloo.exec import QlooClient
 Source = Literal["pet", "local", "lookalike"]
 MAX_LOOKALIKE_LOOKUPS = 2
 ANIMAL_ROLES = checks.ANIMAL_ROLES
+# The classifier's probability above which a title counts as about real people.
+REAL_PEOPLE = 0.8
 # Look words too common to make two animals lookalikes on their own.
 GENERIC_LOOK = frozenset((
     "large", "small", "medium", "big", "mixed", "breed", "mix", "type", "domestic",
@@ -384,7 +386,10 @@ def screen_names(names: list[NameOption], titles: dict[str, Entity], strict: boo
         )
         title = titles.get(option.entity_id)
         if title is not None:
-            problems += checks.check_title(option.name, option.role, title.name, title.description)
+            real = title.verdict is not None and title.verdict.real_people >= REAL_PEOPLE
+            problems += checks.check_title(
+                option.name, option.role, title.name, title.description, real_people=real
+            )
     return problems
 
 

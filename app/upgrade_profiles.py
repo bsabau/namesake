@@ -1,7 +1,7 @@
 """Bring saved location profiles up to the current version (decision 18), keeping what
 Namesake's AI chose: the titles, their order, the venues and its reasons for them.
 
-    python -m app.upgrade_profiles [--only park-slope,astoria] [--min-interval 120]
+    python -m app.upgrade_profiles [--only park-slope,astoria] [--min-interval 10]
 
 Only the parts that changed are asked of Qloo again (`finish_profile`): the area's top
 shows (usually cached), the baseline shows' venues, and the heatmaps for the map layer,
@@ -10,9 +10,10 @@ profile is saved only when the new version is complete; one Qloo could not finis
 key is rate-limited) stays as it was, and a later run picks it up, as it does any current
 profile that is not complete.
 
-The key is refused after about 12 calls in 20 minutes, so calls are spaced at least
---min-interval seconds (120 by default) whatever QLOO_MIN_INTERVAL says; split a long run
-with --only.
+The key was refused after about 12 calls in 20 minutes on 15 October, but took 30 calls
+10 seconds apart on 17 October, so calls are spaced at least --min-interval seconds (10
+by default) whatever QLOO_MIN_INTERVAL says; raise it if Qloo refuses, and split a long
+run with --only.
 """
 
 import argparse
@@ -27,7 +28,7 @@ from app.store import Store
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--only", default="", help="location IDs, comma-separated")
-    parser.add_argument("--min-interval", type=float, default=120.0)
+    parser.add_argument("--min-interval", type=float, default=10.0)
     args = parser.parse_args()
     settings = get_settings()
     settings.qloo_min_interval = max(settings.qloo_min_interval, args.min_interval)
