@@ -6,8 +6,8 @@ You are the builder described under "Who does what". When a milestone's work is 
 
 Every change gets two reviews, run in parallel, before you report it done:
 
-- **First reviewer:** Codex on GPT-6-Astra. When Codex is out of usage, OpenCode with DeepSeek (`opencode-go/deepseek-v4-pro`) takes its place.
-- **Second reviewer:** muse (`opencode-go/muse-spark-1.3-contributor`) through OpenCode. When muse is out of usage, list the models with `opencode models` and use a free OpenCode Go one (a name ending in `-free` or `-contributor`).
+- **First reviewer:** Codex on `gpt-6.1-sol` (`codex exec -m gpt-6.1-sol -s read-only`), which uses less of the ChatGPT allowance than GPT-6-Astra. When Codex is out of usage, OpenCode with DeepSeek takes its place: your own key (`deepseek/deepseek-flash` or `deepseek/deepseek-v4-pro`) first, so reviews don't use up the Go plan the demo runs on.
+- **Second reviewer:** muse (`opencode-go/muse-spark-1.3-contributor`) through OpenCode. When muse or the Go plan is out of usage, list the models with `opencode models` and use a free one (a name ending in `-free` or `-contributor`; the `opencode/…-free` models don't use the Go plan). Avoid expensive models such as Grok unless the author asks: one Grok review used up the Go plan's window.
 
 OpenCode reviewers run on the read-only Plan agent. Start every reviewer unattended, so none waits for the author's input. All follow "Review guidelines" above.
 
