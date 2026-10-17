@@ -154,7 +154,7 @@ The refusal keeps the edit and names the missing words.
 - Only work that can reach Qloo or a model is counted. With no model and Qloo in replay, a run is a free fallback.
 - A location check is tried against the cache first. An answer Qloo gave before, even a thin or ambiguous one, is free. A check that needs Qloo reserves its slot before the call, so two at once cannot both pass a cap. The slot is given back if no live call was made.
 - Reopening an added animal's result, kept in the session, is free like any saved result.
-- uvicorn runs with `--proxy-headers`. `FORWARDED_ALLOW_IPS` names the host's proxy, so the client address is the real visitor's.
+- uvicorn runs with `--proxy-headers`. `FORWARDED_ALLOW_IPS` is the IPv4 subnet of the proxy's Docker network, so the client address is the real visitor's. Revised 17 October: Caddy's own address changes when its container restarts, so the whole subnet is trusted; any container on that network could forge a visitor address and dodge the per-visitor limit, while the daily caps still hold. Acceptable on a host with one operator (`deploy/README.md`).
 
 ## 12. A typed location goes to Qloo as typed, and is checked once before any run
 

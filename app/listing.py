@@ -88,25 +88,27 @@ def age_phrase(age: str) -> str:
 
 
 YOUNG = {"dog": "puppy", "cat": "kitten"}
+UNDER_A_YEAR = {"week": 52, "month": 12}
+
+
+def stage_for(species: str, age: str) -> str | None:
+    """'puppy' or 'kitten' when the recorded age is under a year ("10 weeks", "4 months"),
+    else None. One rule for the start page's grouping and for the listing checks."""
+    match = re.fullmatch(r"(\d+)\s+(year|month|week)s?", age.strip().lower())
+    if match is None or match.group(2) == "year":
+        return None
+    if int(match.group(1)) >= UNDER_A_YEAR[match.group(2)]:
+        return None
+    return YOUNG.get(species)
 
 
 def life_stage(animal: Animal) -> str | None:
-    """'puppy' or 'kitten' for an animal recorded as under a year old, else None."""
-    match = re.fullmatch(r"(\d+)\s+(year|month|week)s?", animal.age.strip())
-    if match is None or match.group(2) == "year":
-        return None
-    if match.group(2) == "month" and int(match.group(1)) >= 12:
-        return None
-    return YOUNG.get(animal.species)
+    return stage_for(animal.species, animal.age)
 
 
 def look_text(animal: Animal) -> str:
-    """The animal's recorded look as the agent sees it and the checks compare against:
-    "4-year-old female dog: ..." or "10-week-old female cat, a kitten: ...". A puppy or
-    kitten is named only when the recorded age says so."""
-    young = life_stage(animal)
-    stage = f", a {young}" if young else ""
-    return f"{age_phrase(animal.age)} {animal.sex} {animal.species}{stage}: {animal.look}"
+    """The animal's recorded look as the agent sees it and the checks compare against."""
+    return f"{age_phrase(animal.age)} {animal.sex} {animal.species}: {animal.look}"
 
 
 def fact_sentence(fact: str, they: str, is_: str) -> str:

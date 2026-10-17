@@ -18,11 +18,10 @@ The Qloo cache in `var/` holds Qloo response data. It stays on this host and is 
 2. **Ship it**, from a clean checkout of the commit you want live:
 
    ```sh
-   NAMESAKE_HOST=user@host NAMESAKE_URL=https://namesake.example.com \
-     deploy/deploy.sh --env --seed
+   NAMESAKE_HOST=user@host deploy/deploy.sh --env --seed
    ```
 
-   `--env` writes the host's `.env` from your local `.env` (the `AGENT_*` values) and `~/.qloo/config` (the Qloo key). `--seed` copies your local cache once, so the start page's examples open instantly. The script builds the image on the host, starts the container, and checks that `/health` answers and the cache is writable.
+   Leave `NAMESAKE_URL` out this first time: Caddy doesn't know the site until step 3. `--env` writes the host's `.env` from your local `.env` (the `AGENT_*` values) and `~/.qloo/config` (the Qloo key). `--seed` installs your local cache, so the start page's examples open instantly; it does so only while the host's cache holds no saved results, and refuses after that. The script builds the image on the host, starts the container, and checks that `/health` answers and the cache is writable. The ssh user needs to run `docker`, not to be root: files inside the private `var/` are handled by `deploy/prepare_var.py` in a one-off root container.
 3. **Caddy.** Append `deploy/Caddyfile.snippet` (with your domain) to the host's Caddyfile, then reload Caddy without restarting it:
 
    ```sh

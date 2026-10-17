@@ -23,7 +23,7 @@ So the idea became: use Qloo for what it can plausibly do, which is finding pet-
 
 A volunteer picks an animal and the shelter's area. In about a minute an agent produces:
 
-- **An accurate listing**, written only from the facts the shelter recorded. Third person, behaviour toward people first, plain words. A bite history is always stated; anything unrecorded is left out. Code checks every sentence against the facts.
+- **An accurate listing**, written only from the facts the shelter recorded. Third person, behaviour toward people first, plain words. A bite history is always stated, and anything the shelter marked unknown is left out. Code checks each bio sentence against the facts and sends back content words they don't contain.
 - **Name options from Qloo taste data**, each badged with its source: a pet-themed title strong in the area, something the area tends to watch, or a title with an animal that looks like this one. Every name is screened for villains, tragic or violent characters, aggression words, real people and identity-coded references, with the strictest screen for bully-breed dogs.
 - **A plan to get the animal seen**: foster and volunteer networks, outings in an "Adopt Me" vest, Friday and Saturday timing, rescue partners for New York dogs, and up to three local venues that fans of pet-themed shows and films favour, each with Qloo's rank and its comparison against an unrelated baseline show.
 
@@ -34,7 +34,7 @@ A **Why** drawer separates "Qloo returned" from "Our reading" for every choice. 
 ## How I built it
 
 - **Two PydanticAI agents with Qloo tools.** The area agent proposes pet-themed titles, looks each up with Qloo's `describe`, settles ambiguous ones with a stated reason, ranks them with `rank`, asks `recommend` for places their fans favour, and judges which venues suit an adoption event. The listing agent writes the bio and name options, and can look up up to two titles featuring an animal that shares this one's recorded look.
-- **Plain code around them.** A fixed baseline show and `where_popular` heatmaps within the neighbourhood give each venue and map cell a comparison: lift, not raw affinity, because raw scores saturate near 1.0. Code checks that every title and venue came from Qloo in that run, that every bio sentence traces to a recorded fact, that names pass the screen, and that no two animals at a shelter share a name. One repair round, then a templated listing that says why.
+- **Plain code around them.** A fixed baseline show and `where_popular` heatmaps within the neighbourhood give each venue and map cell a comparison: lift, not raw affinity, because raw scores saturate near 1.0. Code checks that every title and venue came from Qloo in that run, that every bio sentence cites recorded facts and adds no content word they lack, that names pass the screen, and that no two animals at a shelter share a name. One repair round, then a templated listing that says why.
 - **The official Qloo harness** (`qloo exec`), wrapped in a typed client that handles every envelope status, caches every answer in SQLite, and spaces calls 5 seconds apart, because the hackathon key is rate-limited.
 - **FastAPI, Jinja and a little JavaScript**, with server-sent events for the agent's live step log, Leaflet and OpenStreetMap for the map, and view models also served as JSON so the interface is replaceable.
 - **One Docker image** with Python, Node and the pinned harness, on a long-lived VM behind Caddy, with the cache on a private volume.
@@ -52,7 +52,7 @@ A **Why** drawer separates "Qloo returned" from "Our reading" for every choice. 
 
 - The generic-versus-local toggle answers "would this work the same without Qloo?" on the result screen itself.
 - Provenance everywhere: what Qloo returned is never blended with the app's reading of it.
-- A listing generator held to the record by code, not by the model's good intentions: a sentence with a word the facts don't contain is sent back. And a name screen built from published research rather than taste.
+- A listing generator held to the record by code, not by the model's good intentions: a sentence with a content word the facts don't contain is sent back, and the volunteer edits and approves the rest. And a name screen built from published research rather than taste.
 - Honest scope: the tool claims what the evidence supports and records what a real trial would need.
 
 ## What I learned

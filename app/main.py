@@ -27,7 +27,7 @@ from app.config import get_settings
 from app.custom_location import PREFIX as CUSTOM_PREFIX
 from app.custom_location import check_location, clean, location_id
 from app.limits import LimitReached
-from app.listing import generic_name, missing_cautions
+from app.listing import generic_name, missing_cautions, stage_for
 from app.locations import Location, load_locations
 from app.profile import LocationProfile, build_profile, load_seeds
 from app.qloo.cache import Cache
@@ -620,11 +620,10 @@ async def add_animal(
         if len(fact_lines) > MAX_FACTS:
             raise ValueError(f"up to {MAX_FACTS} facts, one per line")
         age_text = _short(age, "The age")
-        young = re.search(r"\b(week|month)s?\b", age_text) is not None
         animal = Animal(
             id=ADDED_PREFIX + uuid.uuid4().hex[:8],
             species=species,
-            group=("puppy" if species == "dog" else "kitten") if young else f"adult {species}",
+            group=stage_for(species, age_text) or f"adult {species}",
             sex=sex,
             age=age_text,
             look=_short(look, "The look"),

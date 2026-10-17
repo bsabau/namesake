@@ -8,6 +8,7 @@ name only, before anything is sent.
 """
 
 import argparse
+import ipaddress
 import re
 import sys
 from pathlib import Path
@@ -32,7 +33,21 @@ def qloo_key(config: Path) -> str:
     return match.group(1)
 
 
+def proxy_subnet(subnets: str) -> str:
+    """The first IPv4 subnet of the proxy network. Docker lists every subnet, IPv6 too,
+    and uvicorn silently ignores a value it cannot parse, so only a valid one is kept."""
+    for item in subnets.split():
+        try:
+            network = ipaddress.ip_network(item)
+        except ValueError:
+            continue
+        if network.version == 4:
+            return str(network)
+    raise MissingValue(f"FORWARDED_ALLOW_IPS: no IPv4 subnet in {subnets!r}")
+
+
 def build_env(local_env: Path, qloo_config: Path, subnet: str, network: str) -> dict[str, str]:
+    subnet = proxy_subnet(subnet)
     local = {k: v for k, v in dotenv_values(local_env).items() if v is not None}
     env = {
         "QLOO_API_KEY": qloo_key(qloo_config),
@@ -61,7 +76,7 @@ def render(env: dict[str, str]) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--subnet", required=True)
+    parser.add_argument("--subnet", required=True, help="the network's subnets, space-separated")
     parser.add_argument("--network", required=True)
     parser.add_argument("--local-env", type=Path, default=Path(".env"))
     parser.add_argument("--qloo-config", type=Path, default=Path.home() / ".qloo" / "config")

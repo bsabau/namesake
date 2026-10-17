@@ -365,7 +365,7 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
     if problems:
         deps.log.add("check", "Sent back for a fix: " + "; ".join(problems))
         raise ModelRetry("Fix these and answer again: " + "; ".join(problems))
-    deps.log.add("check", "Listing checked: every fact used, nothing added, names pass the screen")
+    deps.log.add("check", "Listing checked: built from the recorded facts, names pass the screen")
     return draft
 
 

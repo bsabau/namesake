@@ -42,23 +42,31 @@ def test_quotes_and_comments_are_not_baked_into_values(tmp_path):
 def test_a_missing_value_names_the_variable_and_never_a_value(tmp_path):
     local, qloo = files(tmp_path, local=LOCAL.replace("AGENT_MODEL=example-model\n", ""))
     with pytest.raises(make_env.MissingValue) as err:
-        make_env.build_env(local, qloo, "s", "n")
+        make_env.build_env(local, qloo, "10.0.0.0/8", "n")
     assert "AGENT_MODEL" in str(err.value) and "fake" not in str(err.value)
 
     local, qloo = files(tmp_path, qloo="base_url = https://x\n")
     with pytest.raises(make_env.MissingValue, match="no api_key"):
-        make_env.build_env(local, qloo, "s", "n")
+        make_env.build_env(local, qloo, "10.0.0.0/8", "n")
     with pytest.raises(make_env.MissingValue, match="not found"):
-        make_env.build_env(local, tmp_path / "nope", "s", "n")
+        make_env.build_env(local, tmp_path / "nope", "10.0.0.0/8", "n")
 
 
 def test_the_script_prints_nothing_on_failure(tmp_path, capsys, monkeypatch):
     local, _ = files(tmp_path)
     monkeypatch.setattr(
         "sys.argv",
-        ["make_env.py", "--subnet", "s", "--network", "n", "--local-env", str(local),
+        ["make_env.py", "--subnet", "10.0.0.0/8", "--network", "n", "--local-env", str(local),
          "--qloo-config", str(tmp_path / "missing")],
     )  # fmt: skip
     assert make_env.main() == 1
     out, err = capsys.readouterr()
     assert out == "" and "QLOO_API_KEY" in err and "fake" not in err
+
+
+def test_only_a_valid_ipv4_proxy_subnet_is_trusted():
+    # DeepSeek, Flash, Grok: a dual-stack network glued its subnets into one bad value.
+    assert make_env.proxy_subnet("172.18.0.0/16 fd00::/64 ") == "172.18.0.0/16"
+    assert make_env.proxy_subnet("fd00::/64 10.0.0.0/8") == "10.0.0.0/8"
+    with pytest.raises(make_env.MissingValue, match="no IPv4 subnet"):
+        make_env.proxy_subnet("172.18.0.0/16fd00::/64")
