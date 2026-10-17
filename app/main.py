@@ -8,6 +8,7 @@ profile comes from the cache and recordings, built ahead by
 
 import hashlib
 import json
+import mimetypes
 import re
 import uuid
 import zlib
@@ -80,6 +81,11 @@ from app.views.models import (
 HERE = Path(__file__).resolve().parent
 UI_ROOT = HERE / "ui"
 UIS = sorted(p.name for p in UI_ROOT.iterdir() if (p / "templates").is_dir())
+
+# The warm UI serves its own font. A slim Linux image has no mime.types file, so without
+# this the files go out as application/octet-stream.
+mimetypes.add_type("font/woff2", ".woff2")
+mimetypes.add_type("font/woff", ".woff")
 
 app = FastAPI(title="Namesake")
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")

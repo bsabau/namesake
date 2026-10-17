@@ -81,8 +81,11 @@
       const p = points[input.value];
       if (!p) return;
       show(p);
-      if (matchMedia("(prefers-reduced-motion: reduce)").matches) map.setView(centreOf(p), zoomFor(p));
-      else map.flyTo(centreOf(p), zoomFor(p), { duration: 1.2 });
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        map.setView(centreOf(p), zoomFor(p), { animate: false });
+      } else {
+        map.flyTo(centreOf(p), zoomFor(p), { duration: 1.2 });
+      }
     });
   });
 

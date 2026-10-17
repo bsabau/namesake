@@ -50,7 +50,9 @@ def test_both_skins_are_found():
 
 
 def test_the_default_ui_is_warm():
-    assert get_settings().ui == "warm" and main.pick_ui(None) == "warm"
+    # The declared default, not the effective one: a UI=classic override is allowed.
+    assert type(get_settings()).model_fields["ui"].default == "warm"
+    assert main.pick_ui(None) == get_settings().ui
 
 
 def test_every_ui_has_every_screen():
@@ -179,8 +181,10 @@ def test_the_warm_font_is_self_hosted_and_cacheable(client):
     for path in files:
         response = client.get(f"/ui/warm/static/fonts/{path.name}")
         assert response.status_code == 200
-        assert response.headers["content-type"].startswith("font/")
-        # Shared files are cacheable; only pages bound to a visitor's session are not.
+        # Registered in app/main.py: a slim Linux image has no mime.types file for .woff2.
+        assert response.headers["content-type"] == "font/woff2"
+        # Shared files are cacheable: a validator is sent and no session rule forbids it.
+        assert "etag" in response.headers or "last-modified" in response.headers
         assert "no-store" not in response.headers.get("cache-control", "")
         assert len(response.content) < 150_000, f"{path.name} is not a subsetted woff2"
     css = (fonts.parent / "style.css").read_text(encoding="utf-8")

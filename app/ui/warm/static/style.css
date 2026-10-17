@@ -31,7 +31,7 @@
   --text: #2f2a25;
   --muted: #6b5f55;
   --border: #e9dfd2;
-  --border-strong: #d6c8b6;
+  --border-strong: #9c8a78;   /* field edges: 3.3:1 on a white field                  */
 
   --primary: #d96a4a;
   --primary-ink: #a84526;
@@ -82,7 +82,7 @@
     --text: #f3ece3;
     --muted: #b5a99c;
     --border: #3d3630;
-    --border-strong: #524940;
+    --border-strong: #857a6e;
     --primary: #f0916f;
     --primary-ink: #f0916f;
     --primary-soft: #3e2a22;
@@ -237,7 +237,7 @@ main, .site-header, .site-footer {
   accent-color: var(--primary-ink);
 }
 
-.location-option:has(input:checked) { border-color: var(--primary); background: var(--primary-soft); }
+.location-option:has(input:checked) { border-color: var(--primary-ink); background: var(--primary-soft); }
 .location-option:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .location-label { font-weight: 700; }
@@ -409,7 +409,8 @@ button.animal-card:hover, button.animal-card:focus-visible {
 
 .left-out { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 0.85rem; }
 
-/* The exposure plan: a numbered list with a sage counter, the basis pill, then the step. */
+/* The exposure plan: a numbered list with a brand-coloured counter, the basis pill, then
+   the step. The counter is not sage, so sage keeps meaning "Namesake's reading". */
 .plan { margin: 0; padding: 0; list-style: none; counter-reset: plan; }
 .plan li {
   display: grid;
@@ -426,8 +427,8 @@ button.animal-card:hover, button.animal-card:focus-visible {
   width: 1.6em;
   height: 1.6em;
   border-radius: 50%;
-  background: var(--secondary);
-  color: var(--on-secondary);
+  background: var(--primary-ink);
+  color: var(--on-primary);
   font-size: 0.8rem;
   font-weight: 800;
   align-self: start;
@@ -577,7 +578,7 @@ button.animal-card:hover, button.animal-card:focus-visible {
 .step-qloo::marker { color: var(--qloo-ink); font-weight: 800; }
 .step-check { color: var(--muted); }
 .step-error { color: var(--attention-ink); font-weight: 700; }
-.step-done { color: var(--ai-ink); font-weight: 700; }
+.step-done { font-weight: 700; }
 .result-link { color: var(--primary-ink); font-weight: 600; }
 
 /* Names */
@@ -604,8 +605,9 @@ button.animal-card:hover, button.animal-card:focus-visible {
 }
 .fallback-note, .written-by { color: var(--muted); font-size: 0.85rem; margin: 6px 0 0; }
 
-/* Provenance: what Qloo returned, then our reading of it. Two colours, two left rules,
-   and a swatch before each label, so the split survives a greyscale print. */
+/* Provenance: what Qloo returned, then our reading of it. Two colours, two left rules
+   and a swatch before each label; the label text itself is what tells them apart
+   without colour. */
 .evidence, .reading {
   margin: 6px 0 0;
   padding: 2px 0 2px 10px;
@@ -857,7 +859,7 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
 .leaflet-popup-content-wrapper { border-radius: var(--radius-sm); }
 .leaflet-tooltip { border-color: var(--border); }
 .leaflet-container .leaflet-control-attribution {
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
   color: var(--muted);
   border-radius: var(--radius-sm) 0 0 0;
 }

@@ -68,6 +68,7 @@
   if (view.pin) layers.push(L.circleMarker(shelter, { radius: 0, opacity: 0 }));
   if (layers.length) {
     const group = L.featureGroup(layers);
-    map.fitBounds(group.getBounds().pad(0.3), { maxZoom: view.zoom + 1 });
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    map.fitBounds(group.getBounds().pad(0.3), { maxZoom: view.zoom + 1, animate: !still });
   }
 })();
