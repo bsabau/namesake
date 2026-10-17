@@ -22,7 +22,7 @@ Every change is reviewed before you report it done. Reviewers run in parallel an
 | Any other change | Codex + muse |
 | Milestone end, deploy, a new Qloo tool or agent tool, or text the judges read (README, Devpost, UI copy) | Codex + muse + DeepSeek Flash |
 | Re-check after fixes | the reviewers who raised the findings, each continuing its own session |
-| A third or later re-check, after two rounds that found only new P3s | Codex + muse only, even if another reviewer raised them |
+| From the third re-check on, when the two re-checks before it found only new P3s | Codex + muse only; Flash takes part in the first two |
 
 **When one is out of usage:**
 
