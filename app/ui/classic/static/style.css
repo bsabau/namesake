@@ -501,3 +501,55 @@ button[type="submit"]:not(.animal-card):not(.link-button), .candidates button {
 .copy-block { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; }
 .recorded { color: var(--muted); font-size: 0.9rem; }
 .notice { max-width: 640px; }
+
+/* Suggestions under the typed area, anchored to the field. */
+.suggest-wrap { position: relative; display: block; flex: 1 1 220px; }
+.inline-field .suggest-wrap input[type="text"] { width: 100%; box-sizing: border-box; }
+.suggestions {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;
+  margin: 4px 0 0; padding: 4px 0; list-style: none;
+  background: var(--surface); border: 1px solid var(--muted); border-radius: 6px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
+}
+.suggestions li { padding: 6px 12px; cursor: pointer; }
+.suggestions li[aria-selected="true"], .suggestions li:hover { background: var(--accent); color: #fff; }
+
+/* Picking the shelter's spot on the start map. */
+.map-hint { margin-top: 6px; }
+.map-pick p { margin: 0 0 8px; }
+.map-pick button {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Working page: a sign of life between steps. */
+.busy { display: flex; align-items: center; gap: 8px; color: var(--muted); margin: 8px 0 16px; }
+.busy-dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--accent);
+  animation: busy-pulse 1.2s ease-in-out infinite;
+}
+.busy-word { color: var(--text); font-weight: 600; }
+.busy-ellipsis::after { content: "…"; animation: busy-blink 1.2s steps(2, start) infinite; }
+.busy-time { font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+@keyframes busy-pulse {
+  0%, 100% { transform: scale(0.7); opacity: 0.5; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+@keyframes busy-blink { to { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) {
+  .busy-dot, .busy-ellipsis::after { animation: none; }
+}
+
+/* A failed area check, shown at the top of "Where is the shelter?". */
+.location-alert {
+  margin: 0 0 12px; padding: 10px 12px; border-left: 4px solid var(--accent);
+  background: var(--surface); font-weight: 600;
+}

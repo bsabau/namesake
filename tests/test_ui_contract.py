@@ -3,6 +3,8 @@
 A new UI under `app/ui/` is picked up automatically and must pass this test.
 """
 
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -71,6 +73,17 @@ def test_working_screen_meets_the_contract(client, ui):
         assert f'data-role="{role}"' in response.text, f"{ui} working: missing {role}"
 
 
+def test_the_working_screen_shows_a_sign_of_life_while_running(client, monkeypatch):
+    # Runs end at once without a model, so the page is shown as if still running.
+    built = main.working_view
+    monkeypatch.setattr(
+        main, "working_view", lambda *a, **k: built(*a, **k).model_copy(update={"finished": False})
+    )
+    response = client.post("/runs", data={"animal": "dog-02", "location": "park-slope"})
+    words = main.WorkingView.model_fields["busy_words"].default
+    assert 'data-role="busy"' in response.text and words[0] in response.text
+
+
 @pytest.mark.parametrize("ui", main.UIS)
 def test_ui_folders_never_reach_for_data(ui):
     # A UI renders view models only: no fetches outside the app's own /api/.
@@ -79,7 +92,13 @@ def test_ui_folders_never_reach_for_data(ui):
             text = path.read_text(encoding="utf-8")
             for call in ["qloo exec", "qloo mcp", "/v2/", "hackathon.api"]:
                 assert call not in text, f"{path.name} reaches for Qloo: {call}"
-            assert "fetch(" not in text or "/api/" in text
+            # Place lookups go through /api/places, never to the geocoder itself.
+            assert "photon" not in text.lower(), f"{path.name} reaches for the geocoder"
+            # Every fetch goes to a URL the page was given (a data-*-url from the view
+            # model, under /api/), never to a URL written into the script.
+            for call in re.findall(r"fetch\(([^)]*)\)", text):
+                assert "dataset" in call or "Url" in call or "/api/" in call, call
+                assert not re.search(r"[`'\"]https?:", call), f"{path.name} fetches {call}"
 
 
 def test_unknown_ui_is_a_404(client):
@@ -119,3 +138,10 @@ def test_add_animal_screen_meets_the_contract(client, ui):
     html = client.get("/animals/new", params={"location": "park-slope", "ui": ui}).text
     for role in REQUIRED["add_animal"]:
         assert f'data-role="{role}"' in html, f"{ui} add animal: missing {role}"
+
+
+def test_ui_files_are_linked_with_their_version(client):
+    # A script cached from before a deploy kept running against the new page.
+    page = client.get("/").text
+    version = main.static_version("classic")
+    assert f"location-map.js?v={version}" in page and f"style.css?v={version}" in page

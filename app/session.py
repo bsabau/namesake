@@ -57,6 +57,9 @@ class Session:
     listings: dict[str, ListingResult] = field(default_factory=dict)
     # The visitor's refine request behind each refined listing.
     requests: dict[str, str] = field(default_factory=dict)
+    # The spot the visitor picked on the map for the shelter, by location ID. Shown on
+    # their maps only; Qloo gets the area's name, never this point.
+    pins: dict[str, tuple[float, float]] = field(default_factory=dict)
 
 
 class Sessions:

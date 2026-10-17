@@ -16,6 +16,8 @@ from pathlib import Path
 from dotenv import dotenv_values
 
 QLOO_BASE = "https://hackathon.api.qloo.com"
+# Settings from the local .env that the host takes as they are, besides the AGENT_* ones.
+SHARED = ("GEOCODER_URL",)
 REQUIRED = ("QLOO_API_KEY", "AGENT_BASE_URL", "AGENT_API_KEY", "AGENT_MODEL", "AGENT_API")
 
 
@@ -53,7 +55,7 @@ def build_env(local_env: Path, qloo_config: Path, subnet: str, network: str) -> 
         "QLOO_API_KEY": qloo_key(qloo_config),
         "QLOO_BASE_URL": QLOO_BASE,
         "QLOO_TRUSTED_BASE_URL": QLOO_BASE,
-        **{k: v for k, v in local.items() if k.startswith("AGENT_")},
+        **{k: v for k, v in local.items() if k.startswith("AGENT_") or k in SHARED},
         "ALLOW_LIVE_QLOO": "true",
         # Caddy reaches the app from this Docker network; trust its forwarded client
         # address from there (deploy/README.md says why the whole subnet).

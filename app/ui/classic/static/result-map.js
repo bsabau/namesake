@@ -25,13 +25,20 @@
   const cool = colour("--lift-down", "#2563eb");
   const none = colour("--lift-none", "#78716c");
 
-  L.circle([view.latitude, view.longitude], {
+  // The shelter's area: around the spot the visitor picked, when they picked one.
+  const shelter = view.pin ? [view.pin.latitude, view.pin.longitude] : [view.latitude, view.longitude];
+  L.circle(shelter, {
     radius: view.shelter_radius_m,
     color: colour("--accent", "#c2410c"),
     weight: 2,
     dashArray: "4 4",
     fill: false,
   }).addTo(map);
+  if (view.pin) {
+    L.circleMarker(shelter, {
+      radius: 8, color: "#fff", weight: 2, fillColor: colour("--accent", "#c2410c"), fillOpacity: 1,
+    }).bindTooltip("The spot you picked for the shelter").addTo(map);
+  }
 
   const layers = view.cells.map((cell) => {
     const strength = cell.lift === null ? 0.25 : 0.2 + 0.6 * Math.min(1, Math.abs(cell.lift));
@@ -42,6 +49,8 @@
     ).bindTooltip(cell.label).addTo(map);
   });
 
+  // The cells, and the visitor's pin with them, so it is never off the edge.
+  if (view.pin) layers.push(L.circleMarker(shelter, { radius: 0, opacity: 0 }));
   if (layers.length) {
     const group = L.featureGroup(layers);
     map.fitBounds(group.getBounds().pad(0.3), { maxZoom: view.zoom + 1 });

@@ -17,6 +17,11 @@ class Credits(BaseModel):
     qloo: str = QLOO_CREDIT
 
 
+class Pin(BaseModel):
+    latitude: float
+    longitude: float
+
+
 class LocationOption(BaseModel):
     id: str
     label: str
@@ -26,6 +31,9 @@ class LocationOption(BaseModel):
     zoom: int
     shelter_radius_m: float
     selected: bool = False
+    # The spot this visitor picked for the shelter, if any, and what the map says about it.
+    pin: Pin | None = None
+    map_note: str = "The circle marks the area around the fictional shelter, not a real address."
 
 
 class AnimalCard(BaseModel):
@@ -61,6 +69,15 @@ class LocationForm(BaseModel):
         "Sent to Qloo as typed. Place names only: never a street address. A new area takes "
         "a few minutes the first time."
     )
+    map_hint: str = (
+        "Or right-click the map (long-press on a phone) where the shelter is: Namesake uses "
+        "the area around that spot."
+    )
+    suggestions_url: str = "/api/places"
+    pick_url: str = "/api/places/at"
+    # A spot picked on the map, carried through Qloo's candidate buttons.
+    pin_lat: str = ""
+    pin_lon: str = ""
     # After a check: what Qloo said, and its suggestions as buttons.
     message: str | None = None
     value: str = ""
@@ -182,6 +199,7 @@ class MapView(BaseModel):
     longitude: float
     zoom: int
     shelter_radius_m: float
+    pin: Pin | None = None
     cells: list[MapCell]
     legend: str
     empty_message: str | None = None
@@ -227,6 +245,19 @@ class WorkingView(BaseModel):
     result_url: str
     steps: list[StepView]
     finished: bool
+    # A sign of life between steps, so a long model call never looks stuck: words to
+    # cycle, and the time since the last step ("0:42 since the last step").
+    busy_words: list[str] = [
+        "Thinking",
+        "Pondering",
+        "Ruminating",
+        "Weighing the options",
+        "Mulling it over",
+        "Still at it",
+    ]
+    busy_since: str = "since the last step"
+    # Seconds since the last step when the page was built, so a reload keeps counting.
+    seconds_since_step: int = 0
     credits: Credits = Credits()
 
 
@@ -287,3 +318,16 @@ class NoticeView(BaseModel):
 
 
 ResultView.model_rebuild()
+
+
+class PlaceOption(BaseModel):
+    label: str
+    latitude: float
+    longitude: float
+
+
+class PlacesView(BaseModel):
+    """Area names for the location field, or the area around a picked spot."""
+
+    places: list[PlaceOption] = []
+    message: str | None = None

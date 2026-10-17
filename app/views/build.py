@@ -1,11 +1,13 @@
 """Build view models from domain objects. All user-facing wording lives here."""
 
 import re
+import time
 
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
 from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, templated_listing
 from app.locations import Location
+from app.places import MAX_PIN_KM
 from app.profile import LocationProfile, Venue, rank_band
 from app.qloo.geohash import bounds
 from app.views.models import (
@@ -24,6 +26,7 @@ from app.views.models import (
     MapView,
     NameOptionView,
     NameView,
+    Pin,
     PlanItem,
     Question,
     ResultView,
@@ -86,8 +89,20 @@ def and_list(items: list[str]) -> str:
     return ", ".join(items[:-1]) + " and " + items[-1]
 
 
-def location_option(location: Location, selected: bool = False) -> LocationOption:
-    return LocationOption(
+PIN_FAR_NOTE = (
+    f"The spot you picked is more than {MAX_PIN_KM} km from where Qloo has data for this "
+    "area, so it is not shown. The circle marks the area Qloo checked."
+)
+PIN_NOTE = (
+    "The pin is the spot you picked for the shelter. It stays in this visit and never "
+    "goes to Qloo, which gets only the area's name."
+)
+
+
+def location_option(
+    location: Location, selected: bool = False, pin: tuple[float, float] | None = None
+) -> LocationOption:
+    option = LocationOption(
         id=location.id,
         label=location.label,
         region=location.region,
@@ -97,6 +112,10 @@ def location_option(location: Location, selected: bool = False) -> LocationOptio
         shelter_radius_m=shelter_radius(location),
         selected=selected,
     )
+    if pin is not None:
+        option.pin = Pin(latitude=pin[0], longitude=pin[1])
+        option.map_note = PIN_NOTE
+    return option
 
 
 def shelter_radius(location: Location) -> float:
@@ -165,8 +184,16 @@ def build_start_view(
     *,
     examples: list[ExampleLink] | None = None,
     added: list[AnimalCard] | None = None,
+    pins: dict[str, tuple[float, float]] | None = None,
+    pin_far: bool = False,
 ) -> StartView:
     animals = sorted(roster.animals, key=lambda a: a.id != FEATURED)
+    options = [
+        location_option(loc, loc.id == selected_id, (pins or {}).get(loc.id)) for loc in locations
+    ]
+    for option in options:
+        if pin_far and option.selected:
+            option.map_note = PIN_FAR_NOTE
     return StartView(
         examples=examples or [],
         title="Write an adoption listing",
@@ -175,7 +202,7 @@ def build_start_view(
             "facts the shelter recorded, and a plan for getting the animal seen, using Qloo "
             "taste data about pet-themed shows near the shelter."
         ),
-        locations=[location_option(loc, loc.id == selected_id) for loc in locations],
+        locations=options,
         animals=(added or []) + [animal_card(a) for a in animals],
         litters=[litter_card(lit) for lit in roster.litters],
     )
@@ -337,7 +364,9 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
     return NameView(value=draft.names[0].name, placeholder="", options=options)
 
 
-def map_view(location: Location, profile: LocationProfile) -> MapView:
+def map_view(
+    location: Location, profile: LocationProfile, pin: tuple[float, float] | None = None
+) -> MapView:
     pet = profile.pet_entities[0].name if profile.pet_entities else "the pet-themed show"
     base = profile.baseline.name if profile.baseline else "the baseline show"
     cells = []
@@ -363,6 +392,7 @@ def map_view(location: Location, profile: LocationProfile) -> MapView:
         longitude=location.longitude,
         zoom=location.zoom,
         shelter_radius_m=shelter_radius(location),
+        pin=Pin(latitude=pin[0], longitude=pin[1]) if pin else None,
         cells=cells,
         legend=(
             f"Warm cells: fans of {pet} rank this part of {location.label} higher than fans of "
@@ -591,6 +621,7 @@ def build_result_view(
     refined: str | None = None,
     litter: list[LitterMateView] | None = None,
     image_url: str | None = None,
+    pin: tuple[float, float] | None = None,
 ) -> ResultView:
     ordered = venue_order(profile)
     returned, reading = why(location, profile)
@@ -607,7 +638,7 @@ def build_result_view(
         name=name_view(listing, profile, listing_.text),
         listing=listing_,
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
-        map=map_view(location, profile),
+        map=map_view(location, profile, pin),
         venues=[venue_view(v, location, profile) for v in ordered[:VENUES_SHOWN]],
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
         plan=plan(animal, location, ordered),
@@ -631,6 +662,7 @@ def build_working_view(
         result_url=run.result_url + ui_query,
         steps=[StepView(kind=s.kind, text=s.text) for s in run.log.steps],
         finished=run.log.finished,
+        seconds_since_step=int(time.time() - run.log.steps[-1].at) if run.log.steps else 0,
     )
 
 
