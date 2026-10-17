@@ -44,7 +44,7 @@ Namesake's AI (two agents, one per area and one per animal) and some plain code 
 | A map of where pet-show fans stand out | `where_popular` within the neighbourhood, for the top two pet titles and the top two baseline shows | Code | Raw affinity saturates near 1.0, so the map shows **lift**: the pet titles' cell score minus the baseline shows', each averaged over the maps that scored the cell. A key on the map says what the colours mean. |
 | What the area tends to watch | `recommend` TV and films with `signal_location` | Code | A second, labelled source of name options. |
 | Titles with an animal that looks like this one | `describe` | **Namesake's AI**, per animal, at most two | A personal name option, badged "Has a lookalike in …". The shared look must be quoted from the animal's record. |
-| A volunteer types their own area, or right-clicks the shelter's spot on the map | `where_popular` for the baseline within the area's name | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here", instead of a weak listing. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
+| A volunteer types their own area, or right-clicks the shelter's spot on the map | `where_popular` for one widely watched probe show within the area's name | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here", instead of a weak listing. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
 
 The decisions behind each row, with their evidence, are in [`docs/decisions.md`](docs/decisions.md) and [`docs/qloo-findings.md`](docs/qloo-findings.md).
 
@@ -64,7 +64,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
    - a **Why** drawer with two columns, "Qloo returned" and "How Namesake read it" (Namesake's AI and its code)
 4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software.
 
-The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 8 Qloo calls, and each further animal at most two.
+The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 12 to 14 Qloo calls (fewer when titles are already cached), and each further animal at most two.
 
 ## Measuring whether it works
 
@@ -89,7 +89,7 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
-Open http://localhost:8000. A fresh clone has an empty cache, so the first run for an area calls Qloo live (about 8 calls, a minute with the spacing) and the model. To fill the cache for the start page's examples, or to watch one run in the terminal:
+Open http://localhost:8000. A fresh clone has an empty cache, so the first run for an area calls Qloo live (about 12 to 14 calls, a minute or two with the spacing) and the model. To fill the cache for the start page's examples, or to watch one run in the terminal:
 
 ```sh
 uv run python scripts/precompute_examples.py          # live: Qloo and the model

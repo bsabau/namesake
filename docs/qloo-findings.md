@@ -109,14 +109,14 @@ Keep the provisional three: **Park Slope**, **Astoria** and **Austin**.
 
 Most Qloo work depends on the location and the species, not the individual animal. So the agent builds a **location profile** once per location and species, which is cached and shared by every animal there, and then a short **listing run** per animal.
 
-**Location profile (agent and code, about 8 live calls, cached):**
+**Location profile (agent and code, about 8 live calls when proposed; about 12 to 14 since decision 18, cached):**
 
 1. *Agent:* propose about ten pet-themed titles for the species (TV, films, books, brands), since pet tags alone return almost nothing.
 2. *Agent:* resolve them. Where Qloo returns candidates, pick one with a stated reason, for example "the 2018 children's series, not the 1976 crime drama", or drop the title.
 3. *Agent and Qloo:* rank them in the location and keep the strongest. If fewer than three survive, propose more once.
-4. *Code:* venues for fans of the survivors and for a fixed baseline show, near the shelter, and the rank difference between the two lists.
+4. *Code:* venues for fans of the survivors and for the baseline (since decision 18, the area's own top two shows; first a fixed show), near the shelter, and the rank difference between the two lists.
 5. *Agent and code:* screen the venues for event suitability (code drops adult venues and nightlife by category; the agent judges the rest) and choose about three, each with a reason.
-6. *Code:* heatmaps within the neighbourhood for the top title and the baseline, and the lift map.
+6. *Code:* heatmaps within the neighbourhood for the top title and the baseline, and the lift map (since decision 18, the top two titles against the two baseline shows, averaged).
 7. *Code:* the area's general tastes (TV and films with a location signal), the second source for names.
 
 **Listing run (per animal, at most a couple of `describe` calls):**

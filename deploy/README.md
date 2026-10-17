@@ -51,6 +51,16 @@ NAMESAKE_HOST=deploy@host NAMESAKE_URL=https://namesake.example.com deploy/deplo
 
 Only committed changes are deployed. Every deploy re-checks the saved listings against today's checks (`app/agent/recheck.py`): one that passes stays, one that fails runs again when next opened. The source, `compose.yml`, `.env` and the image change together. If any step fails, the check through the proxy included, all four come back (the image as `namesake-app:prev`, the one the running container used): before the restart the running container is untouched, and after it the previous version is started again. To roll back on purpose, check out the earlier commit and deploy again.
 
+## Upgrading saved profiles
+
+When a change raises the profile version (`PROFILE_VERSION` in `app/profile.py`), saved profiles keep working as they were until upgraded. Upgrade them on the host, paced under the key's limit, the examples' areas first:
+
+```sh
+ssh deploy@host 'cd /opt/namesake && docker compose exec -T -e QLOO_MIN_INTERVAL=120 app python -m app.upgrade_profiles --only park-slope,astoria'
+```
+
+It prints each profile it upgraded or left as it was; run it again later for the rest.
+
 ## Settings worth knowing
 
 - **`PROXY_NETWORK`**: the Caddy container's Docker network, which the app joins as `namesake`. It has no published port, so only the proxy reaches it.

@@ -30,10 +30,9 @@ from app.profile import (
     Entity,
     LocationProfile,
     Seeds,
-    baseline_from_tastes,
+    baseline_for,
     baseline_venue_ids,
     build_profile,
-    local_tastes,
     profile_from,
 )
 from app.qloo.exec import QlooClient
@@ -64,18 +63,23 @@ async def agent_profile(
     output_mode: str,
 ) -> LocationProfile:
     log.add("start", f"Building the profile for {species}s in {location.label}")
-    # The baseline is what the area watches most, leaving out pet-themed shows (decision
-    # 18). The step log names no title: the Why panel shows them as Qloo returned them.
+    # The baseline is what the area watches most, leaving out shows that mention animals
+    # (decision 18), fixed before the AI runs so its venue choices are judged against the
+    # same comparison the page shows. The step log names no title: the Why panel does.
     log.add("qloo", f"Looking up what people around {location.label} tend to watch")
-    tastes = await asyncio.to_thread(local_tastes, qloo, location)
-    baselines = baseline_from_tastes(tastes, [])
+    tastes, baselines, source, notes = await asyncio.to_thread(baseline_for, qloo, location, seeds)
     base_ids = None
     if baselines:
         log.add("qloo", f"Baseline: places near {location.label} for fans of its top shows")
         base_ids = await asyncio.to_thread(baseline_venue_ids, qloo, location, baselines)
 
     deps = ProfileDeps(
-        qloo=qloo, location=location, species=species, log=log, baseline_venues=base_ids
+        qloo=qloo,
+        location=location,
+        species=species,
+        log=log,
+        baseline_venues=base_ids,
+        baseline_titles={e.id: e.name for e in baselines},
     )
     agent = build_profile_agent(model, output_mode)
     run = await agent.run("Build the profile.", deps=deps, usage_limits=PROFILE_LIMITS)
@@ -91,12 +95,11 @@ async def agent_profile(
         entity.choice_reason = chosen[entity_id].choice_reason
         pets.append(entity)
 
-    # A top show the AI picked as a pet title is not its own baseline.
-    baselines = baseline_from_tastes(tastes, pets)
     profile = await asyncio.to_thread(
         profile_from, qloo, location, pets, baselines, deps.venue_signals
     )
-    profile.local_tastes = tastes
+    profile.local_tastes, profile.baseline_source = tastes, source
+    profile.notes = notes + profile.notes
     picks = {v.entity_id: v.reason for v in plan.venues}
     rejects = {v.entity_id: v.reason for v in plan.rejected_venues}
     for venue in profile.venues:
@@ -167,10 +170,12 @@ async def _build_profile(
         profile = await asyncio.to_thread(build_profile, qloo, location, seeds)
 
     profile.species = species
-    if not profile.local_tastes:
-        log.add("qloo", f"Looking up what people around {location.label} tend to watch")
-        profile.local_tastes = await asyncio.to_thread(local_tastes, qloo, location)
-    store.put_profile(profile)
+    # Only a finished profile is kept; an unfinished one is used for this run, and the next
+    # run asks Qloo again for what is missing (everything else is cached).
+    if profile.complete:
+        store.put_profile(profile)
+    else:
+        log.add("note", "Qloo could not finish this area's profile; the next run tries again")
     return profile
 
 

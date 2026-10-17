@@ -382,9 +382,10 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
 def compared_with(profile: LocationProfile) -> str | None:
     """Whom the pet titles' fans are compared with, as words: the area's top shows (profile
     version 2), the single seed show (version 1), or None without a baseline."""
-    if profile.baselines:
+    if profile.baselines and profile.baseline_source == "area":
         return "fans of this area's top shows"
-    return f"fans of {profile.baseline.name}" if profile.baseline else None
+    shows_ = baseline_titles(profile)
+    return f"fans of {and_list([e.name for e in shows_])}" if shows_ else None
 
 
 def shows(n: int) -> str:
@@ -396,12 +397,12 @@ def map_view(
 ) -> MapView:
     titles = layer_titles(profile)
     pets = f"fans of {and_list([e.name for e in titles])}" if titles else "pet-show fans"
-    base = compared_with(profile) or "the baseline"
+    base = compared_with(profile) or "a baseline"
     cells = []
     for c in profile.cells:
         south, west, north, east = bounds(c.geohash)
         if c.lift is None:
-            label = f"Scored for {pets}{shows(c.pet_count)} only; {base} have no score here."
+            label = f"Scored for {pets}{shows(c.pet_count)} only; no comparison here."
         else:
             label = (
                 f"{cap(pets)}: {c.pet_score:.2f}{shows(c.pet_count)}; "
@@ -566,22 +567,24 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                 ),
             )
         )
-    if profile.baselines:
+    if profile.baselines and profile.baseline_source == "area":
         reading.append(
             WhyItem(
                 title="Why compare with this area's top shows",
                 detail=f"{and_list([e.name for e in profile.baselines])}: the TV shows Qloo "
-                f"ranks highest for people around {location.label}, leaving out any about "
-                "animals. A place or map cell that ranks high for their fans too is popular "
-                "here generally, not because of pets.",
+                f"ranks highest for people around {location.label}, leaving out any whose "
+                "name or description mentions animals. A place or map cell that ranks high "
+                "for their fans too is popular here generally, not because of pets.",
             )
         )
-    elif profile.baseline:
+    elif baseline_titles(profile):
+        seed = baseline_titles(profile)[0]
         reading.append(
             WhyItem(
-                title=f"Why compare with {profile.baseline.name}",
-                detail=f"{cap(profile.baseline.why)}. Places and map cells that rank high for "
-                "both are popular generally, not because of pets.",
+                title=f"Why compare with {seed.name}",
+                detail=f"{cap(seed.why or 'a widely watched show unrelated to pets')}. Places "
+                "and map cells that rank high for both are popular generally, not because of "
+                "pets.",
             )
         )
     if profile.venues:

@@ -3,6 +3,11 @@ own top shows, leaving out pet-themed ones (decision 18). Fake Qloo, invented da
 
 from types import SimpleNamespace
 
+import pytest
+from pydantic_ai import ModelRetry
+
+from app.agent.profile_agent import ProfileDeps, ProfilePlan, check_plan, find_venues
+from app.agent.steps import StepLog
 from app.profile import Entity, baseline_from_tastes, build_profile, combine_cells
 from app.upgrade_profiles import upgrade
 from app.views.build import build_result_view
@@ -11,9 +16,11 @@ from tests.qloo_fakes import (
     BASELINE_2,
     CAT_SHOW,
     DOG_SHOW,
+    LOCAL_SHOWS,
     LOCATION,
     SEEDS,
     FakeQloo,
+    envelope,
     key,
     standard_script,
 )
@@ -112,7 +119,7 @@ def test_an_upgrade_keeps_what_the_ai_chose():
             ],
         }
     )
-    new = upgrade(old, LOCATION, FakeQloo(standard_script()))
+    new = upgrade(old, LOCATION, FakeQloo(standard_script()), SEEDS)
     assert new.version == 2 and [e.id for e in new.baselines] == [BASELINE, BASELINE_2]
     assert [e.id for e in new.pet_entities] == [DOG_SHOW, CAT_SHOW]
     assert new.made_by == "agent" and new.order_source == "qloo_rank" and new.species == "dog"
@@ -125,4 +132,72 @@ def test_an_upgrade_qloo_cannot_finish_is_not_saved():
     for entity in (DOG_SHOW, CAT_SHOW):
         del script[key("where_popular", {"entity": entity, "within": LOCATION.query, "limit": 20})]
     old = profile().model_copy(update={"version": 1, "baselines": [], "cells": []})
-    assert upgrade(old, LOCATION, FakeQloo(script)) is None
+    assert upgrade(old, LOCATION, FakeQloo(script), SEEDS) is None
+
+
+def test_cells_of_another_precision_are_left_out():
+    six = {"dr5rks": scored(0.9)}
+    seven = {"dr5rks5": scored(0.7), "dr5rk66": scored(0.6)}
+    cells = combine_cells([six, seven], [])
+    assert {c.geohash for c in cells} == {"dr5rks5", "dr5rk66"}
+
+
+def test_a_long_description_counts_when_there_is_no_short_one():
+    script = standard_script()
+    tastes_key = key(
+        "recommend", {"target_type": "tv_show", "signal_location": LOCATION.query, "limit": 10}
+    )
+    shows = [dict(s) for s in LOCAL_SHOWS]
+    shows[1] = {**shows[1], "properties": {"description": "A family and their dog."}}
+    script[tastes_key] = envelope("recommend", results=shows)
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    assert "Example Drama" not in [e.name for e in p.baselines]
+
+
+@pytest.mark.parametrize("status", ["degraded", "partial", "needs_input"])
+def test_an_unusable_list_of_top_shows_falls_back_to_the_seed_show(status):
+    # Codex, muse, Flash: a degraded answer may have lost the area; needs_input has none.
+    script = standard_script()
+    tastes_key = key(
+        "recommend", {"target_type": "tv_show", "signal_location": LOCATION.query, "limit": 10}
+    )
+    results = [] if status == "needs_input" else LOCAL_SHOWS
+    script[tastes_key] = envelope("recommend", status, results=results, warnings=["thin"])
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    assert p.baseline_source == "seed" and [e.id for e in p.baselines] == [BASELINE]
+    assert any("could not be used" in n for n in p.notes)
+
+
+def test_a_missing_map_leaves_the_profile_unfinished():
+    # Flash, Codex: an all-grey map was saved as complete when the baseline maps failed.
+    script = standard_script()
+    del script[key("where_popular", {"entity": BASELINE_2, "within": LOCATION.query, "limit": 20})]
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    assert p.maps_missing == 1 and not p.complete
+    assert build_profile(FakeQloo(standard_script()), LOCATION, SEEDS).complete
+
+
+def deps_with_baseline() -> ProfileDeps:
+    drama = Entity(id=BASELINE, name="Example Drama", type="urn:entity:tv_show")
+    deps = ProfileDeps(
+        qloo=FakeQloo(standard_script()),
+        location=LOCATION,
+        species="dog",
+        log=StepLog(),
+        baseline_titles={BASELINE: "Example Drama"},
+    )
+    deps.titles_seen[BASELINE] = drama
+    return deps
+
+
+def test_a_baseline_show_is_never_a_pet_title_or_a_venue_signal():
+    # Codex, muse, Flash: the AI's venues were judged against a baseline the page did not
+    # show, when it picked one of the area's top shows as a pet title.
+    deps = deps_with_baseline()
+    ctx = SimpleNamespace(deps=deps)
+    assert "comparison uses" in find_venues(ctx, [BASELINE])["status"]
+    plan = ProfilePlan.model_validate(
+        {"titles": [{"entity_id": BASELINE, "why": "a show"}], "venues": []}
+    )
+    with pytest.raises(ModelRetry, match="cannot also be a pet-themed title"):
+        check_plan(ctx, plan)
