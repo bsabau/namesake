@@ -747,6 +747,9 @@ def keep_pin(request: Request, location: Location, pin: tuple[float, float] | No
     if not pin:
         return ""
     if distance_km(pin, (location.latitude, location.longitude)) > MAX_PIN_KM:
+        # The visitor picked again: an earlier pin for this area no longer stands.
+        if (session := session_of(request)) is not None:
+            session.pins.pop(location.id, None)
         return "&pin=far"
     own_session(request).pins[location.id] = pin
     return ""

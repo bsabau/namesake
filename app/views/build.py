@@ -192,7 +192,7 @@ def build_start_view(
         location_option(loc, loc.id == selected_id, (pins or {}).get(loc.id)) for loc in locations
     ]
     for option in options:
-        if pin_far and option.selected and option.pin is None:
+        if pin_far and option.selected:
             option.map_note = PIN_FAR_NOTE
     return StartView(
         examples=examples or [],

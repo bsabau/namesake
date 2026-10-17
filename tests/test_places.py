@@ -321,6 +321,11 @@ def test_a_pin_too_far_from_the_area_is_dropped_with_a_word(client):  # noqa: F8
     start = client.get("/api/start", params={"location": location_id(text), "pin": "far"}).json()
     picked = next(o for o in start["locations"] if o["id"] == location_id(text))
     assert picked["pin"] is None and "more than 15 km" in picked["map_note"]
+    # Flash: a far pick after a near one replaces it, rather than seeming to work.
+    client.post("/locations", data={"text": text, "pin_lat": "40.67", "pin_lon": "-73.98"})
+    assert option(client, location_id(text))["pin"] is not None
+    client.post("/locations", data={"text": text, "pin_lat": "40.9", "pin_lon": "-73.98"})
+    assert option(client, location_id(text))["pin"] is None
 
 
 def test_a_pin_far_from_the_area_or_not_a_number_is_dropped(client):  # noqa: F811

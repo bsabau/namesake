@@ -79,6 +79,7 @@
         const response = await fetch(`${field.dataset.suggestUrl}?q=${encodeURIComponent(text)}${near()}`);
         if (!response.ok) return close();
         const body = await response.json();
+        if (text !== asked) return; // superseded by a later lookup
         answer = { text, places: body.places };
         if (field.value.trim() === text) show(answer.places);
       } catch {
