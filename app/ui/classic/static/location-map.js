@@ -89,11 +89,12 @@
     let areas = [];
     let message = "The lookup did not answer. Type the area instead.";
     try {
-      const url = `${pickUrl}?lat=${spot.lat.toFixed(5)}&lon=${spot.lng.toFixed(5)}`;
-      const response = await fetch(url);
+      // About 100 m, as the server sends on: the exact spot stays out of URLs and logs.
+      const response = await fetch(`${pickUrl}?lat=${spot.lat.toFixed(3)}&lon=${spot.lng.toFixed(3)}`);
       const body = await response.json();
       areas = response.ok ? body.places : [];
-      message = (response.ok ? body.message : body.detail) || message;
+      const said = response.ok ? body.message : body.detail;
+      if (typeof said === "string") message = said;
     } catch {
       // keep the message above
     }
@@ -108,8 +109,8 @@
       use.textContent = area.label;
       use.addEventListener("click", () => {
         field.value = area.label;
-        pinLat.value = spot.lat.toFixed(6);
-        pinLon.value = spot.lng.toFixed(6);
+        pinLat.value = spot.lat.toFixed(4);
+        pinLon.value = spot.lng.toFixed(4);
         form.requestSubmit();
       });
       box.append(use);

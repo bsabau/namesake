@@ -3,6 +3,8 @@
 A new UI under `app/ui/` is picked up automatically and must pass this test.
 """
 
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -92,7 +94,11 @@ def test_ui_folders_never_reach_for_data(ui):
                 assert call not in text, f"{path.name} reaches for Qloo: {call}"
             # Place lookups go through /api/places, never to the geocoder itself.
             assert "photon" not in text.lower(), f"{path.name} reaches for the geocoder"
-            assert "fetch(" not in text or "/api/" in text
+            # Every fetch goes to a URL the page was given (a data-*-url from the view
+            # model, under /api/), never to a URL written into the script.
+            for call in re.findall(r"fetch\(([^)]*)\)", text):
+                assert "dataset" in call or "Url" in call or "/api/" in call, call
+                assert not re.search(r"[`'\"]https?:", call), f"{path.name} fetches {call}"
 
 
 def test_unknown_ui_is_a_404(client):

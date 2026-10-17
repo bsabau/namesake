@@ -13,7 +13,8 @@
   // A sign of life between steps: a word that changes every few seconds, and the time
   // since the last step. The words come from the view model (data-words).
   const busy = root.querySelector('[data-role="busy"]');
-  let lastStep = Date.now();
+  // Counted from the server's last step, so a reload does not restart the clock.
+  let lastStep = Date.now() - 1000 * Number(busy ? busy.dataset.seconds : 0);
   let timers = [];
   const stopBusy = () => {
     timers.forEach(clearInterval);

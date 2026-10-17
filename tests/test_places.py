@@ -11,9 +11,16 @@ from fastapi.testclient import TestClient
 from app import main
 from app.custom_location import location_id
 from app.locations import Location
-from app.places import Allowance, Places, areas_around, label_for
+from app.places import Allowance, Places, Throttled, areas_around, label_for
 from app.store import Store
-from tests.test_product import client, profile  # noqa: F401 - fixtures
+from tests.qloo_fakes import FakeQloo
+from tests.test_product import (  # noqa: F401 - fixtures
+    SEEDS,
+    cells,
+    client,
+    location_script,
+    profile,
+)
 
 HOME = (40.67, -73.98)
 
@@ -97,6 +104,43 @@ def test_suggestions_rank_near_the_map_area_given_only_to_about_11_km():
     lookup.search("example", near=(40.6712, -73.9819))
     asked = parse_qs(urlparse(fake.urls[0]).query)
     assert (asked["lat"], asked["lon"]) == (["40.7"], ["-74.0"])
+
+
+def test_text_the_field_would_refuse_never_leaves_the_server():
+    # Codex, muse, Flash: a pasted street address or email went to Photon as typed.
+    lookup, fake = places()
+    for text in ["12 Example Street", "someone@example.com", "Apt 4B, Example City"]:
+        assert lookup.search(text) == []
+    assert fake.urls == []
+
+
+def test_an_odd_or_cut_off_answer_is_no_suggestions():
+    import http.client
+
+    odd = [[], {"features": None}, {"features": ["not a feature"]}, http.client.IncompleteRead(b"")]
+    lookup, fake = places(*odd)
+    for _ in odd:
+        assert lookup.search("example") == []
+
+
+def test_only_calls_that_reach_the_geocoder_count():
+    lookup, fake = places({"features": [feature("Example Slope")]})
+    allowance = Allowance(per_minute=1)
+    take = lambda: allowance.take("visitor")  # noqa: E731
+    lookup.search("example", allow=take)
+    lookup.search("example", allow=take)  # cached: free
+    lookup.search("12 Example Street", allow=take)  # refused before any call: free
+    with pytest.raises(Throttled):
+        lookup.search("another example", allow=take)
+    assert len(fake.urls) == 1
+
+
+def test_everyone_together_has_an_allowance_too():
+    fake = FakeGeocoder()
+    lookup = Places("https://geocoder.example", fetch=fake, overall=Allowance(per_minute=1))
+    lookup.search("example")
+    with pytest.raises(Throttled):
+        lookup.search("another example")
 
 
 def test_a_failed_lookup_is_not_cached():
@@ -209,6 +253,39 @@ def test_a_picked_spot_is_this_visits_pin_and_qloo_gets_the_name(client):  # noq
     # Another visitor never sees it.
     other = TestClient(main.app).get("/api/start", params={"location": loc_id}).json()
     assert next(o for o in other["locations"] if o["id"] == loc_id)["pin"] is None
+
+
+def test_the_pin_is_kept_to_about_10_m_and_pages_with_it_are_never_cached(client):  # noqa: F811
+    text = known_area()
+    client.post("/locations", data={"text": text, "pin_lat": "40.671234", "pin_lon": "-73.98199"})
+    assert option(client, location_id(text))["pin"] == {"latitude": 40.6712, "longitude": -73.982}
+    page = client.get("/", params={"location": location_id(text)})
+    assert page.headers["cache-control"] == "private, no-store"
+
+
+def test_qloo_gets_the_area_name_alone_and_candidates_keep_the_pin(client, monkeypatch):  # noqa: F811
+    # Codex, Flash: Qloo's candidate buttons dropped the pin.
+    monkeypatch.setattr(main, "load_seeds", lambda path: SEEDS)
+    text, script = location_script(
+        "needs_input",
+        resolution={"issues": [{"input": "x", "kind": "ambiguous", "candidates": [
+            {"id": "00000000-0000-4000-8000-000000000301", "name": "Example Heights, North",
+             "type": "urn:x"}]}]},
+    )  # fmt: skip
+    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo(script))
+    page = client.post("/locations", data={"text": text, "pin_lat": "40.6", "pin_lon": "-73.9"})
+    assert page.status_code == 400
+    assert 'name="pin_lat" value="40.6"' in page.text and "Example Heights, North" in page.text
+
+    # Flash: nothing showed what Qloo received for a picked spot.
+    text, script = location_script(results=cells(6))
+    qloo = FakeQloo(script)
+    monkeypatch.setattr(main, "replay_client", lambda settings: qloo)
+    client.post("/locations", data={"text": text, "pin_lat": "40.6801", "pin_lon": "-73.9801"})
+    sent = repr(qloo.calls)
+    assert any(c[1].get("within") == text for c in qloo.calls)
+    assert "40.68" not in sent and "-73.98" not in sent
+    assert option(client, location_id(text))["pin"] == {"latitude": 40.6801, "longitude": -73.9801}
 
 
 def test_a_pin_far_from_the_area_or_not_a_number_is_dropped(client):  # noqa: F811

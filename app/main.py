@@ -29,7 +29,7 @@ from app.custom_location import check_location, clean, location_id
 from app.limits import LimitReached
 from app.listing import generic_name, missing_cautions, stage_for
 from app.locations import Location, load_locations
-from app.places import MAX_PIN_KM, Allowance, Places, distance_km
+from app.places import MAX_PIN_KM, PIN_DECIMALS, Allowance, Places, Throttled, distance_km
 from app.profile import LocationProfile, build_profile, load_seeds
 from app.qloo.cache import Cache
 from app.qloo.exec import QlooClient
@@ -165,6 +165,11 @@ async def session_cookie(request: Request, call_next):
     request.state.session_id = known.id if known else None
     request.state.new_session_id = None
     response = await call_next(request)
+    # A page or answer built for one visitor's session (their pin, added animals) is
+    # never kept by a cache on the way.
+    session_bound = known or request.state.new_session_id
+    if session_bound and "cache-control" not in response.headers:
+        response.headers["Cache-Control"] = "private, no-store"
     if request.state.new_session_id:
         response.set_cookie(
             cookie_name(request),
@@ -674,13 +679,19 @@ async def add_animal(
     )
 
 
-def place_lookup(request: Request) -> Places:
+def place_lookup() -> Places:
     lookup = places()
     if not lookup.enabled:
         raise HTTPException(404, "place lookups are off here; type the area instead")
-    if not PLACE_LOOKUPS.take(visitor(request)):
-        raise HTTPException(429, "too many place lookups; wait a minute, or type the area")
     return lookup
+
+
+def visitor_allowance(request: Request):
+    """Asked only when a lookup would reach the geocoder: cached answers are free."""
+    return lambda: PLACE_LOOKUPS.take(visitor(request))
+
+
+TOO_MANY_LOOKUPS = "too many place lookups; wait a minute, or type the area"
 
 
 @app.get("/api/places")
@@ -693,7 +704,10 @@ def api_places(
     """Area names matching what the visitor is typing in the location field, ranked near
     the area on the map when lat and lon are given."""
     near = (lat, lon) if lat is not None and lon is not None else None
-    found = place_lookup(request).search(q, near)
+    try:
+        found = place_lookup().search(q, near, allow=visitor_allowance(request))
+    except Throttled:
+        raise HTTPException(429, TOO_MANY_LOOKUPS) from None
     return PlacesView(places=[PlaceOption(**p.model_dump()) for p in found])
 
 
@@ -704,7 +718,10 @@ def api_place_at(
     lon: float = Query(..., ge=-180, le=180),
 ) -> PlacesView:
     """The areas a spot the visitor picked for the shelter lies in, most local first."""
-    found = place_lookup(request).at(lat, lon)
+    try:
+        found = place_lookup().at(lat, lon, allow=visitor_allowance(request))
+    except Throttled:
+        raise HTTPException(429, TOO_MANY_LOOKUPS) from None
     if not found:
         return PlacesView(
             message="No neighbourhood or city was found at that spot. Pick a spot in a town, "
@@ -714,12 +731,15 @@ def api_place_at(
 
 
 def pin_from(latitude: str, longitude: str) -> tuple[float, float] | None:
-    """The spot picked on the map, from the form; None when absent or not a place on Earth."""
+    """The spot picked on the map, from the form, to about 10 m: plenty for a pin on an area
+    map. None when absent or not a place on Earth."""
     try:
         lat, lon = float(latitude), float(longitude)
     except ValueError:
         return None
-    return (lat, lon) if -90 <= lat <= 90 and -180 <= lon <= 180 else None
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return None
+    return round(lat, PIN_DECIMALS), round(lon, PIN_DECIMALS)
 
 
 def keep_pin(request: Request, location: Location, pin: tuple[float, float] | None) -> None:
@@ -743,6 +763,8 @@ def add_location(
     store = Store(settings.cache_db)
     typed = " ".join(text.split())
     pin = pin_from(pin_lat, pin_lon)
+    # Sent back with the form when Qloo asks to pick among candidates, so the pin survives.
+    kept = {"pin_lat": str(pin[0]), "pin_lon": str(pin[1])} if pin else {}
 
     def back(form: LocationForm, status: int) -> HTMLResponse:
         view = start_view(None, session_of(request), form, ui_suffix(request, ui))
@@ -767,14 +789,16 @@ def add_location(
             # Reserved before the call, so two checks at once cannot both pass a cap.
             limits.charge(visitor(request), "location")
         except LimitReached as exc:
-            return back(LocationForm(message=str(exc), value=typed), 429)
+            return back(LocationForm(message=str(exc), value=typed, **kept), 429)
         qloo = qloo_client(settings)
         checked = check_location(qloo, typed, seeds)
         if not getattr(qloo, "live_calls", 0):
             limits.refund(visitor(request), "location")
     if checked.status != "ok" or checked.location is None:
         status = 400 if checked.status in ("invalid", "thin", "needs_input") else 503
-        form = LocationForm(message=checked.message, value=typed, candidates=checked.candidates)
+        form = LocationForm(
+            message=checked.message, value=typed, candidates=checked.candidates, **kept
+        )
         return back(form, status)
     store.put_location(checked.location)
     keep_pin(request, checked.location, pin)

@@ -24,8 +24,8 @@
 <form id="custom-location" action="{{ view.location_form.action }}" method="post">
   {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
   {# The spot picked on the map, set by location-map.js; Qloo only ever gets the text. #}
-  <input type="hidden" id="pin-lat" name="pin_lat" value="">
-  <input type="hidden" id="pin-lon" name="pin_lon" value="">
+  <input type="hidden" id="pin-lat" name="pin_lat" value="{{ view.location_form.pin_lat }}">
+  <input type="hidden" id="pin-lon" name="pin_lon" value="{{ view.location_form.pin_lon }}">
 </form>
 
 <form id="pick" action="/runs" method="post">
@@ -47,7 +47,7 @@
       <div class="custom-location" data-role="custom-location">
         <label for="custom-location-text">{{ view.location_form.label }}</label>
         <div class="inline-field">
-          <span class="suggest-wrap">
+          <div class="suggest-wrap">
           <input id="custom-location-text" form="custom-location" type="text" name="text"
                  maxlength="80" value="{{ view.location_form.value }}"
                  placeholder="{{ view.location_form.placeholder }}"
@@ -55,7 +55,7 @@
                  aria-controls="place-suggestions" autocomplete="off"
                  data-suggest-url="{{ view.location_form.suggestions_url }}">
           <ul id="place-suggestions" class="suggestions" role="listbox" hidden></ul>
-          </span>
+          </div>
           <button type="submit" form="custom-location">Check with Qloo</button>
         </div>
         <p class="hint">{{ view.location_form.hint }}</p>

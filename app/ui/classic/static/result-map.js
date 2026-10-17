@@ -49,6 +49,8 @@
     ).bindTooltip(cell.label).addTo(map);
   });
 
+  // The cells, and the visitor's pin with them, so it is never off the edge.
+  if (view.pin) layers.push(L.circleMarker(shelter, { radius: 0, opacity: 0 }));
   if (layers.length) {
     const group = L.featureGroup(layers);
     map.fitBounds(group.getBounds().pad(0.3), { maxZoom: view.zoom + 1 });

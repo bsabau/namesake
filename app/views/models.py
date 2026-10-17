@@ -75,6 +75,9 @@ class LocationForm(BaseModel):
     )
     suggestions_url: str = "/api/places"
     pick_url: str = "/api/places/at"
+    # A spot picked on the map, carried through Qloo's candidate buttons.
+    pin_lat: str = ""
+    pin_lon: str = ""
     # After a check: what Qloo said, and its suggestions as buttons.
     message: str | None = None
     value: str = ""
@@ -253,6 +256,8 @@ class WorkingView(BaseModel):
         "Still at it",
     ]
     busy_since: str = "since the last step"
+    # Seconds since the last step when the page was built, so a reload keeps counting.
+    seconds_since_step: int = 0
     credits: Credits = Credits()
 
 

@@ -19,9 +19,10 @@
     field.removeAttribute("aria-activedescendant");
     active = -1;
   };
-  const highlight = (i) => {
+  const highlight = (step) => {
     const all = items();
-    active = (i + all.length) % all.length;
+    // From no highlight, Down goes to the first row and Up to the last.
+    active = active < 0 ? (step > 0 ? 0 : all.length - 1) : (active + step + all.length) % all.length;
     all.forEach((li, n) => li.setAttribute("aria-selected", String(n === active)));
     field.setAttribute("aria-activedescendant", all[active].id);
   };
@@ -38,7 +39,7 @@
     const checked = document.querySelector('input[name="location"]:checked');
     if (!data || !checked) return "";
     const p = JSON.parse(data.textContent).find((x) => x.id === checked.value);
-    return p ? `&lat=${p.latitude}&lon=${p.longitude}` : "";
+    return p ? `&lat=${p.latitude.toFixed(1)}&lon=${p.longitude.toFixed(1)}` : "";
   };
 
   const show = (places) => {
@@ -63,14 +64,16 @@
 
   field.addEventListener("input", () => {
     clearTimeout(timer);
+    // Suggestions for the old text must not be pickable while new ones are fetched.
+    close();
     const text = field.value.trim();
     if (text.length < 3) return close();
     if (text === asked) return;
     timer = setTimeout(async () => {
       asked = text;
       try {
-        const url = `${field.dataset.suggestUrl}?q=${encodeURIComponent(text)}${near()}`;
-        const response = await fetch(url);
+        // The area's centre to one decimal (about 11 km): enough to rank nearby places.
+        const response = await fetch(`${field.dataset.suggestUrl}?q=${encodeURIComponent(text)}${near()}`);
         if (!response.ok) return close();
         const body = await response.json();
         if (field.value.trim() === text) show(body.places);
@@ -84,7 +87,7 @@
     if (list.hidden) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
-      highlight(active + (event.key === "ArrowDown" ? 1 : -1));
+      highlight(event.key === "ArrowDown" ? 1 : -1);
     } else if (event.key === "Enter" && active >= 0) {
       event.preventDefault(); // pick the suggestion; a second Enter submits
       choose(items()[active].textContent);

@@ -1,6 +1,7 @@
 """Build view models from domain objects. All user-facing wording lives here."""
 
 import re
+import time
 
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
@@ -652,6 +653,7 @@ def build_working_view(
         result_url=run.result_url + ui_query,
         steps=[StepView(kind=s.kind, text=s.text) for s in run.log.steps],
         finished=run.log.finished,
+        seconds_since_step=int(time.time() - run.log.steps[-1].at) if run.log.steps else 0,
     )
 
 
