@@ -309,7 +309,7 @@ docker build -t namesake .
 
 ## Milestones
 
-Work on one milestone at a time, in order, and stop at the end of each for review. Dates are targets. Current milestone: **4**. Design decisions are recorded in `docs/decisions.md`; read it before changing how the agent, the profile or the venues work, and add an entry when you make a decision of that size.
+Work on one milestone at a time, in order, and stop at the end of each for review. Dates are targets. Current milestone: **5**. Design decisions are recorded in `docs/decisions.md`; read it before changing how the agent, the profile or the venues work, and add an entry when you make a decision of that size.
 
 **0. Scaffold.** Done 15 October. The uv project, the settings module, a health route, the start page with the animal grid and web-sized photos, and a Dockerfile with Python, Node and the pinned harness.
 
@@ -328,7 +328,7 @@ Work on one milestone at a time, in order, and stop at the end of each for revie
 
 **3. The agent (16–24 October).** Done 15 October. The original brief: Add the PydanticAI agent with the Qloo tools, structured output, the plain-code checks with one repair round and a templated fallback, and the live step log over server-sent events. Two runs, per `docs/decisions.md`: a profile run per location and species (titles, ranking, venues), and a listing run per animal (names, bio, hook). Tests use PydanticAI's `TestModel` or `FunctionModel` and the synthetic fixtures.
 
-**4. Product (25–27 October).**
+**4. Product (25–27 October).** Done 17 October.
 - The generic-versus-local toggle, the Why panel, the refine line, and candidate buttons for `needs_input`.
 - Edit and approve, and a copy-ready block.
 - Precomputed examples, built by a script into the cache database: `dog-02` and the litter in two neighbourhoods.
