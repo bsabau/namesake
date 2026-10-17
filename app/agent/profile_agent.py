@@ -164,6 +164,7 @@ def baseline_refusal(deps: ProfileDeps, entity_ids: list[str]) -> dict[str, Any]
     names = [deps.baseline_titles[i] for i in entity_ids if i in deps.baseline_titles]
     if not names:
         return None
+    deps.log.add("check", f"Refused {', '.join(names)}: one of this area's top shows")
     return {
         "status": f"{', '.join(names)} is one of this area's top shows, which the comparison "
         "uses; send pet-themed titles only"
@@ -269,7 +270,7 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
     deps = ctx.deps
     problems = []
     for t in plan.titles:
-        if t.entity_id in deps.baseline_titles:
+        if t.entity_id in deps.baseline_titles:  # logged with the other problems below
             problems.append(
                 f"{deps.baseline_titles[t.entity_id]} is one of this area's top shows, which "
                 "the comparison uses; it cannot also be a pet-themed title"

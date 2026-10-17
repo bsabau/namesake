@@ -8,8 +8,14 @@ from pydantic_ai import ModelRetry
 
 from app.agent.profile_agent import ProfileDeps, ProfilePlan, check_plan, find_venues
 from app.agent.steps import StepLog
-from app.profile import Entity, baseline_from_tastes, build_profile, combine_cells
-from app.upgrade_profiles import upgrade
+from app.profile import (
+    Entity,
+    LiftCell,
+    baseline_from_tastes,
+    build_profile,
+    combine_cells,
+    finish_profile,
+)
 from app.views.build import build_result_view
 from tests.qloo_fakes import (
     BASELINE,
@@ -62,6 +68,9 @@ def test_the_baseline_leaves_out_pet_titles_and_shows_about_animals():
         "Example Drama",
         "Example Comedy",
     ]
+    # Flash: animal words used as metaphors must not cost the area its baseline.
+    metaphors = [show(7, "The Example Bear"), show(8, "Example Shark Tank")]
+    assert len(baseline_from_tastes(metaphors, [])) == 2
 
 
 def profile():
@@ -119,7 +128,7 @@ def test_an_upgrade_keeps_what_the_ai_chose():
             ],
         }
     )
-    new = upgrade(old, LOCATION, FakeQloo(standard_script()), SEEDS)
+    new = finish_profile(old, LOCATION, FakeQloo(standard_script()), SEEDS)
     assert new.version == 2 and [e.id for e in new.baselines] == [BASELINE, BASELINE_2]
     assert [e.id for e in new.pet_entities] == [DOG_SHOW, CAT_SHOW]
     assert new.made_by == "agent" and new.order_source == "qloo_rank" and new.species == "dog"
@@ -132,14 +141,16 @@ def test_an_upgrade_qloo_cannot_finish_is_not_saved():
     for entity in (DOG_SHOW, CAT_SHOW):
         del script[key("where_popular", {"entity": entity, "within": LOCATION.query, "limit": 20})]
     old = profile().model_copy(update={"version": 1, "baselines": [], "cells": []})
-    assert upgrade(old, LOCATION, FakeQloo(script), SEEDS) is None
+    assert finish_profile(old, LOCATION, FakeQloo(script), SEEDS) is None
 
 
-def test_cells_of_another_precision_are_left_out():
-    six = {"dr5rks": scored(0.9)}
-    seven = {"dr5rks5": scored(0.7), "dr5rk66": scored(0.6)}
-    cells = combine_cells([six, seven], [])
-    assert {c.geohash for c in cells} == {"dr5rks5", "dr5rk66"}
+def test_maps_of_different_precision_are_brought_to_the_coarsest():
+    # muse, Flash: a 7-character pet map never met a 6-character baseline map.
+    pets = {"dr5rks5": scored(0.8), "dr5rks6": scored(0.6), "dr5rk66": scored(0.5)}
+    base = {"dr5rks": scored(0.3)}
+    cells = {c.geohash: c for c in combine_cells([pets], [base])}
+    assert set(cells) == {"dr5rks", "dr5rk6"}
+    assert round(cells["dr5rks"].pet_score, 3) == 0.7 and round(cells["dr5rks"].lift, 3) == 0.4
 
 
 def test_a_long_description_counts_when_there_is_no_short_one():
@@ -168,13 +179,55 @@ def test_an_unusable_list_of_top_shows_falls_back_to_the_seed_show(status):
     assert any("could not be used" in n for n in p.notes)
 
 
-def test_a_missing_map_leaves_the_profile_unfinished():
-    # Flash, Codex: an all-grey map was saved as complete when the baseline maps failed.
+def test_a_missing_map_leaves_the_profile_unfinished_and_a_later_run_finishes_it():
+    # Codex, Flash: an all-grey map was saved as complete when the baseline maps failed;
+    # Codex: an unsaved profile would leave its listings without their titles' evidence.
     script = standard_script()
-    del script[key("where_popular", {"entity": BASELINE_2, "within": LOCATION.query, "limit": 20})]
+    missing = key("where_popular", {"entity": BASELINE_2, "within": LOCATION.query, "limit": 20})
+    answer = script.pop(missing)
     p = build_profile(FakeQloo(script), LOCATION, SEEDS)
     assert p.maps_missing == 1 and not p.complete
-    assert build_profile(FakeQloo(standard_script()), LOCATION, SEEDS).complete
+    qloo = FakeQloo({**script, missing: answer})
+    finished = finish_profile(p.model_copy(update={"species": "dog"}), LOCATION, qloo, SEEDS)
+    assert finished.complete and finished.species == "dog"
+    # Only the missing map reached Qloo again; the fake serves the rest as the cache would.
+    assert ("where_popular", missing[1]) in [(op, key(op, i)[1]) for op, i in qloo.calls]
+
+
+def test_maps_that_never_overlap_still_finish():
+    # Flash: with no shared cell nothing is missing, so the profile is finished, grey.
+    script = standard_script()
+    for entity in (BASELINE, BASELINE_2):
+        k = key("where_popular", {"entity": entity, "within": LOCATION.query, "limit": 20})
+        script[k] = envelope("where_popular", results=[cell_far()])
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    assert p.complete and all(c.lift is None for c in p.cells)
+
+
+def cell_far() -> dict:
+    return {
+        "location": {"latitude": 40.70, "longitude": -73.90, "geohash": "dr5rzzz"},
+        "query": {"affinity": 0.5, "popularity": 0.5},
+    }
+
+
+def test_version_1_cells_render_with_their_defaults(roster):
+    old = profile().model_copy(
+        update={
+            "version": 1,
+            "baselines": [],
+            "map_titles": [],
+            "baseline": Entity(id=BASELINE, name="Example Drama", type="urn:entity:tv_show"),
+            "cells": [
+                LiftCell.model_validate(
+                    {"geohash": "dr5rks5", "latitude": 40.67, "longitude": -73.97,
+                     "pet_score": 0.9, "baseline_score": 0.4}
+                )
+            ],
+        }
+    )  # fmt: skip
+    label = build_result_view(roster.get("dog-02"), LOCATION, old).map.cells[0].label
+    assert label == "Fans of Example Dog Show: 0.90; fans of Example Drama: 0.40."
 
 
 def deps_with_baseline() -> ProfileDeps:
@@ -201,3 +254,21 @@ def test_a_baseline_show_is_never_a_pet_title_or_a_venue_signal():
     )
     with pytest.raises(ModelRetry, match="cannot also be a pet-themed title"):
         check_plan(ctx, plan)
+
+
+def test_the_pipeline_saves_an_unfinished_profile_and_finishes_it_next_run(roster):
+    from app.store import Store
+    from tests.test_agents import Script, _tmp_db, full_script, run
+
+    store = Store(_tmp_db())
+    script = full_script()
+    missing = key("where_popular", {"entity": BASELINE_2, "within": LOCATION.query, "limit": 20})
+    answer = script.pop(missing)
+    run(Script([], []), roster, model=False, store=store, qloo=FakeQloo(script))
+    saved = store.get_profile(LOCATION.id, "dog")
+    assert saved is not None and not saved.complete
+    _, _, log = run(
+        Script([], []), roster, model=False, store=store, qloo=FakeQloo({**script, missing: answer})
+    )
+    assert store.get_profile(LOCATION.id, "dog").complete
+    assert any("Finishing the saved profile" in s.text for s in log.steps)

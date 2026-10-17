@@ -56,7 +56,7 @@ Only committed changes are deployed. Every deploy re-checks the saved listings a
 When a change raises the profile version (`PROFILE_VERSION` in `app/profile.py`), saved profiles keep working as they were until upgraded. Upgrade them on the host, paced under the key's limit, the examples' areas first:
 
 ```sh
-ssh deploy@host 'cd /opt/namesake && docker compose exec -T -e QLOO_MIN_INTERVAL=120 app python -m app.upgrade_profiles --only park-slope,astoria'
+ssh deploy@host 'cd /opt/namesake && docker compose exec -T app python -m app.upgrade_profiles --only park-slope,astoria'
 ```
 
 It prints each profile it upgraded or left as it was; run it again later for the rest.

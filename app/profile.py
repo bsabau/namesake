@@ -10,8 +10,8 @@ Everything here is either what Qloo returned or a plain calculation on it
 
 import json
 import re
-from collections import Counter
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -32,10 +32,10 @@ MAP_TITLES = 2
 BASELINE_TITLES = 2
 # A top local show whose name or description mentions animals is not a baseline: a word
 # list, so the page says "mentions animals", not "is about animals".
+# Plain animal words only: "The Bear" or "Shark Tank" must not lose the area a baseline.
 PET_WORDS = re.compile(
     r"\b(dogs?|cats?|pupp(y|ies)|kittens?|pets?|animals?|vets?|veterinar\w*|wildlife|zoos?|"
-    r"horses?|pon(y|ies)|birds?|whales?|sharks?|tigers?|lions?|bears?|wol(f|ves)|paws?|"
-    r"creatures?)\b",
+    r"horses?|pon(y|ies))\b",
     re.I,
 )
 
@@ -171,12 +171,11 @@ class LocationProfile(BaseModel):
 
     @property
     def complete(self) -> bool:
-        """Venues, a map, and the comparison behind both: every map arrived and the venues
-        were compared. A profile that is not complete is not saved, so the next run asks
-        Qloo again for what is missing (the rest comes from the cache)."""
+        """Every call behind the venues and the map came back: the venues were compared and
+        every map arrived (whether or not the maps overlap). An unfinished profile is saved
+        with the AI's choices and finished on a later run (`finish_profile`)."""
         compared = bool(self.venues) and all(v.compared for v in self.venues)
-        lift = any(c.lift is not None for c in self.cells)
-        return compared and lift and self.maps_missing == 0
+        return compared and bool(self.cells) and self.maps_missing == 0
 
 
 def baseline_titles(profile: LocationProfile) -> list[Entity]:
@@ -191,7 +190,7 @@ def layer_titles(profile: LocationProfile) -> list[Entity]:
 
 def baseline_from_tastes(tastes: list[Entity], pets: list[Entity]) -> list[Entity]:
     """The area's top shows as the baseline, leaving out the pet titles themselves and any
-    show whose name or description is about animals: comparing a pet show with itself, or
+    show whose name or description mentions animals: comparing a pet show with itself, or
     with another pet show, would hide the very thing the map is for."""
     pet_ids = {e.id for e in pets}
     keep = [
@@ -202,17 +201,43 @@ def baseline_from_tastes(tastes: list[Entity], pets: list[Entity]) -> list[Entit
     return keep[:BASELINE_TITLES]
 
 
+def coarsen(cells: dict[str, Any], size: int) -> dict[str, Any]:
+    """A heatmap at a coarser geohash precision: finer cells under one coarser cell are
+    averaged (score and centre)."""
+    if all(len(g) == size for g in cells):
+        return cells
+    groups: dict[str, list[Any]] = {}
+    for geohash, cell in cells.items():
+        groups.setdefault(geohash[:size], []).append(cell)
+
+    def mean(values: list[float]) -> float:
+        return sum(values) / len(values)
+
+    return {
+        g: SimpleNamespace(
+            location=SimpleNamespace(
+                latitude=mean([c.location.latitude for c in group]),
+                longitude=mean([c.location.longitude for c in group]),
+            ),
+            query=SimpleNamespace(affinity=mean([c.query.affinity for c in group])),
+        )
+        for g, group in groups.items()
+    }
+
+
 def combine_cells(
     pet_maps: list[dict[str, Any]], base_maps: list[dict[str, Any]]
 ) -> list[LiftCell]:
     """One layer from several heatmaps. Each map's scores are ranks within the area (0 to
     1), so a cell's score is the mean over the maps that scored it; a cell no pet map
-    scored is left out, and one no baseline map scored has no lift. Cells keep one
-    precision, the most common, so cells of two sizes never overlap."""
+    scored is left out, and one no baseline map scored has no lift. Maps of different
+    precision are brought to the coarsest one, so their cells line up."""
     cells: list[LiftCell] = []
-    sizes = Counter(len(g) for m in pet_maps for g in m)
-    size = sizes.most_common(1)[0][0] if sizes else 0
-    geohashes = list(dict.fromkeys(g for m in pet_maps for g in m if len(g) == size))
+    sizes = [len(g) for m in pet_maps + base_maps for g in m]
+    size = min(sizes) if sizes else 0
+    pet_maps = [coarsen(m, size) for m in pet_maps]
+    base_maps = [coarsen(m, size) for m in base_maps]
+    geohashes = list(dict.fromkeys(g for m in pet_maps for g in m))
     for geohash in geohashes:
         pets = [m[geohash] for m in pet_maps if geohash in m]
         bases = [m[geohash] for m in base_maps if geohash in m]
@@ -385,13 +410,28 @@ def rank_band(rank: int, total: int) -> str:
     return "bottom" if rank > total - third else "middle"
 
 
-def build_profile(qloo: QlooClient, location: Location, seeds: Seeds) -> LocationProfile:
-    """The fixed lookup: seed titles, resolved by name, then the shared assembly."""
+Prepared = tuple[list[Entity], list[Entity], str, list[str]]  # baseline_for's answer
+
+
+def build_profile(
+    qloo: QlooClient, location: Location, seeds: Seeds, prepared: Prepared | None = None
+) -> LocationProfile:
+    """The fixed lookup: seed titles, resolved by name, then the shared assembly.
+    `prepared` is a baseline already looked up for this run, so it is not asked twice."""
     b = _Builder(qloo, location)
     pets = [e for e in (b.resolve(s) for s in seeds.pet) if e is not None]
-    tastes, baselines, source = area_baseline(b, location, seeds, pets) if pets else ([], [], "")
+    if not pets:
+        return assemble_profile(b, location, pets, [])
+    if prepared is None:
+        tastes, baselines, source = area_baseline(b, location, seeds, pets)
+        notes: list[str] = []
+    else:
+        tastes, baselines, source, notes = prepared
+        pet_ids = {e.id for e in pets}
+        baselines = [e for e in baselines if e.id not in pet_ids]
     profile = assemble_profile(b, location, pets, baselines)
-    profile.local_tastes, profile.baseline_source = tastes, source or "area"
+    profile.local_tastes, profile.baseline_source = tastes, source
+    profile.notes = notes + profile.notes
     return profile
 
 
@@ -417,12 +457,36 @@ def area_baseline(
 
 
 def baseline_for(
-    qloo: QlooClient, location: Location, seeds: Seeds
-) -> tuple[list[Entity], list[Entity], str, list[str]]:
-    """`area_baseline` before any pet title is known (the agent's run), with its notes."""
+    qloo: QlooClient, location: Location, seeds: Seeds, pets: list[Entity] | None = None
+) -> Prepared:
+    """`area_baseline` on its own, with its notes: before the AI's run (no pet titles yet),
+    or around titles already chosen (`finish_profile`)."""
     b = _Builder(qloo, location)
-    tastes, baselines, source = area_baseline(b, location, seeds, [])
+    tastes, baselines, source = area_baseline(b, location, seeds, pets or [])
     return tastes, baselines, source, b.profile.notes
+
+
+def finish_profile(
+    old: LocationProfile, location: Location, qloo: QlooClient, seeds: Seeds
+) -> LocationProfile | None:
+    """The profile rebuilt at the current version around the titles already chosen,
+    keeping what Namesake's AI chose (titles, order, venues and its reasons), with fixed
+    calls only: cached ones are free, so only what was missing reaches Qloo. None when
+    Qloo still could not complete it."""
+    tastes, baselines, source, notes = baseline_for(qloo, location, seeds, old.pet_entities)
+    new = profile_from(qloo, location, old.pet_entities, baselines, old.venue_signals or None)
+    if not new.complete:
+        return None
+    reasons = {v.entity_id: (v.chosen_reason, v.rejected_reason) for v in old.venues}
+    for venue in new.venues:
+        venue.chosen_reason, venue.rejected_reason = reasons.get(venue.entity_id, (None, None))
+    new.species, new.made_by = old.species, old.made_by
+    new.order_source, new.ranked = old.order_source, old.ranked
+    new.local_tastes, new.baseline_source = tastes, source
+    new.notes = notes + new.notes
+    # The lookups behind the titles stay on the record; the rest was asked again.
+    new.calls = [c for c in old.calls if c.operation in ("describe", "rank")] + new.calls
+    return new
 
 
 def resolve_baseline(qloo: QlooClient, location: Location, seed: Seed) -> Entity | None:
@@ -500,8 +564,13 @@ def assemble_profile(
     by_id = {e.id: e for e in p.pet_entities}
     ordered = [by_id[i] for i in p.venue_signals if i in by_id] + p.pet_entities
     p.map_titles = list({e.id: e for e in ordered}.values())[:MAP_TITLES]
-    pet_maps = [m for m in (b.heatmap(e, location) for e in p.map_titles) if m]
-    base_maps = [m for m in (b.heatmap(e, location) for e in p.baselines) if m]
+    # The first pet title, then the baseline, then the rest: if the key refuses the last
+    # calls, the comparison survives and only an extra pet title is missing.
+    first = [b.heatmap(e, location) for e in p.map_titles[:1]]
+    base = [b.heatmap(e, location) for e in p.baselines]
+    rest = [b.heatmap(e, location) for e in p.map_titles[1:]]
+    pet_maps = [m for m in first + rest if m]
+    base_maps = [m for m in base if m]
     p.maps_missing = len(p.map_titles) + len(p.baselines) - len(pet_maps) - len(base_maps)
     p.cells = combine_cells(pet_maps, base_maps)
     return p
