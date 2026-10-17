@@ -25,6 +25,7 @@ from app.agent.profile_agent import ProfileDeps, build_profile_agent
 from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import StepLog
 from app.animals import ADDED_PREFIX, Animal
+from app.classify import JevClassifier
 from app.locations import Location
 from app.profile import (
     PROFILE_VERSION,
@@ -42,7 +43,8 @@ from app.qloo.exec import QlooClient
 from app.store import Store
 
 # Bounds on one agent run: model requests and tool calls.
-PROFILE_LIMITS = UsageLimits(request_limit=16, tool_calls_limit=14)
+# The profile's budget allows up to three find_local_titles searches (decision 20).
+PROFILE_LIMITS = UsageLimits(request_limit=20, tool_calls_limit=18)
 LISTING_LIMITS = UsageLimits(request_limit=6, tool_calls_limit=4)
 
 ModelFactory = Callable[[], Model]
@@ -65,6 +67,7 @@ async def agent_profile(
     log: StepLog,
     output_mode: str,
     prepared: Prepared,
+    classifier: JevClassifier | None = None,
 ) -> LocationProfile:
     # The baseline was fixed before the AI runs (`_build_profile`), so its venue choices
     # are judged against the same comparison the page shows.
@@ -81,6 +84,7 @@ async def agent_profile(
         log=log,
         baseline_venues=base_ids,
         baseline_titles={e.id: e.name for e in baselines},
+        classifier=classifier,
     )
     agent = build_profile_agent(model, output_mode)
     prompt = "Build the profile."
@@ -130,6 +134,7 @@ async def get_profile(
     model_factory: ModelFactory | None,
     log: StepLog,
     output_mode: str,
+    classifier: JevClassifier | None = None,
 ) -> LocationProfile:
     species = animal.species
     loop = id(asyncio.get_running_loop())
@@ -157,6 +162,7 @@ async def get_profile(
             model_factory=model_factory,
             log=log,
             output_mode=output_mode,
+            classifier=classifier,
         )
 
 
@@ -170,6 +176,7 @@ async def _build_profile(
     model_factory: ModelFactory | None,
     log: StepLog,
     output_mode: str,
+    classifier: JevClassifier | None = None,
 ) -> LocationProfile:
     species = animal.species
     log.add("start", f"Building the profile for {species}s in {location.label}")
@@ -183,7 +190,15 @@ async def _build_profile(
     if model_factory is not None:
         try:
             profile = await agent_profile(
-                qloo, location, species, seeds, model_factory(), log, output_mode, prepared
+                qloo,
+                location,
+                species,
+                seeds,
+                model_factory(),
+                log,
+                output_mode,
+                prepared,
+                classifier,
             )
         except AGENT_FAILURES as exc:
             log.add(
@@ -315,6 +330,7 @@ async def run_pipeline(
     request: str | None = None,
     save: Save | None = None,
     also_taken: frozenset[str] = frozenset(),
+    classifier: JevClassifier | None = None,
 ) -> ListingResult:
     """Profile, then listing. The caller finishes the log, after reporting any error.
 
@@ -330,6 +346,7 @@ async def run_pipeline(
         model_factory=model_factory,
         log=log,
         output_mode=output_mode,
+        classifier=classifier,
     )
     async with _listing_locks[(id(asyncio.get_running_loop()), location.id)]:
         theme = litter_theme(location, store, litter_mates or set())
@@ -365,6 +382,7 @@ async def run_litter(
     log: StepLog,
     output_mode: str = "native",
     force: bool = False,
+    classifier: JevClassifier | None = None,
 ) -> list[ListingResult]:
     """A litter named as a set. The first member's names all come from one title, which
     becomes the litter's; the others draw from it without repeating a name.
@@ -381,6 +399,7 @@ async def run_litter(
         model_factory=model_factory,
         log=log,
         output_mode=output_mode,
+        classifier=classifier,
     )
     ids = {m.id for m in members}
     results: list[ListingResult] = []

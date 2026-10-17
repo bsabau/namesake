@@ -11,10 +11,11 @@ def roster() -> Roster:
 
 @pytest.fixture(autouse=True)
 def isolated_settings(tmp_path, monkeypatch):
-    """No test reaches Qloo, a model, the geocoder, or the real cache in var/.
+    """No test reaches Qloo, a model, the classifier, the geocoder, or the real cache.
 
     The cache and recordings point at an empty temp folder, live Qloo calls are
-    off, no model or geocoder is configured, so any run falls back to the template.
+    off, no model, classifier or geocoder is configured, so any run falls back to the
+    template.
     """
     settings = get_settings()
     monkeypatch.setattr(settings, "cache_db", tmp_path / "cache.sqlite")
@@ -24,4 +25,5 @@ def isolated_settings(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "agent_api_key", None)
     monkeypatch.setattr(settings, "agent_model", None)
     monkeypatch.setattr(settings, "geocoder_url", "")
+    monkeypatch.setattr(settings, "typesafe_api_key", None)
     return settings

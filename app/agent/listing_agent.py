@@ -18,6 +18,7 @@ from app.agent import checks
 from app.agent.profile_agent import StoryKind, qloo_call
 from app.agent.steps import StepLog
 from app.animals import Animal
+from app.classify import REAL_PEOPLE
 from app.listing import check_sentences, look_text, pronouns
 from app.profile import Entity
 from app.qloo.exec import QlooClient
@@ -384,7 +385,10 @@ def screen_names(names: list[NameOption], titles: dict[str, Entity], strict: boo
         )
         title = titles.get(option.entity_id)
         if title is not None:
-            problems += checks.check_title(option.name, option.role, title.name, title.description)
+            real = title.verdict is not None and title.verdict.real_people >= REAL_PEOPLE
+            problems += checks.check_title(
+                option.name, option.role, title.name, title.description, real_people=real
+            )
     return problems
 
 

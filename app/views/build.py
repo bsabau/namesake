@@ -5,10 +5,18 @@ import time
 
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
+from app.classify import bucket
 from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, templated_listing
 from app.locations import Location
 from app.places import MAX_PIN_KM
-from app.profile import LocationProfile, Venue, baseline_titles, layer_titles, rank_band
+from app.profile import (
+    Entity,
+    LocationProfile,
+    Venue,
+    baseline_titles,
+    layer_titles,
+    rank_band,
+)
 from app.qloo.geohash import bounds
 from app.views.models import (
     AddAnimalView,
@@ -124,6 +132,10 @@ def shelter_radius(location: Location) -> float:
     return 800 * 2 ** (14 - location.zoom)
 
 
+CLASSIFIER_CREDIT = (
+    "Pet-themed titles sorted with TypeSafe's Jev classifier. Namesake is not affiliated with "
+    "TypeSafe."
+)
 ADDED_PHOTO_CREDIT = (
     "The animal and its photo were added by you for this visit and are not stored. "
     "The shelter is fictional."
@@ -347,10 +359,13 @@ def name_badge(
         return f"Has a lookalike in {title}" if title else "Has a lookalike"
     if source == "local":
         return "Watched locally"
+    found = next((e.found_in for e in profile.pet_entities if e.id == entity_id), None)
+    liked = f"liked here by fans of {found.signal}" if found else None
     if entity_id in profile.ranked:
         place = profile.ranked.index(entity_id) + 1
-        return f"Pet-themed title, ranked {ordinal(place)} of {len(profile.ranked)} here by Qloo"
-    return "Pet-themed title"
+        ranked = f"ranked {ordinal(place)} of {len(profile.ranked)} here by Qloo"
+        return f"Pet-themed title, {ranked}" + (f"; {liked}" if liked else "")
+    return f"Pet-themed title, {liked}" if liked else "Pet-themed title"
 
 
 def name_view(result: ListingResult | None, profile: LocationProfile, text: str) -> NameView:
@@ -541,6 +556,20 @@ def plan(animal: Animal, location: Location, venues: list[Venue]) -> list[PlanIt
     return items
 
 
+KIND_WORDS = {"tv_show": "TV shows", "movie": "films", "book": "books"}
+
+
+def sorted_by(e: Entity) -> str:
+    """The classifier's answers for a title, as our reading: they are not Qloo's."""
+    v = e.verdict
+    sure = "kept it as clearly pet-themed" if bucket(v) == "kept" else "left it to Namesake's AI"
+    return (
+        f"A classifier (TypeSafe's Jev) read Qloo's description and {sure}: about pets "
+        f"{v.pets:.2f}, dogs {v.dogs:.2f}, cats {v.cats:.2f}, family audience {v.family:.2f}, "
+        f"real people {v.real_people:.2f} (each a probability from 0 to 1)."
+    )
+
+
 def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], list[WhyItem]]:
     returned, reading = [], []
     for e in profile.pet_entities + baseline_titles(profile):
@@ -553,6 +582,17 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                     + sentences(e.description),
                 )
             )
+        elif e.found_in:
+            f = e.found_in
+            what = KIND_WORDS.get(f.kind, "titles")
+            returned.append(
+                WhyItem(
+                    title=f"{e.name} ({kind})",
+                    detail=f"{ordinal(f.position)} of {f.out_of} in Qloo's list of {what} "
+                    f"people around {location.label} who like {f.signal} tend to like. "
+                    + sentences(e.description),
+                )
+            )
         else:
             returned.append(WhyItem(title=f"{e.name} ({kind})", detail=sentences(e.description)))
     for e in profile.pet_entities:
@@ -560,12 +600,20 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         if e.choice_reason:
             detail += f" {cap(e.choice_reason.rstrip('.'))}."
         reading.append(WhyItem(title=f"Why {e.name}", detail=detail))
+        if e.verdict:
+            reading.append(WhyItem(title=f"How {e.name} was sorted", detail=sorted_by(e)))
     if profile.made_by == "agent":
         reading.append(
             WhyItem(
                 title="Who chose",
                 detail="Namesake's AI proposed the titles, settled ambiguous names and picked "
                 "the venues; code checked that each came from Qloo. "
+                + (
+                    "It also searched Qloo's lists for what people here who like its titles "
+                    "tend to like, and kept the pet-themed ones. "
+                    if any(e.found_in for e in profile.pet_entities)
+                    else ""
+                )
                 + (
                     "The order of the titles is Qloo's ranking for this area."
                     if profile.order_source == "qloo_rank"
@@ -706,7 +754,10 @@ def build_result_view(
         qloo_returned=returned,
         our_reading=reading,
         notes=profile.notes,
-        credits=Credits(photos=ADDED_PHOTO_CREDIT) if image_url else Credits(),
+        credits=Credits(
+            **({"photos": ADDED_PHOTO_CREDIT} if image_url else {}),
+            classifier=CLASSIFIER_CREDIT if any(e.verdict for e in profile.pet_entities) else None,
+        ),
     )
 
 

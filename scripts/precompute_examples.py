@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.agent.pipeline import run_litter, run_pipeline  # noqa: E402
 from app.agent.steps import StepLog  # noqa: E402
 from app.animals import load_roster  # noqa: E402
+from app.classify import classifier_from  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.locations import load_locations  # noqa: E402
 from app.profile import load_seeds  # noqa: E402
@@ -71,6 +72,7 @@ async def main() -> None:
             seeds=seeds,
             model_factory=models,
             output_mode=settings.agent_output_mode,
+            classifier=classifier_from(settings),
         )
         if args.force or store.get_listing(DOG, location.id) is None:
             print(f"{DOG} in {location.label}")

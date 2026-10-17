@@ -157,3 +157,43 @@ Reading:
 
 So it gives no recent signal and no local one. A "rising lately" badge was dropped (decision 18).
 
+
+## The area's own top lists as a source of pet titles (17 October, about 14 calls)
+
+The question: instead of Namesake's AI proposing pet titles and Qloo checking them, could the area's own top lists hold pet titles already? `recommend` returns at most 20 results a call and has no paging, so a "top 50" is not available through the harness.
+
+**Top 10 per type for Park Slope**, `signal_location` only (4 calls):
+- TV shows, films, books: status `ok`, 10 each. None is pet-themed by the keyword pass. One book is a picture book about a guinea pig, which the keyword list misses; a classifier would catch it. Bluey is not in the top 10.
+- Brands: status `ok` with no results; brands combined with an area return nothing.
+- The lists lean on national hits and are full of political and identity-coded titles (memoirs by politicians, a documentary about a president's portraits). The name screen of decision 19 refuses names from those.
+
+**The area plus the four pet media tags as signals, not filters**, `signal_tags_operator: union`, limit 20 (2 calls):
+- TV: the list is pulled toward family and animated shows. Two of 20 are about pets: *My Cat from Hell* (a reality series, so only an animal's name could come from it) and *Dogs in Space*, an animated series the seed list does not have. A few more feature animals that are not pets (a wildlife documentary, *Frog and Toad*).
+- Films: none of 20 is about pets; the tags pull toward animation and family films only.
+- The tags and the location both shape these lists, so neither result shows on its own that a title is strong *here*; that still needs `rank` or the heatmap lift.
+
+**So:** the area's top lists are too thin to be the main source of pet titles, which matches the tag filters in milestone 1. The tag-signalled TV list is a modest source of candidates the AI might not think of (one in 20 here), for one extra call per area. A dedicated classifier (TypeSafe's Jev was considered) would be sorting about 20 titles once per area; Namesake's AI already reads lists of that size, so it adds speed and cost savings, not a capability.
+
+**"People around the area who like a pet title also like…"**: `recommend` with Bluey as the signal plus `signal_location`, 20 each for TV, films and books (3 calls), sorted by TypeSafe's Jev (a yes/no classifier, five questions per title, about $0.001 for all 60):
+- TV: *Nature Cat* (a cat, family: 0.96 for pets central) and *My Cat from Hell* (0.99, and 0.98 for real people). The rest is family animation.
+- Films: none clearly; *Leo* (a classroom lizard) scored 0.57, the one case in the middle.
+- Books: *Peanut Goes for the Gold* (a guinea pig, 0.95) and *Sea Sirens* (a cat, 0.89).
+- None of these is among the five titles Namesake's AI proposed for Park Slope, so the source does add candidates, mostly for cats. Each would still need `rank` or the lift to show it is strong here.
+- Jev's scores were decisive: of 60 titles, 59 scored above 0.85 or below 0.25 for "pets central", and it separated pets from animals in general (*Frog and Toad*, *My Little Pony*, *Sonic*) and caught a guinea pig the keyword list misses.
+
+**Park Slope as a Qloo locality**: `describe` with type `locality` for "Park Slope, Brooklyn" answers `needs_input`, with Park Slope first among Brooklyn Park, Sunset Park, Sunset Park West and Marine Park. The `signal_location` text is resolved by Qloo's API, and `interpretation` echoes only the text sent, so which place it matched cannot be seen from the answer.
+
+**Barcelona, old against new** (4 calls): the five TV titles Namesake's AI proposed for Park Slope (Bluey, PAW Patrol, Clifford, Lassie, Scooby-Doo), against "people around Barcelona who like Bluey also like…" (TV, films, books, 20 each, sorted by Jev), then one `rank` for "Barcelona, Spain" over both.
+- Jev kept 3 of 60: *The Pack* (dogs 0.92) and *Cesar Millan: Better Human Better Dog*, both about real people (0.96, 0.98), and the guinea-pig book again. No middle cases.
+- `rank` over seven TV titles returned only three: *The Pack* (0.960), *Cesar Millan* (0.958), Bluey (0.870). PAW Patrol, Clifford, Lassie and Scooby-Doo came back with nothing for Barcelona.
+- So outside the US the AI's US-known titles mostly drop out, while the signal-led source finds pet titles that rank above Bluey there; names from both would be animals' names only, as both shows are about real people.
+
+## A pet index per audience, and the rate limit (17 October, 30 calls)
+
+Top 20 TV shows, films and books for Astoria and Barcelona, for everyone and with `demographic` added (women, men, "millennials", "adults 55-64"); Jev marked the pet titles, and each list was scored as the sum of `p_pets / log2(position + 1)`.
+- The demographic input takes natural language and reports what it sent: "women" → `gender: female`, "millennials" → `age: 30_to_34,35_to_44`, "adults 55-64" → `age: 55_and_older`. "35 and younger", "55 and older" and "baby boomers" came back `needs_input` before any request reached Qloo (nothing was cached).
+- Of 30 lists (600 places), seven held a pet title, one or two each: *Peanut Goes for the Gold* (three lists), *Isle of Dogs* (two), *DC League of Super-Pets*, *The Labrador Pact*, *Evie and the Animals*, *Love in Lowercase*. Every index is one or two titles, so differences between areas or groups are noise, and no claim about a group is supported.
+- The splits do widen the search: five of those pet titles appeared only in a split list, not in the area's own top 20.
+- Rate limit: 30 calls about 10 seconds apart, in about 8 minutes, with no refusal. On 15 October the key was refused after about 12 calls in 20 minutes, so the limit has risen or was a burst limit; `QLOO_MIN_INTERVAL` could be lowered after a check on the server.
+
+**The feature, one live run** (`scripts/run_agent.py dog-03 austin --fresh`, 17 October, 12 live Qloo calls, the rest cached): Namesake's AI proposed PAW Patrol, Scooby-Doo, Lady and the Tramp, 101 Dalmatians and Clifford, then searched TV for PAW Patrol's fans, films for 101 Dalmatians' and books for Clifford's. Of 60 titles, Jev kept 4 and left 4 to the AI. The AI sent four TV titles to `rank`; Qloo ranked two for Austin, Bluey (1st in the PAW Patrol list) and Nature Cat (3rd), both found in the area's lists, and returned nothing for the AI's own TV titles. One run, one area: it shows the mechanism works, not how often it changes the result.

@@ -18,6 +18,7 @@
   <footer class="site-footer">
     <p data-role="photo-credit">{{ view.credits.photos }}</p>
     <p data-role="qloo-credit">{{ view.credits.qloo }}</p>
+    {% if view.credits.classifier %}<p data-role="classifier-credit">{{ view.credits.classifier }}</p>{% endif %}
   </footer>
 </body>
 </html>

@@ -76,6 +76,28 @@ def load_seeds(path: Path) -> Seeds:
     return Seeds.model_validate({k: v for k, v in data.items() if not k.startswith("_")})
 
 
+class PetVerdict(BaseModel):
+    """A classifier's answers for one title (app/classify.py): each the probability that
+    the answer is yes."""
+
+    pets: float
+    dogs: float
+    cats: float
+    family: float
+    real_people: float
+    model: str = ""
+
+
+class FoundIn(BaseModel):
+    """Where Qloo listed a title the AI did not propose itself: among the titles people
+    around the area who like `signal` also like (decision 20)."""
+
+    signal: str
+    kind: str
+    position: int
+    out_of: int
+
+
 class Entity(BaseModel):
     id: str
     name: str
@@ -87,6 +109,10 @@ class Entity(BaseModel):
     alternatives: int = 0
     # The reason given for the choice among candidates (the agent's, or the seed rule).
     choice_reason: str | None = None
+    # For a title found in Qloo's list for the area (decision 20): where, and how the
+    # classifier sorted it (None when the classifier was off or failed).
+    found_in: FoundIn | None = None
+    verdict: PetVerdict | None = None
 
 
 class Venue(BaseModel):

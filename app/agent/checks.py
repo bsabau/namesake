@@ -189,15 +189,19 @@ def check_name(
     return problems
 
 
-def check_title(name: str, role: str, title: str, description: str | None) -> list[str]:
-    """The title a name comes from, as Qloo returned it: about real people, or coded to
-    a religion, race or political identity."""
+def check_title(
+    name: str, role: str, title: str, description: str | None, *, real_people: bool = False
+) -> list[str]:
+    """The title a name comes from, as Qloo returned it: about real people (by its
+    description, or by the classifier when `real_people`), or coded to a religion, race or
+    political identity."""
     problems = []
     text = f"{title} {description or ''}"
-    real = find_word(text, REAL_PEOPLE_TITLES)
-    if real and role not in ANIMAL_ROLES:
+    phrase = find_word(text, REAL_PEOPLE_TITLES)
+    if (phrase or real_people) and role not in ANIMAL_ROLES:
+        why = f"its description says {phrase!r}" if phrase else "the classifier scores it so"
         problems.append(
-            f"name {name!r}: {title} is about real people ({real!r}), so a name from it "
+            f"name {name!r}: {title} is about real people ({why}), so a name from it "
             "must be an animal's own"
         )
     if find_word(title, IDENTITY_CODED) or find_word(description or "", IDENTITY_TERMS):

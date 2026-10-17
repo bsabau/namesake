@@ -22,7 +22,7 @@ The Qloo cache in `var/` holds Qloo response data. It stays on this host and is 
    NAMESAKE_HOST=user@host deploy/deploy.sh --env --seed
    ```
 
-   Leave `NAMESAKE_URL` out this first time: Caddy doesn't know the site until step 4. `--env` writes the host's `.env` from your local `.env` (the `AGENT_*` values and `GEOCODER_URL`, if set) and `~/.qloo/config` (the Qloo key). `--seed` installs your local cache, so the start page's examples open instantly; it does so only while the host's cache holds no rows, and refuses after that. The script builds the image on the host, re-checks saved listings against today's checks, starts the container, and checks that `/health` answers and the cache is writable. Files inside the private `var/` are handled by `deploy/prepare_var.py` in a one-off root container, so the ssh user needs no root after step 2.
+   Leave `NAMESAKE_URL` out this first time: Caddy doesn't know the site until step 4. `--env` writes the host's `.env` from your local `.env` (the `AGENT_*` values, and `GEOCODER_URL`, `QLOO_MIN_INTERVAL` and the `TYPESAFE_*` settings if set) and `~/.qloo/config` (the Qloo key). `--seed` installs your local cache, so the start page's examples open instantly; it does so only while the host's cache holds no rows, and refuses after that. The script builds the image on the host, re-checks saved listings against today's checks, starts the container, and checks that `/health` answers and the cache is writable. Files inside the private `var/` are handled by `deploy/prepare_var.py` in a one-off root container, so the ssh user needs no root after step 2.
 4. **Caddy.** Append `deploy/Caddyfile.snippet` (with your domain) to the host's Caddyfile, then reload Caddy without restarting it:
 
    ```sh

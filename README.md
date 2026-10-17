@@ -33,12 +33,13 @@ Namesake does **not** claim to get animals adopted faster, save lives or money, 
 
 ## How it uses Qloo
 
-Namesake's AI (two agents, one per area and one per animal) and some plain code call Qloo through the official harness (`qloo exec`, pinned at 0.1.26). Every call is cached in SQLite and spaced 5 seconds apart, because the hackathon key is rate-limited.
+Namesake's AI (two agents, one per area and one per animal) and some plain code call Qloo through the official harness (`qloo exec`, pinned at 0.1.26). Every call is cached in SQLite and spaced at least 2 seconds apart, because the hackathon key is rate-limited.
 
 | What | Qloo workflow | Who decides | Why |
 |---|---|---|---|
 | Resolve the pet-themed titles Namesake's AI proposes | `describe` | **Namesake's AI** proposes 4 to 6 titles, picks among Qloo's candidates with a stated reason, or drops a title | Pet tags filter TV and film down to almost nothing, so the model proposes titles and Qloo checks them. 6 of 10 show names came back ambiguous. |
-| Order the titles for this area | `rank` with `signal_location` | **Namesake's AI**, once per area | When Qloo's ranking is unavailable, the order Namesake's AI chose is kept and the page says so. |
+| Pet titles already strong in the area | `recommend` TV, films or books with one of its pet titles as the signal plus `signal_location`: what people around the area who like it also like | **Namesake's AI** chooses the title and the kinds, up to three searches; a classifier ([TypeSafe's Jev](https://typesafe.ai)) marks which results are about pets, and the AI judges the unsure ones | In one recorded run for Austin, the two titles Qloo ranked for the area, Bluey and Nature Cat, both came from these lists, not from the AI's own ideas; in a probe for Barcelona, the AI's US-known titles mostly had no ranking at all ([findings](docs/qloo-findings.md)). The page shows each found title's place in Qloo's list and the classifier's scores, apart from each other. |
+| Order the titles for this area | `rank` with `signal_location` | **Namesake's AI**, once per area, its own titles and the ones found locally together | When Qloo's ranking is unavailable, the order Namesake's AI chose is kept and the page says so. |
 | Places near the shelter that fans favour | `recommend`, `target_type: place`, titles as signals | **Namesake's AI** chooses which titles to send, then picks up to three venues for a flyer or event, with a reason | Fans of two pet shows give 15 venues in and around Park Slope. |
 | A baseline to compare against | `recommend` TV with `signal_location` for the area's top shows, leaving out any whose name or description mentions animals; then `recommend` places for their fans | Code | With one unrelated show (*Yellowstone*) as the baseline, 9 of the first 15 pet-show venues also came back for it: they are just popular nearby. The baseline is now what the area itself watches most, so "stands out" means "for pet-show fans more than for this area's usual tastes". Each venue shows its rank and whether it stands out. |
 | A map of where pet-show fans stand out | `where_popular` within the neighbourhood, for the top two pet titles and the top two baseline shows | Code | Raw affinity saturates near 1.0, so the map shows **lift**: the pet titles' cell score minus the baseline shows', each averaged over the maps that scored the cell. A key on the map says what the colours mean. |
@@ -48,7 +49,9 @@ Namesake's AI (two agents, one per area and one per animal) and some plain code 
 
 The decisions behind each row, with their evidence, are in [`docs/decisions.md`](docs/decisions.md) and [`docs/qloo-findings.md`](docs/qloo-findings.md).
 
-**What makes it an agent.** Namesake's AI is a model with Qloo tools. It chooses which titles to try, which of Qloo's candidates a name means, which titles to send for venues, which venues suit an adoption event, and, for each animal, which lookalike titles to check. It reads each answer and adapts: an ambiguous title gets a choice or is dropped, an unavailable ranking falls back to its own order, a refused lookup is tried again with the look words quoted from the record. Calls that never change, such as the baseline and the heatmaps, run in plain code.
+**What makes it an agent.** Namesake's AI is a model with Qloo tools. It chooses which titles to try, which of them to search the area's lists with and which of the titles found there are about pets, which titles to send for venues, which venues suit an adoption event, and, for each animal, which lookalike titles to check. It reads each answer and adapts: an ambiguous title gets a choice or is dropped, an unavailable ranking falls back to its own order, a refused lookup is tried again with the look words quoted from the record. Calls that never change, such as the baseline and the heatmaps, run in plain code.
+
+**What a classifier does.** Titles found in the area's lists are sorted by TypeSafe's Jev, a classifier that answers yes-or-no questions with a probability: are pets central, is it about dogs, cats or real people, does it suit a family audience. It reads only the title, its kind and Qloo's description. Code keeps the clear pet titles and sets aside the clear others; the rest go to Namesake's AI. Without a `TYPESAFE_API_KEY` the classifier is off and the AI judges them all.
 
 **What plain code checks.** Every title and venue Namesake's AI returns must have come from Qloo in that run; invented IDs are sent back. Every bio sentence must cite recorded facts and use no content word they lack, and every recorded fact other than the look must be used. The check works on content words: it catches added traits and claims, not every shade of meaning, and small linking words such as "always" or "enjoys" pass. That is why the volunteer edits and approves. The hook line is assembled by code from the name, its role and Qloo's title, so the model writes none of it beyond the character's name. Names pass the screen. No two animals at a shelter share a name, except a litter named as a set from one title. A failed check gets one repair round, then the templated listing, which says why.
 
@@ -64,7 +67,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
    - a **Why** drawer with two columns, "Qloo returned" and "How Namesake read it" (Namesake's AI and its code)
 4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software.
 
-The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 12 to 14 Qloo calls (fewer when titles are already cached; one or two more to check a typed area first), and each further animal at most two.
+The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 15 to 17 Qloo calls (fewer when titles are already cached; one or two more to check a typed area first), and each further animal at most two.
 
 ## Measuring whether it works
 
@@ -89,7 +92,7 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
-Open http://localhost:8000. A fresh clone has an empty cache, so the first run for an area calls Qloo live (about 12 to 14 calls, a minute or two with the spacing) and the model. To fill the cache for the start page's examples, or to watch one run in the terminal:
+Open http://localhost:8000. A fresh clone has an empty cache, so the first run for an area calls Qloo live (about 15 to 17 calls, under a minute with the spacing) and the model. To fill the cache for the start page's examples, or to watch one run in the terminal:
 
 ```sh
 uv run python scripts/precompute_examples.py          # live: Qloo and the model
@@ -136,7 +139,7 @@ The image holds Python, Node and the pinned harness. The demo runs this image on
 | `app/qloo/` | the typed wrapper around `qloo exec`: envelope parsing, cache, spacing, replay |
 | `app/views/`, `app/ui/classic/` | view models (also served as JSON) and the default interface |
 | `docs/` | [decisions](docs/decisions.md), [Qloo findings](docs/qloo-findings.md), [product design](docs/product.md), [evidence review](docs/research/adoption-evidence-review.md) |
-| `tests/` | 280+ tests, all offline; `tests/test_no_qloo_data.py` keeps Qloo data out of the repo |
+| `tests/` | about 380 tests, all offline; `tests/test_no_qloo_data.py` keeps Qloo data out of the repo |
 
 Qloo's terms forbid publishing its response data, so real responses live only in the git-ignored `var/` and the deployed cache.
 
@@ -144,7 +147,7 @@ Qloo's terms forbid publishing its response data, so real responses live only in
 
 Taste data from the Qloo API. This project is not affiliated with or endorsed by Qloo.
 
-The animals and the shelter are fictional, and the photos are AI-generated. Map tiles and place names © OpenStreetMap contributors; place lookups by Photon (komoot).
+The animals and the shelter are fictional, and the photos are AI-generated. Map tiles and place names © OpenStreetMap contributors; place lookups by Photon (komoot). Pet-themed titles are sorted with [TypeSafe](https://typesafe.ai)'s Jev classifier, which receives only a title's name, kind and Qloo's description; Namesake is not affiliated with TypeSafe.
 
 ## Licence
 

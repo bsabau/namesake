@@ -15,6 +15,8 @@ QLOO_CREDIT = "Taste data from the Qloo API. Namesake is not affiliated with or 
 class Credits(BaseModel):
     photos: str = PHOTO_CREDIT
     qloo: str = QLOO_CREDIT
+    # Shown when a classifier sorted any of the titles on the page (decision 20).
+    classifier: str | None = None
 
 
 class Pin(BaseModel):
