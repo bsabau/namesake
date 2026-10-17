@@ -298,6 +298,8 @@ def test_qloo_gets_the_area_name_alone_and_candidates_keep_the_pin(client, monke
     page = client.post("/locations", data={"text": text, "pin_lat": "40.6", "pin_lon": "-73.9"})
     assert page.status_code == 400
     assert 'name="pin_lat" value="40.6"' in page.text and "Example Heights, North" in page.text
+    # muse: Qloo's candidates live in the panel, so it opens for them too.
+    assert 'data-role="shelter" open>' in page.text
 
     # Flash: nothing showed what Qloo received for a picked spot.
     text, script = location_script(results=cells(6))
@@ -321,6 +323,9 @@ def test_a_pin_too_far_from_the_area_is_dropped_with_a_word(client):  # noqa: F8
     start = client.get("/api/start", params={"location": location_id(text), "pin": "far"}).json()
     picked = next(o for o in start["locations"] if o["id"] == location_id(text))
     assert picked["pin"] is None and "more than 15 km" in picked["map_note"]
+    # Codex: the note is in the panel, so it opens.
+    page = client.get("/", params={"location": location_id(text), "pin": "far"}).text
+    assert 'data-role="shelter" open>' in page
     # Flash: a far pick after a near one replaces it, rather than seeming to work.
     client.post("/locations", data={"text": text, "pin_lat": "40.67", "pin_lon": "-73.98"})
     assert option(client, location_id(text))["pin"] is not None
@@ -345,6 +350,9 @@ def test_a_failed_area_check_leaves_no_area_chosen(client, monkeypatch):  # noqa
     )
     assert page.status_code == 503
     assert 'id="location-alert" role="alert"' in page.text
+    # The panel holding the alert and the required choice opens by itself.
+    assert 'data-role="shelter" open>' in page.text and "not chosen yet" in page.text
+    assert 'class="shelter unchosen"' in page.text
     assert (
         " checked>" not in page.text and 'name="location" value="park-slope" required' in page.text
     )

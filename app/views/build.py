@@ -30,6 +30,7 @@ from app.views.models import (
     PlanItem,
     Question,
     ResultView,
+    ShelterBar,
     StartView,
     StepView,
     VenueView,
@@ -194,7 +195,16 @@ def build_start_view(
     for option in options:
         if pin_far and option.selected:
             option.map_note = PIN_FAR_NOTE
+    chosen = next((o for o in options if o.selected), None)
+    shelter = (
+        # A spot dropped as too far is explained in the panel, so it opens.
+        ShelterBar(name=chosen.label, region=chosen.region, open=pin_far)
+        if chosen
+        else ShelterBar(name="not chosen yet", chosen=False, open=True)
+    )
     return StartView(
+        shelter=shelter,
+        map_note=(chosen or options[0]).map_note,
         examples=examples or [],
         title="Write an adoption listing",
         intro=(
@@ -230,7 +240,10 @@ def listing_view(
     draft = result.draft if result else None
     if draft is not None:
         bio = [(s.text, s.facts) for s in result.bio]
-        written_by = "Written by the agent from the shelter's records, then checked by code."
+        written_by = (
+            "Written by Namesake's AI from the shelter's records; code adds the confirmed "
+            "answers and checks every sentence."
+        )
     else:
         bio = [(s.text, [s.source]) for s in templated_listing(animal).sentences]
         written_by = "Built from the shelter's records by a fixed template."
@@ -283,7 +296,9 @@ def listing_view(
             ),
             hook=local_hook,
             copy_text=copy_block(local_name, local_hook, text) if draft else "",
-            note=None if draft else "No local version yet: it needs the agent's name options.",
+            note=None
+            if draft
+            else "No local version yet: it needs the name options from Namesake's AI.",
             selected=draft is not None,
         ),
     ]
@@ -343,7 +358,7 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
     if draft is None:
         return NameView(
             value=None,
-            placeholder="No name yet: the agent's name options appear after a run.",
+            placeholder="No name yet: the name options from Namesake's AI appear after a run.",
         )
     titles = title_names(profile, result)
     refs = result.references
@@ -519,12 +534,13 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         reading.append(
             WhyItem(
                 title="Who chose",
-                detail="The agent proposed the titles, settled ambiguous names and picked the "
-                "venues; code checked that each came from Qloo. "
+                detail="Namesake's AI proposed the titles, settled ambiguous names and picked "
+                "the venues; code checked that each came from Qloo. "
                 + (
                     "The order of the titles is Qloo's ranking for this area."
                     if profile.order_source == "qloo_rank"
-                    else "Qloo's ranking was unavailable, so the order is the agent's."
+                    else "Qloo's ranking was unavailable, so the order is the one Namesake's AI "
+                    "chose."
                 ),
             )
         )
@@ -596,14 +612,14 @@ def lookalike_why(
             WhyItem(title=f"{e.name} ({kind})", detail=found + sentences(e.description))
         )
         qloo_part = (
-            "the agent chose this title among Qloo's candidates"
+            "Namesake's AI chose this title among Qloo's candidates"
             if look.chosen
             else "Qloo confirmed the title"
         )
         detail = (
             f"{look.animal} in it shares this {animal.species}'s recorded look: "
-            f"{and_list(look.shared_look)}. That match is the agent's reading; {qloo_part}, "
-            "not how its animals look."
+            f"{and_list(look.shared_look)}. That match is the reading of Namesake's AI; "
+            f"{qloo_part}, not how its animals look."
         )
         if look.chosen and reasons.get(e.id):
             detail += f" Why this one: {reasons[e.id].rstrip('.')}."

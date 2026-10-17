@@ -287,7 +287,7 @@ def test_a_single_needs_input_candidate_is_a_choice_not_a_confirmation(roster):
     )
     assert "Found in Qloo" not in returned["Example Dog Film (movie)"]
     why = reading["Why Example Dog Film"]
-    assert "the agent chose this title among Qloo's candidates" in why
+    assert "Namesake's AI chose this title among Qloo's candidates" in why
     assert "Qloo confirmed" not in why and why.endswith("Why this one: the 1989 film.")
 
 

@@ -51,7 +51,11 @@
     fillOpacity: 0.15,
   }).addTo(map);
   const pin = L.circleMarker(centreOf(start), pinStyle);
+  // The map sits in the shelter panel (shelter-bar.js keeps the bar's text).
+  const panel = document.getElementById("shelter");
+  let current = start;
   const show = (p) => {
+    current = p;
     area.setLatLng(centreOf(p)).setRadius(p.shelter_radius_m);
     if (p.pin) pin.setLatLng(centreOf(p)).addTo(map);
     else pin.remove();
@@ -59,6 +63,18 @@
     container.setAttribute("aria-label", `Map of the area around the shelter in ${p.label}`);
   };
   show(start);
+
+  // Leaflet cannot measure a map inside a closed panel: size it on opening, and centre it
+  // the first time it gets a real size, so a later reopening keeps the visitor's view.
+  let sized = container.clientWidth > 0;
+  if (panel) {
+    panel.addEventListener("toggle", () => {
+      if (!panel.open) return;
+      map.invalidateSize();
+      if (!sized) map.setView(centreOf(current), zoomFor(current));
+      sized = true;
+    });
+  }
 
   document.querySelectorAll('input[name="location"]').forEach((input) => {
     input.addEventListener("change", () => {

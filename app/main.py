@@ -305,6 +305,8 @@ def start_view(
     )
     if form is not None:
         view.location_form = form
+        # A check that needs the visitor (an alert or Qloo's candidates) opens the panel.
+        view.shelter.open = view.shelter.open or bool(form.message or form.candidates)
     return view
 
 

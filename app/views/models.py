@@ -84,12 +84,32 @@ class LocationForm(BaseModel):
     candidates: list[str] = []
 
 
+class ShelterBar(BaseModel):
+    """The slim bar above the animals: the chosen area, and the panel to change it."""
+
+    heading: str = "Shelter area"
+    name: str
+    region: str = ""
+    chosen: bool = True
+    change: str = "Change"
+    # Said instead of `change` while no area is chosen.
+    choose: str = "Choose an area"
+    close: str = "Done"
+    panel_heading: str = "Choose the shelter's area"
+    # Open when no area is chosen or an area check needs the visitor: the alert, Qloo's
+    # candidates and the required choice must be visible.
+    open: bool = False
+
+
 class StartView(BaseModel):
     title: str
     intro: str
     examples_heading: str = "Try an example: these open instantly"
     examples: list[ExampleLink] = []
     locations: list[LocationOption]
+    shelter: ShelterBar
+    # The caption under the map for the area shown first.
+    map_note: str
     location_form: LocationForm = LocationForm()
     animals: list[AnimalCard]
     litters: list[LitterCard]

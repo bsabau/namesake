@@ -186,7 +186,7 @@ def rank_titles(
         else:
             # A partial or degraded ranking may have lost the location signal.
             status = f"unavailable: Qloo's ranking was {env.status}"
-        deps.log.add("note", f"Ranking {status}; keeping the agent's own order")
+        deps.log.add("note", f"Ranking {status}; keeping the order Namesake's AI chose")
         return {"status": status}
     order = [e.entity_id for e in env.entities()]
     deps.rank_order = order
