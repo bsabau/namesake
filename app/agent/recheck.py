@@ -3,21 +3,24 @@
     python -m app.agent.recheck
 
 A draft saved under older checks is checked again against the animal's record (the bio
-and the names' reasons). One that passes is saved as current, with the confirmed checks
+and the names' reasons) and the name screen, with the titles from the saved area profile.
+One that passes is saved as current, with the confirmed checks
 rebuilt from today's fixed sentences; one that fails, or that a
 recheck of the record cannot cover (see app/agent/results.py), is left as it is and runs
 again when next opened. deploy/deploy.sh runs this on every deploy.
 """
 
-from app.agent.listing_agent import record_problems, shown_bio
+from app.agent import checks
+from app.agent.listing_agent import record_problems, screen_names, shown_bio
 from app.agent.results import (
     CHECKS_VERSION,
     LOOKALIKE_LISTINGS_FROM,
     PLAIN_LISTINGS_FROM,
     ListingResult,
 )
-from app.animals import Roster, load_roster
+from app.animals import Animal, Roster, load_roster
 from app.config import get_settings
+from app.profile import Entity
 from app.store import Store
 
 
@@ -28,6 +31,20 @@ def recheckable(result: ListingResult) -> bool:
     return result.checks_version >= floor
 
 
+def screen_problems(store: Store, animal: Animal, result: ListingResult) -> list[str]:
+    """The name screen on a saved draft, with its titles as Qloo returned them: the
+    area profile's and the lookalikes'. A title no longer found counts as a problem."""
+    profile = store.get_profile(result.location_id, animal.species)
+    titles: dict[str, Entity] = {}
+    if profile is not None:
+        titles = {e.id: e for e in profile.pet_entities + profile.local_tastes}
+    titles |= {look.entity.id: look.entity for look in result.lookalikes}
+    missing = [
+        f"{o.name!r} has no title to check" for o in result.draft.names if o.entity_id not in titles
+    ]
+    return missing + screen_names(result.draft.names, titles, checks.is_bully_type(animal))
+
+
 def recheck(store: Store, roster: Roster) -> tuple[int, int]:
     """Saved drafts made current, and saved drafts left to run again."""
     kept = rerun = 0
@@ -36,7 +53,12 @@ def recheck(store: Store, roster: Roster) -> tuple[int, int]:
             continue
         # An animal added in a session is not in the roster; its listing runs again.
         animal = roster.get(result.animal_id)
-        if animal and recheckable(result) and not record_problems(animal, result.draft):
+        if (
+            animal
+            and recheckable(result)
+            and not record_problems(animal, result.draft)
+            and not screen_problems(store, animal, result)
+        ):
             update = {"checks_version": CHECKS_VERSION, "bio": shown_bio(animal, result.draft)}
             store.put_listing(result.model_copy(update=update))
             kept += 1

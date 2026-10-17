@@ -335,8 +335,10 @@ def test_saved_listings_with_lookalike_names_are_rerun_under_the_new_checks(rost
     from app.agent.recheck import recheck
     from app.agent.results import CHECKS_VERSION, ListingResult
     from app.store import Store
+    from tests.test_recheck import save_profile
 
     store = Store(tmp_path / "store.sqlite")
+    save_profile(store)
     plain = ListingDraft.model_validate(DRAFT)
     looks = ListingDraft.model_validate(with_rex())
     for animal, draft, version in [
