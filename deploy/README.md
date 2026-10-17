@@ -37,11 +37,11 @@ The Qloo cache in `var/` holds Qloo response data. It stays on this host and is 
 
 ## Automatic deploys
 
-Changes reach `main` through a pull request. CI (`.github/workflows/ci.yml`) runs ruff and the tests on every pull request; once a merge to `main` passes CI, `.github/workflows/deploy.yml` runs `deploy.sh` against the host, with the check through the proxy. It never runs `--env` or `--seed`: the Qloo and model keys stay in the host's `.env`, and GitHub holds only what reaches the host.
+Changes reach `main` through a pull request. CI (`.github/workflows/ci.yml`) runs ruff and the tests on every pull request; once a merge to `main` passes CI, `.github/workflows/deploy.yml` runs `deploy.sh` against the host, with the check through the proxy. Only `main`'s newest commit is deployed: a run that finds a newer one skips, since that one's own run deploys it. It never runs `--env` or `--seed`: the Qloo and model keys stay in the host's `.env`, and GitHub holds only what reaches the host.
 
-- **On the host:** a `deploy` user in the `docker` group owns `/opt/namesake` (except `var/`, which belongs to the app). Its `authorized_keys` holds the GitHub key, limited to commands (no forwarding, no terminal), and the author's own key. Docker access is as good as root on the host, which is why it is a user of its own: removing that key line revokes GitHub's access without touching anything else.
+- **On the host:** a `deploy` user in the `docker` group owns `/opt/namesake` (except `var/`, which belongs to the app). Its `authorized_keys` holds the GitHub key, with `no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty` (no forced `command=`: `deploy.sh` runs many different commands), and the author's own key. Docker access is as good as root on the host, which is why it is a user of its own: removing that key line revokes GitHub's access without touching anything else.
 - **On GitHub:** the `production` environment, which only `main` may deploy from, holds `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` (the host's pinned key, so a changed host key stops the deploy) and `DEPLOY_HOST`.
-- **By hand:** "Run workflow" on the Deploy workflow redeploys `main`. A local deploy uses the same user: `NAMESAKE_HOST=deploy@host`. Changing `.env` (`--env`) or seeding (`--seed`) is done locally.
+- **By hand:** "Run workflow" on the Deploy workflow, on `main`, redeploys `main` as it is, without waiting for CI. A local deploy uses the same user: `NAMESAKE_HOST=deploy@host`. Changing `.env` (`--env`) or seeding (`--seed`) is done locally.
 
 ## Later deploys
 

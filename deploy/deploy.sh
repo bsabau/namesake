@@ -127,8 +127,9 @@ if ! remote "$swap"; then
 fi
 
 echo "→ Building"
-if ! remote "docker compose build"; then
-  echo "✗ The build failed; restoring the previous source. The running version is unchanged."
+# Capped, so a hung build ends here with time left to roll back (.github/workflows).
+if ! remote "timeout 1500 docker compose build"; then
+  echo "✗ The build failed or took over 25 minutes; restoring the previous source. The running version is unchanged."
   roll_back
   exit 1
 fi
