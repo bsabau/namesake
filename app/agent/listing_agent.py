@@ -336,7 +336,6 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
         if option.name.lower() in deps.taken_names:
             problems.append(f"name {option.name!r} is already used at this shelter")
         seen_names.add(option.name.lower())
-        problems += checks.check_why(deps.animal, option.why, option.name)
         problems += checks.check_name(
             option.name,
             source=option.source,
@@ -353,12 +352,7 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
         problems.append("a lookalike title gives one name only")
     if deps.first_of_litter and len({o.entity_id for o in draft.names}) > 1:
         problems.append("a litter named as a set takes all its names from one title")
-    appended = check_sentences(deps.animal.checks, pronouns(deps.animal.sex))
-    problems += checks.check_bio(
-        deps.animal,
-        [(s.text, s.facts) for s in draft.bio],
-        extra_words=sum(len(c.text.split()) for c in appended),
-    )
+    problems += record_problems(deps.animal, draft)
     first = draft.names[0]
     if first.entity_id in deps.titles:
         problems += checks.check_hook(hook_for(first, deps.titles[first.entity_id][0].name))
@@ -367,6 +361,18 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
         raise ModelRetry("Fix these and answer again: " + "; ".join(problems))
     deps.log.add("check", "Listing checked: built from the recorded facts, names pass the screen")
     return draft
+
+
+def record_problems(animal: Animal, draft: ListingDraft) -> list[str]:
+    """What in the bio and the names' reasons is not in the animal's record. Needs no
+    Qloo data, so app/agent/recheck.py can apply it to saved drafts as well."""
+    problems = [p for o in draft.names for p in checks.check_why(animal, o.why, o.name)]
+    appended = check_sentences(animal.checks, pronouns(animal.sex))
+    return problems + checks.check_bio(
+        animal,
+        [(s.text, s.facts) for s in draft.bio],
+        extra_words=sum(len(c.text.split()) for c in appended),
+    )
 
 
 def output_spec(mode: str):

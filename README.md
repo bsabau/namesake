@@ -111,8 +111,10 @@ uv run ruff check . && uv run ruff format --check .
 
 ```sh
 docker build -t namesake .
-docker run --rm -p 8000:8000 --env-file .env -v "$PWD/var:/app/var" namesake
+docker run --rm -p 8000:8000 --env-file .env -v namesake-var:/app/var namesake
 ```
+
+The cache lives in the Docker volume `namesake-var`, which the app's user owns.
 
 The image holds Python, Node and the pinned harness. The demo runs this image on a long-lived VM behind Caddy, with the cache on a private volume; [`deploy/`](deploy/) has the compose file and the deploy script.
 

@@ -4,8 +4,9 @@ one-off container, so it works whatever user ssh logs in as.
     python prepare_var.py /app/var [--seed /upload/cache.sqlite] [--owner namesake]
 
 With --seed, installs the uploaded cache only when the server's cache is missing or holds
-no saved results or Qloo answers yet (the app creates an empty one when it first starts),
-and refuses otherwise. Then hands the folder to the app's user, mode 700.
+no rows yet (the app creates an empty one when it first starts), and refuses otherwise.
+Then makes sure a cache file exists, for the deploy's write check, and hands the folder to
+the app's user, mode 700.
 """
 
 import argparse
@@ -16,23 +17,26 @@ import sqlite3
 import sys
 from pathlib import Path
 
-DATA_TABLES = ("agent_results", "qloo_cache")
-
 
 class Refused(Exception):
     pass
 
 
 def saved_rows(db: Path) -> int:
-    """Rows of real data in a cache file; 0 for a missing or freshly created one."""
+    """Rows in a cache file, in any table: saved results, Qloo answers, approvals and the
+    daily usage counters all count. 0 for a missing or freshly created one."""
     if not db.exists() or db.stat().st_size == 0:
         return 0
     with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as c:
-        tables = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        tables = [
+            r[0]
+            for r in c.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+        ]
         return sum(
-            c.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]  # noqa: S608 - fixed names
-            for t in DATA_TABLES
-            if t in tables
+            c.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]  # noqa: S608 - from the db
+            for t in tables
         )
 
 
@@ -44,8 +48,15 @@ def seed(var: Path, upload: Path) -> None:
     shutil.copyfile(upload, tmp)
     # A rename within one folder is atomic: the app sees the old file or the whole new one.
     os.replace(tmp, db)
-    for leftover in ("cache.sqlite-wal", "cache.sqlite-shm"):
+    # The old file's journal (rollback by default, or WAL) must not meet the new file.
+    for leftover in ("cache.sqlite-journal", "cache.sqlite-wal", "cache.sqlite-shm"):
         (var / leftover).unlink(missing_ok=True)
+
+
+def ensure_cache(var: Path) -> None:
+    """An empty cache file when there is none, so the deploy's write check can open it
+    without creating it; the app adds its tables when it starts."""
+    sqlite3.connect(var / "cache.sqlite").close()
 
 
 def hand_over(var: Path, owner: str) -> None:
@@ -69,6 +80,7 @@ def main() -> int:
     except Refused as exc:
         print(f"✗ {exc}", file=sys.stderr)
         return 1
+    ensure_cache(args.var)
     hand_over(args.var, args.owner)
     return 0
 

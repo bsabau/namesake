@@ -207,3 +207,14 @@ The refusal keeps the edit and names the missing words.
 **Why:** the area's titles are chosen per location and species (decision 1), so they know nothing about the individual animal. A lookalike makes a name personal at one or two cached calls per listing, without making the venues and map per animal, which would cost about 8 calls each. Matching on the recorded look only, never breed reputation or temperament, keeps it within the listing rules.
 
 **Follows:** a live listing run costs up to two more Qloo calls. Qloo says nothing about local strength for these titles; checking that (a heatmap against the baseline) would be one more call each and is left for later.
+
+## 15. Saved listings are rechecked, not rerun, when only the record checks change
+
+**Decided** (17 October, from Codex's review of milestone 5):
+- A saved listing is shown only if it was held to today's checks (`CHECKS_VERSION` in `app/agent/results.py`).
+- When the checks change, `app/agent/recheck.py` re-runs the record checks, the bio and the names' reasons, on every saved draft. A draft that passes is saved as current; one that fails runs again when next opened. `deploy/deploy.sh` runs it on every deploy, before the new version starts.
+- A recheck covers only those checks, since they need nothing but the animal's record. Drafts saved before the last change to any other check (the name screen, lookalike names) are rerun: `PLAIN_LISTINGS_FROM` and `LOOKALIKE_LISTINGS_FROM` say how far back a recheck is enough.
+
+**Why:** version 8 allowed "puppy" and "kitten" only for an animal under a year. Saved drafts from before were never held to that. Rerunning every one would cost a model run each and leave the start page's examples to run live during judging. Of the 14 saved drafts, 13 passed the recheck; the 14th, from version 5 with a lookalike name, was already set to run again.
+
+**Follows:** a change to any other check must raise those floors, or a saved draft that skipped it is shown.

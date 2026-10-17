@@ -5,13 +5,16 @@ from pydantic import BaseModel
 from app.agent.listing_agent import BioSentence, ListingDraft, Lookalike
 from app.agent.steps import Step
 
-# Raised whenever the listing checks change; saved results from an older version are
-# rerun instead of shown, since they were never held to the current rules.
-CHECKS_VERSION = 7
-# Versions 6 and 7 changed only the checks on lookalike names (decision 14), so a
-# listing without one still holds from version 5 on; one with a lookalike name must be
-# current.
+# Raised whenever the listing checks change. A saved result from an older version is
+# never shown as it is: app/agent/recheck.py holds it to today's record checks (the bio
+# and the names' reasons), and anything it cannot recheck is rerun.
+CHECKS_VERSION = 8
+# What changed since, so which saved drafts a recheck of the record is enough for:
+# - 8 allowed "puppy" and "kitten" only for an animal under a year (bio and reasons);
+# - 6 and 7 changed only the checks on lookalike names (decision 14).
+# Raise these floors when a change touches any other check.
 PLAIN_LISTINGS_FROM = 5
+LOOKALIKE_LISTINGS_FROM = 7
 
 
 class ListingResult(BaseModel):

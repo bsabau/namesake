@@ -15,14 +15,15 @@ The Qloo cache in `var/` holds Qloo response data. It stays on this host and is 
 ## First deploy
 
 1. **DNS.** Point the demo's name at the host: an `A` record, for example `namesake` → the host's IP, in the domain's DNS zone.
-2. **Ship it**, from a clean checkout of the commit you want live:
+2. **The folder.** The ssh user needs to run `docker` and to write the deploy folder. Unless it is root, create the folder once as root: `sudo install -d -o "$USER" /opt/namesake` on the host (or set `NAMESAKE_DIR` to a folder it owns).
+3. **Ship it**, from a clean checkout of the commit you want live:
 
    ```sh
    NAMESAKE_HOST=user@host deploy/deploy.sh --env --seed
    ```
 
-   Leave `NAMESAKE_URL` out this first time: Caddy doesn't know the site until step 3. `--env` writes the host's `.env` from your local `.env` (the `AGENT_*` values) and `~/.qloo/config` (the Qloo key). `--seed` installs your local cache, so the start page's examples open instantly; it does so only while the host's cache holds no saved results, and refuses after that. The script builds the image on the host, starts the container, and checks that `/health` answers and the cache is writable. The ssh user needs to run `docker`, not to be root: files inside the private `var/` are handled by `deploy/prepare_var.py` in a one-off root container.
-3. **Caddy.** Append `deploy/Caddyfile.snippet` (with your domain) to the host's Caddyfile, then reload Caddy without restarting it:
+   Leave `NAMESAKE_URL` out this first time: Caddy doesn't know the site until step 4. `--env` writes the host's `.env` from your local `.env` (the `AGENT_*` values) and `~/.qloo/config` (the Qloo key). `--seed` installs your local cache, so the start page's examples open instantly; it does so only while the host's cache holds no rows, and refuses after that. The script builds the image on the host, re-checks saved listings against today's checks, starts the container, and checks that `/health` answers and the cache is writable. Files inside the private `var/` are handled by `deploy/prepare_var.py` in a one-off root container, so the ssh user needs no root after step 2.
+4. **Caddy.** Append `deploy/Caddyfile.snippet` (with your domain) to the host's Caddyfile, then reload Caddy without restarting it:
 
    ```sh
    cp Caddyfile Caddyfile.bak-$(date +%Y%m%d%H%M%S)
@@ -32,7 +33,7 @@ The Qloo cache in `var/` holds Qloo response data. It stays on this host and is 
    ```
 
    Caddy gets the certificate on the first request. If the Caddyfile belongs to another project's git checkout, that project's `git pull` stops whenever its own Caddyfile changes, until the local edit is merged; note it in that project.
-4. Run `deploy.sh` once more with `NAMESAKE_URL` set: it now also checks the site through the proxy.
+5. Run `deploy.sh` once more with `NAMESAKE_URL` set: it now also checks the site through the proxy.
 
 ## Later deploys
 
@@ -40,7 +41,7 @@ The Qloo cache in `var/` holds Qloo response data. It stays on this host and is 
 NAMESAKE_HOST=user@host NAMESAKE_URL=https://namesake.example.com deploy/deploy.sh
 ```
 
-Only committed changes are deployed. If the build fails, the previous source is restored and the running container is untouched. To roll back, check out the earlier commit and deploy again.
+Only committed changes are deployed. Every deploy re-checks the saved listings against today's checks (`app/agent/recheck.py`): one that passes stays, one that fails runs again when next opened. If any step fails, the previous source and image (`namesake-app:prev`) come back: before the restart the running container is untouched, and after it the previous version is started again. To roll back on purpose, check out the earlier commit and deploy again.
 
 ## Settings worth knowing
 

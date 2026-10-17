@@ -6,6 +6,8 @@ name: namesake
 services:
   app:
     build: ./src
+    # Named, so deploy.sh can keep the previous build as namesake-app:prev to roll back to.
+    image: namesake-app
     restart: unless-stopped
     env_file: .env
     volumes:
