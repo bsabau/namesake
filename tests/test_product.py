@@ -376,6 +376,25 @@ def test_each_visitor_gets_a_few_live_runs_an_hour(tmp_path):
     limits.charge("b", "run")
 
 
+def test_the_limiter_forgets_visitors_an_hour_after_their_last_start(tmp_path):
+    now = [1000.0]
+    limits = Limits(tmp_path / "db.sqlite", per_visitor_per_hour=1, runs_per_day=2,
+                    locations_per_day=1, clock=lambda: now[0])  # fmt: skip
+    limits.charge("a", "run")
+    with pytest.raises(LimitReached, match="in the last hour"):
+        limits.charge("a", "run")
+    # A refused visitor leaves no entry, whichever limit refused them.
+    limits.charge("b", "run")
+    with pytest.raises(LimitReached, match="today's limit"):
+        limits.charge("scanner", "run")
+    assert limits.visitors_tracked() == 2
+    # An hour later both are forgotten, so the table never grows past the active visitors.
+    now[0] += 3601
+    assert limits.visitors_tracked() == 0
+    limits.charge("a", "location")
+    assert limits.visitors_tracked() == 1
+
+
 def test_the_daily_cap_holds_across_restarts(tmp_path):
     db = tmp_path / "db.sqlite"
     first = Limits(db, per_visitor_per_hour=10, runs_per_day=2, locations_per_day=1)
