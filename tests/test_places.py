@@ -349,3 +349,5 @@ def test_a_failed_area_check_leaves_no_area_chosen(client, monkeypatch):  # noqa
         " checked>" not in page.text and 'name="location" value="park-slope" required' in page.text
     )
     assert 'name="pin_lat" value="40.6"' in page.text
+    # Codex: "Add your own animal" skipped the check and fell back to the first preset.
+    assert "formnovalidate" not in page.text
