@@ -48,7 +48,8 @@ roll_back() {
     if [ -f compose.yml.prev ]; then mv compose.yml.prev compose.yml; fi
     if [ -f .env.prev ]; then mv .env.prev .env; fi
     rm -f upload/cache.sqlite
-    if docker image inspect namesake-app:prev >/dev/null 2>&1; then docker tag namesake-app:prev namesake-app; fi"
+    if docker image inspect namesake-app:prev >/dev/null 2>&1; then docker tag namesake-app:prev namesake-app; fi
+    rm -f .deploying"
 }
 # After the new container started: back to the previous version, and start it again.
 start_previous() {
@@ -66,12 +67,14 @@ echo "→ Preparing $HOST:$DIR for $SHA"
 ssh "$HOST" true || { echo "✗ cannot reach $HOST over ssh"; exit 1; }
 ssh "$HOST" "mkdir -p $D && cd $D && if [ ! -d var ]; then mkdir var && chmod 700 var; fi && mkdir -p upload && chmod 700 upload" \
   || { echo "✗ $DIR is not writable by the ssh user: create it once as root (deploy/README.md)"; exit 1; }
-# A deploy that stopped after its swap (ssh dropped, laptop closed) left its *.prev
-# backups. Go back to that version first, so the backups are never overwritten.
-if remote "[ -e src.prev ] || [ -e compose.yml.prev ] || [ -e .env.prev ]"; then
+# .deploying marks a deploy between its swap and its end. One that stopped there (ssh
+# dropped, laptop closed) left its backups: go back to that version first, so they are
+# never overwritten.
+if remote "[ -e .deploying ]"; then
   echo "→ An earlier deploy did not finish; restoring the version before it first"
   roll_back
-  remote "if docker image inspect namesake-app:prev >/dev/null 2>&1; then docker compose up -d --no-build --remove-orphans; fi"
+  remote "if docker image inspect namesake-app:prev >/dev/null 2>&1; then docker compose up -d --no-build --remove-orphans; fi" \
+    || { echo "✗ The restored version did not start: check 'docker compose ps' on the server"; exit 1; }
 fi
 # New files wait as *.new until the source is swapped; leftovers of a stopped run go first.
 remote "rm -rf compose.yml.new .env.new src.new"
@@ -98,11 +101,14 @@ fi
 echo "→ Copying the source"
 ssh "$HOST" "mkdir $D/src.new"
 git archive --format=tar HEAD | ssh "$HOST" "tar -x -C $D/src.new"
-# The image to come back to is the one the app's container uses, running or stopped,
-# found by Compose's labels so no compose file or .env is read; else the current tag.
-swap="app=\$(docker ps -aq --filter label=com.docker.compose.project=namesake --filter label=com.docker.compose.service=app --filter label=com.docker.compose.oneoff=False | head -n 1)
+# Backups left by a deploy that finished but stopped during its cleanup are stale. The
+# image to come back to is the one the app's container uses, running or stopped, found by
+# Compose's labels so no compose file or .env is read; else the current tag.
+swap="rm -rf src.prev compose.yml.prev .env.prev
+  app=\$(docker ps -aq --filter label=com.docker.compose.project=namesake --filter label=com.docker.compose.service=app --filter label=com.docker.compose.oneoff=False | head -n 1)
   if [ -n \"\$app\" ]; then docker tag \"\$(docker inspect -f '{{.Image}}' \"\$app\")\" namesake-app:prev
   elif docker image inspect namesake-app >/dev/null 2>&1; then docker tag namesake-app namesake-app:prev; fi
+  touch .deploying
   if [ -d src ]; then mv src src.prev; fi; mv src.new src
   if [ -f compose.yml ]; then mv compose.yml compose.yml.prev; fi; mv compose.yml.new compose.yml
   if [ -f .env.new ]; then if [ -f .env ]; then mv .env .env.prev; fi; mv .env.new .env; fi"
@@ -162,7 +168,8 @@ if [ -n "${NAMESAKE_URL:-}" ]; then
   for _ in $(seq 1 10); do
     public=0
     curl -fsS --max-time 20 "$NAMESAKE_URL/health" >/dev/null || public=$?
-    [ "$public" -eq 0 ] && break
+    # 0 is done, and 22 is an answer from the proxy: neither is retried.
+    if [ "$public" -eq 0 ] || [ "$public" -eq 22 ]; then break; fi
     sleep 3
   done
   # 22: the proxy answered with an error, so it cannot reach this version. Anything else
@@ -172,7 +179,7 @@ if [ -n "${NAMESAKE_URL:-}" ]; then
     start_previous
   fi
 fi
-remote "rm -rf src.prev compose.yml.prev .env.prev upload/cache.sqlite"
+remote "rm -f .deploying; rm -rf src.prev compose.yml.prev .env.prev upload/cache.sqlite"
 
 # Only this project's leftover images, and never a reason to fail a good deploy.
 remote "docker image prune -f --filter label=com.docker.compose.project=namesake >/dev/null 2>&1 || true; docker compose ps"
