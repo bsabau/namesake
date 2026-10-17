@@ -3,6 +3,7 @@
 import re
 import time
 
+from app.agent.checks import mentions_identity
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
 from app.classify import bucket
@@ -572,7 +573,10 @@ def sorted_by(e: Entity) -> str:
 
 def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], list[WhyItem]]:
     returned, reading = [], []
-    for e in profile.pet_entities + baseline_titles(profile):
+    # A saved comparison show today's screen would not choose is never named (decision 18);
+    # the next run chooses the comparison again.
+    hidden = {e.id for e in baseline_titles(profile) if mentions_identity(e.name, e.description)}
+    for e in profile.pet_entities + [b for b in baseline_titles(profile) if b.id not in hidden]:
         kind = e.type.removeprefix("urn:entity:").replace("_", " ")
         if e.resolution == "chosen":
             returned.append(
@@ -623,14 +627,21 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
             )
         )
     if profile.baselines and profile.baseline_source == "area":
+        named = [e.name for e in profile.baselines if e.id not in hidden]
+        lead = f"{and_list(named)}: the TV shows" if named else "The TV shows"
+        later = (
+            " One of them was chosen before that rule and is not named here; the next run "
+            "chooses it again."
+            if hidden
+            else ""
+        )
         reading.append(
             WhyItem(
                 title="Why compare with this area's top shows",
-                detail=f"{and_list([e.name for e in profile.baselines])}: the TV shows Qloo "
-                f"ranks highest for people around {location.label}, leaving out any whose "
-                "name or description mentions animals or that is tied to a religion, race or "
-                "political identity. A place or map cell that ranks high "
-                "for their fans too is popular here generally, not because of pets.",
+                detail=f"{lead} Qloo ranks highest for people around {location.label}, leaving "
+                "out any whose name or description mentions animals, a religion, race or "
+                "politics. A place or map cell that ranks high for their fans too is popular "
+                f"here generally, not because of pets.{later}",
             )
         )
     elif baseline_titles(profile):

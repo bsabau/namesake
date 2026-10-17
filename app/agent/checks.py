@@ -189,6 +189,30 @@ def check_name(
     return problems
 
 
+# For the area's comparison shows only (decision 18): everyday words a description uses
+# for a religion, race or politics. Never a first name or surname (descriptions name the
+# cast), so "Christian" and "Church" appear only inside phrases. Not used for names, whose
+# screen (decision 19) stays as it was.
+IDENTITY_CATEGORIES = (
+    "muslim", "muslims", "islam", "islamic", "jewish", "judaism", "catholic", "catholics",
+    "christians", "christianity", "christian faith", "christian family", "evangelical",
+    "evangelicals", "hindu", "hinduism", "sikh", "mormon", "mormons", "religion",
+    "religious", "the church", "a church", "gospel", "political", "politics", "politician",
+    "politicians", "president", "presidential", "election", "elections", "senate",
+    "congress", "congressional", "partisan", "liberals", "conservatives", "activist",
+    "activism", "civil rights", "racism", "racist", "racial", "race relations",
+)  # fmt: skip
+
+
+def mentions_identity(name: str, description: str | None) -> bool:
+    """A show whose name or description mentions a religion, race or politics: the
+    identity screen plus everyday category words. A word list, so the page says
+    "mentions", not "is about"."""
+    return identity_coded(name, description) or bool(
+        find_word(description or "", IDENTITY_CATEGORIES)
+    )
+
+
 def identity_coded(name: str, description: str | None) -> bool:
     """A title coded to a religion, race or political identity: by its name, or by words in
     its description that are rarely anyone's name (descriptions name the cast)."""

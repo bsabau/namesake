@@ -23,7 +23,6 @@ from tests.qloo_fakes import (
     BASELINE_2,
     CAT_SHOW,
     DOG_SHOW,
-    LOCAL_QUIZ,
     LOCAL_SHOWS,
     LOCATION,
     SEEDS,
@@ -408,7 +407,7 @@ def test_a_saved_comparison_the_screen_would_not_choose_is_chosen_again():
     p = build_profile(FakeQloo(standard_script()), LOCATION, SEEDS)
     assert p.complete and not needs_finishing(p)
     doc = Entity(
-        id=LOCAL_QUIZ,
+        id="00000000-0000-4000-8000-000000000310",
         name="Example Portraits",
         type="urn:entity:tv_show",
         description="A made-up documentary about Obama's portraits.",
@@ -420,3 +419,65 @@ def test_a_saved_comparison_the_screen_would_not_choose_is_chosen_again():
     assert not needs_finishing(finished)
     # The AI's titles are kept.
     assert [e.id for e in finished.pet_entities] == [e.id for e in p.pet_entities]
+
+
+def test_everyday_religion_and_politics_words_count_in_descriptions_only():
+    # Flash: "a Muslim family" or "a political satire" slipped through the name screen's
+    # lists; a cast member called Christian or Church must not count.
+    def show(i: int, name: str, description: str) -> Entity:
+        return Entity(id=f"id-{i}", name=name, type="urn:entity:tv_show", description=description)
+
+    tastes = [
+        show(1, "Example Family", "A made-up comedy about a Muslim family in Michigan."),
+        show(2, "Example Desk", "A made-up late-night political satire."),
+        show(3, "Example Heist", "Starring Christian Example and Example Church."),
+        show(4, "Example Quiz", "A made-up quiz show."),
+    ]
+    assert [e.name for e in baseline_from_tastes(tastes, [])] == ["Example Heist", "Example Quiz"]
+
+
+def test_when_every_top_show_is_left_out_the_seed_stands_in_and_says_why():
+    script = standard_script()
+    tastes_key = key(
+        "recommend", {"target_type": "tv_show", "signal_location": LOCATION.query, "limit": 10}
+    )
+    coded = {
+        **LOCAL_SHOWS[1],
+        "properties": {"short_description": "A made-up political talk show."},
+    }
+    script[tastes_key] = envelope("recommend", results=[coded])
+    script[
+        key(
+            "recommend",
+            {"target_type": "place", "signals": [BASELINE], "filter_location": LOCATION.query,
+             "limit": 15},
+        )
+    ] = script[
+        key(
+            "recommend",
+            {"target_type": "place", "signals": [BASELINE, BASELINE_2],
+             "filter_location": LOCATION.query, "limit": 15},
+        )
+    ]  # fmt: skip
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    assert p.baseline_source == "seed"
+    note = next(n for n in p.notes if n.startswith("The comparison:"))
+    assert "mentions a religion, race or politics" in note
+
+
+def test_the_page_never_names_a_saved_comparison_show_the_screen_rejects(roster):
+    from app.views.build import why
+
+    p = build_profile(FakeQloo(standard_script()), LOCATION, SEEDS)
+    doc = Entity(
+        id="00000000-0000-4000-8000-000000000311",
+        name="Example Portraits",
+        type="urn:entity:tv_show",
+        description="A made-up documentary about Obama's portraits.",
+    )
+    stale = p.model_copy(update={"baselines": [p.baselines[0], doc]})
+    returned, reading = why(LOCATION, stale)
+    text = " ".join(f"{i.title} {i.detail}" for i in returned + reading)
+    assert "Example Portraits" not in text and "Example Drama" in text
+    compare = next(i for i in reading if i.title == "Why compare with this area's top shows")
+    assert "is not named here; the next run chooses it again" in compare.detail

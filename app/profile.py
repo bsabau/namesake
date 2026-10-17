@@ -16,7 +16,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from app.agent.checks import identity_coded
+from app.agent.checks import mentions_identity
 from app.locations import Location
 from app.qloo.envelope import Envelope
 from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
@@ -218,16 +218,17 @@ def layer_titles(profile: LocationProfile) -> list[Entity]:
 def baseline_from_tastes(tastes: list[Entity], pets: list[Entity]) -> list[Entity]:
     """The area's top shows as the baseline, leaving out the pet titles themselves and any
     show whose name or description mentions animals: comparing a pet show with itself, or
-    with another pet show, would hide the very thing the map is for. Shows coded to a
-    religion, race or political identity are left out too: the page names the baseline as
-    what people here tend to watch, and that must not read as a claim about who they are."""
+    with another pet show, would hide the very thing the map is for. Shows whose name or
+    description mentions a religion, race or politics are left out too: the page names the
+    baseline as what people here tend to watch, and that must not read as a claim about who
+    they are."""
     pet_ids = {e.id for e in pets}
     keep = [
         e
         for e in tastes
         if e.id not in pet_ids
         and not PET_WORDS.search(f"{e.name} {e.description or ''}")
-        and not identity_coded(e.name, e.description)
+        and not mentions_identity(e.name, e.description)
     ]
     return keep[:BASELINE_TITLES]
 
@@ -513,7 +514,7 @@ def choose_baseline(
     else:
         why = (
             f"every show people around {location.label} watch most mentions animals, is one "
-            "of the pet titles here, or is tied to a religion, race or political identity"
+            "of the pet titles here, or mentions a religion, race or politics"
         )
     b.profile.notes.append(
         f"{BASELINE_NOTE}{why}, so it is one widely watched show unrelated to pets: {seed.name}."
@@ -532,14 +533,16 @@ def baseline_for(
 
 
 def stale_baseline(profile: LocationProfile) -> bool:
-    """A saved comparison that today's screen would not choose: a show coded to a religion,
-    race or political identity (saved before that rule)."""
-    return any(identity_coded(e.name, e.description) for e in profile.baselines)
+    """A saved comparison that today's screen would not choose: a show whose name or
+    description mentions a religion, race or politics (saved before that rule)."""
+    return any(mentions_identity(e.name, e.description) for e in profile.baselines)
 
 
 def needs_finishing(profile: LocationProfile) -> bool:
     """A saved profile to finish before use: an older version, missing parts, or a
-    comparison chosen before today's screen."""
+    comparison chosen before today's screen. A visitor's run finishes current-version
+    profiles only (`get_profile`); older versions are brought up by
+    `app.upgrade_profiles`, which uses this whole test."""
     return profile.version < PROFILE_VERSION or not profile.complete or stale_baseline(profile)
 
 
