@@ -240,9 +240,9 @@ The shelter is fictional too. Do not use real shelter names, logos or photos.
 
 **Screens**
 
-1. **Start:** a grid of the animals, a choice of three preset locations, a tone setting, and a "try an example" button that loads a precomputed result instantly.
+1. **Start:** a grid of the animals, a choice of three preset locations, a custom location field, and a "try an example" button that loads a precomputed result instantly. There is no tone setting: the listing rules fix the voice, and the refine line takes follow-ups (`docs/decisions.md` #15).
 2. **Working:** a live log of the agent's steps, streamed as they happen: entities proposed, each one checked against Qloo, which were kept and which dropped.
-3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges; a map of local lift with venue pins; the exposure checklist.
+3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges; a map of local lift; the venues as a list with their evidence, not as pins (`docs/decisions.md` #4); the exposure checklist.
 4. **Why:** for each choice, the Qloo result behind it, separate from the app's reading of it.
 5. **Refine:** one text line for follow-ups such as "less childish". When Qloo returns `needs_input`, show the candidates here as buttons.
 
@@ -324,7 +324,7 @@ Work on one milestone at a time, in order, and stop at the end of each for revie
 - Record the answers in `docs/qloo-findings.md`.
 - Then propose how the agent should work given what was found, and wait for a decision.
 
-**2. Thin end-to-end slice.** Done 15 October. The original brief: No agent yet. Choose an animal and a location, run one fixed lookup (heatmap lift and venues, from the cache), and draw the cells and venue pins on the map. Render a templated listing from the facts. Add the `yes`/`no`/`unknown` fact fields. Build the UI seam described under "The UI is a replaceable skin": move the start page into `app/ui/classic/`, add view models and `/api/`, and add the shared smoke test. This proves the whole path from form to result.
+**2. Thin end-to-end slice.** Done 15 October. The original brief: No agent yet. Choose an animal and a location, run one fixed lookup (heatmap lift and venues, from the cache), and draw the cells and venue pins on the map. (Venues became a list rather than pins; see `docs/decisions.md` #4.) Render a templated listing from the facts. Add the `yes`/`no`/`unknown` fact fields. Build the UI seam described under "The UI is a replaceable skin": move the start page into `app/ui/classic/`, add view models and `/api/`, and add the shared smoke test. This proves the whole path from form to result.
 
 **3. The agent (16–24 October).** Done 15 October. The original brief: Add the PydanticAI agent with the Qloo tools, structured output, the plain-code checks with one repair round and a templated fallback, and the live step log over server-sent events. Two runs, per `docs/decisions.md`: a profile run per location and species (titles, ranking, venues), and a listing run per animal (names, bio, hook). Tests use PydanticAI's `TestModel` or `FunctionModel` and the synthetic fixtures.
 

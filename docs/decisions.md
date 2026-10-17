@@ -207,3 +207,14 @@ The refusal keeps the edit and names the missing words.
 **Why:** the area's titles are chosen per location and species (decision 1), so they know nothing about the individual animal. A lookalike makes a name personal at one or two cached calls per listing, without making the venues and map per animal, which would cost about 8 calls each. Matching on the recorded look only, never breed reputation or temperament, keeps it within the listing rules.
 
 **Follows:** a live listing run costs up to two more Qloo calls. Qloo says nothing about local strength for these titles; checking that (a heatmap against the baseline) would be one more call each and is left for later.
+
+## 15. No tone setting: the listing rules fix the voice, and the refine line takes follow-ups
+
+**Decided** (17 October, closing a finding of the codebase audit in `docs/audit-2026-10-17.md`):
+- The start screen has no tone setting. The words are struck from the screen list in `AGENTS.md`; `docs/product.md` never had them.
+- The voice of every listing is set by the listing rules: third person, plain words, behaviour toward people first, the animal as it is now, no pity or urgency, and nothing beyond the recorded facts. Those rules apply to the generic and the local version alike, so a tone control would have nothing to move that the rules do not already fix.
+- A volunteer who wants a listing worded differently uses the refine line on the result screen ("less childish"), which reruns the listing within the same rules. That covers the one case a tone setting was for, per result and without a second setting to explain.
+
+**Why:** the evidence review (`docs/research/adoption-evidence-review.md`) found tone was not associated with engagement in the one study that measured it (Morrison 2024) and lists the effect of a listing's tone on returns as an open question. A setting with no evidence behind it, and no design in `docs/product.md`, would add a choice to the start screen that the judges and volunteers would have to understand, for no measured gain. The audit rated the gap major only because the brief and the design disagreed; this entry makes them agree.
+
+**Follows:** the start view model, the form and the JSON API stay as they are. If a tone experiment is ever wanted, it belongs in the measurement design first, as a recorded variant, and only then on the screen.
