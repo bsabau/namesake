@@ -27,9 +27,8 @@
   <details class="shelter{% if not view.shelter.chosen %} unchosen{% endif %}" id="shelter" data-role="shelter"{% if view.shelter.open %} open{% endif %}>
     <summary>
       <span class="shelter-heading">{{ view.shelter.heading }}:</span>
-      <strong class="shelter-name" id="shelter-name">{{ view.shelter.name }}</strong>
-      <span class="shelter-region" id="shelter-region">{{ view.shelter.region }}</span>
-      <span class="shelter-toggle"><span class="when-closed">{{ view.shelter.change }}</span><span class="when-open">{{ view.shelter.close }}</span></span>
+      <span class="shelter-place"><strong class="shelter-name" id="shelter-name">{{ view.shelter.name }}</strong><span class="shelter-region" id="shelter-region">{{ view.shelter.region }}</span></span>
+      <span class="shelter-toggle"><span class="when-closed"><span class="if-chosen">{{ view.shelter.change }}</span><span class="if-unchosen">{{ view.shelter.choose }}</span></span><span class="when-open">{{ view.shelter.close }}</span></span>
     </summary>
   <section class="where">
     <fieldset class="locations">

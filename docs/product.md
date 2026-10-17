@@ -78,7 +78,7 @@ The result screen must be legible in a single screenshot. It shows:
 - the name options with their source badges
 - a map of local lift, with the venues listed beside it (`docs/decisions.md` #4)
 - the exposure checklist
-- a "Why" drawer with two columns, "Qloo returned" and "Our reading"
+- a "Why" drawer with two columns, "Qloo returned" and "How Namesake read it"
 
 ## Measurement
 

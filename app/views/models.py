@@ -92,6 +92,8 @@ class ShelterBar(BaseModel):
     region: str = ""
     chosen: bool = True
     change: str = "Change"
+    # Said instead of `change` while no area is chosen.
+    choose: str = "Choose an area"
     close: str = "Done"
     panel_heading: str = "Choose the shelter's area"
     # Open when no area is chosen or an area check needs the visitor: the alert, Qloo's

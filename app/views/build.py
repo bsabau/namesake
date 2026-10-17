@@ -200,7 +200,7 @@ def build_start_view(
         # A spot dropped as too far is explained in the panel, so it opens.
         ShelterBar(name=chosen.label, region=chosen.region, open=pin_far)
         if chosen
-        else ShelterBar(name="not chosen yet", chosen=False, change="Choose an area", open=True)
+        else ShelterBar(name="not chosen yet", chosen=False, open=True)
     )
     return StartView(
         shelter=shelter,

@@ -81,4 +81,9 @@ def test_with_no_area_chosen_the_bar_asks_for_one():
     locations = load_locations(get_settings().locations_file)
     view = build_start_view(load_roster(get_settings().animals_file), locations, "")
     assert view.shelter.open and not view.shelter.chosen
-    assert view.shelter.change == "Choose an area"
+    assert view.shelter.choose == "Choose an area"
+
+
+def test_the_shelter_bar_script_is_served():
+    # Flash: without it, a closed panel with no area chosen strands the visitor again.
+    assert client.get("/ui/classic/static/shelter-bar.js").status_code == 200
