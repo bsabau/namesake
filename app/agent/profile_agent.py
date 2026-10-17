@@ -55,9 +55,6 @@ class ProfileDeps:
     # Sorts the titles find_local_titles returns; None leaves them all to the AI.
     classifier: JevClassifier | None = None
     local_searches: int = 0
-    # Set at the classifier's first failure in a run: the rest go to the AI unasked, so a
-    # slow or broken classifier costs one timeout, not one per title.
-    classifier_down: bool = False
 
 
 class TitleChoice(BaseModel):
@@ -216,9 +213,13 @@ def find_local_titles(
     signal = deps.titles_seen[entity_id]
     if signal.found_in is not None and bucket(signal.verdict) != "kept":
         # A search widens from titles known to be about pets, never from an unsure one.
+        if deps.classifier is None:
+            hint = "with no classifier, search only with your own titles"
+        else:
+            hint = "search with one of your own titles or a kept one"
         return {
             "status": f"{signal.name} came from a local list without the classifier keeping "
-            "it; search with one of your own titles or a kept one"
+            f"it; {hint}"
         }
     # Charged before the call, so a failing search cannot be retried without end.
     deps.local_searches += 1
@@ -263,9 +264,9 @@ def find_local_titles(
             description=props.get("short_description") or props.get("description"),
             found_in=FoundIn(signal=signal.name, kind=kind, position=position, out_of=total),
         )
-        if deps.classifier and not deps.classifier_down:
+        if deps.classifier:
+            # After a failed call it answers from saved answers only (JevClassifier.down).
             entity.verdict = deps.classifier.classify(entity)
-            deps.classifier_down = entity.verdict is None
         if deps.classifier and entity.verdict is None:
             unanswered += 1
         where = bucket(entity.verdict)

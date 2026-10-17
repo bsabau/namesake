@@ -110,8 +110,18 @@ class JevClassifier:
         self.url = f"{base_url.rstrip('/')}/systemone"
         self.model = model
         self.post = post
-        cache_db.parent.mkdir(parents=True, exist_ok=True)
         self.db = cache_db
+        # Set when a call to Jev fails: from then on only saved answers are used, so a slow
+        # or broken Jev costs one timeout. A classifier lives for one run (app/runs.py).
+        self.down = False
+        try:
+            cache_db.parent.mkdir(parents=True, exist_ok=True)
+            with sqlite3.connect(self.db) as conn:
+                conn.execute(SCHEMA)
+                # The first version's table, keyed too loosely; never read.
+                conn.execute("DROP TABLE IF EXISTS classifier_cache")
+        except (OSError, sqlite3.Error):
+            pass  # classify reports the failure per title
 
     def classify(self, entity: Entity) -> PetVerdict | None:
         """The verdict for one title, from the cache or Jev. None when anything fails,
@@ -131,17 +141,22 @@ class JevClassifier:
             json.dumps([QUESTIONS_VERSION, QUESTIONS, self.model, state], sort_keys=True).encode()
         ).hexdigest()
         with sqlite3.connect(self.db) as conn:
-            conn.execute(SCHEMA)
             row = conn.execute(
                 "SELECT verdict_json FROM classifier_answers WHERE key = ?", (key,)
             ).fetchone()
         if row:
             return PetVerdict.model_validate_json(row[0])
+        if self.down:
+            return None
         body = json.dumps({"model": self.model, "state": state, "questions": QUESTIONS})
         headers = {"Authorization": f"Bearer {self._key}", "Content-Type": "application/json"}
         # A failure raises before anything is cached, so the title is asked again later.
-        out = self.post(self.url, headers, body.encode())
-        answers = {q: probability(out["answers"][q]["noul"]) for q in QUESTIONS}
+        try:
+            out = self.post(self.url, headers, body.encode())
+            answers = {q: probability(out["answers"][q]["noul"]) for q in QUESTIONS}
+        except Exception:
+            self.down = True
+            raise
         verdict = PetVerdict(**answers, model=str(out.get("model", "")))
         with sqlite3.connect(self.db) as conn:
             conn.execute(

@@ -146,9 +146,12 @@ def test_a_failed_jev_call_leaves_the_title_to_the_ai_and_is_asked_again(tmp_pat
         calls.append(1)
         raise OSError("timed out")
 
-    jev = JevClassifier("test-key", tmp_path / "c.sqlite", post=post)
     title = Entity(id=CAT_CAFE, name="Example Cat Cafe", type="urn:entity:tv_show")
+    jev = JevClassifier("test-key", tmp_path / "c.sqlite", post=post)
     assert jev.classify(title) is None and jev.classify(title) is None
+    assert len(calls) == 1  # down for the rest of this run
+    # Nothing was cached, so the next run asks again.
+    assert JevClassifier("test-key", tmp_path / "c.sqlite", post=post).classify(title) is None
     assert len(calls) == 2
 
 
@@ -376,17 +379,44 @@ def test_only_an_https_classifier_is_used(isolated_settings, monkeypatch):
     assert classifier_from(isolated_settings) is None
 
 
-def test_after_a_failure_the_run_stops_asking_and_says_so():
+def test_after_a_failed_call_only_saved_answers_are_used(tmp_path):
+    calls = []
+
+    def post(url, headers, body):
+        title = json.loads(body)["state"]["title"]
+        calls.append(title)
+        if title == "Example Cat Cafe" and len(calls) > 1:
+            raise OSError("timed out")
+        return jev_answer()
+
+    db = tmp_path / "c.sqlite"
+    cafe = Entity(id=CAT_CAFE, name="Example Cat Cafe", type="urn:entity:tv_show")
+    puppy = Entity(id=PUPPY_SCHOOL, name="Example Puppy School", type="urn:entity:tv_show")
+    JevClassifier("k", db, post=post).classify(puppy)  # saved by an earlier run
+    jev = JevClassifier("k", db, post=post)
+    assert jev.classify(cafe) is None and jev.down
+    space = Entity(id=SPACE_OPERA, name="Example Space Opera", type="urn:entity:tv_show")
+    assert jev.classify(space) is None  # not asked: Jev is down for this run
+    assert jev.classify(puppy).pets == 0.97  # but saved answers still count
+    assert calls == ["Example Puppy School", "Example Cat Cafe"]
+
+
+def test_a_down_classifier_is_named_in_the_step_log():
     class Down(FakeClassifier):
         def classify(self, entity):
-            self.asked.append(entity.id)
             return None
 
-    down = Down({})
-    d = deps(down)
+    d = deps(Down({}))
     out = find_local_titles(ctx(d), DOG_SHOW, "tv_show")
-    assert len(down.asked) == 1 and len(out["unsure"]) == 3
+    assert len(out["unsure"]) == 3
     assert any("did not answer for 3" in s.text for s in d.log.steps)
+
+
+def test_without_a_classifier_a_search_starts_from_the_ais_own_titles():
+    d = deps(None)
+    find_local_titles(ctx(d), DOG_SHOW, "tv_show")
+    status = find_local_titles(ctx(d), CAT_CAFE, "movie")["status"]
+    assert status.endswith("with no classifier, search only with your own titles")
 
 
 def test_an_unresolved_area_is_named_as_such():

@@ -158,7 +158,7 @@ Reading:
 So it gives no recent signal and no local one. A "rising lately" badge was dropped (decision 18).
 
 
-## The area's own top lists as a source of pet titles (17 October, 6 calls)
+## The area's own top lists as a source of pet titles (17 October, about 14 calls)
 
 The question: instead of Namesake's AI proposing pet titles and Qloo checking them, could the area's own top lists hold pet titles already? `recommend` returns at most 20 results a call and has no paging, so a "top 50" is not available through the harness.
 
