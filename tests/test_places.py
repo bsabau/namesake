@@ -280,9 +280,8 @@ def test_the_pin_is_kept_to_about_10_m_and_pages_with_it_are_never_cached(client
     page = client.get("/", params={"location": location_id(text)})
     assert page.headers["cache-control"] == "private, no-store"
     # Flash: shared files stay cacheable for a visitor with a session.
-    assert "no-store" not in client.get("/ui/classic/static/style.css").headers.get(
-        "cache-control", ""
-    )
+    shared = f"/ui/{main.get_settings().ui}/static/style.css"
+    assert "no-store" not in client.get(shared).headers.get("cache-control", "")
 
 
 def test_qloo_gets_the_area_name_alone_and_candidates_keep_the_pin(client, monkeypatch):  # noqa: F811

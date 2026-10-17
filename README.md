@@ -101,7 +101,7 @@ uv run python scripts/run_agent.py dog-02 park-slope  # one run, steps printed
 
 Set `ALLOW_LIVE_QLOO=false` to use only the cache. The model is configuration only (`AGENT_BASE_URL`, `AGENT_API_KEY`, `AGENT_MODEL`, `AGENT_API`); the demo runs a free model through [OpenCode Go](https://opencode.ai).
 
-The same data is served as JSON (`/api/start`, `/api/results/dog-02@park-slope`, and the live step log at `/api/runs/{id}/events`), and `?ui=<name>` switches between interfaces in `app/ui/`.
+The same data is served as JSON (`/api/start`, `/api/results/dog-02@park-slope`, and the live step log at `/api/runs/{id}/events`), and `?ui=<name>` switches between interfaces in `app/ui/` (`warm`, the default, or `classic`, the first skin).
 
 Tests never call Qloo or a model; they use hand-written envelopes with invented IDs:
 
@@ -137,7 +137,7 @@ The image holds Python, Node and the pinned harness. The demo runs this image on
 |---|---|
 | `app/agent/` | the two PydanticAI agents (area profile, listing), their Qloo tools, the plain-code checks, the run pipeline |
 | `app/qloo/` | the typed wrapper around `qloo exec`: envelope parsing, cache, spacing, replay |
-| `app/views/`, `app/ui/classic/` | view models (also served as JSON) and the default interface |
+| `app/views/`, `app/ui/warm/` | view models (also served as JSON) and the default interface; `app/ui/classic/` is the first skin, kept for `?ui=classic` |
 | `docs/` | [decisions](docs/decisions.md), [Qloo findings](docs/qloo-findings.md), [product design](docs/product.md), [evidence review](docs/research/adoption-evidence-review.md) |
 | `tests/` | about 380 tests, all offline; `tests/test_no_qloo_data.py` keeps Qloo data out of the repo |
 
@@ -147,7 +147,7 @@ Qloo's terms forbid publishing its response data, so real responses live only in
 
 Taste data from the Qloo API. This project is not affiliated with or endorsed by Qloo.
 
-The animals and the shelter are fictional, and the photos are AI-generated. Map tiles and place names © OpenStreetMap contributors; place lookups by Photon (komoot). Pet-themed titles are sorted with [TypeSafe](https://typesafe.ai)'s Jev classifier, which receives only a title's name, kind and Qloo's description; Namesake is not affiliated with TypeSafe.
+The animals and the shelter are fictional, and the photos are AI-generated. Map tiles and place names © OpenStreetMap contributors; place lookups by Photon (komoot). Pet-themed titles are sorted with [TypeSafe](https://typesafe.ai)'s Jev classifier, which receives only a title's name, kind and Qloo's description; Namesake is not affiliated with TypeSafe. The typeface is Nunito, served from the app itself under the SIL Open Font License (`app/ui/warm/static/fonts/OFL.txt`).
 
 ## Licence
 
