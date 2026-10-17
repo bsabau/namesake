@@ -22,10 +22,11 @@ Every change is reviewed before you report it done. Reviewers run in parallel an
 | Any other change | Codex + muse |
 | Milestone end, deploy, a new Qloo tool or agent tool, or text the judges read (README, Devpost, UI copy) | Codex + muse + DeepSeek Flash |
 | Re-check after fixes | the reviewers who raised the findings, each continuing its own session |
+| A third or later re-check, after two rounds that found only new P3s | Codex + muse only, even if another reviewer raised them |
 
 **When one is out of usage:**
 
-- Codex out (the ChatGPT limit covers the whole account): DeepSeek on the author's own key (`deepseek/deepseek-flash`, or `deepseek/deepseek-v4-pro`) takes its place.
+- Codex out (the ChatGPT limit covers the whole account): DeepSeek Flash on the author's own key (`deepseek/deepseek-flash`) takes its place. DeepSeek V4 Pro is not used: on 17 October it found nothing Flash or the others missed, slower and at about four times the cost.
 - Muse or the Go plan out: a free model from `opencode models` (a name ending in `-free`; the `opencode/…-free` models don't use the Go plan).
 - The demo's agent runs on the Go plan too, so reviews use the author's own key and free models before spending the Go plan. Use expensive models such as Grok only when the author asks: one Grok review used up the Go plan's window.
 
