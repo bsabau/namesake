@@ -66,10 +66,41 @@ def test_retryable_error_is_retried_once(cache):
     runner = FakeRunner((fixture("error__retryable"), 1), (fixture("where_popular__ok"), 0))
     slept = []
     qloo = QlooClient(
-        cache, runner=runner, sleep=slept.append, retry_delay=3, min_interval=0, env={}
+        cache, runner=runner, sleep=slept.append, rate_limit_delay=3, min_interval=0, env={}
     )
     assert qloo.run("where_popular", INPUT).status == "ok"
     assert len(runner.calls) == 2 and slept == [3]
+
+
+def test_a_rate_limit_waits_longer_than_other_retryable_errors(cache):
+    upstream = json.dumps(
+        {
+            "operation": "where_popular",
+            "status": "error",
+            "error": {
+                "code": "QLOO_UPSTREAM_5XX",
+                "layer": "qloo",
+                "retryable": True,
+                "recovery": "Retry the same request once.",
+            },
+        }
+    )
+    for first, wait in ((fixture("error__retryable"), 20), (upstream, 5)):
+        runner = FakeRunner((first, 1), (fixture("where_popular__ok"), 0))
+        slept = []
+        QlooClient(cache, runner=runner, sleep=slept.append, min_interval=0, env={}).run(
+            "where_popular", {**INPUT, "limit": wait}
+        )
+        assert slept == [wait]
+
+
+def test_rank_gets_a_second_longer_retry_after_a_rate_limit(cache):
+    limited = (fixture("error__retryable"), 1)
+    runner = FakeRunner(limited, limited, (fixture("where_popular__ok"), 0))
+    slept = []
+    qloo = QlooClient(cache, runner=runner, sleep=slept.append, min_interval=0, env={})
+    assert qloo.run("rank", {"options": ["x"], "option_type": "tv_show"}).status == "ok"
+    assert len(runner.calls) == 3 and slept == [20, 40]
 
 
 def test_retryable_error_twice_is_returned_and_not_cached(cache):

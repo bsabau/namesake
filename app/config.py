@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     qloo_base_url: str | None = None
     qloo_trusted_base_url: str | None = None
     # Seconds between live Qloo calls, across processes. The key is rate-limited: refused
-    # after about 12 calls in 20 minutes on 15 October, but 30 calls 10 s apart passed on
-    # 17 October (docs/qloo-findings.md). Raise it again if Qloo starts refusing.
-    qloo_min_interval: float = 2.0
+    # after about 12 calls in 20 minutes on 15 October; 30 calls 10 s apart passed on
+    # 17 October, but at 2 s `rank` was refused on 18 October (docs/decisions.md #20).
+    qloo_min_interval: float = 5.0
     # Whether web runs may call Qloo live. Off, they use only the cache and recordings.
     allow_live_qloo: bool = True
 

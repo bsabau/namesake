@@ -33,7 +33,7 @@ Namesake does **not** claim to get animals adopted faster, save lives or money, 
 
 ## How it uses Qloo
 
-Namesake's AI (two agents, one per area and one per animal) and some plain code call Qloo through the official harness (`qloo exec`, pinned at 0.1.26). Every call is cached in SQLite and spaced at least 2 seconds apart, because the hackathon key is rate-limited.
+Namesake's AI (two agents, one per area and one per animal) and some plain code call Qloo through the official harness (`qloo exec`, pinned at 0.1.26). Every call is cached in SQLite and spaced at least 5 seconds apart, because the hackathon key is rate-limited; a refused ranking is retried after a longer wait.
 
 | What | Qloo workflow | Who decides | Why |
 |---|---|---|---|
