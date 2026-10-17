@@ -258,6 +258,7 @@ def start_view(
     session: Session | None = None,
     form: LocationForm | None = None,
     ui_query: str = "",
+    pin_far: bool = False,
 ) -> StartView:
     settings = get_settings()
     store = Store(settings.cache_db)
@@ -285,6 +286,7 @@ def start_view(
         examples=example_links(ready, ui_query),
         added=added,
         pins=session.pins if session else None,
+        pin_far=pin_far,
     )
     if form is not None:
         view.location_form = form
@@ -367,9 +369,13 @@ def health() -> dict[str, str]:
 
 
 @app.get("/", response_class=HTMLResponse)
-def start(request: Request, location: str | None = None, ui: str | None = None) -> HTMLResponse:
+def start(
+    request: Request, location: str | None = None, pin: str | None = None, ui: str | None = None
+) -> HTMLResponse:
     chosen = pick_ui(ui)
-    view = start_view(location, session_of(request), ui_query=ui_suffix(request, ui))
+    view = start_view(
+        location, session_of(request), ui_query=ui_suffix(request, ui), pin_far=pin == "far"
+    )
     return render(request, chosen, "start.html", view)
 
 
@@ -382,8 +388,8 @@ def result(
 
 
 @app.get("/api/start")
-def api_start(request: Request, location: str | None = None) -> StartView:
-    return start_view(location, session_of(request))
+def api_start(request: Request, location: str | None = None, pin: str | None = None) -> StartView:
+    return start_view(location, session_of(request), pin_far=pin == "far")
 
 
 @app.get("/api/results/{result_id}")
@@ -735,10 +741,15 @@ def pin_from(latitude: str, longitude: str) -> tuple[float, float] | None:
     return round(lat, PIN_DECIMALS), round(lon, PIN_DECIMALS)
 
 
-def keep_pin(request: Request, location: Location, pin: tuple[float, float] | None) -> None:
-    """Remember the picked spot for this visit, if it lies in the area Qloo checked."""
-    if pin and distance_km(pin, (location.latitude, location.longitude)) <= MAX_PIN_KM:
-        own_session(request).pins[location.id] = pin
+def keep_pin(request: Request, location: Location, pin: tuple[float, float] | None) -> str:
+    """Remember the picked spot for this visit, if it lies in the area Qloo checked. The
+    redirect's query says when a spot was given but is too far to show."""
+    if not pin:
+        return ""
+    if distance_km(pin, (location.latitude, location.longitude)) > MAX_PIN_KM:
+        return "&pin=far"
+    own_session(request).pins[location.id] = pin
+    return ""
 
 
 @app.post("/locations", response_class=HTMLResponse)
@@ -769,9 +780,9 @@ def add_location(
     if cleaned is not None:
         known = store.get_location(location_id(cleaned))
         if known is not None:
-            keep_pin(request, known, pin)
+            far = keep_pin(request, known, pin)
             return RedirectResponse(
-                f"/?location={known.id}{ui_suffix(request, ui)}", status_code=303
+                f"/?location={known.id}{far}{ui_suffix(request, ui)}", status_code=303
             )
     seeds = load_seeds(settings.seeds_file)
     # First from the cache and recordings only: an answer Qloo gave before is free.
@@ -794,9 +805,9 @@ def add_location(
         )
         return back(form, status)
     store.put_location(checked.location)
-    keep_pin(request, checked.location, pin)
+    far = keep_pin(request, checked.location, pin)
     return RedirectResponse(
-        f"/?location={checked.location.id}{ui_suffix(request, ui)}", status_code=303
+        f"/?location={checked.location.id}{far}{ui_suffix(request, ui)}", status_code=303
     )
 
 

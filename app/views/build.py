@@ -7,6 +7,7 @@ from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
 from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, templated_listing
 from app.locations import Location
+from app.places import MAX_PIN_KM
 from app.profile import LocationProfile, Venue, rank_band
 from app.qloo.geohash import bounds
 from app.views.models import (
@@ -88,6 +89,10 @@ def and_list(items: list[str]) -> str:
     return ", ".join(items[:-1]) + " and " + items[-1]
 
 
+PIN_FAR_NOTE = (
+    f"The spot you picked is more than {MAX_PIN_KM} km from where Qloo has data for this "
+    "area, so it is not shown. The circle marks the area Qloo checked."
+)
 PIN_NOTE = (
     "The pin is the spot you picked for the shelter. It stays in this visit and never "
     "goes to Qloo, which gets only the area's name."
@@ -180,8 +185,15 @@ def build_start_view(
     examples: list[ExampleLink] | None = None,
     added: list[AnimalCard] | None = None,
     pins: dict[str, tuple[float, float]] | None = None,
+    pin_far: bool = False,
 ) -> StartView:
     animals = sorted(roster.animals, key=lambda a: a.id != FEATURED)
+    options = [
+        location_option(loc, loc.id == selected_id, (pins or {}).get(loc.id)) for loc in locations
+    ]
+    for option in options:
+        if pin_far and option.selected and option.pin is None:
+            option.map_note = PIN_FAR_NOTE
     return StartView(
         examples=examples or [],
         title="Write an adoption listing",
@@ -190,10 +202,7 @@ def build_start_view(
             "facts the shelter recorded, and a plan for getting the animal seen, using Qloo "
             "taste data about pet-themed shows near the shelter."
         ),
-        locations=[
-            location_option(loc, loc.id == selected_id, (pins or {}).get(loc.id))
-            for loc in locations
-        ],
+        locations=options,
         animals=(added or []) + [animal_card(a) for a in animals],
         litters=[litter_card(lit) for lit in roster.litters],
     )

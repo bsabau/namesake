@@ -310,6 +310,19 @@ def test_qloo_gets_the_area_name_alone_and_candidates_keep_the_pin(client, monke
     assert option(client, location_id(text))["pin"] == {"latitude": 40.6801, "longitude": -73.9801}
 
 
+def test_a_pin_too_far_from_the_area_is_dropped_with_a_word(client):  # noqa: F811
+    # muse, Flash: the drop was silent.
+    text = known_area()
+    response = client.post(
+        "/locations", data={"text": text, "pin_lat": "40.9", "pin_lon": "-73.98"},
+        follow_redirects=False,
+    )  # fmt: skip
+    assert response.headers["location"].endswith("&pin=far")
+    start = client.get("/api/start", params={"location": location_id(text), "pin": "far"}).json()
+    picked = next(o for o in start["locations"] if o["id"] == location_id(text))
+    assert picked["pin"] is None and "more than 15 km" in picked["map_note"]
+
+
 def test_a_pin_far_from_the_area_or_not_a_number_is_dropped(client):  # noqa: F811
     text = known_area()
     loc_id = location_id(text)

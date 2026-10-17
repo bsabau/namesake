@@ -10,7 +10,7 @@
 
   let timer = null;
   let asked = "";
-  let answer = []; // the places for `asked`
+  let answer = { text: "", places: [] }; // the last answer, with the text it answered
   let active = -1;
 
   const items = () => [...list.querySelectorAll("li")];
@@ -30,7 +30,7 @@
   const choose = (label) => {
     field.value = label;
     asked = label;
-    answer = [];
+    answer = { text: "", places: [] };
     close();
     field.focus();
   };
@@ -67,11 +67,11 @@
   field.addEventListener("input", () => {
     clearTimeout(timer);
     const text = field.value.trim();
-    // Back to the text already answered (a typo undone): show that answer again.
-    if (text === asked) return show(answer);
+    // Back to the text last answered (a typo undone): show that answer again.
+    if (text === answer.text && text.length >= 3) return show(answer.places);
     // Suggestions for other text must not be pickable while new ones are fetched.
     close();
-    if (text.length < 3) return;
+    if (text.length < 3 || text === asked) return; // the same text is already being asked
     timer = setTimeout(async () => {
       asked = text;
       try {
@@ -79,8 +79,8 @@
         const response = await fetch(`${field.dataset.suggestUrl}?q=${encodeURIComponent(text)}${near()}`);
         if (!response.ok) return close();
         const body = await response.json();
-        answer = body.places;
-        if (field.value.trim() === text) show(answer);
+        answer = { text, places: body.places };
+        if (field.value.trim() === text) show(answer.places);
       } catch {
         close(); // no suggestions this time; the field still takes what is typed
       }
