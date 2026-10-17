@@ -4,6 +4,8 @@
 
 You are the builder described under "Who does what". When a milestone's work is ready, stop and say so, so the diff can be reviewed before anything else is built on it.
 
+Work reaches `main` through a pull request, after its reviews and CI pass. Merging deploys the demo (`deploy/README.md`, "Automatic deploys"), so merge only what is ready to go live.
+
 ## Reviews
 
 Every change is reviewed before you report it done. Reviewers run in parallel and follow "Review guidelines" above.

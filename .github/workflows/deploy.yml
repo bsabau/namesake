@@ -1,0 +1,52 @@
+# Deploys main to the demo host once CI has passed on it, with deploy/deploy.sh (which
+# rolls back on any failure). The Qloo and model keys stay in the host's .env: this
+# never runs --env or --seed. Secrets live in the "production" environment, which only
+# main may use: DEPLOY_SSH_KEY (the deploy user's key), DEPLOY_KNOWN_HOSTS (the host's
+# pinned key) and DEPLOY_HOST (deploy@host).
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time, and never cut one off: its rollback must be able to finish.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # A push to main that passed CI, never a pull request; or the "Run workflow" button.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://namesake.bogdansabau.eu
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The commit CI passed, not whatever main is by now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: SSH key and the host's pinned key
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          (umask 077; printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519)
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Deploy
+        env:
+          NAMESAKE_HOST: ${{ secrets.DEPLOY_HOST }}
+          NAMESAKE_URL: https://namesake.bogdansabau.eu
+        run: deploy/deploy.sh
