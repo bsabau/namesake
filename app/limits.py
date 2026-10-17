@@ -1,10 +1,10 @@
 """Limits on live work: runs that call the model or Qloo, and new custom locations.
 
-Each visitor gets a few per hour, counted in memory and forgotten an hour after
-the visitor's last start, so the table only ever holds the visitors active in the
-last hour. The whole app gets a daily cap, counted in the cache database so a
-restart does not reset it. Results that were made before cost nothing and are
-never limited.
+Each visitor gets a few per hour, counted in memory. Each recorded start sweeps
+out the visitors whose last start is over an hour old, so the table stays the size
+of the visitors active in the last hour. The whole app gets a daily cap, counted in
+the cache database so a restart does not reset it. Results that were made before
+cost nothing and are never limited.
 
 The lock makes check-and-count atomic within the one web process the app runs as.
 """
@@ -76,9 +76,8 @@ class Limits:
                 )
 
     def visitors_tracked(self) -> int:
-        """How many visitors have a start in the last hour."""
+        """How many visitors the table holds right now, without sweeping it."""
         with self._lock:
-            self._sweep()
             return len(self._recent)
 
     def _recent_for(self, visitor: str) -> deque[float]:

@@ -383,15 +383,15 @@ def test_the_limiter_forgets_visitors_an_hour_after_their_last_start(tmp_path):
     limits.charge("a", "run")
     with pytest.raises(LimitReached, match="in the last hour"):
         limits.charge("a", "run")
-    # A refused visitor leaves no entry, whichever limit refused them.
+    # A visitor the daily cap refuses leaves no entry.
     limits.charge("b", "run")
     with pytest.raises(LimitReached, match="today's limit"):
         limits.charge("scanner", "run")
     assert limits.visitors_tracked() == 2
-    # An hour later both are forgotten, so the table never grows past the active visitors.
+    # An hour later, the next recorded start sweeps both out, so the table never
+    # grows past the visitors active in the last hour.
     now[0] += 3601
-    assert limits.visitors_tracked() == 0
-    limits.charge("a", "location")
+    limits.charge("c", "location")
     assert limits.visitors_tracked() == 1
 
 
