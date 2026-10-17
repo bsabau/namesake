@@ -345,10 +345,13 @@ def test_saved_listings_with_lookalike_names_are_rerun_under_the_new_checks(tmp_
         )
         return store.get_listing(animal, "x")
 
-    assert saved("a", plain, CHECKS_VERSION - 1) is not None
-    assert saved("b", looks, CHECKS_VERSION - 1) is None
-    assert saved("c", looks, CHECKS_VERSION) is not None
-    assert saved("d", plain, CHECKS_VERSION - 2) is None
+    # Only the lookalike checks changed after version 5, so plain listings from 5 on hold.
+    assert saved("a", plain, 5) is not None
+    assert saved("b", plain, CHECKS_VERSION - 1) is not None
+    assert saved("c", plain, 4) is None
+    # A listing with a lookalike name is rerun unless it passed today's checks.
+    assert saved("d", looks, CHECKS_VERSION - 1) is None
+    assert saved("e", looks, CHECKS_VERSION) is not None
 
 
 def test_the_profile_agents_choice_reason_is_screened_too(roster):
@@ -373,6 +376,22 @@ def test_asking_again_about_another_animal_records_that_animal(roster):
     ctx = SimpleNamespace(deps=d)
     look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"])
     look_up_lookalike(ctx, "Example Dog Film", "movie", "Max", ["brindle"])
-    assert d.lookalikes[DOG_FILM].animal == "Max" and d.lookups == 2
+    # One request to Qloo; the record names the animal asked about last.
+    assert d.lookalikes[DOG_FILM].animal == "Max" and d.lookups == 1 and len(d.qloo.calls) == 1
     max_ = NameOption(**{**REX, "name": "Max", "character": "Max"})
     assert check_lookalike(max_, d.lookalikes[DOG_FILM]) == []
+    # Codex: Rex, then Max, then Rex again must leave Rex recorded.
+    look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"])
+    assert d.lookalikes[DOG_FILM].animal == "Rex"
+    assert check_lookalike(NameOption(**REX), d.lookalikes[DOG_FILM]) == []
+
+
+def test_a_failed_request_is_not_sent_again_for_another_animal(roster):
+    # Codex: keying failures by animal re-sent an identical failed request.
+    d = deps(roster)
+    d.qloo.script = {}
+    ctx = SimpleNamespace(deps=d)
+    look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"])
+    d.qloo.script = film_script()
+    again = look_up_lookalike(ctx, "Example Dog Film", "movie", "Max", ["brindle"])
+    assert again["status"].startswith("unavailable") and len(d.qloo.calls) == 1

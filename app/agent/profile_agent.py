@@ -255,7 +255,7 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
         if t.entity_id not in deps.titles_seen:
             problems.append(f"title {t.entity_id} was not returned by look_up_title")
         elif deps.ambiguous.get(t.entity_id) and not t.choice_reason:
-            problems.append(f"title {t.entity_id} had several candidates; give choice_reason")
+            problems.append(f"title {t.entity_id} came back as candidates; give choice_reason")
         if t.choice_reason:
             problems += check_choice_reason(t.choice_reason, f"the choice_reason for {t.entity_id}")
     for v in plan.venues:

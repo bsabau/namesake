@@ -11,7 +11,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ValidationError
 
-from app.agent.results import CHECKS_VERSION, LOOKALIKE_CHECKS_FROM, ListingResult
+from app.agent.results import CHECKS_VERSION, PLAIN_LISTINGS_FROM, ListingResult
 from app.locations import Location
 from app.profile import LocationProfile
 
@@ -161,4 +161,4 @@ def _current(result: ListingResult) -> bool:
     if result.draft is None or result.checks_version == CHECKS_VERSION:
         return True
     lookalike = any(o.source == "lookalike" for o in result.draft.names)
-    return result.checks_version == LOOKALIKE_CHECKS_FROM - 1 and not lookalike
+    return result.checks_version >= PLAIN_LISTINGS_FROM and not lookalike

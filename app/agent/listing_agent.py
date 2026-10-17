@@ -65,8 +65,9 @@ class ListingDeps:
     qloo: QlooClient | None = None
     lookups: int = 0
     lookalikes: dict[str, Lookalike] = field(default_factory=dict)
-    # Each lookup's answer by (title, kind, animal), so asking twice costs one lookup.
-    answers: dict[tuple[str, str, str], dict[str, Any]] = field(default_factory=dict)
+    # Each Qloo answer by (title, kind) with the titles it found, so a request is sent
+    # once per run whichever animal the agent names.
+    answers: dict[tuple[str, str], tuple[dict[str, Any], list]] = field(default_factory=dict)
 
     @property
     def strict(self) -> bool:
@@ -200,12 +201,6 @@ def look_up_lookalike(
     deps = ctx.deps
     if deps.qloo is None or deps.litter_title or deps.first_of_litter:
         return {"status": "unavailable: lookalike titles are not used for this listing"}
-    asked = (title.strip().lower(), kind, animal_in_it.strip().lower())
-    if asked in deps.answers:
-        # Asked again, often after a repair: the same answer, not another lookup.
-        return deps.answers[asked]
-    if deps.lookups >= MAX_LOOKALIKE_LOOKUPS:
-        return {"status": f"unavailable: at most {MAX_LOOKALIKE_LOOKUPS} lookups per listing"}
     record = look_words(deps.animal.look)
     quoted = [w.strip() for w in shared_look if w.strip()]
     missing = [w for w in quoted if not look_words(w) or not look_words(w) <= record]
@@ -215,31 +210,26 @@ def look_up_lookalike(
             "status": "refused: shared_look must quote distinctive words from the recorded "
             f"look ({deps.animal.look!r})" + (f"; not in it: {missing}" if missing else "")
         }
-    deps.lookups += 1
-    deps.log.add(
-        "qloo",
-        f"Looking up “{title}” ({kind.replace('_', ' ')}) in Qloo: {animal_in_it} shares "
-        f"this {deps.animal.species}'s look ({', '.join(quoted)})",
-    )
-    answer = _look_up(deps, title, kind, animal_in_it, quoted)
-    # Failures are remembered too: QlooClient already retried a retryable error once, and
-    # a call Qloo marked not retryable must not be sent again.
-    deps.answers[asked] = answer
-    return answer
-
-
-def _look_up(
-    deps: ListingDeps, title: str, kind: str, animal_in_it: str, quoted: list[str]
-) -> dict[str, Any]:
-    env = qloo_call(deps, "describe", {"entity": title, "type": kind})
-    if isinstance(env, str):
-        deps.log.add("note", f"“{title}”: {env}")
-        return {"status": env}
-
-    def keep(entity: Entity, candidates: int, chosen: bool) -> None:
+    # Qloo's answer depends only on the request; the animal is recorded on every ask, so
+    # asking again about another animal (or back) records the one asked about last.
+    asked = (title.strip().lower(), kind)
+    if asked not in deps.answers:
+        if deps.lookups >= MAX_LOOKALIKE_LOOKUPS:
+            return {"status": f"unavailable: at most {MAX_LOOKALIKE_LOOKUPS} lookups per listing"}
+        deps.lookups += 1
+        deps.log.add(
+            "qloo",
+            f"Looking up “{title}” ({kind.replace('_', ' ')}) in Qloo: {animal_in_it} shares "
+            f"this {deps.animal.species}'s look ({', '.join(quoted)})",
+        )
+        # Failures are remembered too: QlooClient already retried a retryable error once,
+        # and a call Qloo marked not retryable must not be sent again.
+        deps.answers[asked] = _look_up(deps, title, kind)
+    answer, found = deps.answers[asked]
+    for entity, candidates, chosen in found:
         if entity.id in deps.titles and deps.titles[entity.id][1] != "lookalike":
             # Already offered from the profile: it keeps that source and its rules.
-            return
+            continue
         deps.lookalikes[entity.id] = Lookalike(
             entity=entity,
             animal=animal_in_it,
@@ -248,21 +238,34 @@ def _look_up(
             chosen=chosen,
         )
         deps.titles[entity.id] = (entity, "lookalike")
+    return answer
 
+
+Found = list[tuple[Entity, int, bool]]
+
+
+def _look_up(deps: ListingDeps, title: str, kind: str) -> tuple[dict[str, Any], Found]:
+    """One describe call: the answer for the agent, and the titles found, each with how
+    many candidates Qloo offered and whether the agent has to choose (needs_input)."""
+    env = qloo_call(deps, "describe", {"entity": title, "type": kind})
+    if isinstance(env, str):
+        deps.log.add("note", f"“{title}”: {env}")
+        return {"status": env}, []
     if env.status == "needs_input":
-        found = []
-        for c in env.candidates:
-            keep(
-                Entity(id=c.id, name=c.name, type=c.type, description=c.description),
-                len(env.candidates),
-                chosen=True,
-            )
-            found.append({"entity_id": c.id, "name": c.name, "description": c.description})
-        deps.log.add("qloo", f"“{title}” is ambiguous: {len(found)} candidates")
-        return {"status": "ambiguous", "candidates": found}
+        n = len(env.candidates)
+        found = [
+            (Entity(id=c.id, name=c.name, type=c.type, description=c.description), n, True)
+            for c in env.candidates
+        ]
+        deps.log.add("qloo", f"“{title}” is ambiguous: {n} candidates")
+        candidates = [
+            {"entity_id": c.id, "name": c.name, "description": c.description}
+            for c in env.candidates
+        ]
+        return {"status": "ambiguous", "candidates": candidates}, found
     if not env.has_results:
         deps.log.add("qloo", f"Qloo has nothing for “{title}”")
-        return {"status": "not found"}
+        return {"status": "not found"}, []
     r = env.results[0]
     props = r.get("properties") or {}
     entity = Entity(
@@ -271,9 +274,8 @@ def _look_up(
         type=r.get("type", f"urn:entity:{kind}"),
         description=props.get("short_description") or props.get("description"),
     )
-    keep(entity, 1, chosen=False)
     deps.log.add("qloo", f"Found “{entity.name}”")
-    return {"status": "found", "entity_id": entity.id, "name": entity.name}
+    return {"status": "found", "entity_id": entity.id, "name": entity.name}, [(entity, 1, False)]
 
 
 def check_lookalike(option: "NameOption", look: Lookalike) -> list[str]:
