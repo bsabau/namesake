@@ -15,7 +15,7 @@ from pydantic_ai import Agent, ModelRetry, NativeOutput, PromptedOutput, RunCont
 from pydantic_ai.models import Model
 
 from app.agent import checks
-from app.agent.profile_agent import TitleKind, qloo_call
+from app.agent.profile_agent import StoryKind, qloo_call
 from app.agent.steps import StepLog
 from app.animals import Animal
 from app.listing import age_phrase, check_sentences, pronouns
@@ -40,7 +40,9 @@ class Lookalike(BaseModel):
     # recorded look it shares; code checked the words are in the record.
     animal: str
     shared_look: list[str]
-    # How many entries Qloo had under that name; above 1, the agent chose one.
+    # True when Qloo answered needs_input and the agent chose among its candidates,
+    # even if there was only one: Qloo did not resolve the title on its own.
+    chosen: bool = False
     candidates: int = 1
 
 
@@ -91,7 +93,7 @@ class NameOption(BaseModel):
     why: str = Field(description="One sentence on why it suits this animal's look or facts.")
     choice_reason: str | None = Field(
         default=None,
-        description="For a lookalike title where Qloo offered several candidates: why this one.",
+        description="For a lookalike title where Qloo returned candidates: why this one.",
     )
 
 
@@ -186,7 +188,7 @@ def look_names(text: str) -> list[str]:
 def look_up_lookalike(
     ctx: RunContext[ListingDeps],
     title: str,
-    kind: TitleKind,
+    kind: StoryKind,
     animal_in_it: str,
     shared_look: list[str],
 ) -> dict[str, Any]:
@@ -220,7 +222,9 @@ def look_up_lookalike(
         f"this {deps.animal.species}'s look ({', '.join(quoted)})",
     )
     answer = _look_up(deps, title, kind, animal_in_it, quoted)
-    deps.answers[asked] = answer
+    if not answer["status"].startswith("unavailable"):
+        # A failed call (a rate limit, say) may succeed when asked again after a repair.
+        deps.answers[asked] = answer
     return answer
 
 
@@ -232,12 +236,16 @@ def _look_up(
         deps.log.add("note", f"“{title}”: {env}")
         return {"status": env}
 
-    def keep(entity: Entity, candidates: int) -> None:
+    def keep(entity: Entity, candidates: int, chosen: bool) -> None:
         if entity.id in deps.titles:
             # Already offered from the profile: it keeps that source and its rules.
             return
         deps.lookalikes[entity.id] = Lookalike(
-            entity=entity, animal=animal_in_it, shared_look=quoted, candidates=candidates
+            entity=entity,
+            animal=animal_in_it,
+            shared_look=quoted,
+            candidates=candidates,
+            chosen=chosen,
         )
         deps.titles[entity.id] = (entity, "lookalike")
 
@@ -247,6 +255,7 @@ def _look_up(
             keep(
                 Entity(id=c.id, name=c.name, type=c.type, description=c.description),
                 len(env.candidates),
+                chosen=True,
             )
             found.append({"entity_id": c.id, "name": c.name, "description": c.description})
         deps.log.add("qloo", f"“{title}” is ambiguous: {len(found)} candidates")
@@ -262,29 +271,38 @@ def _look_up(
         type=r.get("type", f"urn:entity:{kind}"),
         description=props.get("short_description") or props.get("description"),
     )
-    keep(entity, 1)
+    keep(entity, 1, chosen=False)
     deps.log.add("qloo", f"Found “{entity.name}”")
     return {"status": "found", "entity_id": entity.id, "name": entity.name}
 
 
 def check_lookalike(option: "NameOption", look: Lookalike) -> list[str]:
     problems = []
-    # "Scooby" and "Scooby-Doo" name the same animal: one's words start the other's.
-    said, animal = look_names(option.character), look_names(look.animal)
-    shorter, longer = sorted((said, animal), key=len)
-    if not shorter or longer[: len(shorter)] != shorter:
-        problems.append(
-            f"name {option.name!r}: its character {option.character!r} must be "
-            f"{look.animal}, the lookalike you looked up in {look.entity.name}"
-        )
+    for what, text in (("character", option.character), ("name", option.name)):
+        if not same_animal(text, look.animal):
+            problems.append(
+                f"name {option.name!r}: its {what} {text!r} must be {look.animal}, the "
+                f"lookalike you looked up in {look.entity.name}"
+            )
     if option.role not in ANIMAL_ROLES:
         problems.append(f"name {option.name!r}: a lookalike name is the animal's own name")
-    if look.candidates > 1 and not option.choice_reason:
+    if look.chosen and not option.choice_reason:
         problems.append(
-            f"name {option.name!r}: Qloo had several entries for {look.entity.name}; "
+            f"name {option.name!r}: Qloo asked which {look.entity.name} you meant; "
             "give choice_reason"
         )
+    if option.choice_reason:
+        problems += checks.check_choice_reason(
+            option.choice_reason, f"the choice_reason for {option.name!r}"
+        )
     return problems
+
+
+def same_animal(said: str, animal: str) -> bool:
+    """ "Scooby" and "Scooby-Doo" name the same animal: one's words start the other's."""
+    a, b = look_names(said), look_names(animal)
+    shorter, longer = sorted((a, b), key=len)
+    return bool(shorter) and longer[: len(shorter)] == shorter
 
 
 def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDraft:

@@ -356,6 +356,26 @@ def check_character(character: str, role: str) -> list[str]:
     return problems
 
 
+# A reason for choosing among Qloo's candidates names the work (year, kind, plot), never
+# what people like: it is shown as our reading in the Why panel.
+CHOICE_CLAIMS = HOOK_CLAIMS + (
+    "popular", "local", "locals", "people", "audience", "neighbourhood", "neighborhood",
+)  # fmt: skip
+
+
+def check_choice_reason(reason: str, label: str) -> list[str]:
+    problems = []
+    claim = find_word(reason, CHOICE_CLAIMS)
+    if claim:
+        problems.append(
+            f"{label} makes a claim about tastes ({claim!r}); say which work it is instead"
+        )
+    trait = find_word(reason, HOOK_TRAIT_WORDS)
+    if trait:
+        problems.append(f"{label} describes temperament ({trait!r}); say which work it is")
+    return problems
+
+
 def check_hook(hook: str) -> list[str]:
     problems = []
     if len(re.findall(r"[.!?](\s|$)", ABBREVIATIONS.sub(r"\1", hook.strip()))) > 1:

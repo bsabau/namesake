@@ -302,7 +302,7 @@ def name_badge(
 ) -> str:
     """Claim local strength only where Qloo's ranking for this area says so."""
     if source == "lookalike":
-        return f"Has a lookalike in {title}"
+        return f"Has a lookalike in {title}" if title else "Has a lookalike"
     if source == "local":
         return "Watched locally"
     if entity_id in profile.ranked:
@@ -559,18 +559,24 @@ def lookalike_why(
         e = look.entity
         kind = e.type.removeprefix("urn:entity:").replace("_", " ")
         found = "Found in Qloo. "
-        if look.candidates > 1:
-            found = f"Qloo has {look.candidates} entries with this name. "
+        if look.chosen:
+            several = f"{look.candidates} candidates" if look.candidates > 1 else "one candidate"
+            found = f"Qloo asked which title was meant and offered {several}. "
         returned.append(
             WhyItem(title=f"{e.name} ({kind})", detail=found + sentences(e.description))
         )
+        qloo_part = (
+            "the agent chose this title among Qloo's candidates"
+            if look.chosen
+            else "Qloo confirmed the title"
+        )
         detail = (
             f"{look.animal} in it shares this {animal.species}'s recorded look: "
-            f"{and_list(look.shared_look)}. That match is the agent's reading; Qloo confirmed "
-            "the title, not how its animals look."
+            f"{and_list(look.shared_look)}. That match is the agent's reading; {qloo_part}, "
+            "not how its animals look."
         )
-        if reasons.get(e.id):
-            detail += f" {cap(reasons[e.id].rstrip('.'))}."
+        if look.chosen and reasons.get(e.id):
+            detail += f" Why this one: {reasons[e.id].rstrip('.')}."
         reading.append(WhyItem(title=f"Why {e.name}", detail=detail))
     return returned, reading
 

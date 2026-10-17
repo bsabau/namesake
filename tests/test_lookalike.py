@@ -40,7 +40,7 @@ REX = {
 }
 
 
-def film_script(ambiguous: bool = False):
+def film_script(ambiguous: bool = False, single: bool = False):
     script = full_script()
     if ambiguous:
         script[key("describe", FILM_LOOKUP)] = envelope(
@@ -64,7 +64,7 @@ def film_script(ambiguous: bool = False):
                                 "type": "urn:entity:movie",
                                 "description": "A different made-up film (1950).",
                             },
-                        ],
+                        ][: 1 if single else 2],
                     }
                 ]
             },
@@ -126,7 +126,7 @@ def deps(roster, animal="dog-02", **kw) -> ListingDeps:
         animal=roster.get(animal),
         titles={},
         log=StepLog(),
-        qloo=FakeQloo(film_script(kw.pop("ambiguous", False))),
+        qloo=FakeQloo(film_script(kw.pop("ambiguous", False), kw.pop("single", False))),
         **kw,
     )
 
@@ -246,5 +246,90 @@ def test_a_longer_form_of_the_lookalikes_name_is_the_same_animal(roster):
     longer = NameOption(**{**REX, "character": "Rex-Max"})
     assert check_lookalike(longer, look) == []
     other = NameOption(**{**REX, "name": "Max", "character": "Max"})
-    [problem] = check_lookalike(other, look)
-    assert "its character 'Max' must be Rex" in problem
+    assert any("its character 'Max' must be Rex" in p for p in check_lookalike(other, look))
+
+
+LOOK = Lookalike(
+    entity=Entity(id=DOG_FILM, name="Example Dog Film", type="urn:entity:movie"),
+    animal="Rex",
+    shared_look=["brindle"],
+)
+
+
+def test_the_offered_name_must_be_the_lookalikes_own():
+    # Codex: name "John" with character "Rex" passed the strict screen.
+    john = NameOption(**{**REX, "name": "John"})
+    problems = check_lookalike(john, LOOK)
+    assert any("its name 'John' must be Rex" in p for p in problems)
+    assert check_lookalike(NameOption(**{**REX, "name": "Rex"}), LOOK) == []
+
+
+def test_a_single_needs_input_candidate_is_a_choice_not_a_confirmation(roster):
+    # Codex: one candidate passed without a reason and showed as "Found in Qloo".
+    d = deps(roster, ambiguous=True, single=True)
+    look_up_lookalike(SimpleNamespace(deps=d), "Example Dog Film", "movie", "Rex", ["brindle"])
+    look = d.lookalikes[DOG_FILM]
+    assert look.chosen and look.candidates == 1
+    assert any("give choice_reason" in p for p in check_lookalike(NameOption(**REX), look))
+
+    rex = {**REX, "choice_reason": "the 1989 film"}
+    result, store, _ = run(
+        LookalikeScript([PLAN], [{**DRAFT, "names": [*DRAFT["names"], rex]}]),
+        roster,
+        qloo=FakeQloo(film_script(ambiguous=True, single=True)),
+    )
+    profile = store.get_profile(LOCATION.id, "dog")
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile, result)
+    returned = {i.title: i.detail for i in view.qloo_returned}
+    reading = {i.title: i.detail for i in view.our_reading}
+    assert returned["Example Dog Film (movie)"].startswith(
+        "Qloo asked which title was meant and offered one candidate."
+    )
+    assert "Found in Qloo" not in returned["Example Dog Film (movie)"]
+    why = reading["Why Example Dog Film"]
+    assert "the agent chose this title among Qloo's candidates" in why
+    assert "Qloo confirmed" not in why and why.endswith("Why this one: the 1989 film.")
+
+
+def test_lookalikes_come_only_from_stories():
+    # muse: a brand is not a story with an animal in it.
+    from typing import get_args
+
+    from app.agent.profile_agent import StoryKind
+
+    assert set(get_args(StoryKind)) == {"tv_show", "movie", "book"}
+
+
+def test_a_lookalike_badge_without_a_title_still_reads():
+    from app.views.build import name_badge
+
+    assert name_badge("lookalike", DOG_FILM, None, None) == "Has a lookalike"
+
+
+def test_a_choice_reason_cannot_carry_a_taste_claim():
+    # muse: the reason is shown as our reading, so it may only say which work it is.
+    from app.agent.checks import check_choice_reason
+
+    taste = NameOption(**REX, choice_reason="because locals love it")
+    assert any("claim about tastes" in p for p in check_lookalike(taste, LOOK))
+    assert check_choice_reason("the 1989 film, not the 1950 one", "x") == []
+    assert check_choice_reason("the playful one", "x")
+
+
+def test_a_failed_lookup_is_tried_again_when_asked_again(roster):
+    # muse: a rate limit was remembered, so the retry after a repair failed too.
+    d = deps(roster)
+    d.qloo.script = {}
+    ctx = SimpleNamespace(deps=d)
+    first = look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"])
+    assert first["status"].startswith("unavailable")
+    d.qloo.script = film_script()
+    second = look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"])
+    assert second["status"] == "found" and len(d.qloo.calls) == 2
+
+
+def test_the_profile_agents_choice_reason_is_screened_too(roster):
+    titles = [{**PLAN["titles"][0], "choice_reason": "the one locals love"}, *PLAN["titles"][1:]]
+    _, store, log = run(Script([{**PLAN, "titles": titles}, PLAN], [DRAFT]), roster)
+    assert any("makes a claim about tastes" in s.text for s in log.steps)
+    assert store.get_profile(LOCATION.id, "dog").made_by == "agent"

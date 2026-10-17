@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent, ModelRetry, NativeOutput, PromptedOutput, RunContext, ToolOutput
 from pydantic_ai.models import Model
 
+from app.agent.checks import check_choice_reason
 from app.agent.steps import StepLog
 from app.locations import Location
 from app.profile import VENUE_LIMIT, Entity, rank_band, screen
@@ -19,6 +20,8 @@ from app.qloo.envelope import Envelope
 from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
 
 TitleKind = Literal["tv_show", "movie", "book", "brand"]
+# A lookalike is an animal in a story, so brands are left out.
+StoryKind = Literal["tv_show", "movie", "book"]
 MAX_RANKED = 5
 MAX_VENUE_SIGNALS = 3
 MAX_VENUES = 3
@@ -253,6 +256,8 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
             problems.append(f"title {t.entity_id} was not returned by look_up_title")
         elif deps.ambiguous.get(t.entity_id) and not t.choice_reason:
             problems.append(f"title {t.entity_id} had several candidates; give choice_reason")
+        if t.choice_reason:
+            problems += check_choice_reason(t.choice_reason, f"the choice_reason for {t.entity_id}")
     for v in plan.venues:
         info = deps.venues_seen.get(v.entity_id)
         if info is None:
