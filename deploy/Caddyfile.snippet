@@ -1,0 +1,7 @@
+# Added to the host's existing Caddyfile. Caddy gets and renews the certificate itself.
+namesake.bogdansabau.eu {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+	header -Server
+	reverse_proxy namesake:8000
+}

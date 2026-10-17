@@ -1,0 +1,22 @@
+# Production: one Namesake container behind a Caddy that already serves the host's
+# ports 80 and 443 (see deploy/README.md). Lives on the server as /opt/namesake/compose.yml,
+# next to src/ (the committed source), var/ (the private cache) and .env (keys, mode 600).
+name: namesake
+
+services:
+  app:
+    build: ./src
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      # The SQLite cache, saved results and approvals: private to the server, never in git.
+      - ./var:/app/var
+    networks:
+      proxy:
+        aliases: [namesake]
+    # No published port: only the proxy reaches the app, as namesake:8000.
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:?set PROXY_NETWORK in .env to the Caddy container's Docker network}
