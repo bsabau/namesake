@@ -77,7 +77,11 @@ fi
 echo "→ Preparing the cache folder"
 seed_args=""
 [ -n "$SEED" ] && seed_args="--seed /upload/cache.sqlite"
-remote "docker compose run --rm --no-deps --user root -v $D/upload:/upload:ro -v $D/src/deploy:/deploy:ro --entrypoint python app /deploy/prepare_var.py /app/var $seed_args"
+if ! remote "docker compose run --rm --no-deps --user root -v $D/upload:/upload:ro -v $D/src/deploy:/deploy:ro --entrypoint python app /deploy/prepare_var.py /app/var $seed_args"; then
+  echo "✗ The cache folder could not be prepared; restoring the previous source. The running version is unchanged."
+  remote "if [ -d src.prev ]; then rm -rf src && mv src.prev src; fi; rm -f upload/cache.sqlite"
+  exit 1
+fi
 
 echo "→ Restarting"
 remote "docker compose up -d --remove-orphans"
