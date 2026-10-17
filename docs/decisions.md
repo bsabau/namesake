@@ -31,7 +31,7 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 **Decided:**
 - The agent ranks at most 5 resolved titles with one `rank` call per profile.
 - If that call fails, the agent keeps its own order and the profile says so.
-- It never retries `rank` beyond the client's single retry.
+- It never retries `rank` beyond the client's retries. Revised 18 October (decision 20): the client gives `rank` two retries after a rate limit, 20 and 40 seconds apart, because a refusal costs the titles their order and one retry after 5 seconds was not enough at the 2-second spacing; still never more, and only when Qloo marks the error retryable.
 
 **Why:**
 - `rank` with ten options was refused four times in a row, while other workflows sent in between went through. It seems to cost more than other calls.
@@ -273,7 +273,7 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** lists cannot be complete. The model is still told to avoid real people and identity-coded names, and the volunteer chooses and approves; the lists catch the famous cases when the model does not.
 
-## 20. Pet titles from the area's own lists, sorted by a classifier; the Qloo spacing lowered
+## 20. Pet titles from the area's own lists, sorted by a classifier; the Qloo spacing revisited
 
 **Decided** (the author, 17 October, after the probes in `docs/qloo-findings.md`: "lets do it now, also the limit change"):
 - Namesake's AI gets a fourth tool, `find_local_titles`: for one of its found pet titles and a kind (TV, films, books), `recommend` with that title as the signal plus `signal_location`, 20 results: what people around the area who like it also like. Up to three searches per profile. The titles found join the AI's own in the one `rank` call for the area, now up to 8 titles.

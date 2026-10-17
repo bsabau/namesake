@@ -85,11 +85,11 @@ def test_a_rate_limit_waits_longer_than_other_retryable_errors(cache):
             },
         }
     )
-    for first, wait in ((fixture("error__retryable"), 20), (upstream, 5)):
+    for n, (first, wait) in enumerate(((fixture("error__retryable"), 20), (upstream, 5))):
         runner = FakeRunner((first, 1), (fixture("where_popular__ok"), 0))
         slept = []
         QlooClient(cache, runner=runner, sleep=slept.append, min_interval=0, env={}).run(
-            "where_popular", {**INPUT, "limit": wait}
+            "where_popular", {**INPUT, "limit": n + 1}
         )
         assert slept == [wait]
 
@@ -226,3 +226,32 @@ def test_slots_are_reserved_atomically_across_processes(tmp_path):
 
 def _reserve(path, now):
     return Cache(path).reserve_live_slot(now, 5)
+
+
+def test_rank_with_a_non_retryable_error_makes_one_call(cache):
+    runner = FakeRunner((fixture("error__not_retryable"), 1))
+    qloo = client(cache, runner)
+    assert qloo.run("rank", {"options": ["x"], "option_type": "tv_show"}).status == "error"
+    assert len(runner.calls) == 1
+
+
+def test_rank_waits_by_kind_of_error_on_each_retry(cache):
+    upstream = json.dumps(
+        {
+            "operation": "rank",
+            "status": "error",
+            "error": {
+                "code": "QLOO_UPSTREAM_5XX",
+                "layer": "qloo",
+                "retryable": True,
+                "recovery": "Retry the same request once.",
+            },
+        }
+    )
+    runner = FakeRunner((upstream, 1), (upstream, 1), (upstream, 1))
+    slept = []
+    qloo = QlooClient(
+        cache, runner=runner, sleep=slept.append, retry_delay=3, min_interval=0, env={}
+    )
+    env = qloo.run("rank", {"options": ["y"], "option_type": "tv_show"})
+    assert env.status == "error" and len(runner.calls) == 3 and slept == [3, 6]
