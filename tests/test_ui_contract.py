@@ -138,3 +138,10 @@ def test_add_animal_screen_meets_the_contract(client, ui):
     html = client.get("/animals/new", params={"location": "park-slope", "ui": ui}).text
     for role in REQUIRED["add_animal"]:
         assert f'data-role="{role}"' in html, f"{ui} add animal: missing {role}"
+
+
+def test_ui_files_are_linked_with_their_version(client):
+    # A script cached from before a deploy kept running against the new page.
+    page = client.get("/").text
+    version = main.static_version("classic")
+    assert f"location-map.js?v={version}" in page and f"style.css?v={version}" in page

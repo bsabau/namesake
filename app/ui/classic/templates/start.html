@@ -33,10 +33,14 @@
   <section class="where">
     <fieldset class="locations">
       <legend><h2>Where is the shelter?</h2></legend>
+      {% if view.location_form.message %}
+      {# A failed area check: said where the visitor will see it, and no area stays chosen. #}
+      <p class="location-alert" id="location-alert" role="alert">{{ view.location_form.message }}</p>
+      {% endif %}
       <div class="location-options">
         {% for location in view.locations %}
         <label class="location-option">
-          <input type="radio" name="location" value="{{ location.id }}"
+          <input type="radio" name="location" value="{{ location.id }}" required
                  {% if location.selected %}checked{% endif %}>
           <span class="location-label">{{ location.label }}</span>
           <span class="location-region">{{ location.region }}</span>
@@ -59,9 +63,6 @@
           <button type="submit" form="custom-location">Check with Qloo</button>
         </div>
         <p class="hint">{{ view.location_form.hint }}</p>
-        {% if view.location_form.message %}
-        <p class="form-message" role="status">{{ view.location_form.message }}</p>
-        {% endif %}
         {% if view.location_form.candidates %}
         <div class="candidates" data-role="candidates">
           {% for candidate in view.location_form.candidates %}

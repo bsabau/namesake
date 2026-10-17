@@ -11,7 +11,16 @@
 
   const points = Object.fromEntries(JSON.parse(data.textContent).map((p) => [p.id, p]));
   const checked = document.querySelector('input[name="location"]:checked');
-  const start = points[checked ? checked.value : Object.keys(points)[0]];
+  // After a failed area check nothing is selected: stay on the spot the visitor picked.
+  const pinLat = document.getElementById("pin-lat");
+  const pinLon = document.getElementById("pin-lon");
+  const first = points[Object.keys(points)[0]];
+  const pending = !checked && pinLat && pinLat.value
+    ? { ...first, label: "the spot you picked", pin: { latitude: Number(pinLat.value), longitude: Number(pinLon.value) } }
+    : null;
+  const start = pending || points[checked ? checked.value : Object.keys(points)[0]];
+  const alert = document.getElementById("location-alert");
+  if (alert) alert.scrollIntoView({ block: "center" });
   const note = document.getElementById("map-note");
 
   // The visitor's pin, when they picked one for this area; else the area's centre.
@@ -64,8 +73,6 @@
   const pickUrl = container.dataset.pickUrl;
   const field = document.getElementById("custom-location-text");
   const form = document.getElementById("custom-location");
-  const pinLat = document.getElementById("pin-lat");
-  const pinLon = document.getElementById("pin-lon");
   if (!pickUrl || !field || !form || !pinLat || !pinLon) return;
 
   // Typing a different area drops a spot picked earlier: it belonged to that lookup.

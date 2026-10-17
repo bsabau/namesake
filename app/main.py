@@ -6,6 +6,7 @@ profile comes from the cache and recordings, built ahead by
 `scripts/build_profiles.py`.
 """
 
+import hashlib
 import json
 import re
 import uuid
@@ -120,9 +121,20 @@ def pick_ui(requested: str | None) -> str:
     return ui
 
 
+@cache
+def static_version(ui: str) -> str:
+    """A short hash of a UI's static files. Links carry it, so a deploy that changes a
+    script or stylesheet gives it a new URL and no browser keeps running the old one."""
+    digest = hashlib.sha256()
+    for path in sorted((UI_ROOT / ui / "static").rglob("*")):
+        if path.is_file():
+            digest.update(path.name.encode() + path.read_bytes())
+    return digest.hexdigest()[:10]
+
+
 def render(request: Request, ui: str, template: str, view, **extra) -> HTMLResponse:
     def ui_static(path: str) -> str:
-        return f"/ui/{ui}/static/{path}"
+        return f"/ui/{ui}/static/{path}?v={static_version(ui)}"
 
     # Links keep the chosen UI only when it was asked for explicitly.
     ui_query = f"&ui={ui}" if request.query_params.get("ui") else ""
@@ -259,7 +271,10 @@ def start_view(
     form: LocationForm | None = None,
     ui_query: str = "",
     pin_far: bool = False,
+    select_none: bool = False,
 ) -> StartView:
+    """`select_none` after a failed area check: no area stays selected, so the visitor
+    cannot go on with a preset they did not choose."""
     settings = get_settings()
     store = Store(settings.cache_db)
     locations = load_locations(settings.locations_file)
@@ -282,7 +297,7 @@ def start_view(
     view = build_start_view(
         load_roster(settings.animals_file),
         locations,
-        selected.id,
+        "" if select_none else selected.id,
         examples=example_links(ready, ui_query),
         added=added,
         pins=session.pins if session else None,
@@ -774,7 +789,7 @@ def add_location(
     kept = {"pin_lat": str(pin[0]), "pin_lon": str(pin[1])} if pin else {}
 
     def back(form: LocationForm, status: int) -> HTMLResponse:
-        view = start_view(None, session_of(request), form, ui_suffix(request, ui))
+        view = start_view(None, session_of(request), form, ui_suffix(request, ui), select_none=True)
         response = render(request, chosen_ui, "start.html", view)
         response.status_code = status
         return response

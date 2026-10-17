@@ -334,3 +334,18 @@ def test_a_pin_far_from_the_area_or_not_a_number_is_dropped(client):  # noqa: F8
     for lat, lon in [("51.5", "-0.12"), ("nan", "nan"), ("", ""), ("x", "1")]:
         client.post("/locations", data={"text": text, "pin_lat": lat, "pin_lon": lon})
         assert option(client, loc_id)["pin"] is None
+
+
+def test_a_failed_area_check_leaves_no_area_chosen(client, monkeypatch):  # noqa: F811
+    # The author: whatever was chosen on the map, Park Slope was still checked, since a
+    # failed check came back with the first preset selected and the message out of view.
+    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo({}))
+    page = client.post(
+        "/locations", data={"text": "Example Gardens", "pin_lat": "40.6", "pin_lon": "-73.9"}
+    )
+    assert page.status_code == 503
+    assert 'id="location-alert" role="alert"' in page.text
+    assert (
+        " checked>" not in page.text and 'name="location" value="park-slope" required' in page.text
+    )
+    assert 'name="pin_lat" value="40.6"' in page.text
