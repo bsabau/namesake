@@ -44,7 +44,7 @@ A **Why** drawer separates "Qloo returned" from "How Namesake read it" for every
 
 - **Pet tags weren't enough.** Filtering TV and film to Qloo's pet tags left two shows and no films. Namesake's AI now proposes titles and Qloo verifies them.
 - **Names are ambiguous.** 6 of 10 pet-show names came back as candidates: *Bluey* is a children's series and a 1976 crime drama. Choosing with a stated reason became a real agent step, and any `needs_input` answer is shown as the choice of Namesake's AI, never as a confirmed match.
-- **Popular is not the same as pet-loving.** 9 of the first 15 venues near Park Slope also came back for *Yellowstone*. Comparing against a baseline turned a list of popular places into evidence.
+- **Popular is not the same as pet-loving.** 9 of the first 15 venues near Park Slope also came back for *Yellowstone*, an unrelated show. Comparing against a baseline turned a list of popular places into evidence, and the baseline is now the area's own top shows, so a place stands out for pet-show fans against what that neighbourhood watches anyway.
 - **The rate limit.** About 12 calls in 20 minutes, `rank` the strictest. Everything is cached, the area work is shared by every animal there, and the demo examples are precomputed.
 - **Venue suitability.** Near Astoria, Qloo's list mixed a museum and a sculpture park with nightclubs. A keyword screen and the judgement of Namesake's AI each catch what the other misses.
 

@@ -147,3 +147,13 @@ Reading:
 - One area and one set of brands, so this is a hint, not a result.
 
 **Not adopted for now.** The profile keeps pet-themed titles as venue signals. A brand-only list of pet-owner places, screened for hotels, could be a separate, labelled section later, at one more call per profile.
+
+## Trends (17 October, 2 calls)
+
+`trends` takes one to five entities of one type and a date range, and no location: it describes a title's popularity across all of Qloo's audiences, not one area's.
+
+- Bluey and PAW Patrol, 1 July to 1 October 2026: status `ok`, both resolved, and every series empty.
+- The same titles, 1 July to 1 October 2025: up to 10 points each (the default `limit`), about five days apart. Bluey's `population_percentile` moved from 0.6154 to 0.6159 and PAW Patrol's from 0.8660 to 0.8661; every velocity field was 0.
+
+So it gives no recent signal and no local one. A "rising lately" badge was dropped (decision 18).
+

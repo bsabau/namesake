@@ -245,3 +245,16 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** Photon's public server promises no uptime; swapping it is one setting (`geocoder_url`) and one module (`app/places.py`). Its terms ask for fair use, which the cache and the per-visitor allowance keep to.
 
+## 18. The map combines the top pet titles; the baseline is the area's own top shows
+
+**Decided** (the author, 17 October: "lets go with combined layer", and for the baseline "Local top shows instead"; profile version 2):
+- The map layer is the top two pet titles (those the venues were asked for first), each heatmapped within the area and averaged per cell over the maps that scored it. It was the first title alone, so the map only ever said "fans of Bluey".
+- The baseline is the two TV shows Qloo ranks highest for people around the area (the `recommend` already made for local tastes), leaving out any title Namesake's AI picked as a pet title and any show whose name or description is about animals. It replaces the single seed show, Yellowstone, which was arbitrary. Venues are compared with one `recommend` for the two shows' fans; the map cells with their two heatmaps, averaged the same way.
+- The map carries a short key ("What the colours mean") drawn on the map; the caption keeps the long legend. The map and the step log name no baseline title: the Why panel lists them, as Qloo returned them, in the "people here tend to like" wording. Some of an area's top shows are identity-coded, and the map is no place to imply anything about who lives where.
+- The seed show stays only as the probe that accepts a typed area (decision 12).
+- Saved profiles carry a version. Version 1 profiles still load and render as they were; `python -m app.upgrade_profiles` brings them to version 2 without rerunning the AI, so titles, names and listings stay valid, and saves only a complete result.
+
+**Why:** a baseline chosen by us was the weakest part of the comparison: "stands out" meant "not on Yellowstone's list". The area's own top shows ask the question a volunteer cares about, where pet-show fans differ from this neighbourhood's usual tastes. Two titles each way, not three, because each is one more `where_popular` per area and the key is refused after about 12 calls in 20 minutes: a new area now costs about 11 calls (decision 1 said about 8).
+
+**Follows:** Qloo's `trends` was considered for a "rising lately" signal and dropped: it has no location, returned nothing for July to October 2026, and was flat for 2025 (`docs/qloo-findings.md`).
+
