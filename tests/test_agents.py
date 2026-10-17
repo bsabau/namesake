@@ -276,6 +276,21 @@ def test_bully_type_dog_gets_only_pet_title_names(roster):
     )
 
 
+def test_the_name_screen_reads_the_title_qloo_returned():
+    from app.agent.listing_agent import NameOption, screen_names
+    from app.profile import Entity
+
+    talk = Entity(
+        id=BASELINE, name="Example Talk", type="urn:entity:tv_show", description="A talk show."
+    )
+    host = NameOption(
+        **{**DRAFT["names"][0], "source": "local", "entity_id": BASELINE, "role": "character"}
+    )
+    assert any("about real people" in p for p in screen_names([host], {BASELINE: talk}, False))
+    dog = NameOption(**{**DRAFT["names"][0], "source": "local", "entity_id": BASELINE})
+    assert screen_names([dog], {BASELINE: talk}, False) == []
+
+
 def test_without_a_model_everything_falls_back_and_says_so(roster):
     result, store, log = run(Script([], []), roster, model=False)
     assert store.get_profile(LOCATION.id, "dog").made_by == "seeds"

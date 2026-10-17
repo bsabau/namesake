@@ -31,6 +31,45 @@ FAMOUS_VILLAINS = (
     "hades", "mojo jojo", "old yeller",
 )  # fmt: skip
 BAD_ROLES = ("villain", "tragic")
+ANIMAL_ROLES = ("puppy", "dog", "cat", "kitten", "animal")
+
+# Real people, as a code list for the famous ones. Names come only from the characters,
+# objects and titles of the titles Qloo returned, so a real person reaches a name through
+# a title about real people (caught by check_title) or a role the model declares as
+# "person". The list cannot be complete; the volunteer still chooses.
+FAMOUS_PEOPLE = (
+    "oprah", "beyonce", "beyoncé", "rihanna", "adele", "shakira", "madonna", "cher",
+    "kanye", "eminem", "lizzo", "zendaya", "taylor swift", "dolly parton", "kardashian",
+    "elon musk", "bezos", "zuckerberg", "lebron", "messi", "ronaldo", "serena williams",
+)  # fmt: skip
+# Phrases in a title's name or description that mark it as about real people: a name
+# from one must be an animal's own (Marley in "Marley & Me" is a dog; the author is not
+# a name option).
+REAL_PEOPLE_TITLES = (
+    "talk show", "late-night talk", "late-night show", "news program", "news show",
+    "news satire", "newsmagazine", "reality show", "reality series", "reality television",
+    "reality tv", "reality competition", "documentary", "docuseries", "biographical",
+    "biopic", "biography", "memoir", "autobiography", "game show", "stand-up",
+    "variety show", "sketch comedy", "true story", "based on the life", "podcast",
+)  # fmt: skip
+# References coded to a religion, a race or a political identity. The strictest screen
+# for bully-type dogs is a rule on sources, not a list of human first names, which would
+# itself be a stereotype.
+# These are also searched in a title's description, which names its cast, so none of
+# them may be a common surname ("The Aristocats" stars Phil Harris).
+IDENTITY_TERMS = (
+    "jesus", "christ", "allah", "muhammad", "mohammed", "buddha", "krishna", "shiva",
+    "vishnu", "ganesha", "messiah", "rabbi", "imam", "jihad",
+    "thug", "ghetto", "gangsta", "gypsy", "eskimo", "redskin", "squaw",
+    "trump", "biden", "obama", "putin", "maga",
+    "democrat", "republican", "commie", "communist", "socialist", "fascist",
+    "confederate", "hitler", "stalin", "lenin",
+)  # fmt: skip
+# In a name, its reference and a title's name only: these are surnames too.
+IDENTITY_CODED = IDENTITY_TERMS + (
+    "moses", "ganesh", "prophet", "pope", "lucifer", "crusade", "crusader", "savage",
+    "clinton", "harris", "bernie", "dixie", "mao",
+)  # fmt: skip
 
 HOOK_TRAIT_WORDS = (
     "gentle", "calm", "playful", "friendly", "loyal", "energetic", "shy", "sweet", "loving",
@@ -130,14 +169,40 @@ def check_name(
         problems.append(f"name {name!r} refers to {villain!r}, a villain or tragic animal")
     if reference_role in BAD_ROLES:
         problems.append(f"name {name!r} refers to a {reference_role} character")
-    if role == "person":
+    person = find_word(f"{name} {reference}", FAMOUS_PEOPLE)
+    if role == "person" or person:
         problems.append(f"name {name!r} refers to a real person; use a character or object")
+    coded = find_word(f"{name} {reference}", IDENTITY_CODED)
+    if coded:
+        problems.append(
+            f"name {name!r} refers to {coded!r}, coded to a religion, race or political identity"
+        )
     # A lookalike title features an animal like this one, and its name must be that
     # animal's own (checked in the listing agent), so it is as safe as a pet title.
     if strict and source not in ("pet", "lookalike"):
         problems.append(
             f"name {name!r}: for this dog use only names drawn from the pet-themed or "
             "lookalike titles"
+        )
+    return problems
+
+
+def check_title(name: str, role: str, title: str, description: str | None) -> list[str]:
+    """The title a name comes from, as Qloo returned it: about real people, or coded to
+    a religion, race or political identity."""
+    problems = []
+    text = f"{title} {description or ''}"
+    real = find_word(text, REAL_PEOPLE_TITLES)
+    if real and role not in ANIMAL_ROLES:
+        problems.append(
+            f"name {name!r}: {title} is about real people ({real!r}), so a name from it "
+            "must be an animal's own"
+        )
+    coded = find_word(title, IDENTITY_CODED) or find_word(description or "", IDENTITY_TERMS)
+    if coded:
+        problems.append(
+            f"name {name!r}: {title} is coded to a religion, race or political identity "
+            f"({coded!r}); use another title"
         )
     return problems
 

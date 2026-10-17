@@ -24,7 +24,7 @@ from app.qloo.exec import QlooClient
 
 Source = Literal["pet", "local", "lookalike"]
 MAX_LOOKALIKE_LOOKUPS = 2
-ANIMAL_ROLES = ("puppy", "dog", "cat", "kitten", "animal")
+ANIMAL_ROLES = checks.ANIMAL_ROLES
 # Look words too common to make two animals lookalikes on their own.
 GENERIC_LOOK = frozenset((
     "large", "small", "medium", "big", "mixed", "breed", "mix", "type", "domestic",
@@ -85,8 +85,11 @@ class NameOption(BaseModel):
         description='The name of the character or thing in the title, e.g. "Bingo". '
         'Use the title itself when role is "title".'
     )
-    role: Literal["puppy", "dog", "cat", "kitten", "animal", "character", "object", "title"] = (
-        Field(description="What the character is; code writes the reference from it.")
+    role: Literal[
+        "puppy", "dog", "cat", "kitten", "animal", "character", "object", "title", "person"
+    ] = Field(
+        description="What the character is; code writes the reference from it. "
+        '"person" for a real person, living or dead: refused.'
     )
     reference_role: Literal["hero", "friend", "neutral", "villain", "tragic"] = Field(
         description="The character's role in the story; villains and tragic figures are refused."
@@ -122,7 +125,8 @@ Rules:
   title, or an object in it), with that title's entity_id and source, the character's own
   name as it appears in the story, and its role from the list. Short and easy to
   say: one to three syllables. No villains, violent or tragic characters, weapons, real
-  people, or names coded to a race, religion or political identity.
+  people, or names coded to a race, religion or political identity. From a title about
+  real people (a talk show, reality show, documentary or biopic), only an animal's name.
 - Each name's reason only restates the animal's facts ("It suits a dog who knows basic
   commands"). Never repeat a name already used at this shelter: {taken}.
 {lookalike}{strict}{litter}{request}
@@ -336,14 +340,7 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
         if option.name.lower() in deps.taken_names:
             problems.append(f"name {option.name!r} is already used at this shelter")
         seen_names.add(option.name.lower())
-        problems += checks.check_name(
-            option.name,
-            source=option.source,
-            role=option.role,
-            strict=deps.strict,
-            reference=option.character,
-            reference_role=option.reference_role,
-        )
+    problems += screen_names(draft.names, {k: e for k, (e, _) in deps.titles.items()}, deps.strict)
     if draft.names[0].source == "lookalike":
         # The first name is the local version's: it shows what the area's data adds.
         problems.append("the first name must come from the area's titles, not a lookalike")
@@ -370,6 +367,25 @@ def shown_bio(animal: Animal, draft: ListingDraft) -> list[BioSentence]:
         BioSentence(text=c.text, facts=[c.source])
         for c in check_sentences(animal.checks, pronouns(animal.sex))
     ]
+
+
+def screen_names(names: list[NameOption], titles: dict[str, Entity], strict: bool) -> list[str]:
+    """The name screen, on each name and the title it comes from. Needs only the titles
+    as Qloo returned them, so app/agent/recheck.py can apply it to saved drafts too."""
+    problems = []
+    for option in names:
+        problems += checks.check_name(
+            option.name,
+            source=option.source,
+            role=option.role,
+            strict=strict,
+            reference=option.character,
+            reference_role=option.reference_role,
+        )
+        title = titles.get(option.entity_id)
+        if title is not None:
+            problems += checks.check_title(option.name, option.role, title.name, title.description)
+    return problems
 
 
 def record_problems(animal: Animal, draft: ListingDraft) -> list[str]:

@@ -7,6 +7,7 @@ from app.agent.checks import (
     check_character,
     check_hook,
     check_name,
+    check_title,
     check_why,
     fact_keys,
     is_bully_type,
@@ -117,6 +118,80 @@ def test_more_than_fourteen_characters_fails():
 def test_a_person_reference_fails():
     assert name("Bingo", role="person") == [
         "name 'Bingo' refers to a real person; use a character or object"
+    ]
+
+
+@pytest.mark.parametrize("bad", ["Oprah", "Adele"])
+def test_a_famous_person_fails_by_name(bad):
+    assert name(bad) == [f"name {bad!r} refers to a real person; use a character or object"]
+
+
+def test_a_famous_person_in_the_reference_fails():
+    problems = check_name(
+        "Tay", source="local", role="character", strict=False, reference="Taylor Swift"
+    )
+    assert any("real person" in p for p in problems)
+
+
+@pytest.mark.parametrize(
+    ("bad", "reference", "word"),
+    [
+        ("Moses", "Moses", "moses"),
+        ("Biscuit", "Biscuit the Thug", "thug"),
+        ("Duke", "MAGA Duke", "maga"),
+    ],
+)
+def test_an_identity_coded_name_or_reference_fails(bad, reference, word):
+    problems = check_name(bad, source="local", role="character", strict=False, reference=reference)
+    assert problems == [
+        f"name {bad!r} refers to {word!r}, coded to a religion, race or political identity"
+    ]
+
+
+def test_identity_words_match_whole_words_only():
+    # "Christopher" is not "christ", "Mason" not "moses".
+    assert name("Christopher") == []
+    assert check_name("Mao", source="pet", role="cat", strict=False, reference="Mao") != []
+    assert name("Mason") == []
+
+
+# check_title
+
+
+def test_a_character_from_a_title_about_real_people_fails():
+    problems = check_title("Kelly", "character", "Example Morning", "A daytime talk show.")
+    assert problems == [
+        "name 'Kelly': Example Morning is about real people ('talk show'), so a name from "
+        "it must be an animal's own"
+    ]
+
+
+@pytest.mark.parametrize("role", ["title", "object", "person"])
+def test_only_an_animal_role_may_come_from_a_title_about_real_people(role):
+    assert check_title("Max", role, "Example Dog Life", "A documentary about a dog.") != []
+
+
+def test_an_animal_from_a_title_about_real_people_passes():
+    assert check_title("Marley", "dog", "Example Memoir", "A memoir about a family dog.") == []
+
+
+def test_a_fiction_title_passes():
+    assert check_title("Bingo", "character", "Example Dog Show", "An animated series.") == []
+    assert check_title("Bingo", "character", "Example Dog Show", None) == []
+
+
+def test_a_cast_surname_in_the_description_passes():
+    # The dry run on saved listings: a voice actor named Harris coded a cartoon about cats.
+    described = "An animated film with the voices of Example Harris and Example Pope."
+    assert check_title("Marie", "kitten", "Example Cats", described) == []
+    assert check_title("Marie", "kitten", "Harris and the Cats", None) != []
+
+
+def test_a_title_coded_to_an_identity_fails_for_every_role():
+    problems = check_title("Rex", "dog", "Example Film", "A dog in the life of Jesus.")
+    assert problems == [
+        "name 'Rex': Example Film is coded to a religion, race or political identity "
+        "('jesus'); use another title"
     ]
 
 

@@ -260,3 +260,15 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** Qloo's `trends` was considered for a "rising lately" signal and dropped: it has no location, returned nothing for July to October 2026, and was flat for 2025 (`docs/qloo-findings.md`).
 
+
+## 19. The name screen checks real people and identity-coded references in code
+
+**Decided** (the author, 17 October, after a review of `docs/architecture.md` found these two screens were model instructions only, while the README and AGENTS.md promise a screen; "1st option": fix the code rather than the wording):
+- A name, or the character it refers to, is refused when it is on a short list of famous real people, or on a list of words coded to a religion, a race or a political identity. The model can also declare a name's role as "person", which is refused; before this the code checked a role the model could not choose.
+- The title a name comes from is screened as Qloo returned it. A title whose name or description marks it as about real people (a talk show, reality show, documentary, biopic, memoir and so on) gives only animals' names: Marley in a memoir about a dog, never the author. A title coded to an identity gives no names. Descriptions are searched only for words that are never common surnames, because they name the cast: the first dry run on saved listings refused every kitten's name from The Aristocats over the voice actor Phil Harris.
+- There is no list of human first names for bully-type dogs: that screen stays a rule on sources (pet-themed and lookalike titles only), since a list of names perceived as Black would itself be the stereotype.
+- Checks version 9. The deploy's recheck applies the screen to saved listings with their saved profile's titles, so no live call; a listing whose titles are gone runs again. On a copy of the local cache, 13 of 14 saved listings passed and stayed current.
+
+**Why:** "screens names" is one of the four claims the README and Devpost text may make, and the published penalty for some names on pit-bull-type dogs is the reason for it. A claim judges can check should rest on code they can read, not on a prompt.
+
+**Follows:** lists cannot be complete. The model is still told to avoid real people and identity-coded names, and the volunteer chooses and approves; the lists catch the famous cases when the model does not.
