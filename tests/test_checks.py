@@ -160,8 +160,8 @@ def test_identity_words_match_whole_words_only():
 def test_a_character_from_a_title_about_real_people_fails():
     problems = check_title("Kelly", "character", "Example Morning", "A daytime talk show.")
     assert problems == [
-        "name 'Kelly': Example Morning is about real people ('talk show'), so a name from "
-        "it must be an animal's own"
+        "name 'Kelly': Example Morning is about real people (its description says "
+        "'talk show'), so a name from it must be an animal's own"
     ]
 
 

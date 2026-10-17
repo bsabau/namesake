@@ -359,13 +359,13 @@ def name_badge(
         return f"Has a lookalike in {title}" if title else "Has a lookalike"
     if source == "local":
         return "Watched locally"
+    found = next((e.found_in for e in profile.pet_entities if e.id == entity_id), None)
+    liked = f"liked here by fans of {found.signal}" if found else None
     if entity_id in profile.ranked:
         place = profile.ranked.index(entity_id) + 1
-        return f"Pet-themed title, ranked {ordinal(place)} of {len(profile.ranked)} here by Qloo"
-    found = next((e.found_in for e in profile.pet_entities if e.id == entity_id), None)
-    if found:
-        return f"Pet-themed title, liked here by fans of {found.signal}"
-    return "Pet-themed title"
+        ranked = f"ranked {ordinal(place)} of {len(profile.ranked)} here by Qloo"
+        return f"Pet-themed title, {ranked}" + (f"; {liked}" if liked else "")
+    return f"Pet-themed title, {liked}" if liked else "Pet-themed title"
 
 
 def name_view(result: ListingResult | None, profile: LocationProfile, text: str) -> NameView:

@@ -2,13 +2,16 @@
 
 Jev answers typed yes/no questions with a probability each. It reads one title at a
 time: its name, kind and Qloo's description, never anything about a visitor. Answers
-are cached in SQLite by entity and question version, so a title is classified once.
+are cached in SQLite by the title, its description, the questions and the model, so a
+title is classified once.
 
 Without a key the classifier is off and Namesake's AI judges every title from its
 description instead.
 """
 
+import hashlib
 import json
+import math
 import sqlite3
 import urllib.request
 from collections.abc import Callable
@@ -47,18 +50,22 @@ QUESTIONS: dict[str, dict[str, Any]] = {
 KEEP_PETS = 0.8
 DROP_PETS = 0.3
 KEEP_FAMILY = 0.6
-TIMEOUT = 30
+# Above this, a title counts as about real people, so only animals' names come from it.
+REAL_PEOPLE = 0.8
+# Per request; a run stops asking after the first failure (app/agent/profile_agent.py).
+TIMEOUT = 10
 
 Bucket = Literal["kept", "unsure", "dropped"]
 Post = Callable[[str, dict[str, str], bytes], dict[str, Any]]
 
+# Keyed by what the answer depends on: the title as Qloo described it, the questions and
+# the model, so a new description, wording or model asks again.
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS classifier_cache (
+CREATE TABLE IF NOT EXISTS classifier_answers (
+    key TEXT PRIMARY KEY,
     entity_id TEXT NOT NULL,
-    version INTEGER NOT NULL,
     verdict_json TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    PRIMARY KEY (entity_id, version)
+    created_at TEXT NOT NULL
 )
 """
 
@@ -76,8 +83,17 @@ def bucket(verdict: PetVerdict | None) -> Bucket:
 
 def http_post(url: str, headers: dict[str, str], body: bytes) -> dict[str, Any]:
     request = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310 - https only
+    # classifier_from accepts only an https:// base URL.
+    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310
         return json.load(response)
+
+
+def probability(value: Any) -> float:
+    """A probability from Jev, or ValueError: NaN, infinity or out of range is refused."""
+    number = float(value)
+    if not math.isfinite(number) or not 0.0 <= number <= 1.0:
+        raise ValueError(f"not a probability: {value!r}")
+    return number
 
 
 class JevClassifier:
@@ -96,49 +112,52 @@ class JevClassifier:
         self.post = post
         cache_db.parent.mkdir(parents=True, exist_ok=True)
         self.db = cache_db
-        with sqlite3.connect(self.db) as conn:
-            conn.execute(SCHEMA)
 
     def classify(self, entity: Entity) -> PetVerdict | None:
-        """The verdict for one title, from the cache or Jev; None when Jev fails."""
-        with sqlite3.connect(self.db) as conn:
-            row = conn.execute(
-                "SELECT verdict_json FROM classifier_cache WHERE entity_id = ? AND version = ?",
-                (entity.id, QUESTIONS_VERSION),
-            ).fetchone()
-        if row:
-            return PetVerdict.model_validate_json(row[0])
+        """The verdict for one title, from the cache or Jev. None when anything fails,
+        Jev or the cache: the classifier is optional, so it never stops a run."""
+        try:
+            return self._classify(entity)
+        except Exception:  # noqa: BLE001 - any failure leaves the title to the AI
+            return None
+
+    def _classify(self, entity: Entity) -> PetVerdict | None:
         state = {
             "title": entity.name,
             "type": entity.type.removeprefix("urn:entity:"),
             "description": entity.description or "",
         }
+        key = hashlib.sha256(
+            json.dumps([QUESTIONS_VERSION, QUESTIONS, self.model, state], sort_keys=True).encode()
+        ).hexdigest()
+        with sqlite3.connect(self.db) as conn:
+            conn.execute(SCHEMA)
+            row = conn.execute(
+                "SELECT verdict_json FROM classifier_answers WHERE key = ?", (key,)
+            ).fetchone()
+        if row:
+            return PetVerdict.model_validate_json(row[0])
         body = json.dumps({"model": self.model, "state": state, "questions": QUESTIONS})
         headers = {"Authorization": f"Bearer {self._key}", "Content-Type": "application/json"}
-        try:
-            out = self.post(self.url, headers, body.encode())
-            answers = {q: float(out["answers"][q]["noul"]) for q in QUESTIONS}
-        except (OSError, ValueError, KeyError, TypeError):
-            # A failed call is not cached: the title goes to the AI and is asked again later.
-            return None
+        # A failure raises before anything is cached, so the title is asked again later.
+        out = self.post(self.url, headers, body.encode())
+        answers = {q: probability(out["answers"][q]["noul"]) for q in QUESTIONS}
         verdict = PetVerdict(**answers, model=str(out.get("model", "")))
         with sqlite3.connect(self.db) as conn:
             conn.execute(
-                "INSERT OR REPLACE INTO classifier_cache VALUES (?, ?, ?, ?)",
-                (
-                    entity.id,
-                    QUESTIONS_VERSION,
-                    verdict.model_dump_json(),
-                    datetime.now(UTC).isoformat(),
-                ),
+                "INSERT OR REPLACE INTO classifier_answers VALUES (?, ?, ?, ?)",
+                (key, entity.id, verdict.model_dump_json(), datetime.now(UTC).isoformat()),
             )
         return verdict
 
 
 def classifier_from(settings) -> JevClassifier | None:
-    """Jev when a key is configured, else None (Namesake's AI judges the titles)."""
+    """Jev when a key and an https:// base URL are configured, else None (Namesake's AI
+    judges the titles)."""
     key = settings.typesafe_api_key
     if key is None or not key.get_secret_value().strip():
+        return None
+    if not settings.typesafe_base_url.startswith("https://"):
         return None
     return JevClassifier(
         key.get_secret_value(),

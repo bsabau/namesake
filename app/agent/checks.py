@@ -197,10 +197,11 @@ def check_title(
     political identity."""
     problems = []
     text = f"{title} {description or ''}"
-    real = find_word(text, REAL_PEOPLE_TITLES) or ("the classifier" if real_people else None)
-    if real and role not in ANIMAL_ROLES:
+    phrase = find_word(text, REAL_PEOPLE_TITLES)
+    if (phrase or real_people) and role not in ANIMAL_ROLES:
+        why = f"its description says {phrase!r}" if phrase else "the classifier scores it so"
         problems.append(
-            f"name {name!r}: {title} is about real people ({real!r}), so a name from it "
+            f"name {name!r}: {title} is about real people ({why}), so a name from it "
             "must be an animal's own"
         )
     if find_word(title, IDENTITY_CODED) or find_word(description or "", IDENTITY_TERMS):

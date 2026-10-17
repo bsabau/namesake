@@ -322,3 +322,139 @@ def test_a_page_without_classified_titles_has_no_classifier_credit(roster):
 
     view = build_result_view(roster.get("dog-02"), LOCATION, LocationProfile(location_id="x"))
     assert view.credits.classifier is None
+
+
+# Review fixes (Codex, muse, Flash)
+
+
+def test_a_broken_or_odd_answer_never_stops_a_run(tmp_path):
+    import http.client
+
+    title = Entity(id=PUPPY_SCHOOL, name="Example Puppy School", type="urn:entity:tv_show")
+    for failure in (http.client.IncompleteRead(b""), RuntimeError("anything")):
+
+        def post(url, headers, body, failure=failure):
+            raise failure
+
+        assert JevClassifier("k", tmp_path / "a.sqlite", post=post).classify(title) is None
+    # NaN, infinity and out-of-range answers are refused, never cached.
+    for bad in ("NaN", "inf", 1.5, -0.1):
+        answer = jev_answer()
+        answer["answers"]["family"]["noul"] = bad
+        jev = JevClassifier("k", tmp_path / "b.sqlite", post=lambda u, h, b, a=answer: a)
+        assert jev.classify(title) is None
+    # A cache the classifier cannot open costs the title, not the run.
+    (tmp_path / "dir.sqlite").mkdir()
+    jev = JevClassifier("k", tmp_path / "dir.sqlite", post=lambda u, h, b: jev_answer())
+    assert jev.classify(title) is None
+
+
+def test_a_new_model_or_description_asks_again(tmp_path):
+    calls = []
+
+    def post(url, headers, body):
+        calls.append(json.loads(body)["state"]["description"])
+        return jev_answer()
+
+    db = tmp_path / "c.sqlite"
+    title = Entity(
+        id=PUPPY_SCHOOL, name="Example Puppy School", type="urn:entity:tv_show", description="One."
+    )
+    JevClassifier("k", db, post=post).classify(title)
+    JevClassifier("k", db, post=post).classify(title)
+    JevClassifier("k", db, model="jev-2", post=post).classify(title)
+    JevClassifier("k", db, post=post).classify(title.model_copy(update={"description": "Two."}))
+    assert calls == ["One.", "One.", "Two."]
+
+
+def test_only_an_https_classifier_is_used(isolated_settings, monkeypatch):
+    from pydantic import SecretStr
+
+    monkeypatch.setattr(isolated_settings, "typesafe_api_key", SecretStr("k"))
+    assert classifier_from(isolated_settings) is not None
+    monkeypatch.setattr(isolated_settings, "typesafe_base_url", "http://example.test/v1")
+    assert classifier_from(isolated_settings) is None
+
+
+def test_after_a_failure_the_run_stops_asking_and_says_so():
+    class Down(FakeClassifier):
+        def classify(self, entity):
+            self.asked.append(entity.id)
+            return None
+
+    down = Down({})
+    d = deps(down)
+    out = find_local_titles(ctx(d), DOG_SHOW, "tv_show")
+    assert len(down.asked) == 1 and len(out["unsure"]) == 3
+    assert any("did not answer for 3" in s.text for s in d.log.steps)
+
+
+def test_an_unresolved_area_is_named_as_such():
+    d = deps(None, envelope("recommend", "needs_input"))
+    status = find_local_titles(ctx(d), DOG_SHOW, "tv_show")["status"]
+    assert status == f"unavailable: Qloo could not tell which place {LOCATION.query!r} means"
+
+
+def test_a_search_widens_only_from_a_title_known_to_be_about_pets():
+    d = deps(FakeClassifier(VERDICTS))
+    find_local_titles(ctx(d), DOG_SHOW, "tv_show")
+    assert (
+        "without the classifier keeping it"
+        in find_local_titles(ctx(d), CAT_CAFE, "movie")["status"]
+    )
+    # A kept title may seed the next search.
+    d.qloo = FakeQloo({local_key(PUPPY_SCHOOL, "movie"): envelope("recommend", results=[])})
+    assert "without" not in find_local_titles(ctx(d), PUPPY_SCHOOL, "movie")["status"]
+
+
+def test_looking_a_found_title_up_again_keeps_its_evidence():
+    from app.agent.profile_agent import look_up_title
+    from tests.qloo_fakes import describe_ok
+
+    d = deps(FakeClassifier(VERDICTS))
+    find_local_titles(ctx(d), DOG_SHOW, "tv_show")
+    d.qloo = FakeQloo(
+        {
+            key("describe", {"entity": "Example Puppy School", "type": "tv_show"}): describe_ok(
+                PUPPY_SCHOOL, "Example Puppy School"
+            )
+        }
+    )
+    look_up_title(ctx(d), "Example Puppy School", "tv_show")
+    again = d.titles_seen[PUPPY_SCHOOL]
+    assert again.found_in.signal == "Example Dog Show" and again.verdict.pets == 0.97
+
+
+def test_a_title_the_classifier_marks_as_about_real_people_gives_only_animal_names():
+    from app.agent.listing_agent import NameOption, screen_names
+    from tests.test_agents import DRAFT
+
+    show_ = Entity(
+        id=DOG_DOCS,
+        name="Example Dog Days",
+        type="urn:entity:tv_show",
+        description="A made-up series.",
+        verdict=verdict(0.95, real_people=0.9),
+    )
+    host = NameOption(
+        **{**DRAFT["names"][0], "source": "pet", "entity_id": DOG_DOCS, "role": "character"}
+    )
+    problems = screen_names([host], {DOG_DOCS: show_}, False)
+    assert any("the classifier scores it so" in p for p in problems)
+    dog = NameOption(**{**DRAFT["names"][0], "source": "pet", "entity_id": DOG_DOCS})
+    assert screen_names([dog], {DOG_DOCS: show_}, False) == []
+
+
+def test_a_ranked_found_title_shows_both_badges():
+    from app.views.build import name_badge
+
+    puppy = Entity(
+        id=PUPPY_SCHOOL,
+        name="Example Puppy School",
+        type="urn:entity:tv_show",
+        found_in=FoundIn(signal="Example Dog Show", kind="tv_show", position=1, out_of=20),
+    )
+    profile = LocationProfile(location_id="x", pet_entities=[puppy], ranked=[PUPPY_SCHOOL])
+    assert name_badge("pet", PUPPY_SCHOOL, profile) == (
+        "Pet-themed title, ranked 1st of 1 here by Qloo; liked here by fans of Example Dog Show"
+    )

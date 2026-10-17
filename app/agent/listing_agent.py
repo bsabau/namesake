@@ -18,6 +18,7 @@ from app.agent import checks
 from app.agent.profile_agent import StoryKind, qloo_call
 from app.agent.steps import StepLog
 from app.animals import Animal
+from app.classify import REAL_PEOPLE
 from app.listing import check_sentences, look_text, pronouns
 from app.profile import Entity
 from app.qloo.exec import QlooClient
@@ -25,8 +26,6 @@ from app.qloo.exec import QlooClient
 Source = Literal["pet", "local", "lookalike"]
 MAX_LOOKALIKE_LOOKUPS = 2
 ANIMAL_ROLES = checks.ANIMAL_ROLES
-# The classifier's probability above which a title counts as about real people.
-REAL_PEOPLE = 0.8
 # Look words too common to make two animals lookalikes on their own.
 GENERIC_LOOK = frozenset((
     "large", "small", "medium", "big", "mixed", "breed", "mix", "type", "domestic",

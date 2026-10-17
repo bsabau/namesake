@@ -11,7 +11,8 @@ from app.agent.steps import Step
 CHECKS_VERSION = 10
 # What changed since, so which saved drafts a recheck of the record is enough for:
 # - 10 also counts a title as about real people when the classifier says so (decision
-#   20); saved titles from before have no classifier answer, so the recheck covers it;
+#   20). Titles saved before were never classified, so the rule has nothing to add for
+#   them and the recheck holds them to the description check as before;
 # - 9 screened names for real people and identity-coded references, in the name and the
 #   title it comes from (rechecked with the saved profile's titles);
 # - 8 allowed "puppy" and "kitten" only for an animal under a year (bio and reasons);

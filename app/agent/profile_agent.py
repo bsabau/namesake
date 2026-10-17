@@ -55,6 +55,9 @@ class ProfileDeps:
     # Sorts the titles find_local_titles returns; None leaves them all to the AI.
     classifier: JevClassifier | None = None
     local_searches: int = 0
+    # Set at the classifier's first failure in a run: the rest go to the AI unasked, so a
+    # slow or broken classifier costs one timeout, not one per title.
+    classifier_down: bool = False
 
 
 class TitleChoice(BaseModel):
@@ -72,7 +75,7 @@ class VenuePick(BaseModel):
 
 
 class ProfilePlan(BaseModel):
-    titles: list[TitleChoice] = Field(description="Best first.", min_length=1, max_length=6)
+    titles: list[TitleChoice] = Field(description="Best first.", min_length=1, max_length=8)
     venues: list[VenuePick] = Field(
         description="Up to three places to ask about an adoption event or a flyer.",
         max_length=MAX_VENUES,
@@ -132,6 +135,14 @@ def qloo_call(deps: Any, operation: str, input_: dict[str, Any]) -> Envelope | s
     return env
 
 
+def keep_found(deps: ProfileDeps, entity: Entity) -> None:
+    """A title found in the area's lists keeps where it was found and the classifier's
+    answers when the AI looks it up again, so its evidence and its real-people rule stay."""
+    seen = deps.titles_seen.get(entity.id)
+    if seen is not None and seen.found_in is not None:
+        entity.found_in, entity.verdict = seen.found_in, seen.verdict
+
+
 def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> dict[str, Any]:
     """Find a title in Qloo by name. Returns the entity, or candidates to choose from."""
     deps = ctx.deps
@@ -143,7 +154,7 @@ def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> d
     if env.status == "needs_input":
         candidates = []
         for c in env.candidates:
-            deps.titles_seen[c.id] = Entity(
+            entity = Entity(
                 id=c.id,
                 name=c.name,
                 type=c.type,
@@ -151,6 +162,8 @@ def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> d
                 resolution="chosen",
                 alternatives=len(env.candidates) - 1,
             )
+            keep_found(deps, entity)
+            deps.titles_seen[c.id] = entity
             deps.ambiguous[c.id] = len(env.candidates)
             candidates.append(
                 {"entity_id": c.id, "name": c.name, "description": _short(c.description)}
@@ -168,6 +181,7 @@ def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> d
         type=r.get("type", f"urn:entity:{kind}"),
         description=props.get("short_description") or props.get("description"),
     )
+    keep_found(deps, entity)
     deps.titles_seen[entity.id] = entity
     deps.log.add("qloo", f"Found “{entity.name}”")
     return {"status": "found", "entity_id": entity.id, "name": entity.name}
@@ -199,8 +213,15 @@ def find_local_titles(
         return {"status": f"unknown entity_id {entity_id}; look the title up first"}
     if refusal := baseline_refusal(deps, [entity_id]):
         return refusal
-    deps.local_searches += 1
     signal = deps.titles_seen[entity_id]
+    if signal.found_in is not None and bucket(signal.verdict) != "kept":
+        # A search widens from titles known to be about pets, never from an unsure one.
+        return {
+            "status": f"{signal.name} came from a local list without the classifier keeping "
+            "it; search with one of your own titles or a kept one"
+        }
+    # Charged before the call, so a failing search cannot be retried without end.
+    deps.local_searches += 1
     what = KIND_WORDS[kind]
     deps.log.add(
         "qloo",
@@ -220,6 +241,8 @@ def find_local_titles(
     if isinstance(env, str) or not env.has_results or env.status != "ok":
         if isinstance(env, str):
             status = env
+        elif env.status == "needs_input":
+            status = f"unavailable: Qloo could not tell which place {deps.location.query!r} means"
         elif not env.has_results:
             status = "unavailable: no titles returned"
         else:
@@ -228,7 +251,7 @@ def find_local_titles(
         deps.log.add("note", f"Local {what}: {status}")
         return {"status": status}
     total = len(env.results)
-    kept, unsure, dropped = [], [], 0
+    kept, unsure, dropped, unanswered = [], [], 0, 0
     for position, r in enumerate(env.results, start=1):
         if r["entity_id"] in deps.titles_seen or r["entity_id"] in deps.baseline_titles:
             continue
@@ -240,7 +263,11 @@ def find_local_titles(
             description=props.get("short_description") or props.get("description"),
             found_in=FoundIn(signal=signal.name, kind=kind, position=position, out_of=total),
         )
-        entity.verdict = deps.classifier.classify(entity) if deps.classifier else None
+        if deps.classifier and not deps.classifier_down:
+            entity.verdict = deps.classifier.classify(entity)
+            deps.classifier_down = entity.verdict is None
+        if deps.classifier and entity.verdict is None:
+            unanswered += 1
         where = bucket(entity.verdict)
         if where == "dropped":
             dropped += 1
@@ -263,7 +290,13 @@ def find_local_titles(
                 "about_real_people": v.real_people,
             }
         (kept if where == "kept" else unsure).append(info)
-    if deps.classifier:
+    if deps.classifier and unanswered:
+        deps.log.add(
+            "note",
+            f"{total} {what}: the classifier did not answer for {unanswered}, so Namesake's AI "
+            f"judges them; it found {len(kept)} about pets and set {dropped} aside",
+        )
+    elif deps.classifier:
         deps.log.add(
             "qloo",
             f"{total} {what}: the classifier found {len(kept)} about pets, left {len(unsure)} "
@@ -379,7 +412,10 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
                 "the comparison uses; it cannot also be a pet-themed title"
             )
         elif t.entity_id not in deps.titles_seen:
-            problems.append(f"title {t.entity_id} was not returned by look_up_title")
+            problems.append(
+                f"title {t.entity_id} is not among this run's Qloo results (look_up_title or "
+                "find_local_titles); a title the classifier set aside cannot be used"
+            )
         elif deps.ambiguous.get(t.entity_id) and not t.choice_reason:
             problems.append(f"title {t.entity_id} came back as candidates; give choice_reason")
         else:
