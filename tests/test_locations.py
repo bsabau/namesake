@@ -57,3 +57,12 @@ def _checked_id(html: str) -> str:
         if "checked" in match.group(2):
             return match.group(1)
     raise AssertionError("no location is checked")
+
+
+def test_the_shelter_bar_names_the_chosen_area_and_stays_closed():
+    # The author: the area is a setting chosen once, so it sits in a bar above the animals.
+    page = client.get("/", params={"location": "astoria"}).text
+    bar = page[page.index('id="shelter"') : page.index("</summary>")]
+    assert "Astoria" in bar and "Queens, New York" in bar and "Change" in bar
+    assert 'data-role="shelter">' in page  # closed: no "open" attribute
+    assert page.index('id="shelter"') < page.index('class="animal-grid"')

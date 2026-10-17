@@ -12,14 +12,6 @@
   <p>{{ view.intro }}</p>
 </section>
 
-{% if view.examples %}
-<section class="examples" data-role="examples">
-  <h2>{{ view.examples_heading }}</h2>
-  <ul>
-    {% for example in view.examples %}<li><a class="example" href="{{ example.url }}">{{ example.label }}</a></li>{% endfor %}
-  </ul>
-</section>
-{% endif %}
 
 <form id="custom-location" action="{{ view.location_form.action }}" method="post">
   {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
@@ -30,9 +22,17 @@
 
 <form id="pick" action="/runs" method="post">
   {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
+  {# The chosen area as a slim bar; its panel holds everything for changing it. #}
+  <details class="shelter" id="shelter" data-role="shelter"{% if view.shelter.open %} open{% endif %}>
+    <summary>
+      <span class="shelter-heading">{{ view.shelter.heading }}:</span>
+      <strong class="shelter-name" id="shelter-name">{{ view.shelter.name }}</strong>
+      <span class="shelter-region" id="shelter-region">{{ view.shelter.region }}</span>
+      <span class="shelter-toggle"><span class="when-closed">{{ view.shelter.change }}</span><span class="when-open">{{ view.shelter.close }}</span></span>
+    </summary>
   <section class="where">
     <fieldset class="locations">
-      <legend><h2>Where is the shelter?</h2></legend>
+      <legend><h2>{{ view.shelter.panel_heading }}</h2></legend>
       {% if view.location_form.message %}
       {# A failed area check: said where the visitor will see it, and no area stays chosen. #}
       <p class="location-alert" id="location-alert" role="alert">{{ view.location_form.message }}</p>
@@ -83,6 +83,16 @@
     </figure>
     <script type="application/json" id="map-points">{{ view.locations|plain|tojson }}</script>
   </section>
+  </details>
+
+{% if view.examples %}
+  <section class="examples" data-role="examples">
+    <h2>{{ view.examples_heading }}</h2>
+    <ul>
+      {% for example in view.examples %}<li><a class="example" href="{{ example.url }}">{{ example.label }}</a></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
 
   <h2 class="step-heading">Pick an animal</h2>
 

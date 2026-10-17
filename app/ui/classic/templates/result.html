@@ -72,7 +72,7 @@
                           data-copy="{{ option.copy_text }}" {% if option.name == view.chosen_name %}checked{% endif %}>
               <strong>{{ option.name }}</strong></label>
             <p class="evidence"><span>Qloo:</span> {{ option.title }}. {{ option.badge }}.</p>
-            <p class="reading"><span>Agent's reading:</span> {{ option.reference }}. {{ option.why }}</p>
+            <p class="reading"><span>Namesake's AI:</span> {{ option.reference }}. {{ option.why }}</p>
           </li>
           {% endfor %}
         </ul>
@@ -124,7 +124,7 @@
       <div class="inline-field">
         <input id="refine-text" type="text" name="text" minlength="3" maxlength="200" required
                placeholder="{{ view.refine_placeholder }}">
-        <button type="submit">Ask the agent</button>
+        <button type="submit">Ask Namesake's AI</button>
       </div>
       <p class="hint">Makes a new version for you only; the same checks apply.</p>
     </form>
@@ -156,7 +156,7 @@
         <p class="venue-place">{{ venue.place }}</p>
         {% if venue.description %}<p class="venue-description">{{ venue.description }}</p>{% endif %}
         <p class="evidence"><span>Qloo:</span> {{ venue.evidence }}</p>
-        {% if venue.reason %}<p class="reading"><span>Agent's reading:</span> {{ venue.reason }}</p>{% endif %}
+        {% if venue.reason %}<p class="reading"><span>Namesake's AI:</span> {{ venue.reason }}</p>{% endif %}
       </li>
       {% else %}
       <li>No venues for this area yet.</li>
@@ -173,7 +173,7 @@
 {% endif %}
 
 <details class="why" data-role="why">
-  <summary>Why: what Qloo returned, and our reading of it</summary>
+  <summary>Why: what Qloo returned, and how Namesake's AI read it</summary>
   <div class="why-columns">
     <div class="why-column" data-role="qloo-returned">
       <h3>What Qloo returned</h3>
@@ -182,7 +182,7 @@
       </dl>
     </div>
     <div class="why-column" data-role="our-reading">
-      <h3>Our reading of it</h3>
+      <h3>How Namesake's AI read it</h3>
       <dl>
         {% for item in view.our_reading %}<dt>{{ item.title }}</dt><dd>{{ item.detail }}</dd>{% endfor %}
       </dl>

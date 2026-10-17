@@ -345,6 +345,8 @@ def test_a_failed_area_check_leaves_no_area_chosen(client, monkeypatch):  # noqa
     )
     assert page.status_code == 503
     assert 'id="location-alert" role="alert"' in page.text
+    # The panel holding the alert and the required choice opens by itself.
+    assert 'data-role="shelter" open>' in page.text and "not chosen yet" in page.text
     assert (
         " checked>" not in page.text and 'name="location" value="park-slope" required' in page.text
     )

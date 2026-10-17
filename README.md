@@ -1,6 +1,6 @@
 # Namesake
 
-**An agent that writes accurate adoption listings for shelter animals, offers screened name options, and plans where to get each animal seen, using Qloo taste data near the shelter.**
+**Namesake's AI writes accurate adoption listings for shelter animals, offers screened name options, and plans where to get each animal seen, using Qloo taste data near the shelter.**
 
 **Live demo:** https://namesake.bogdansabau.eu (the four "Try an example" links open instantly)
 
@@ -14,7 +14,7 @@ A **generic version** of the listing sits beside the **local version**, so you c
 
 Built for the [Qloo Agentic Hackathon](https://qloo-hackathon.devpost.com/). Taste data from the Qloo API; not affiliated with Qloo.
 
-![The result screen for the lead dog in Park Slope: the local listing with its Qloo-sourced name, name options with Qloo's answer and the agent's reading kept apart, the lift map, three venues with their Qloo rank, and the exposure checklist](docs/img/result.png)
+![The result screen for the lead dog in Park Slope: the local listing with its Qloo-sourced name, name options with Qloo's answer and the reading of Namesake's AI kept apart, the lift map, three venues with their Qloo rank, and the exposure checklist](docs/img/result.png)
 
 ## The problem
 
@@ -33,32 +33,32 @@ Namesake does **not** claim to get animals adopted faster, save lives or money, 
 
 ## How it uses Qloo
 
-Two agents and some plain code call Qloo through the official harness (`qloo exec`, pinned at 0.1.26). Every call is cached in SQLite and spaced 5 seconds apart, because the hackathon key is rate-limited.
+Namesake's AI (two agents, one per area and one per animal) and some plain code call Qloo through the official harness (`qloo exec`, pinned at 0.1.26). Every call is cached in SQLite and spaced 5 seconds apart, because the hackathon key is rate-limited.
 
 | What | Qloo workflow | Who decides | Why |
 |---|---|---|---|
-| Resolve the pet-themed titles the agent proposes | `describe` | **Agent** proposes 4 to 6 titles, picks among Qloo's candidates with a stated reason, or drops a title | Pet tags filter TV and film down to almost nothing, so the model proposes titles and Qloo checks them. 6 of 10 show names came back ambiguous. |
-| Order the titles for this area | `rank` with `signal_location` | **Agent**, once per area | When Qloo's ranking is unavailable, the agent's own order is kept and the page says so. |
-| Places near the shelter that fans favour | `recommend`, `target_type: place`, titles as signals | **Agent** chooses which titles to send, then picks up to three venues for a flyer or event, with a reason | Fans of two pet shows give 15 venues in and around Park Slope. |
+| Resolve the pet-themed titles Namesake's AI proposes | `describe` | **Namesake's AI** proposes 4 to 6 titles, picks among Qloo's candidates with a stated reason, or drops a title | Pet tags filter TV and film down to almost nothing, so the model proposes titles and Qloo checks them. 6 of 10 show names came back ambiguous. |
+| Order the titles for this area | `rank` with `signal_location` | **Namesake's AI**, once per area | When Qloo's ranking is unavailable, the order Namesake's AI chose is kept and the page says so. |
+| Places near the shelter that fans favour | `recommend`, `target_type: place`, titles as signals | **Namesake's AI** chooses which titles to send, then picks up to three venues for a flyer or event, with a reason | Fans of two pet shows give 15 venues in and around Park Slope. |
 | A baseline to compare against | `recommend` places for one unrelated show (*Yellowstone*) | Code | 9 of the first 15 pet-show venues also came back for the baseline: they are just popular nearby. Each venue shows its rank and whether it stands out against the baseline. |
 | A map of where pet-show fans stand out | `where_popular` within the neighbourhood, for the top title and the baseline | Code | Raw affinity saturates near 1.0, so the map shows **lift**: the pet title's cell score minus the baseline's. |
 | What the area tends to watch | `recommend` TV and films with `signal_location` | Code | A second, labelled source of name options. |
-| Titles with an animal that looks like this one | `describe` | **Agent**, per animal, at most two | A personal name option, badged "Has a lookalike in …". The shared look must be quoted from the animal's record. |
+| Titles with an animal that looks like this one | `describe` | **Namesake's AI**, per animal, at most two | A personal name option, badged "Has a lookalike in …". The shared look must be quoted from the animal's record. |
 | A volunteer types their own area, or right-clicks the shelter's spot on the map | `where_popular` for the baseline within the area's name | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here", instead of a weak listing. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
 
 The decisions behind each row, with their evidence, are in [`docs/decisions.md`](docs/decisions.md) and [`docs/qloo-findings.md`](docs/qloo-findings.md).
 
-**What makes it an agent.** The model chooses which titles to try, which of Qloo's candidates a name means, which titles to send for venues, which venues suit an adoption event, and, for each animal, which lookalike titles to check. It reads each answer and adapts: an ambiguous title gets a choice or is dropped, an unavailable ranking falls back to its own order, a refused lookup is tried again with the look words quoted from the record. Calls that never change, such as the baseline and the heatmaps, run in plain code.
+**What makes it an agent.** Namesake's AI is a model with Qloo tools. It chooses which titles to try, which of Qloo's candidates a name means, which titles to send for venues, which venues suit an adoption event, and, for each animal, which lookalike titles to check. It reads each answer and adapts: an ambiguous title gets a choice or is dropped, an unavailable ranking falls back to its own order, a refused lookup is tried again with the look words quoted from the record. Calls that never change, such as the baseline and the heatmaps, run in plain code.
 
-**What plain code checks.** Every title and venue the agent returns must have come from Qloo in that run; invented IDs are sent back. Every bio sentence must cite recorded facts and use no content word they lack, and every recorded fact other than the look must be used. The check works on content words: it catches added traits and claims, not every shade of meaning, and small linking words such as "always" or "enjoys" pass. That is why the volunteer edits and approves. The hook line is assembled by code from the name, its role and Qloo's title, so the model writes none of it beyond the character's name. Names pass the screen. No two animals at a shelter share a name, except a litter named as a set from one title. A failed check gets one repair round, then the templated listing, which says why.
+**What plain code checks.** Every title and venue Namesake's AI returns must have come from Qloo in that run; invented IDs are sent back. Every bio sentence must cite recorded facts and use no content word they lack, and every recorded fact other than the look must be used. The check works on content words: it catches added traits and claims, not every shade of meaning, and small linking words such as "always" or "enjoys" pass. That is why the volunteer edits and approves. The hook line is assembled by code from the name, its role and Qloo's title, so the model writes none of it beyond the character's name. Names pass the screen. No two animals at a shelter share a name, except a litter named as a set from one title. A failed check gets one repair round, then the templated listing, which says why.
 
 ## From request to result
 
 1. **Start.** Pick one of twelve fictional animals, or the litter of four kittens, or add your own animal for this visit only. Pick a shelter area: Park Slope or Astoria in New York, Austin, or type one.
-2. **Working.** A live log streams each step: titles proposed, each one looked up in Qloo, which were ambiguous and how they were settled, the venues found and how many stand out against the baseline, and the checks on the agent's answer.
+2. **Working.** A live log streams each step: titles proposed, each one looked up in Qloo, which were ambiguous and how they were settled, the venues found and how many stand out against the baseline, and the checks on the answer from Namesake's AI.
 3. **Result**, legible as one screen:
    - the listing, with a **Generic / Local, with Qloo** toggle; both share the same bio, and the local one adds a name from Qloo's titles and one line saying where it comes from
-   - the **name options**, each with its source badge, Qloo's title and the agent's reason, kept apart
+   - the **name options**, each with its source badge, Qloo's title and the reason Namesake's AI gives, kept apart
    - a **map** of where pet-show fans stand out within the area, and the **places to ask**, each with Qloo's rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline
    - the **exposure checklist**, each item labelled Research, Qloo or Our suggestion
    - a **Why** drawer with two columns, "Qloo returned" and "Our reading"
@@ -123,10 +123,10 @@ The image holds Python, Node and the pinned harness. The demo runs this image on
 - **No outcome evidence yet.** The tool is built to measure whether local taste data helps, and nothing has been measured.
 - **Coverage is uneven.** The demo uses New York and Austin, where US coverage is deepest. Thin areas are refused with a message instead of answered weakly.
 - **Affinity scores saturate.** Raw scores sit near 1.0 for broad entities, so Namesake uses order within a call and lift against a baseline show, never raw affinity. The baseline is one show, so "stands out" means "not on that one other list".
-- **Ranking is often unavailable.** Qloo's `rank` is the most rate-limited workflow and twice returned nothing; the agent's own order is then kept and labelled.
+- **Ranking is often unavailable.** Qloo's `rank` is the most rate-limited workflow and twice returned nothing; the order Namesake's AI chose is then kept and labelled.
 - **Venues have no coordinates.** Qloo returns an address and a neighbourhood, so venues are listed beside the map, not pinned on it.
 - **Area data says nothing about individuals.** Results read "people in this area tend to like X". A shelter's adopters are not its neighbours, and tastes can stand in for demographics, which is one reason names are screened for identity-coded references.
-- **The demo model is a free one.** It sometimes needs its one repair round, and it judges lookalikes from its own knowledge, which Qloo cannot check; the page labels that match as the agent's reading.
+- **The demo model is a free one.** It sometimes needs its one repair round, and it judges lookalikes from its own knowledge, which Qloo cannot check; the page labels that match as the reading of Namesake's AI.
 
 ## Repository
 

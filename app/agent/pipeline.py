@@ -152,7 +152,9 @@ async def _build_profile(
                 qloo, location, species, seeds, model_factory(), log, output_mode
             )
         except AGENT_FAILURES as exc:
-            log.add("error", f"The profile agent did not finish ({type(exc).__name__})")
+            log.add(
+                "error", f"Namesake's AI did not finish the area profile ({type(exc).__name__})"
+            )
     if profile is None:
         log.add("note", "Falling back to the fixed lookup with the seed titles")
         profile = await asyncio.to_thread(build_profile, qloo, location, seeds)
@@ -251,8 +253,8 @@ async def write_listing(
     except AGENT_FAILURES as exc:
         log.add("error", f"The listing did not pass its checks ({type(exc).__name__})")
         result.fallback_reason = (
-            "The agent's draft did not pass the checks after one repair, so this is the "
-            "templated listing."
+            "The draft from Namesake's AI did not pass the checks after one repair, so this is "
+            "the templated listing."
         )
     return result
 
