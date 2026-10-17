@@ -66,6 +66,13 @@ echo "→ Preparing $HOST:$DIR for $SHA"
 ssh "$HOST" true || { echo "✗ cannot reach $HOST over ssh"; exit 1; }
 ssh "$HOST" "mkdir -p $D && cd $D && if [ ! -d var ]; then mkdir var && chmod 700 var; fi && mkdir -p upload && chmod 700 upload" \
   || { echo "✗ $DIR is not writable by the ssh user: create it once as root (deploy/README.md)"; exit 1; }
+# A deploy that stopped after its swap (ssh dropped, laptop closed) left its *.prev
+# backups. Go back to that version first, so the backups are never overwritten.
+if remote "[ -e src.prev ] || [ -e compose.yml.prev ] || [ -e .env.prev ]"; then
+  echo "→ An earlier deploy did not finish; restoring the version before it first"
+  roll_back
+  remote "if docker image inspect namesake-app:prev >/dev/null 2>&1; then docker compose up -d --no-build --remove-orphans; fi"
+fi
 # New files wait as *.new until the source is swapped; leftovers of a stopped run go first.
 remote "rm -rf compose.yml.new .env.new src.new"
 put compose.yml.new deploy/compose.yml
@@ -91,14 +98,19 @@ fi
 echo "→ Copying the source"
 ssh "$HOST" "mkdir $D/src.new"
 git archive --format=tar HEAD | ssh "$HOST" "tar -x -C $D/src.new"
-# The image to come back to is the one the running container uses, whatever the tags say.
-remote "rm -rf src.prev compose.yml.prev .env.prev
-  running=\$(docker compose -f compose.yml.new ps -q app 2>/dev/null || true)
-  if [ -n \"\$running\" ]; then docker tag \"\$(docker inspect -f '{{.Image}}' \$running)\" namesake-app:prev
-  else docker image rm namesake-app:prev >/dev/null 2>&1 || true; fi
+# The image to come back to is the one the app's container uses, running or stopped,
+# found by Compose's labels so no compose file or .env is read; else the current tag.
+swap="app=\$(docker ps -aq --filter label=com.docker.compose.project=namesake --filter label=com.docker.compose.service=app --filter label=com.docker.compose.oneoff=False | head -n 1)
+  if [ -n \"\$app\" ]; then docker tag \"\$(docker inspect -f '{{.Image}}' \"\$app\")\" namesake-app:prev
+  elif docker image inspect namesake-app >/dev/null 2>&1; then docker tag namesake-app namesake-app:prev; fi
   if [ -d src ]; then mv src src.prev; fi; mv src.new src
   if [ -f compose.yml ]; then mv compose.yml compose.yml.prev; fi; mv compose.yml.new compose.yml
   if [ -f .env.new ]; then if [ -f .env ]; then mv .env .env.prev; fi; mv .env.new .env; fi"
+if ! remote "$swap"; then
+  echo "✗ The swap did not finish; restoring the previous files. The running version is unchanged."
+  roll_back
+  exit 1
+fi
 
 echo "→ Building"
 if ! remote "docker compose build"; then
@@ -144,15 +156,19 @@ if [ -z "$ok" ]; then
   start_previous
 fi
 
+public=0
 if [ -n "${NAMESAKE_URL:-}" ]; then
   echo "→ Checking $NAMESAKE_URL/health through the proxy"
-  ok=""
   for _ in $(seq 1 10); do
-    if curl -fsS --max-time 20 "$NAMESAKE_URL/health" >/dev/null; then ok=1; break; fi
+    public=0
+    curl -fsS --max-time 20 "$NAMESAKE_URL/health" >/dev/null || public=$?
+    [ "$public" -eq 0 ] && break
     sleep 3
   done
-  if [ -z "$ok" ]; then
-    echo "✗ The app is running, but $NAMESAKE_URL does not answer: check the Caddy site block and PROXY_NETWORK (deploy/README.md)"
+  # 22: the proxy answered with an error, so it cannot reach this version. Anything else
+  # (no DNS, no connection from here) may be this machine's network, not the deploy.
+  if [ "$public" -eq 22 ]; then
+    echo "✗ The app is running, but $NAMESAKE_URL answers with an error: check the Caddy site block and PROXY_NETWORK (deploy/README.md)"
     start_previous
   fi
 fi
@@ -160,4 +176,8 @@ remote "rm -rf src.prev compose.yml.prev .env.prev upload/cache.sqlite"
 
 # Only this project's leftover images, and never a reason to fail a good deploy.
 remote "docker image prune -f --filter label=com.docker.compose.project=namesake >/dev/null 2>&1 || true; docker compose ps"
+if [ "$public" -ne 0 ]; then
+  echo "✗ Deployed $SHA and healthy on the server, but $NAMESAKE_URL could not be reached from here (curl exit $public): check it from another network"
+  exit 1
+fi
 echo "✓ Deployed $SHA"
