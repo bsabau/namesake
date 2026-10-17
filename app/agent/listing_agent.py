@@ -222,9 +222,9 @@ def look_up_lookalike(
         f"this {deps.animal.species}'s look ({', '.join(quoted)})",
     )
     answer = _look_up(deps, title, kind, animal_in_it, quoted)
-    if not answer["status"].startswith("unavailable"):
-        # A failed call (a rate limit, say) may succeed when asked again after a repair.
-        deps.answers[asked] = answer
+    # Failures are remembered too: QlooClient already retried a retryable error once, and
+    # a call Qloo marked not retryable must not be sent again.
+    deps.answers[asked] = answer
     return answer
 
 

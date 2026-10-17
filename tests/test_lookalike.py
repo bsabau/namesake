@@ -316,16 +316,39 @@ def test_a_choice_reason_cannot_carry_a_taste_claim():
     assert check_choice_reason("the playful one", "x")
 
 
-def test_a_failed_lookup_is_tried_again_when_asked_again(roster):
-    # muse: a rate limit was remembered, so the retry after a repair failed too.
+def test_a_failed_lookup_is_not_sent_again(roster):
+    # Codex: QlooClient already retried a retryable error once, and a call Qloo marked
+    # not retryable must not be repeated, so a failure is remembered like an answer.
     d = deps(roster)
     d.qloo.script = {}
     ctx = SimpleNamespace(deps=d)
     first = look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"])
     assert first["status"].startswith("unavailable")
     d.qloo.script = film_script()
-    second = look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"])
-    assert second["status"] == "found" and len(d.qloo.calls) == 2
+    assert look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"]) == first
+    assert len(d.qloo.calls) == 1
+
+
+def test_saved_listings_with_lookalike_names_are_rerun_under_the_new_checks(tmp_path):
+    # Codex: a listing saved before the lookalike fixes still loaded as current.
+    from app.agent.listing_agent import ListingDraft
+    from app.agent.results import CHECKS_VERSION, ListingResult
+    from app.store import Store
+
+    store = Store(tmp_path / "store.sqlite")
+    plain = ListingDraft.model_validate(DRAFT)
+    looks = ListingDraft.model_validate(with_rex())
+
+    def saved(animal, draft, version):
+        store.put_listing(
+            ListingResult(animal_id=animal, location_id="x", checks_version=version, draft=draft)
+        )
+        return store.get_listing(animal, "x")
+
+    assert saved("a", plain, CHECKS_VERSION - 1) is not None
+    assert saved("b", looks, CHECKS_VERSION - 1) is None
+    assert saved("c", looks, CHECKS_VERSION) is not None
+    assert saved("d", plain, CHECKS_VERSION - 2) is None
 
 
 def test_the_profile_agents_choice_reason_is_screened_too(roster):

@@ -7,7 +7,10 @@ from app.agent.steps import Step
 
 # Raised whenever the listing checks change; saved results from an older version are
 # rerun instead of shown, since they were never held to the current rules.
-CHECKS_VERSION = 5
+CHECKS_VERSION = 6
+# Version 6 changed only the checks on lookalike names (decision 14), so a version-5
+# listing without one still holds and is not rerun.
+LOOKALIKE_CHECKS_FROM = 6
 
 
 class ListingResult(BaseModel):
