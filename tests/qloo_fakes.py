@@ -17,6 +17,11 @@ DOG_SHOW = "00000000-0000-4000-8000-000000000101"
 DOG_SHOW_OLD = "00000000-0000-4000-8000-000000000102"
 CAT_SHOW = "00000000-0000-4000-8000-000000000103"
 BASELINE = "00000000-0000-4000-8000-000000000104"
+# The area's other top shows: a second baseline, a pet-themed one the baseline leaves out,
+# and one beyond the two the baseline takes.
+BASELINE_2 = "00000000-0000-4000-8000-000000000107"
+LOCAL_PET_SHOW = "00000000-0000-4000-8000-000000000108"
+LOCAL_QUIZ = "00000000-0000-4000-8000-000000000109"
 
 
 def venue_id(n: int) -> str:
@@ -111,7 +116,25 @@ PET_VENUES = [
 ]
 BASELINE_VENUES = [
     venue(1, "Busy Arena", "A large arena.", {BASELINE: 1.0}),
-    venue(5, "Sports Bar", "A sports bar.", {BASELINE: 1.0}),
+    venue(5, "Sports Bar", "A sports bar.", {BASELINE_2: 1.0}),
+]
+
+
+def show(entity_id: str, name: str, description: str) -> dict:
+    return {
+        "entity_id": entity_id,
+        "name": name,
+        "type": "urn:entity:tv_show",
+        "properties": {"short_description": description},
+    }
+
+
+# What the area watches most, in Qloo's order.
+LOCAL_SHOWS = [
+    show(LOCAL_PET_SHOW, "Example Puppy Club", "A made-up series about a puppy training club."),
+    show(BASELINE, "Example Drama", "A made-up drama about a ranch."),
+    show(BASELINE_2, "Example Comedy", "A made-up office comedy."),
+    show(LOCAL_QUIZ, "Example Quiz", "A made-up quiz show."),
 ]
 
 
@@ -123,7 +146,9 @@ def cell(geohash: str, lat: float, lon: float, affinity: float) -> dict:
 
 
 PET_CELLS = [cell("dr5rks5", 40.6721, -73.9771, 0.9), cell("dr5rk66", 40.6625, -73.9895, 0.6)]
+CAT_CELLS = [cell("dr5rks5", 40.6721, -73.9771, 0.7)]
 BASELINE_CELLS = [cell("dr5rks5", 40.6721, -73.9771, 0.4)]
+BASELINE_2_CELLS = [cell("dr5rks5", 40.6721, -73.9771, 0.2)]
 
 
 def standard_script() -> dict[tuple[str, str], Envelope]:
@@ -146,15 +171,29 @@ def standard_script() -> dict[tuple[str, str], Envelope]:
                 "limit": 15,
             },
         ): envelope("recommend", results=PET_VENUES),
+        key("recommend", {"target_type": "tv_show", "signal_location": q, "limit": 10}): envelope(
+            "recommend", results=LOCAL_SHOWS
+        ),
         key(
             "recommend",
-            {"target_type": "place", "signals": [BASELINE], "filter_location": q, "limit": 15},
+            {
+                "target_type": "place",
+                "signals": [BASELINE, BASELINE_2],
+                "filter_location": q,
+                "limit": 15,
+            },
         ): envelope("recommend", results=BASELINE_VENUES),
         key("where_popular", {"entity": DOG_SHOW, "within": q, "limit": 20}): envelope(
             "where_popular", results=PET_CELLS
         ),
+        key("where_popular", {"entity": CAT_SHOW, "within": q, "limit": 20}): envelope(
+            "where_popular", results=CAT_CELLS
+        ),
         key("where_popular", {"entity": BASELINE, "within": q, "limit": 20}): envelope(
             "where_popular", results=BASELINE_CELLS
+        ),
+        key("where_popular", {"entity": BASELINE_2, "within": q, "limit": 20}): envelope(
+            "where_popular", results=BASELINE_2_CELLS
         ),
     }
 

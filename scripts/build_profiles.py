@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import get_settings  # noqa: E402
 from app.locations import load_locations  # noqa: E402
-from app.profile import build_profile, load_seeds  # noqa: E402
+from app.profile import baseline_titles, build_profile, load_seeds  # noqa: E402
 from app.qloo.cache import Cache  # noqa: E402
 from app.qloo.exec import QlooClient, harness_env  # noqa: E402
 
@@ -40,7 +40,7 @@ def main() -> None:
         p = build_profile(qloo, location, seeds)
         print(f"\n## {location.label}  complete={p.complete}")
         print("   pet:", [f"{e.name} ({e.resolution})" for e in p.pet_entities])
-        print("   baseline:", p.baseline.name if p.baseline else None)
+        print("   baseline:", [e.name for e in baseline_titles(p)])
         for v in p.venues:
             flag = "distinctive" if v.distinctive else f"baseline #{v.baseline_rank}"
             bad = f"  UNSUITABLE: {v.unsuitable}" if v.unsuitable else ""

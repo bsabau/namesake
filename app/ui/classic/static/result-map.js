@@ -49,6 +49,21 @@
     ).bindTooltip(cell.label).addTo(map);
   });
 
+  // A short key on the map itself (the view model's note); the caption says the rest.
+  if (view.note) {
+    const key = L.control({ position: "bottomleft" });
+    key.onAdd = () => {
+      const box = L.DomUtil.create("div", "map-key");
+      const heading = L.DomUtil.create("strong", "", box);
+      heading.textContent = view.note_heading;
+      const text = L.DomUtil.create("p", "", box);
+      text.textContent = view.note;
+      L.DomEvent.disableClickPropagation(box);
+      return box;
+    };
+    key.addTo(map);
+  }
+
   // The cells, and the visitor's pin with them, so it is never off the edge.
   if (view.pin) layers.push(L.circleMarker(shelter, { radius: 0, opacity: 0 }));
   if (layers.length) {

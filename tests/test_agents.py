@@ -43,14 +43,6 @@ def full_script():
             {"entity_id": DOG_SHOW, "name": "Example Dog Show", "type": "urn:entity:tv_show"},
         ],
     )
-    script[key("recommend", {"target_type": "tv_show", "signal_location": q, "limit": 10})] = (
-        envelope(
-            "recommend",
-            results=[
-                {"entity_id": BASELINE, "name": "Example Drama", "type": "urn:entity:tv_show"}
-            ],
-        )
-    )
     return script
 
 
@@ -188,7 +180,9 @@ def test_full_run_uses_the_agents_choices(roster):
     assert dog.choice_reason == "the 2018 one" and dog.resolution == "chosen"
     hall = next(v for v in profile.venues if v.entity_id == venue_id(3))
     assert hall.chosen_reason == "a community arts centre" and hall.distinctive
-    assert profile.local_tastes[0].name == "Example Drama"
+    assert profile.local_tastes[0].name == "Example Puppy Club"
+    # The baseline is the area's top shows, leaving out the pet-themed one.
+    assert [e.name for e in profile.baselines] == ["Example Drama", "Example Comedy"]
     assert result.draft.names[0].name == "Bingo" and result.fallback_reason is None
     # The hook is built by code from the first name's reference.
     saved = store.get_listing("dog-02", LOCATION.id)

@@ -9,7 +9,9 @@ Everything here is either what Qloo returned or a plain calculation on it
 """
 
 import json
+import re
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -20,6 +22,22 @@ from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
 
 VENUE_LIMIT = 15
 HEATMAP_LIMIT = 20
+# Version 2: the map combines the top pet titles, and the baseline is the area's own top
+# shows instead of one seed show (decision 18). Saved version-1 profiles still load and
+# show; app/upgrade_profiles.py brings them up to date.
+PROFILE_VERSION = 2
+# Each title on the map is one `where_popular` call per area, and the hackathon key is
+# refused after about 12 calls in 20 minutes, so two of each.
+MAP_TITLES = 2
+BASELINE_TITLES = 2
+# A top local show whose name or description mentions animals is not a baseline: a word
+# list, so the page says "mentions animals", not "is about animals".
+# Plain animal words only: "The Bear" or "Shark Tank" must not lose the area a baseline.
+PET_WORDS = re.compile(
+    r"\b(dogs?|cats?|pupp(y|ies)|kittens?|pets?|animals?|vets?|veterinar\w*|wildlife|zoos?|"
+    r"horses?|pon(y|ies))\b",
+    re.I,
+)
 
 # Venue descriptions that rule a place out for an adoption event or flyers.
 UNSUITABLE = (
@@ -48,6 +66,8 @@ class Seed(BaseModel):
 
 class Seeds(BaseModel):
     pet: list[Seed]
+    # The probe show for checking a typed area (decision 12). Since profile version 2 it
+    # is no longer the baseline: the area's own top shows are.
     baseline: Seed
 
 
@@ -97,8 +117,11 @@ class LiftCell(BaseModel):
     geohash: str
     latitude: float
     longitude: float
+    # Means over the maps that scored this cell, and how many did.
     pet_score: float
     baseline_score: float | None = None
+    pet_count: int = 1
+    baseline_count: int = 1
 
     @property
     def lift(self) -> float | None:
@@ -126,7 +149,17 @@ class LocationProfile(BaseModel):
     # The titles the venues were asked for: the evidence names these, not every title.
     venue_signals: list[str] = Field(default_factory=list)
     pet_entities: list[Entity] = Field(default_factory=list)
+    # Version 1's single seed baseline; version 2 leaves it empty and uses `baselines`.
     baseline: Entity | None = None
+    # What the pet titles are compared with: the area's top shows ("area"), or the seed
+    # show when Qloo's list of them was unusable ("seed").
+    baselines: list[Entity] = Field(default_factory=list)
+    baseline_source: str = "area"
+    # Heatmaps asked for but not returned (a refusal, an error): the map is not finished.
+    maps_missing: int = 0
+    # The pet titles combined into the map layer.
+    map_titles: list[Entity] = Field(default_factory=list)
+    version: int = 1
     venues: list[Venue] = Field(default_factory=list)
     # How many venues the baseline's list held, when it was available to compare.
     baseline_venue_count: int | None = None
@@ -138,13 +171,97 @@ class LocationProfile(BaseModel):
 
     @property
     def complete(self) -> bool:
-        return bool(self.venues) and bool(self.cells)
+        """Every call behind the venues and the map came back: the venues were compared and
+        every map arrived (whether or not the maps overlap). An unfinished profile is saved
+        with the AI's choices and finished on a later run (`finish_profile`)."""
+        compared = bool(self.venues) and all(v.compared for v in self.venues)
+        return compared and bool(self.cells) and self.maps_missing == 0
+
+
+def baseline_titles(profile: LocationProfile) -> list[Entity]:
+    """What the pet titles are compared with, for a profile of either version."""
+    return profile.baselines or ([profile.baseline] if profile.baseline else [])
+
+
+def layer_titles(profile: LocationProfile) -> list[Entity]:
+    """The pet titles on the map, for a profile of either version."""
+    return profile.map_titles or profile.pet_entities[:1]
+
+
+def baseline_from_tastes(tastes: list[Entity], pets: list[Entity]) -> list[Entity]:
+    """The area's top shows as the baseline, leaving out the pet titles themselves and any
+    show whose name or description mentions animals: comparing a pet show with itself, or
+    with another pet show, would hide the very thing the map is for."""
+    pet_ids = {e.id for e in pets}
+    keep = [
+        e
+        for e in tastes
+        if e.id not in pet_ids and not PET_WORDS.search(f"{e.name} {e.description or ''}")
+    ]
+    return keep[:BASELINE_TITLES]
+
+
+def coarsen(cells: dict[str, Any], size: int) -> dict[str, Any]:
+    """A heatmap at a coarser geohash precision: finer cells under one coarser cell are
+    averaged (score and centre)."""
+    if all(len(g) == size for g in cells):
+        return cells
+    groups: dict[str, list[Any]] = {}
+    for geohash, cell in cells.items():
+        groups.setdefault(geohash[:size], []).append(cell)
+
+    def mean(values: list[float]) -> float:
+        return sum(values) / len(values)
+
+    return {
+        g: SimpleNamespace(
+            location=SimpleNamespace(
+                latitude=mean([c.location.latitude for c in group]),
+                longitude=mean([c.location.longitude for c in group]),
+            ),
+            query=SimpleNamespace(affinity=mean([c.query.affinity for c in group])),
+        )
+        for g, group in groups.items()
+    }
+
+
+def combine_cells(
+    pet_maps: list[dict[str, Any]], base_maps: list[dict[str, Any]]
+) -> list[LiftCell]:
+    """One layer from several heatmaps. Each map's scores are ranks within the area (0 to
+    1), so a cell's score is the mean over the maps that scored it; a cell no pet map
+    scored is left out, and one no baseline map scored has no lift. Maps of different
+    precision are brought to the coarsest one, so their cells line up."""
+    cells: list[LiftCell] = []
+    sizes = [len(g) for m in pet_maps + base_maps for g in m]
+    size = min(sizes) if sizes else 0
+    pet_maps = [coarsen(m, size) for m in pet_maps]
+    base_maps = [coarsen(m, size) for m in base_maps]
+    geohashes = list(dict.fromkeys(g for m in pet_maps for g in m))
+    for geohash in geohashes:
+        pets = [m[geohash] for m in pet_maps if geohash in m]
+        bases = [m[geohash] for m in base_maps if geohash in m]
+        cells.append(
+            LiftCell(
+                geohash=geohash,
+                latitude=pets[0].location.latitude,
+                longitude=pets[0].location.longitude,
+                pet_score=sum(c.query.affinity for c in pets) / len(pets),
+                baseline_score=(sum(c.query.affinity for c in bases) / len(bases))
+                if bases
+                else None,
+                pet_count=len(pets),
+                baseline_count=len(bases),
+            )
+        )
+    return cells
 
 
 class _Builder:
     def __init__(self, qloo: QlooClient, location: Location):
         self.qloo = qloo
         self.profile = LocationProfile(location_id=location.id)
+        self.tastes_ok = False
 
     def call(self, operation: str, input_: dict[str, Any], purpose: str) -> Envelope | None:
         try:
@@ -246,6 +363,40 @@ class _Builder:
             return None
         return {c.location.geohash: c for c in env.cells()}
 
+    def tastes(self, location: Location, limit: int = 10) -> list[Entity]:
+        """The TV shows people around the area tend to like most. `tastes_ok` says whether
+        the answer is whole enough to be the baseline: a partial or degraded one may have
+        lost the location, and needs_input has no list at all."""
+        self.tastes_ok = False
+        env = self.call(
+            "recommend",
+            {"target_type": "tv_show", "signal_location": location.query, "limit": limit},
+            f"TV shows people around {location.label} tend to like",
+        )
+        if env is None:
+            return []
+        if env.status == "needs_input":
+            self.profile.notes.append(
+                f"Qloo could not tell which place {location.query!r} means for the area's "
+                "top shows."
+            )
+            return []
+        if not env.has_results:
+            # A whole answer with no shows in it is usable: it says there are none.
+            self.tastes_ok = env.status in ("ok", "empty")
+            return []
+        self.tastes_ok = env.status == "ok"
+        return [
+            Entity(
+                id=r["entity_id"],
+                name=r["name"],
+                type=r.get("type", "urn:entity:tv_show"),
+                description=(r.get("properties") or {}).get("short_description")
+                or (r.get("properties") or {}).get("description"),
+            )
+            for r in env.results
+        ]
+
 
 def screen(description: str | None) -> str | None:
     """Why a venue is unsuitable for an adoption event, or None."""
@@ -261,16 +412,126 @@ def rank_band(rank: int, total: int) -> str:
     return "bottom" if rank > total - third else "middle"
 
 
-def build_profile(qloo: QlooClient, location: Location, seeds: Seeds) -> LocationProfile:
-    """The fixed lookup: seed titles, resolved by name, then the shared assembly."""
+Prepared = tuple[list[Entity], list[Entity], str, list[str]]  # baseline_for's answer
+
+
+def build_profile(
+    qloo: QlooClient, location: Location, seeds: Seeds, prepared: Prepared | None = None
+) -> LocationProfile:
+    """The fixed lookup: seed titles, resolved by name, then the shared assembly.
+    `prepared` is a baseline already looked up for this run, so it is not asked twice."""
     b = _Builder(qloo, location)
     pets = [e for e in (b.resolve(s) for s in seeds.pet) if e is not None]
-    baseline = b.resolve(seeds.baseline)
-    return assemble_profile(b, location, pets, baseline)
+    if not pets:
+        return assemble_profile(b, location, pets, [])
+    if prepared is None:
+        tastes, baselines, source = area_baseline(b, location, seeds, pets)
+        notes: list[str] = []
+    else:
+        # The prepared list was chosen before any pet title was known: choose again from
+        # the same answer, so a seed title among the top shows is replaced, not dropped.
+        tastes, baselines, source, notes = prepared
+        if source == "area":
+            baselines, source = choose_baseline(b, location, seeds, tastes, True, pets)
+    profile = assemble_profile(b, location, pets, baselines)
+    profile.local_tastes, profile.baseline_source = tastes, source
+    profile.notes = notes + profile.notes
+    return profile
+
+
+def area_baseline(
+    b: "_Builder", location: Location, seeds: Seeds, pets: list[Entity]
+) -> tuple[list[Entity], list[Entity], str]:
+    """The area's top shows and the baseline from them (decision 18): (tastes, baselines,
+    source). When Qloo's list is unusable, or every top show mentions animals, the seed
+    show stands in, and a note says so."""
+    tastes = b.tastes(location)
+    baselines, source = choose_baseline(b, location, seeds, tastes, b.tastes_ok, pets)
+    return tastes, baselines, source
+
+
+# Notes about the comparison itself start with this, so finishing a profile keeps them.
+BASELINE_NOTE = "The comparison: "
+
+
+def choose_baseline(
+    b: "_Builder",
+    location: Location,
+    seeds: Seeds,
+    tastes: list[Entity],
+    usable: bool,
+    pets: list[Entity],
+) -> tuple[list[Entity], str]:
+    """The baseline from an answer already in hand: the area's top shows when the answer
+    is usable and leaves some, else the seed show, with a note either way it falls short."""
+    baselines = baseline_from_tastes(tastes, pets) if usable else []
+    if baselines:
+        return baselines, "area"
+    seed = b.resolve(seeds.baseline)
+    if seed is None:
+        b.profile.notes.append(
+            f"{BASELINE_NOTE}none could be found, so the venues and the map are not compared."
+        )
+        return [], "seed"
+    if not usable:
+        why = (
+            f"Qloo's list of the shows people around {location.label} watch most could not be used"
+        )
+    elif not tastes:
+        why = f"Qloo returned no shows that people around {location.label} watch most"
+    else:
+        why = (
+            f"every show people around {location.label} watch most mentions animals or is one "
+            "of the pet titles here"
+        )
+    b.profile.notes.append(
+        f"{BASELINE_NOTE}{why}, so it is one widely watched show unrelated to pets: {seed.name}."
+    )
+    return [seed], "seed"
+
+
+def baseline_for(
+    qloo: QlooClient, location: Location, seeds: Seeds, pets: list[Entity] | None = None
+) -> Prepared:
+    """`area_baseline` on its own, with its notes: before the AI's run (no pet titles yet),
+    or around titles already chosen (`finish_profile`)."""
+    b = _Builder(qloo, location)
+    tastes, baselines, source = area_baseline(b, location, seeds, pets or [])
+    return tastes, baselines, source, b.profile.notes
+
+
+def finish_profile(
+    old: LocationProfile, location: Location, qloo: QlooClient, seeds: Seeds
+) -> LocationProfile | None:
+    """The profile rebuilt at the current version around the titles already chosen,
+    keeping what Namesake's AI chose (titles, order, venues and its reasons), with fixed
+    calls only: cached ones are free, so only what was missing reaches Qloo. None when
+    Qloo still could not complete it."""
+    if not old.pet_entities:
+        return None
+    if old.version >= PROFILE_VERSION and old.baselines:
+        # Finishing: the baseline the AI's choices were made against stays as it was.
+        tastes, baselines, source = old.local_tastes, old.baselines, old.baseline_source
+        notes = [n for n in old.notes if n.startswith(BASELINE_NOTE)]
+    else:
+        tastes, baselines, source, notes = baseline_for(qloo, location, seeds, old.pet_entities)
+    new = profile_from(qloo, location, old.pet_entities, baselines, old.venue_signals or None)
+    if not new.complete:
+        return None
+    reasons = {v.entity_id: (v.chosen_reason, v.rejected_reason) for v in old.venues}
+    for venue in new.venues:
+        venue.chosen_reason, venue.rejected_reason = reasons.get(venue.entity_id, (None, None))
+    new.species, new.made_by = old.species, old.made_by
+    new.order_source, new.ranked = old.order_source, old.ranked
+    new.local_tastes, new.baseline_source = tastes, source
+    new.notes = notes + new.notes
+    # The lookups behind the titles stay on the record; the rest was asked again.
+    new.calls = [c for c in old.calls if c.operation in ("describe", "rank")] + new.calls
+    return new
 
 
 def resolve_baseline(qloo: QlooClient, location: Location, seed: Seed) -> Entity | None:
-    """The baseline title on its own, for an agent-built profile."""
+    """The probe show on its own, for checking a typed area (decision 12)."""
     return _Builder(qloo, location).resolve(seed)
 
 
@@ -278,17 +539,18 @@ def assemble_profile(
     b: "_Builder",
     location: Location,
     pets: list[Entity],
-    baseline: Entity | None,
+    baselines: list[Entity],
     venue_signals: list[str] | None = None,
 ) -> LocationProfile:
-    """Venues for the pet titles and the baseline, compared, and the lift map.
+    """Venues for the pet titles and the baseline shows, compared, and the lift map.
 
     `venue_signals` are the titles the venues are asked for, when not all of
     `pets` (an agent asks for venues with its top few). Same input, same cache key.
     """
     p = b.profile
+    p.version = PROFILE_VERSION
     p.pet_entities = pets
-    p.baseline = baseline
+    p.baselines = baselines
     if not p.pet_entities:
         p.notes.append("No pet-themed entity could be resolved, so there is nothing to look up.")
         return p
@@ -301,12 +563,12 @@ def assemble_profile(
         f"venues near {location.label} for fans of pet-themed titles",
     )
     base_venues = None
-    if p.baseline is not None:
+    if p.baselines:
         # An incomplete baseline would make missing venues look distinctive.
         base_venues = b.venues(
-            [p.baseline.id],
+            [e.id for e in p.baselines],
             location,
-            f"venues near {location.label} for the baseline show",
+            f"venues near {location.label} for fans of the area's top shows",
             complete=True,
         )
     if base_venues is not None:
@@ -339,18 +601,23 @@ def assemble_profile(
     if pet_venues and base_venues is None:
         p.notes.append("Without the baseline's venues, no venue can be marked as distinctive.")
 
-    pet_cells = b.heatmap(p.pet_entities[0], location)
-    base_cells = b.heatmap(p.baseline, location) if p.baseline is not None else None
-    for geohash, cell in (pet_cells or {}).items():
-        base = (base_cells or {}).get(geohash)
-        p.cells.append(
-            LiftCell(
-                geohash=geohash,
-                latitude=cell.location.latitude,
-                longitude=cell.location.longitude,
-                pet_score=cell.query.affinity,
-                baseline_score=base.query.affinity if base else None,
-            )
+    # The map: the titles the venues were asked for first, then the rest, two of them.
+    by_id = {e.id: e for e in p.pet_entities}
+    ordered = [by_id[i] for i in p.venue_signals if i in by_id] + p.pet_entities
+    p.map_titles = list({e.id: e for e in ordered}.values())[:MAP_TITLES]
+    # The first pet title, then the baseline, then the rest: if the key refuses the last
+    # calls, the comparison survives and only an extra pet title is missing.
+    first = [b.heatmap(e, location) for e in p.map_titles[:1]]
+    base = [b.heatmap(e, location) for e in p.baselines]
+    rest = [b.heatmap(e, location) for e in p.map_titles[1:]]
+    pet_maps = [m for m in first + rest if m]
+    base_maps = [m for m in base if m]
+    p.maps_missing = len(p.map_titles) + len(p.baselines) - len(pet_maps) - len(base_maps)
+    p.cells = combine_cells(pet_maps, base_maps)
+    if p.cells and p.baselines and not any(c.lift is not None for c in p.cells):
+        p.notes.append(
+            "No map cell was scored for both the pet shows and the shows they are compared "
+            "with, so the map shows no comparison."
         )
     return p
 
@@ -359,41 +626,27 @@ def profile_from(
     qloo: QlooClient,
     location: Location,
     pets: list[Entity],
-    baseline: Entity | None,
+    baselines: list[Entity],
     venue_signals: list[str] | None = None,
 ) -> LocationProfile:
     """Assemble a profile around titles chosen elsewhere (by the agent)."""
-    return assemble_profile(_Builder(qloo, location), location, pets, baseline, venue_signals)
+    return assemble_profile(_Builder(qloo, location), location, pets, baselines, venue_signals)
 
 
-def baseline_venue_ids(qloo: QlooClient, location: Location, baseline: Entity) -> list[str] | None:
-    """The baseline's venues in rank order, or None when there is no complete answer."""
+def baseline_venue_ids(
+    qloo: QlooClient, location: Location, baselines: list[Entity]
+) -> list[str] | None:
+    """The baseline shows' venues in rank order, or None when there is no complete answer."""
     b = _Builder(qloo, location)
     results = b.venues(
-        [baseline.id],
+        [e.id for e in baselines],
         location,
-        f"venues near {location.label} for the baseline show",
+        f"venues near {location.label} for fans of the area's top shows",
         complete=True,
     )
     return None if results is None else [r["entity_id"] for r in results]
 
 
-def local_tastes(qloo: QlooClient, location: Location, limit: int = 10) -> list[Entity]:
-    """What the area watches in general, the second source for names."""
-    b = _Builder(qloo, location)
-    env = b.call(
-        "recommend",
-        {"target_type": "tv_show", "signal_location": location.query, "limit": limit},
-        f"TV shows people around {location.label} tend to like",
-    )
-    if env is None or not env.has_results:
-        return []
-    return [
-        Entity(
-            id=r["entity_id"],
-            name=r["name"],
-            type=r.get("type", "urn:entity:tv_show"),
-            description=(r.get("properties") or {}).get("short_description"),
-        )
-        for r in env.results
-    ]
+def local_tastes(qloo: QlooClient, location: Location) -> list[Entity]:
+    """What the area watches in general: the second source for names, and the baseline."""
+    return _Builder(qloo, location).tastes(location)

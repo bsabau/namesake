@@ -35,6 +35,8 @@ class ProfileDeps:
     log: StepLog
     # The baseline's venue IDs in rank order, or None when unavailable.
     baseline_venues: list[str] | None = None
+    # The baseline shows themselves: what pet titles are compared with, so never one.
+    baseline_titles: dict[str, str] = field(default_factory=dict)
     # Everything Qloo returned during the run, so the output can be checked against it.
     titles_seen: dict[str, Entity] = field(default_factory=dict)
     ambiguous: dict[str, int] = field(default_factory=dict)
@@ -157,6 +159,19 @@ def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> d
     return {"status": "found", "entity_id": entity.id, "name": entity.name}
 
 
+def baseline_refusal(deps: ProfileDeps, entity_ids: list[str]) -> dict[str, Any] | None:
+    """A baseline show is what pet titles are compared with, never one of them."""
+    names = [deps.baseline_titles[i] for i in entity_ids if i in deps.baseline_titles]
+    if not names:
+        return None
+    # The step log names no baseline title (decision 18); the model is told which.
+    deps.log.add("check", "Refused a title that is one of the shows used for the comparison")
+    return {
+        "status": f"{', '.join(names)} is one of this area's top shows, which the comparison "
+        "uses; send pet-themed titles only"
+    }
+
+
 def rank_titles(
     ctx: RunContext[ProfileDeps], entity_ids: list[str], kind: TitleKind
 ) -> dict[str, Any]:
@@ -170,6 +185,8 @@ def rank_titles(
     unknown = [i for i in entity_ids if i not in deps.titles_seen]
     if unknown:
         return {"status": f"unknown entity_ids {unknown}; look titles up first"}
+    if refusal := baseline_refusal(deps, entity_ids):
+        return refusal
     ids = entity_ids[:MAX_RANKED]
     deps.rank_attempted = True
     deps.log.add("qloo", f"Ranking {len(ids)} titles for {deps.location.label}")
@@ -201,6 +218,8 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
     unknown = [i for i in entity_ids if i not in deps.titles_seen]
     if unknown:
         return {"status": f"unknown entity_ids {unknown}; look titles up first"}
+    if refusal := baseline_refusal(deps, entity_ids):
+        return refusal
     ids = entity_ids[:MAX_VENUE_SIGNALS]
     names = [deps.titles_seen[i].name for i in ids]
     deps.log.add(
@@ -252,7 +271,12 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
     deps = ctx.deps
     problems = []
     for t in plan.titles:
-        if t.entity_id not in deps.titles_seen:
+        if t.entity_id in deps.baseline_titles:  # logged with the other problems below
+            problems.append(
+                f"{deps.baseline_titles[t.entity_id]} is one of this area's top shows, which "
+                "the comparison uses; it cannot also be a pet-themed title"
+            )
+        elif t.entity_id not in deps.titles_seen:
             problems.append(f"title {t.entity_id} was not returned by look_up_title")
         elif deps.ambiguous.get(t.entity_id) and not t.choice_reason:
             problems.append(f"title {t.entity_id} came back as candidates; give choice_reason")

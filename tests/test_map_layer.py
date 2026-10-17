@@ -1,0 +1,380 @@
+"""Profile version 2: the map combines the top pet titles, and the baseline is the area's
+own top shows, leaving out pet-themed ones (decision 18). Fake Qloo, invented data only."""
+
+from types import SimpleNamespace
+
+import pytest
+from pydantic_ai import ModelRetry
+
+from app.agent.profile_agent import ProfileDeps, ProfilePlan, check_plan, find_venues
+from app.agent.steps import StepLog
+from app.profile import (
+    Entity,
+    LiftCell,
+    baseline_from_tastes,
+    build_profile,
+    combine_cells,
+    finish_profile,
+)
+from app.views.build import build_result_view
+from tests.qloo_fakes import (
+    BASELINE,
+    BASELINE_2,
+    CAT_SHOW,
+    DOG_SHOW,
+    LOCAL_SHOWS,
+    LOCATION,
+    SEEDS,
+    FakeQloo,
+    envelope,
+    key,
+    standard_script,
+)
+
+
+def scored(affinity: float, lat: float = 40.67, lon: float = -73.98):
+    return SimpleNamespace(
+        location=SimpleNamespace(latitude=lat, longitude=lon),
+        query=SimpleNamespace(affinity=affinity),
+    )
+
+
+def test_cells_are_averaged_over_the_maps_that_scored_them():
+    dog = {"a": scored(0.9), "b": scored(0.6)}
+    cat = {"a": scored(0.7), "c": scored(0.5)}
+    drama = {"a": scored(0.4), "c": scored(0.1)}
+    cells = {c.geohash: c for c in combine_cells([dog, cat], [drama])}
+    assert set(cells) == {"a", "b", "c"}
+    assert round(cells["a"].pet_score, 3) == 0.8 and cells["a"].pet_count == 2
+    assert round(cells["a"].lift, 3) == 0.4 and cells["a"].baseline_count == 1
+    assert cells["b"].lift is None and cells["b"].baseline_count == 0
+    assert round(cells["c"].lift, 3) == 0.4
+
+
+def test_the_baseline_leaves_out_pet_titles_and_shows_about_animals():
+    def show(i: int, name: str, description: str = "A made-up show.") -> Entity:
+        return Entity(id=f"id-{i}", name=name, type="urn:entity:tv_show", description=description)
+
+    tastes = [
+        show(1, "Example Puppy Club"),
+        show(2, "Example Drama"),
+        show(3, "Example Rescue", "A made-up series about a vet and the animals she treats."),
+        show(4, "Example Bluey-like"),
+        show(5, "Example Comedy"),
+        show(6, "Example Quiz"),
+    ]
+    picked = [tastes[3]]  # a top show the AI picked as a pet title
+    assert [e.name for e in baseline_from_tastes(tastes, picked)] == [
+        "Example Drama",
+        "Example Comedy",
+    ]
+    # Flash: animal words used as metaphors must not cost the area its baseline.
+    metaphors = [show(7, "The Example Bear"), show(8, "Example Shark Tank")]
+    assert len(baseline_from_tastes(metaphors, [])) == 2
+
+
+def profile():
+    return build_profile(FakeQloo(standard_script()), LOCATION, SEEDS)
+
+
+def test_the_map_names_both_pet_shows_and_carries_a_key(roster):
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    shared = next(c for c in view.map.cells if c.geohash == "dr5rks5")
+    assert "Example Dog Show and Example Cat Show" in shared.label
+    assert "(2 shows)" in shared.label and "this area's top shows" in shared.label
+    assert view.map.note and "Warm" in view.map.note
+    # The key names no baseline title; the Why panel does, as Qloo returned them.
+    assert "Example Drama" not in view.map.note + view.map.legend
+    reading = {item.title: item.detail for item in view.our_reading}
+    detail = reading["Why compare with this area's top shows"]
+    assert "Example Drama and Example Comedy" in detail and "Puppy" not in detail
+
+
+def test_a_version_1_profile_still_renders(roster):
+    old = profile().model_copy(
+        update={
+            "version": 1,
+            "baselines": [],
+            "map_titles": [],
+            "baseline": Entity(
+                id=BASELINE,
+                name="Example Drama",
+                type="urn:entity:tv_show",
+                why="a widely watched drama with nothing to do with pets",
+            ),
+        }
+    )
+    view = build_result_view(roster.get("dog-02"), LOCATION, old)
+    assert "fans of Example Drama" in view.map.legend
+    assert "Example Cat Show" not in view.map.legend  # version 1 mapped one title
+    assert any(i.title == "Why compare with Example Drama" for i in view.our_reading)
+
+
+def test_an_upgrade_keeps_what_the_ai_chose():
+    current = profile()
+    old = current.model_copy(
+        update={
+            "version": 1,
+            "baselines": [],
+            "map_titles": [],
+            "cells": [],
+            "made_by": "agent",
+            "order_source": "qloo_rank",
+            "species": "dog",
+            "local_tastes": [],
+            "venues": [
+                v.model_copy(update={"chosen_reason": "a community arts centre"})
+                for v in current.venues
+            ],
+        }
+    )
+    new = finish_profile(old, LOCATION, FakeQloo(standard_script()), SEEDS)
+    assert new.version == 2 and [e.id for e in new.baselines] == [BASELINE, BASELINE_2]
+    assert [e.id for e in new.pet_entities] == [DOG_SHOW, CAT_SHOW]
+    assert new.made_by == "agent" and new.order_source == "qloo_rank" and new.species == "dog"
+    assert all(v.chosen_reason == "a community arts centre" for v in new.venues)
+    assert new.cells and new.local_tastes
+
+
+def test_an_upgrade_qloo_cannot_finish_is_not_saved():
+    script = standard_script()
+    for entity in (DOG_SHOW, CAT_SHOW):
+        del script[key("where_popular", {"entity": entity, "within": LOCATION.query, "limit": 20})]
+    old = profile().model_copy(update={"version": 1, "baselines": [], "cells": []})
+    assert finish_profile(old, LOCATION, FakeQloo(script), SEEDS) is None
+
+
+def test_maps_of_different_precision_are_brought_to_the_coarsest():
+    # muse, Flash: a 7-character pet map never met a 6-character baseline map.
+    pets = {"dr5rks5": scored(0.8), "dr5rks6": scored(0.6), "dr5rk66": scored(0.5)}
+    base = {"dr5rks": scored(0.3)}
+    cells = {c.geohash: c for c in combine_cells([pets], [base])}
+    assert set(cells) == {"dr5rks", "dr5rk6"}
+    assert round(cells["dr5rks"].pet_score, 3) == 0.7 and round(cells["dr5rks"].lift, 3) == 0.4
+
+
+def test_a_long_description_counts_when_there_is_no_short_one():
+    script = standard_script()
+    tastes_key = key(
+        "recommend", {"target_type": "tv_show", "signal_location": LOCATION.query, "limit": 10}
+    )
+    shows = [dict(s) for s in LOCAL_SHOWS]
+    shows[1] = {**shows[1], "properties": {"description": "A family and their dog."}}
+    script[tastes_key] = envelope("recommend", results=shows)
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    assert "Example Drama" not in [e.name for e in p.baselines]
+
+
+@pytest.mark.parametrize("status", ["degraded", "partial", "needs_input"])
+def test_an_unusable_list_of_top_shows_falls_back_to_the_seed_show(status):
+    # Codex, muse, Flash: a degraded answer may have lost the area; needs_input has none.
+    script = standard_script()
+    tastes_key = key(
+        "recommend", {"target_type": "tv_show", "signal_location": LOCATION.query, "limit": 10}
+    )
+    results = [] if status == "needs_input" else LOCAL_SHOWS
+    script[tastes_key] = envelope("recommend", status, results=results, warnings=["thin"])
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    assert p.baseline_source == "seed" and [e.id for e in p.baselines] == [BASELINE]
+    assert any("could not be used" in n for n in p.notes)
+
+
+def test_a_missing_map_leaves_the_profile_unfinished_and_a_later_run_finishes_it():
+    # Codex, Flash: an all-grey map was saved as complete when the baseline maps failed;
+    # Codex: an unsaved profile would leave its listings without their titles' evidence.
+    script = standard_script()
+    missing = key("where_popular", {"entity": BASELINE_2, "within": LOCATION.query, "limit": 20})
+    answer = script.pop(missing)
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    assert p.maps_missing == 1 and not p.complete
+    qloo = FakeQloo({**script, missing: answer})
+    finished = finish_profile(p.model_copy(update={"species": "dog"}), LOCATION, qloo, SEEDS)
+    assert finished.complete and finished.species == "dog"
+    # Only the missing map reached Qloo again; the fake serves the rest as the cache would.
+    assert ("where_popular", missing[1]) in [(op, key(op, i)[1]) for op, i in qloo.calls]
+
+
+def test_maps_that_never_overlap_still_finish():
+    # Flash: with no shared cell nothing is missing, so the profile is finished, grey.
+    script = standard_script()
+    for entity in (BASELINE, BASELINE_2):
+        k = key("where_popular", {"entity": entity, "within": LOCATION.query, "limit": 20})
+        script[k] = envelope("where_popular", results=[cell_far()])
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    assert p.complete and all(c.lift is None for c in p.cells)
+
+
+def cell_far() -> dict:
+    return {
+        "location": {"latitude": 40.70, "longitude": -73.90, "geohash": "dr5rzzz"},
+        "query": {"affinity": 0.5, "popularity": 0.5},
+    }
+
+
+def test_version_1_cells_render_with_their_defaults(roster):
+    old = profile().model_copy(
+        update={
+            "version": 1,
+            "baselines": [],
+            "map_titles": [],
+            "baseline": Entity(id=BASELINE, name="Example Drama", type="urn:entity:tv_show"),
+            "cells": [
+                LiftCell.model_validate(
+                    {"geohash": "dr5rks5", "latitude": 40.67, "longitude": -73.97,
+                     "pet_score": 0.9, "baseline_score": 0.4}
+                )
+            ],
+        }
+    )  # fmt: skip
+    label = build_result_view(roster.get("dog-02"), LOCATION, old).map.cells[0].label
+    assert label == "Fans of Example Dog Show: 0.90; fans of Example Drama: 0.40."
+
+
+def deps_with_baseline() -> ProfileDeps:
+    drama = Entity(id=BASELINE, name="Example Drama", type="urn:entity:tv_show")
+    deps = ProfileDeps(
+        qloo=FakeQloo(standard_script()),
+        location=LOCATION,
+        species="dog",
+        log=StepLog(),
+        baseline_titles={BASELINE: "Example Drama"},
+    )
+    deps.titles_seen[BASELINE] = drama
+    return deps
+
+
+def test_a_baseline_show_is_never_a_pet_title_or_a_venue_signal():
+    # Codex, muse, Flash: the AI's venues were judged against a baseline the page did not
+    # show, when it picked one of the area's top shows as a pet title.
+    deps = deps_with_baseline()
+    ctx = SimpleNamespace(deps=deps)
+    assert "comparison uses" in find_venues(ctx, [BASELINE])["status"]
+    plan = ProfilePlan.model_validate(
+        {"titles": [{"entity_id": BASELINE, "why": "a show"}], "venues": []}
+    )
+    with pytest.raises(ModelRetry, match="cannot also be a pet-themed title"):
+        check_plan(ctx, plan)
+
+
+def test_the_pipeline_saves_an_unfinished_profile_and_finishes_it_next_run(roster):
+    from app.store import Store
+    from tests.test_agents import Script, _tmp_db, full_script, run
+
+    store = Store(_tmp_db())
+    script = full_script()
+    missing = key("where_popular", {"entity": BASELINE_2, "within": LOCATION.query, "limit": 20})
+    answer = script.pop(missing)
+    run(Script([], []), roster, model=False, store=store, qloo=FakeQloo(script))
+    saved = store.get_profile(LOCATION.id, "dog")
+    assert saved is not None and not saved.complete
+    _, _, log = run(
+        Script([], []), roster, model=False, store=store, qloo=FakeQloo({**script, missing: answer})
+    )
+    assert store.get_profile(LOCATION.id, "dog").complete
+    assert any("Finishing the saved profile" in s.text for s in log.steps)
+
+
+def test_finishing_keeps_the_baseline_the_ai_chose_against():
+    # Codex: finishing must not swap the comparison the AI's venue reasons were written for.
+    p = profile()
+    drama_only = [e for e in p.baselines if e.id == BASELINE]
+    old = p.model_copy(update={"baselines": drama_only, "maps_missing": 1})
+    script = standard_script()
+    script[
+        key(
+            "recommend",
+            {"target_type": "place", "signals": [BASELINE], "filter_location": LOCATION.query,
+             "limit": 15},
+        )
+    ] = script[
+        key(
+            "recommend",
+            {"target_type": "place", "signals": [BASELINE, BASELINE_2],
+             "filter_location": LOCATION.query, "limit": 15},
+        )
+    ]  # fmt: skip
+    new = finish_profile(old, LOCATION, FakeQloo(script), SEEDS)
+    assert [e.id for e in new.baselines] == [BASELINE]
+
+
+def test_a_profile_with_no_titles_is_not_saved(roster):
+    # Codex, Flash: an empty profile would be "finished" forever without a call that helps.
+    from app.store import Store
+    from tests.test_agents import Script, _tmp_db, run
+
+    store = Store(_tmp_db())
+    run(Script([], []), roster, model=False, store=store, qloo=FakeQloo({}))
+    assert store.get_profile(LOCATION.id, "dog") is None
+
+
+def test_the_fallback_refills_its_baseline_when_a_seed_title_is_a_top_show():
+    # Codex: a seed pet title among the area's top two was dropped, not replaced.
+    kitchen = Entity(id=CAT_SHOW, name="Example Kitchen", type="urn:entity:tv_show")
+    drama = Entity(id=BASELINE, name="Example Drama", type="urn:entity:tv_show")
+    comedy = Entity(id=BASELINE_2, name="Example Comedy", type="urn:entity:tv_show")
+    tastes = [kitchen, drama, comedy]
+    prepared = (tastes, baseline_from_tastes(tastes, []), "area", [])
+    p = build_profile(FakeQloo(standard_script()), LOCATION, SEEDS, prepared)
+    assert [e.id for e in p.baselines] == [BASELINE, BASELINE_2] and p.complete
+
+
+def test_a_finer_baseline_map_is_brought_to_the_pet_maps_precision():
+    pets = {"dr5rks": scored(0.8)}
+    base = {"dr5rks5": scored(0.4), "dr5rks6": scored(0.2)}
+    cells = combine_cells([pets], [base])
+    assert [(c.geohash, round(c.lift, 3)) for c in cells] == [("dr5rks", 0.5)]
+
+
+def test_a_map_with_no_shared_cell_says_so(roster):
+    # Flash: the key promised warm and cool on an all-grey map, with no reason given.
+    script = standard_script()
+    for entity in (BASELINE, BASELINE_2):
+        k = key("where_popular", {"entity": entity, "within": LOCATION.query, "limit": 20})
+        script[k] = envelope("where_popular", results=[cell_far()])
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    assert any("no comparison" in n for n in p.notes)
+    view = build_result_view(roster.get("dog-02"), LOCATION, p)
+    assert view.map.note.startswith("Grey: no cell was scored for both")
+    assert not any(i.title == "Lift on the map" for i in view.our_reading)
+
+
+def test_a_saved_profile_qloo_still_cannot_finish_is_used_as_it_is(roster):
+    from app.store import Store
+    from tests.test_agents import Script, _tmp_db, full_script, run
+
+    store = Store(_tmp_db())
+    script = full_script()
+    del script[key("where_popular", {"entity": BASELINE_2, "within": LOCATION.query, "limit": 20})]
+    run(Script([], []), roster, model=False, store=store, qloo=FakeQloo(script))
+    _, _, log = run(Script([], []), roster, model=False, store=store, qloo=FakeQloo(script))
+    assert any("could not finish it yet" in s.text for s in log.steps)
+
+
+def test_the_seed_note_says_why_and_survives_finishing():
+    # Flash: when every top show is a pet title, Qloo's list was used, not unusable;
+    # Codex: finishing a profile kept its baseline but dropped this note.
+    script = standard_script()
+    tastes_key = key(
+        "recommend", {"target_type": "tv_show", "signal_location": LOCATION.query, "limit": 10}
+    )
+    script[tastes_key] = envelope("recommend", results=[LOCAL_SHOWS[0]])  # a puppy show only
+    script[
+        key(
+            "recommend",
+            {"target_type": "place", "signals": [BASELINE], "filter_location": LOCATION.query,
+             "limit": 15},
+        )
+    ] = script[
+        key(
+            "recommend",
+            {"target_type": "place", "signals": [BASELINE, BASELINE_2],
+             "filter_location": LOCATION.query, "limit": 15},
+        )
+    ]  # fmt: skip
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    note = next(n for n in p.notes if n.startswith("The comparison:"))
+    assert "mentions animals or is one of the pet titles" in note
+    finished = finish_profile(
+        p.model_copy(update={"maps_missing": 1}), LOCATION, FakeQloo(script), SEEDS
+    )
+    assert note in finished.notes

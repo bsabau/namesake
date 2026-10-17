@@ -61,7 +61,7 @@ From the five citywide heatmaps recorded on 3 October:
 
 Entities tied to a place show real taste: the Mets' top cells are mostly in Queens and the Yankees' in the Bronx. Broad entities land in Manhattan, where most people are. Either way, the top 20 cells of a whole city rarely reach the shelter.
 
-Within the neighbourhood (`within: "Park Slope, Brooklyn"`) the heatmap behaves differently: 15 cells for *Bluey* and 12 for *Yellowstone*, each about 150 m across (7-character geohashes, against 6 citywide). Scores are ranks spread evenly from 0 to 1 inside the area, so they compare within one map, not across maps or with citywide scores.
+Within the neighbourhood (`within: "Park Slope, Brooklyn"`) the heatmap behaves differently: 15 cells for *Bluey* and 12 for *Yellowstone*, each about 150 m across (7-character geohashes, against 6 citywide). Scores are ranks spread evenly from 0 to 1 inside the area, so they compare within one map, not with citywide scores. As ranks (each cell's place within its own map), two maps of the same area can be set side by side: the lift is one map's rank minus the other's in the same cell, and since decision 18 the map averages the ranks of two pet titles and of two baseline shows per cell.
 
 Eight cells appear in both. The difference in score is the lift for the pet show:
 
@@ -109,14 +109,14 @@ Keep the provisional three: **Park Slope**, **Astoria** and **Austin**.
 
 Most Qloo work depends on the location and the species, not the individual animal. So the agent builds a **location profile** once per location and species, which is cached and shared by every animal there, and then a short **listing run** per animal.
 
-**Location profile (agent and code, about 8 live calls, cached):**
+**Location profile (agent and code, about 8 live calls when proposed; about 12 to 14 since decision 18, cached):**
 
 1. *Agent:* propose about ten pet-themed titles for the species (TV, films, books, brands), since pet tags alone return almost nothing.
 2. *Agent:* resolve them. Where Qloo returns candidates, pick one with a stated reason, for example "the 2018 children's series, not the 1976 crime drama", or drop the title.
 3. *Agent and Qloo:* rank them in the location and keep the strongest. If fewer than three survive, propose more once.
-4. *Code:* venues for fans of the survivors and for a fixed baseline show, near the shelter, and the rank difference between the two lists.
+4. *Code:* venues for fans of the survivors and for the baseline (since decision 18, the area's own top two shows; first a fixed show), near the shelter, and the rank difference between the two lists.
 5. *Agent and code:* screen the venues for event suitability (code drops adult venues and nightlife by category; the agent judges the rest) and choose about three, each with a reason.
-6. *Code:* heatmaps within the neighbourhood for the top title and the baseline, and the lift map.
+6. *Code:* heatmaps within the neighbourhood for the top title and the baseline, and the lift map (since decision 18, the top two titles against the two baseline shows, averaged).
 7. *Code:* the area's general tastes (TV and films with a location signal), the second source for names.
 
 **Listing run (per animal, at most a couple of `describe` calls):**
@@ -147,3 +147,13 @@ Reading:
 - One area and one set of brands, so this is a hint, not a result.
 
 **Not adopted for now.** The profile keeps pet-themed titles as venue signals. A brand-only list of pet-owner places, screened for hotels, could be a separate, labelled section later, at one more call per profile.
+
+## Trends (17 October, 2 calls)
+
+`trends` takes one to five entities of one type and a date range, and no location: it describes a title's popularity across all of Qloo's audiences, not one area's.
+
+- Bluey and PAW Patrol, 1 July to 1 October 2026: status `ok`, both resolved, and every series empty.
+- The same titles, 1 July to 1 October 2025: up to 10 points each (the default `limit`), about five days apart. Bluey's `population_percentile` moved from 0.6154 to 0.6159 and PAW Patrol's from 0.8660 to 0.8661; every velocity field was 0.
+
+So it gives no recent signal and no local one. A "rising lately" badge was dropped (decision 18).
+

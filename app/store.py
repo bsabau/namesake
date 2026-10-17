@@ -90,6 +90,14 @@ class Store:
     def put_profile(self, profile: LocationProfile) -> None:
         self._put(f"profile:{profile.location_id}:{profile.species}", profile)
 
+    def saved_profiles(self) -> list[tuple[str, str]]:
+        """(location_id, species) of every saved profile, for app/upgrade_profiles.py."""
+        with sqlite3.connect(self.path) as db:
+            keys = [
+                r[0] for r in db.execute("SELECT key FROM agent_results WHERE key LIKE 'profile:%'")
+            ]
+        return [tuple(k.removeprefix("profile:").rsplit(":", 1)) for k in keys]
+
     def get_listing(self, animal_id: str, location_id: str) -> ListingResult | None:
         result = self._load(ListingResult, f"listing:{animal_id}@{location_id}")
         return result if result is not None and _current(result) else None

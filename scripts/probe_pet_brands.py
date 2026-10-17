@@ -20,7 +20,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import get_settings  # noqa: E402
 from app.locations import load_locations  # noqa: E402
-from app.profile import HEATMAP_LIMIT, VENUE_LIMIT, baseline_venue_ids  # noqa: E402
+from app.profile import (  # noqa: E402
+    HEATMAP_LIMIT,
+    VENUE_LIMIT,
+    baseline_titles,
+    baseline_venue_ids,
+)
 from app.qloo.exec import QlooExecError, ReplayMiss  # noqa: E402
 from app.store import Store  # noqa: E402
 from scripts.qloo_call import make_client  # noqa: E402
@@ -81,7 +86,8 @@ def main() -> None:
     if env is None or not env.has_results:
         print(f"Brand venues: {env.status if env else 'unavailable'}")
         return
-    base_ids = baseline_venue_ids(qloo, location, profile.baseline) if profile.baseline else None
+    bases = baseline_titles(profile)
+    base_ids = baseline_venue_ids(qloo, location, bases) if bases else None
     titles = {v.entity_id: v for v in profile.venues}
     print(f"\nPlaces near {location.label} for fans of {', '.join(b[1] for b in brands)}:")
     shared_titles = shared_base = 0
@@ -99,7 +105,7 @@ def main() -> None:
         print(f"  {rank:2}. {r['name']} [{', '.join(marks) or 'new'}] {description}")
     print(
         f"\n{len(env.results)} places: {shared_titles} also on the pet films' list, "
-        f"{shared_base} also on {profile.baseline.name}'s."
+        f"{shared_base} also on the baseline's ({', '.join(e.name for e in bases)})."
     )
 
     cells = call("where_popular", {"entity": brands[0][0], "within": location.query,

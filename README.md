@@ -40,11 +40,11 @@ Namesake's AI (two agents, one per area and one per animal) and some plain code 
 | Resolve the pet-themed titles Namesake's AI proposes | `describe` | **Namesake's AI** proposes 4 to 6 titles, picks among Qloo's candidates with a stated reason, or drops a title | Pet tags filter TV and film down to almost nothing, so the model proposes titles and Qloo checks them. 6 of 10 show names came back ambiguous. |
 | Order the titles for this area | `rank` with `signal_location` | **Namesake's AI**, once per area | When Qloo's ranking is unavailable, the order Namesake's AI chose is kept and the page says so. |
 | Places near the shelter that fans favour | `recommend`, `target_type: place`, titles as signals | **Namesake's AI** chooses which titles to send, then picks up to three venues for a flyer or event, with a reason | Fans of two pet shows give 15 venues in and around Park Slope. |
-| A baseline to compare against | `recommend` places for one unrelated show (*Yellowstone*) | Code | 9 of the first 15 pet-show venues also came back for the baseline: they are just popular nearby. Each venue shows its rank and whether it stands out against the baseline. |
-| A map of where pet-show fans stand out | `where_popular` within the neighbourhood, for the top title and the baseline | Code | Raw affinity saturates near 1.0, so the map shows **lift**: the pet title's cell score minus the baseline's. |
+| A baseline to compare against | `recommend` TV with `signal_location` for the area's top shows, leaving out any whose name or description mentions animals; then `recommend` places for their fans | Code | With one unrelated show (*Yellowstone*) as the baseline, 9 of the first 15 pet-show venues also came back for it: they are just popular nearby. The baseline is now what the area itself watches most, so "stands out" means "for pet-show fans more than for this area's usual tastes". Each venue shows its rank and whether it stands out. |
+| A map of where pet-show fans stand out | `where_popular` within the neighbourhood, for the top two pet titles and the top two baseline shows | Code | Raw affinity saturates near 1.0, so the map shows **lift**: the pet titles' cell score minus the baseline shows', each averaged over the maps that scored the cell. A key on the map says what the colours mean. |
 | What the area tends to watch | `recommend` TV and films with `signal_location` | Code | A second, labelled source of name options. |
 | Titles with an animal that looks like this one | `describe` | **Namesake's AI**, per animal, at most two | A personal name option, badged "Has a lookalike in …". The shared look must be quoted from the animal's record. |
-| A volunteer types their own area, or right-clicks the shelter's spot on the map | `where_popular` for the baseline within the area's name | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here", instead of a weak listing. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
+| A volunteer types their own area, or right-clicks the shelter's spot on the map | `where_popular` for one widely watched probe show within the area's name | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here", instead of a weak listing. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
 
 The decisions behind each row, with their evidence, are in [`docs/decisions.md`](docs/decisions.md) and [`docs/qloo-findings.md`](docs/qloo-findings.md).
 
@@ -64,7 +64,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
    - a **Why** drawer with two columns, "Qloo returned" and "How Namesake read it" (Namesake's AI and its code)
 4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software.
 
-The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 8 Qloo calls, and each further animal at most two.
+The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 12 to 14 Qloo calls (fewer when titles are already cached; one or two more to check a typed area first), and each further animal at most two.
 
 ## Measuring whether it works
 
@@ -89,7 +89,7 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
-Open http://localhost:8000. A fresh clone has an empty cache, so the first run for an area calls Qloo live (about 8 calls, a minute with the spacing) and the model. To fill the cache for the start page's examples, or to watch one run in the terminal:
+Open http://localhost:8000. A fresh clone has an empty cache, so the first run for an area calls Qloo live (about 12 to 14 calls, a minute or two with the spacing) and the model. To fill the cache for the start page's examples, or to watch one run in the terminal:
 
 ```sh
 uv run python scripts/precompute_examples.py          # live: Qloo and the model
@@ -122,7 +122,7 @@ The image holds Python, Node and the pinned harness. The demo runs this image on
 
 - **No outcome evidence yet.** The tool is built to measure whether local taste data helps, and nothing has been measured.
 - **Coverage is uneven.** The demo uses New York and Austin, where US coverage is deepest. Thin areas are refused with a message instead of answered weakly.
-- **Affinity scores saturate.** Raw scores sit near 1.0 for broad entities, so Namesake uses order within a call and lift against a baseline show, never raw affinity. The baseline is one show, so "stands out" means "not on that one other list".
+- **Affinity scores saturate.** Raw scores sit near 1.0 for broad entities, so Namesake uses order within a call and lift against the area's own top shows, never raw affinity. The baseline is the area's own top two shows, so "stands out" means "more than this area's usual tastes", not more than everyone's.
 - **Ranking is often unavailable.** Qloo's `rank` is the most rate-limited workflow and twice returned nothing; the order Namesake's AI chose is then kept and labelled.
 - **Venues have no coordinates.** Qloo returns an address and a neighbourhood, so venues are listed beside the map, not pinned on it.
 - **Area data says nothing about individuals.** Results read "people in this area tend to like X". A shelter's adopters are not its neighbours, and tastes can stand in for demographics, which is one reason names are screened for identity-coded references.

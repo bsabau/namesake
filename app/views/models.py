@@ -222,6 +222,9 @@ class MapView(BaseModel):
     pin: Pin | None = None
     cells: list[MapCell]
     legend: str
+    # A short key drawn on the map itself; the legend under it says the rest.
+    note_heading: str = "What the colours mean"
+    note: str | None = None
     empty_message: str | None = None
 
 

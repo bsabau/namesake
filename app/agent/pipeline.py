@@ -27,14 +27,16 @@ from app.agent.steps import StepLog
 from app.animals import ADDED_PREFIX, Animal
 from app.locations import Location
 from app.profile import (
+    PROFILE_VERSION,
     Entity,
     LocationProfile,
+    Prepared,
     Seeds,
+    baseline_for,
     baseline_venue_ids,
     build_profile,
-    local_tastes,
+    finish_profile,
     profile_from,
-    resolve_baseline,
 )
 from app.qloo.exec import QlooClient
 from app.store import Store
@@ -62,19 +64,33 @@ async def agent_profile(
     model: Model,
     log: StepLog,
     output_mode: str,
+    prepared: Prepared,
 ) -> LocationProfile:
-    log.add("start", f"Building the profile for {species}s in {location.label}")
-    baseline = await asyncio.to_thread(resolve_baseline, qloo, location, seeds.baseline)
+    # The baseline was fixed before the AI runs (`_build_profile`), so its venue choices
+    # are judged against the same comparison the page shows.
+    tastes, baselines, source, notes = prepared
     base_ids = None
-    if baseline is not None:
-        log.add("qloo", f"Baseline: places near {location.label} for fans of {baseline.name}")
-        base_ids = await asyncio.to_thread(baseline_venue_ids, qloo, location, baseline)
+    if baselines:
+        log.add("qloo", f"Baseline: places near {location.label} for fans of its top shows")
+        base_ids = await asyncio.to_thread(baseline_venue_ids, qloo, location, baselines)
 
     deps = ProfileDeps(
-        qloo=qloo, location=location, species=species, log=log, baseline_venues=base_ids
+        qloo=qloo,
+        location=location,
+        species=species,
+        log=log,
+        baseline_venues=base_ids,
+        baseline_titles={e.id: e.name for e in baselines},
     )
     agent = build_profile_agent(model, output_mode)
-    run = await agent.run("Build the profile.", deps=deps, usage_limits=PROFILE_LIMITS)
+    prompt = "Build the profile."
+    if baselines:
+        # Said up front, so no lookup or repair round is spent on them.
+        names = " and ".join(e.name for e in baselines)
+        what = "this area's top shows" if source == "area" else "the show used"
+        them = "them" if len(baselines) > 1 else "it"
+        prompt += f" {names}: {what} for the comparison; do not propose {them} as pet titles."
+    run = await agent.run(prompt, deps=deps, usage_limits=PROFILE_LIMITS)
     plan = run.output
 
     chosen = {t.entity_id: t for t in plan.titles}
@@ -88,8 +104,10 @@ async def agent_profile(
         pets.append(entity)
 
     profile = await asyncio.to_thread(
-        profile_from, qloo, location, pets, baseline, deps.venue_signals
+        profile_from, qloo, location, pets, baselines, deps.venue_signals
     )
+    profile.local_tastes, profile.baseline_source = tastes, source
+    profile.notes = notes + profile.notes
     picks = {v.entity_id: v.reason for v in plan.venues}
     rejects = {v.entity_id: v.reason for v in plan.rejected_venues}
     for venue in profile.venues:
@@ -117,6 +135,16 @@ async def get_profile(
     loop = id(asyncio.get_running_loop())
     async with _profile_locks[(loop, location.id, species)]:
         saved = store.get_profile(location.id, species)
+        if saved is not None and saved.version >= PROFILE_VERSION and not saved.complete:
+            # Saved unfinished: finish it around the same titles, so listings made from it
+            # keep their evidence. Fixed calls only; what is cached costs nothing.
+            log.add("qloo", f"Finishing the saved profile for {species}s in {location.label}")
+            finished = await asyncio.to_thread(finish_profile, saved, location, qloo, seeds)
+            if finished is not None:
+                store.put_profile(finished)
+                return finished
+            log.add("note", "Qloo could not finish it yet; using it as it is")
+            return saved
         if saved is not None:
             log.add("note", f"Using the saved profile for {species}s in {location.label}")
             return saved
@@ -144,12 +172,18 @@ async def _build_profile(
     output_mode: str,
 ) -> LocationProfile:
     species = animal.species
+    log.add("start", f"Building the profile for {species}s in {location.label}")
+    # The baseline is what the area watches most, leaving out shows that mention animals
+    # (decision 18): looked up once here, for the AI's run and the fallback alike. The step
+    # log names no title: the Why panel does.
+    log.add("qloo", f"Looking up what people around {location.label} tend to watch")
+    prepared = await asyncio.to_thread(baseline_for, qloo, location, seeds)
 
     profile = None
     if model_factory is not None:
         try:
             profile = await agent_profile(
-                qloo, location, species, seeds, model_factory(), log, output_mode
+                qloo, location, species, seeds, model_factory(), log, output_mode, prepared
             )
         except AGENT_FAILURES as exc:
             log.add(
@@ -157,12 +191,17 @@ async def _build_profile(
             )
     if profile is None:
         log.add("note", "Falling back to the fixed lookup with the seed titles")
-        profile = await asyncio.to_thread(build_profile, qloo, location, seeds)
+        profile = await asyncio.to_thread(build_profile, qloo, location, seeds, prepared)
 
     profile.species = species
-    log.add("qloo", f"Looking up what people around {location.label} tend to watch")
-    profile.local_tastes = await asyncio.to_thread(local_tastes, qloo, location)
+    # Saved even when unfinished, so a listing made now keeps its titles' evidence; the
+    # next run finishes it (get_profile). A profile with no titles has nothing to finish.
+    if not profile.pet_entities:
+        log.add("note", "No pet-themed title could be found; the next run tries again")
+        return profile
     store.put_profile(profile)
+    if not profile.complete:
+        log.add("note", "Qloo could not finish this area's profile; the next run finishes it")
     return profile
 
 

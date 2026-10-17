@@ -61,7 +61,7 @@ The plan's success measure is adoptions and returns; likes and reach are left ou
 |---|---|---|---|
 | A. Find pet tags (dog, cat, pets, animals) | `find_tags` | code, fixed queries | global |
 | B. Pet-themed entities strong here | `recommend`, pet tags as `include_tags`, `signal_location` | agent: which types, keep or drop | location |
-| C. Local lift against a baseline | `where_popular` for each entity and one baseline entity in `city`; lift = score near the shelter minus the baseline's | code computes; agent drops entities with no lift | entity and city |
+| C. Local lift against a baseline | `where_popular` for the top two entities and the area's top two shows (decision 18); lift = the entities' averaged score in a cell minus the baseline shows' | code computes; agent drops entities with no lift | entity and city |
 | D. Venues fans favour | `recommend` for places, surviving entities as signals, location near the shelter | agent picks about three, with reasons | location |
 | E. General local tastes | `recommend` with `signal_location` per type | agent proposes, screens, keeps | location |
 | F. Check each name's reference | resolve and `describe`; `needs_input` goes to candidate buttons or a pick with a stated reason | agent | entity |
