@@ -6,7 +6,7 @@
 
 A volunteer picks an animal and the shelter's area. In about a minute Namesake produces:
 
-1. **A listing written only from the facts the shelter recorded.** Plain words, third person, behaviour toward people first. A bite history or guarding is always stated. Nothing unrecorded is added.
+1. **A listing written only from the facts the shelter recorded.** Plain words, third person, behaviour toward people first. A bite history or guarding is always stated. Code checks every sentence against the record and sends back words the facts don't contain.
 2. **Name options drawn from Qloo taste data**, each labelled with where it came from and screened for villains, violent or tragic characters, aggression words, real people and identity-coded references.
 3. **A plan to get the animal seen**: the evidence-backed channels (foster networks, outings, timing) plus a few local venues that fans of pet-themed shows and films favour, each with Qloo's evidence beside it.
 
@@ -50,7 +50,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
 
 **What makes it an agent.** The model chooses which titles to try, which of Qloo's candidates a name means, which titles to send for venues, which venues suit an adoption event, and, for each animal, which lookalike titles to check. It reads each answer and adapts: an ambiguous title gets a choice or is dropped, an unavailable ranking falls back to its own order, a refused lookup is tried again with the look words quoted from the record. Calls that never change, such as the baseline and the heatmaps, run in plain code.
 
-**What plain code guarantees.** Every title and venue the agent returns must have come from Qloo in that run; invented IDs are sent back. Every bio sentence must trace to a recorded fact, and every fact must be used. Names pass the screen. No two animals at a shelter share a name, except a litter named as a set from one title. A failed check gets one repair round, then the templated listing, which says why.
+**What plain code checks.** Every title and venue the agent returns must have come from Qloo in that run; invented IDs are sent back. Every bio sentence must cite recorded facts and use no content word they lack, and every fact must be used. The check works on words, so it catches added traits and claims; it is not a guarantee of meaning, which is why the volunteer edits and approves. Names pass the screen. No two animals at a shelter share a name, except a litter named as a set from one title. A failed check gets one repair round, then the templated listing, which says why.
 
 ## From request to result
 

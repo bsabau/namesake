@@ -153,8 +153,10 @@ STOPWORDS = frozenset((
 GLUE = frozenset((
     "always", "often", "usually", "likes", "enjoys", "seems", "tends", "quite", "really",
     "little", "bit", "both", "each", "every", "old", "year", "years", "week", "weeks", "month",
-    "months", "male", "female", "dog", "cat", "kitten", "puppy", "one", "ones",
+    "months", "male", "female", "dog", "cat", "one", "ones",
 ))  # fmt: skip
+# "puppy" and "kitten" are not glue: they claim an age, so a bio may use them only when
+# the recorded look says so (app/listing.py, look_text).
 
 
 def _stem(word: str) -> str:
@@ -179,12 +181,12 @@ def _segments(fact: str) -> list[str]:
 
 
 def fact_texts(animal: Animal) -> dict[str, str]:
-    from app.listing import CHECK_SENTENCES, age_phrase
+    from app.listing import CHECK_SENTENCES, look_text
 
     texts = {
         "temperament": animal.temperament,
         # The same wording the agent is shown, so a faithful copy passes.
-        "look": f"{age_phrase(animal.age)} {animal.sex} {animal.species}: {animal.look}",
+        "look": look_text(animal),
     }
     texts |= {f"fact:{i}": f for i, f in enumerate(animal.facts)}
     for field, answers in CHECK_SENTENCES.items():

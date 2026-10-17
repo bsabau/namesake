@@ -18,7 +18,7 @@ from app.agent import checks
 from app.agent.profile_agent import StoryKind, qloo_call
 from app.agent.steps import StepLog
 from app.animals import Animal
-from app.listing import age_phrase, check_sentences, pronouns
+from app.listing import check_sentences, look_text, pronouns
 from app.profile import Entity
 from app.qloo.exec import QlooClient
 
@@ -165,7 +165,7 @@ REQUEST = (
 def facts_block(animal: Animal) -> str:
     lines = [
         f'- temperament: "{animal.temperament}"',
-        f'- look: "{age_phrase(animal.age)} {animal.sex} {animal.species}: {animal.look}"',
+        f'- look: "{look_text(animal)}"',
     ]
     lines += [f'- fact:{i}: "{f}"' for i, f in enumerate(animal.facts)]
     return "\n".join(lines)

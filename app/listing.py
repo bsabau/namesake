@@ -87,6 +87,28 @@ def age_phrase(age: str) -> str:
     return f"{match.group(1)}-{match.group(2)}-old"
 
 
+YOUNG = {"dog": "puppy", "cat": "kitten"}
+
+
+def life_stage(animal: Animal) -> str | None:
+    """'puppy' or 'kitten' for an animal recorded as under a year old, else None."""
+    match = re.fullmatch(r"(\d+)\s+(year|month|week)s?", animal.age.strip())
+    if match is None or match.group(2) == "year":
+        return None
+    if match.group(2) == "month" and int(match.group(1)) >= 12:
+        return None
+    return YOUNG.get(animal.species)
+
+
+def look_text(animal: Animal) -> str:
+    """The animal's recorded look as the agent sees it and the checks compare against:
+    "4-year-old female dog: ..." or "10-week-old female cat, a kitten: ...". A puppy or
+    kitten is named only when the recorded age says so."""
+    young = life_stage(animal)
+    stage = f", a {young}" if young else ""
+    return f"{age_phrase(animal.age)} {animal.sex} {animal.species}{stage}: {animal.look}"
+
+
 def fact_sentence(fact: str, they: str, is_: str) -> str:
     first = fact.split()[0].lower()
     starts_with_verb = first == "already" or (

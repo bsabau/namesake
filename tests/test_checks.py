@@ -361,3 +361,30 @@ def test_reference_text_uses_an_before_a_vowel():
         "Roquefort, an animal in Example Film"
     )
     assert reference_text("Bingo", "dog", "Example Show") == "Bingo, a dog in Example Show"
+
+
+def test_puppy_or_kitten_only_when_the_recorded_age_says_so(roster):
+    # Codex: "She is a puppy" passed for the 4-year-old lead dog.
+    from app.agent.checks import check_bio
+    from app.listing import life_stage, look_text
+
+    adult = roster.get("dog-02")
+    problems = check_bio(
+        adult,
+        [
+            (
+                "She is a puppy: strong but gentle and leans on people for attention.",
+                ["temperament"],
+            ),
+            ("She needs an owner comfortable with a big dog.", ["fact:0"]),
+            ("She knows basic commands.", ["fact:1"]),
+        ],
+        extra_words=0,
+    )
+    assert any("puppy" in p for p in problems)
+    assert life_stage(adult) is None and "puppy" not in look_text(adult)
+
+    young = roster.get("puppy-01")
+    assert life_stage(young) == "puppy" and ", a puppy:" in look_text(young)
+    assert life_stage(roster.get("kitten-01")) == "kitten"
+    assert life_stage(roster.get("cat-02")) is None

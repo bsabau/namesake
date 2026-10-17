@@ -52,7 +52,7 @@ A **Why** drawer separates "Qloo returned" from "Our reading" for every choice. 
 
 - The generic-versus-local toggle answers "would this work the same without Qloo?" on the result screen itself.
 - Provenance everywhere: what Qloo returned is never blended with the app's reading of it.
-- A listing generator that cannot invent a trait, and a name screen built from published research rather than taste.
+- A listing generator held to the record by code, not by the model's good intentions: a sentence with a word the facts don't contain is sent back. And a name screen built from published research rather than taste.
 - Honest scope: the tool claims what the evidence supports and records what a real trial would need.
 
 ## What I learned
