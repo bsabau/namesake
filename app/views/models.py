@@ -90,7 +90,10 @@ class ShelterBar(BaseModel):
     heading: str = "Shelter area"
     name: str
     region: str = ""
+    chosen: bool = True
     change: str = "Change"
+    # Said instead of `change` while no area is chosen.
+    choose: str = "Choose an area"
     close: str = "Done"
     panel_heading: str = "Choose the shelter's area"
     # Open when no area is chosen or an area check needs the visitor: the alert, Qloo's
@@ -105,6 +108,8 @@ class StartView(BaseModel):
     examples: list[ExampleLink] = []
     locations: list[LocationOption]
     shelter: ShelterBar
+    # The caption under the map for the area shown first.
+    map_note: str
     location_form: LocationForm = LocationForm()
     animals: list[AnimalCard]
     litters: list[LitterCard]

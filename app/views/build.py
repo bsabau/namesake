@@ -197,12 +197,14 @@ def build_start_view(
             option.map_note = PIN_FAR_NOTE
     chosen = next((o for o in options if o.selected), None)
     shelter = (
-        ShelterBar(name=chosen.label, region=chosen.region)
+        # A spot dropped as too far is explained in the panel, so it opens.
+        ShelterBar(name=chosen.label, region=chosen.region, open=pin_far)
         if chosen
-        else ShelterBar(name="not chosen yet", open=True)
+        else ShelterBar(name="not chosen yet", chosen=False, open=True)
     )
     return StartView(
         shelter=shelter,
+        map_note=(chosen or options[0]).map_note,
         examples=examples or [],
         title="Write an adoption listing",
         intro=(
@@ -238,7 +240,10 @@ def listing_view(
     draft = result.draft if result else None
     if draft is not None:
         bio = [(s.text, s.facts) for s in result.bio]
-        written_by = "Written by Namesake's AI from the shelter's records, then checked by code."
+        written_by = (
+            "Written by Namesake's AI from the shelter's records; code adds the confirmed "
+            "answers and checks every sentence."
+        )
     else:
         bio = [(s.text, [s.source]) for s in templated_listing(animal).sentences]
         written_by = "Built from the shelter's records by a fixed template."

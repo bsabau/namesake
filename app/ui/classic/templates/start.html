@@ -4,6 +4,7 @@
 {% include "leaflet.html" %}
 <script defer src="{{ ui_static('location-map.js') }}"></script>
 <script defer src="{{ ui_static('place-suggest.js') }}"></script>
+<script defer src="{{ ui_static('shelter-bar.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -23,12 +24,11 @@
 <form id="pick" action="/runs" method="post">
   {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
   {# The chosen area as a slim bar; its panel holds everything for changing it. #}
-  <details class="shelter" id="shelter" data-role="shelter"{% if view.shelter.open %} open{% endif %}>
+  <details class="shelter{% if not view.shelter.chosen %} unchosen{% endif %}" id="shelter" data-role="shelter"{% if view.shelter.open %} open{% endif %}>
     <summary>
       <span class="shelter-heading">{{ view.shelter.heading }}:</span>
-      <strong class="shelter-name" id="shelter-name">{{ view.shelter.name }}</strong>
-      <span class="shelter-region" id="shelter-region">{{ view.shelter.region }}</span>
-      <span class="shelter-toggle"><span class="when-closed">{{ view.shelter.change }}</span><span class="when-open">{{ view.shelter.close }}</span></span>
+      <span class="shelter-place"><strong class="shelter-name" id="shelter-name">{{ view.shelter.name }}</strong><span class="shelter-region" id="shelter-region">{{ view.shelter.region }}</span></span>
+      <span class="shelter-toggle"><span class="when-closed"><span class="if-chosen">{{ view.shelter.change }}</span><span class="if-unchosen">{{ view.shelter.choose }}</span></span><span class="when-open">{{ view.shelter.close }}</span></span>
     </summary>
   <section class="where">
     <fieldset class="locations">
@@ -73,12 +73,11 @@
       </div>
     </fieldset>
 
-    {% set chosen = view.locations|selectattr("selected")|first %}
     <figure class="location-map">
       <div id="location-map" data-role="map" role="img"
            aria-label="Map of the area around the shelter"
            data-pick-url="{{ view.location_form.pick_url }}"></div>
-      <figcaption id="map-note">{{ chosen.map_note if chosen else view.locations[0].map_note }}</figcaption>
+      <figcaption id="map-note">{{ view.map_note }}</figcaption>
       <p class="hint map-hint">{{ view.location_form.map_hint }}</p>
     </figure>
     <script type="application/json" id="map-points">{{ view.locations|plain|tojson }}</script>

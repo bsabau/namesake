@@ -51,10 +51,8 @@
     fillOpacity: 0.15,
   }).addTo(map);
   const pin = L.circleMarker(centreOf(start), pinStyle);
-  // The bar above the animals names the chosen area; the panel below it holds this map.
+  // The map sits in the shelter panel (shelter-bar.js keeps the bar's text).
   const panel = document.getElementById("shelter");
-  const barName = document.getElementById("shelter-name");
-  const barRegion = document.getElementById("shelter-region");
   let current = start;
   const show = (p) => {
     current = p;
@@ -66,12 +64,15 @@
   };
   show(start);
 
-  // Leaflet cannot measure a map inside a closed panel: size and centre it on opening.
+  // Leaflet cannot measure a map inside a closed panel: size it on opening, and centre it
+  // the first time it gets a real size, so a later reopening keeps the visitor's view.
+  let sized = container.clientWidth > 0;
   if (panel) {
     panel.addEventListener("toggle", () => {
       if (!panel.open) return;
       map.invalidateSize();
-      map.setView(centreOf(current), zoomFor(current));
+      if (!sized) map.setView(centreOf(current), zoomFor(current));
+      sized = true;
     });
   }
 
@@ -79,8 +80,6 @@
     input.addEventListener("change", () => {
       const p = points[input.value];
       if (!p) return;
-      if (barName) barName.textContent = p.label;
-      if (barRegion) barRegion.textContent = p.region;
       show(p);
       map.flyTo(centreOf(p), zoomFor(p), { duration: 1.2 });
     });

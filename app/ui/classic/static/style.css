@@ -575,3 +575,7 @@ button[type="submit"]:not(.animal-card):not(.link-button), .candidates button {
 .shelter[open] > summary { border-bottom: 1px solid var(--border); }
 .shelter > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .shelter .where { padding: 16px; margin-bottom: 0; }
+.shelter.unchosen > summary .shelter-name { color: var(--accent); }
+.shelter-region:not(:empty)::before { content: ", "; }
+.shelter .if-unchosen, .shelter.unchosen .if-chosen { display: none; }
+.shelter.unchosen .if-unchosen { display: inline; }
