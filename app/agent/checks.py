@@ -189,6 +189,12 @@ def check_name(
     return problems
 
 
+def identity_coded(name: str, description: str | None) -> bool:
+    """A title coded to a religion, race or political identity: by its name, or by words in
+    its description that are rarely anyone's name (descriptions name the cast)."""
+    return bool(find_word(name, IDENTITY_CODED) or find_word(description or "", IDENTITY_TERMS))
+
+
 def check_title(
     name: str, role: str, title: str, description: str | None, *, real_people: bool = False
 ) -> list[str]:

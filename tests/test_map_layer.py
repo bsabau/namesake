@@ -73,6 +73,27 @@ def test_the_baseline_leaves_out_pet_titles_and_shows_about_animals():
     assert len(baseline_from_tastes(metaphors, [])) == 2
 
 
+def test_the_baseline_leaves_out_shows_tied_to_an_identity():
+    # Hoboken, 18 October: a documentary about a president's portraits was a top show, so
+    # the page said people there tend to like it, and it shaped the map.
+    def show(i: int, name: str, description: str = "A made-up show.") -> Entity:
+        return Entity(id=f"id-{i}", name=name, type="urn:entity:tv_show", description=description)
+
+    tastes = [
+        show(1, "Example Shore", "A made-up reality show at the beach."),
+        show(2, "Picturing Example", "A made-up documentary about Obama's portraits."),
+        show(3, "Example Sermons", "A made-up series of sermons about Christ."),
+        show(4, "Example Comedy"),
+    ]
+    assert [e.name for e in baseline_from_tastes(tastes, [])] == [
+        "Example Shore",
+        "Example Comedy",
+    ]
+    # A cast surname in a description does not count (decision 19).
+    harris = [show(5, "Example Days", "Starring Example Harris."), show(6, "Example Quiz")]
+    assert len(baseline_from_tastes(harris, [])) == 2
+
+
 def profile():
     return build_profile(FakeQloo(standard_script()), LOCATION, SEEDS)
 
@@ -373,7 +394,7 @@ def test_the_seed_note_says_why_and_survives_finishing():
     ]  # fmt: skip
     p = build_profile(FakeQloo(script), LOCATION, SEEDS)
     note = next(n for n in p.notes if n.startswith("The comparison:"))
-    assert "mentions animals or is one of the pet titles" in note
+    assert "mentions animals, is one of the pet titles" in note
     finished = finish_profile(
         p.model_copy(update={"maps_missing": 1}), LOCATION, FakeQloo(script), SEEDS
     )

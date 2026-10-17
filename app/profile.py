@@ -16,6 +16,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.agent.checks import identity_coded
 from app.locations import Location
 from app.qloo.envelope import Envelope
 from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
@@ -217,12 +218,16 @@ def layer_titles(profile: LocationProfile) -> list[Entity]:
 def baseline_from_tastes(tastes: list[Entity], pets: list[Entity]) -> list[Entity]:
     """The area's top shows as the baseline, leaving out the pet titles themselves and any
     show whose name or description mentions animals: comparing a pet show with itself, or
-    with another pet show, would hide the very thing the map is for."""
+    with another pet show, would hide the very thing the map is for. Shows coded to a
+    religion, race or political identity are left out too: the page names the baseline as
+    what people here tend to watch, and that must not read as a claim about who they are."""
     pet_ids = {e.id for e in pets}
     keep = [
         e
         for e in tastes
-        if e.id not in pet_ids and not PET_WORDS.search(f"{e.name} {e.description or ''}")
+        if e.id not in pet_ids
+        and not PET_WORDS.search(f"{e.name} {e.description or ''}")
+        and not identity_coded(e.name, e.description)
     ]
     return keep[:BASELINE_TITLES]
 
@@ -507,8 +512,8 @@ def choose_baseline(
         why = f"Qloo returned no shows that people around {location.label} watch most"
     else:
         why = (
-            f"every show people around {location.label} watch most mentions animals or is one "
-            "of the pet titles here"
+            f"every show people around {location.label} watch most mentions animals, is one "
+            "of the pet titles here, or is tied to a religion or politics"
         )
     b.profile.notes.append(
         f"{BASELINE_NOTE}{why}, so it is one widely watched show unrelated to pets: {seed.name}."
