@@ -99,7 +99,7 @@ def _short(text: str | None, limit: int = 160) -> str | None:
     return text if len(text) <= limit else text[:limit].rsplit(" ", 1)[0] + "…"
 
 
-def _call(deps: ProfileDeps, operation: str, input_: dict[str, Any]) -> Envelope | str:
+def qloo_call(deps: Any, operation: str, input_: dict[str, Any]) -> Envelope | str:
     """Run a Qloo call; a failure comes back as text the model can read and adapt to."""
     try:
         env = deps.qloo.run(operation, input_)
@@ -117,7 +117,7 @@ def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> d
     """Find a title in Qloo by name. Returns the entity, or candidates to choose from."""
     deps = ctx.deps
     deps.log.add("qloo", f"Looking up “{name}” ({kind.replace('_', ' ')}) in Qloo")
-    env = _call(deps, "describe", {"entity": name, "type": kind})
+    env = qloo_call(deps, "describe", {"entity": name, "type": kind})
     if isinstance(env, str):
         deps.log.add("note", f"“{name}”: {env}")
         return {"status": env}
@@ -170,7 +170,7 @@ def rank_titles(
     ids = entity_ids[:MAX_RANKED]
     deps.rank_attempted = True
     deps.log.add("qloo", f"Ranking {len(ids)} titles for {deps.location.label}")
-    env = _call(
+    env = qloo_call(
         deps,
         "rank",
         {"option_type": kind, "options": ids, "signal_location": deps.location.query},
@@ -203,7 +203,7 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
     deps.log.add(
         "qloo", f"Finding places near {deps.location.label} for fans of {', '.join(names)}"
     )
-    env = _call(
+    env = qloo_call(
         deps,
         "recommend",
         {

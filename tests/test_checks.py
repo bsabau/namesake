@@ -122,7 +122,7 @@ def test_a_person_reference_fails():
 
 def test_the_strict_screen_rejects_a_non_pet_source():
     assert name("Bingo", source="show", strict=True) == [
-        "name 'Bingo': for this dog use only names drawn from the pet-themed titles"
+        "name 'Bingo': for this dog use only names drawn from the pet-themed or lookalike titles"
     ]
 
 

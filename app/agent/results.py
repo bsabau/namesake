@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel
 
-from app.agent.listing_agent import BioSentence, ListingDraft
+from app.agent.listing_agent import BioSentence, ListingDraft, Lookalike
 from app.agent.steps import Step
 
 # Raised whenever the listing checks change; saved results from an older version are
@@ -23,5 +23,7 @@ class ListingResult(BaseModel):
     references: list[str] = []
     # Built by code from the first name's reference; None without a draft.
     hook: str | None = None
+    # Titles the agent looked up for this animal's look, as Qloo returned them.
+    lookalikes: list[Lookalike] = []
     fallback_reason: str | None = None
     steps: list[Step] = []

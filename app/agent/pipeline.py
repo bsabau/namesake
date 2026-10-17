@@ -42,7 +42,7 @@ from app.store import Store
 
 # Bounds on one agent run: model requests and tool calls.
 PROFILE_LIMITS = UsageLimits(request_limit=16, tool_calls_limit=14)
-LISTING_LIMITS = UsageLimits(request_limit=4)
+LISTING_LIMITS = UsageLimits(request_limit=6, tool_calls_limit=4)
 
 ModelFactory = Callable[[], Model]
 
@@ -203,10 +203,12 @@ async def write_listing(
     request: str | None = None,
     theme: str | None = None,
     first_of_litter: bool = False,
+    qloo: QlooClient | None = None,
 ) -> ListingResult:
     """One listing. `request` is a volunteer's refine request. For a litter named as a
     set, `theme` limits the names to the litter's title, and the first member's names
-    must all come from one title, which becomes the theme."""
+    must all come from one title, which becomes the theme. With `qloo`, the agent may
+    look up titles featuring an animal that looks like this one."""
     result = ListingResult(
         animal_id=animal.id, location_id=location.id, checks_version=CHECKS_VERSION
     )
@@ -224,30 +226,33 @@ async def write_listing(
 
     log.add("start", f"Writing the listing and name options for the {animal.species}")
     agent = build_listing_agent(model_factory(), output_mode)
+    deps = ListingDeps(
+        animal=animal,
+        titles=titles,
+        log=log,
+        taken_names=taken,
+        request=request,
+        litter_title=titles[theme][0].name if theme else None,
+        first_of_litter=first_of_litter,
+        qloo=qloo,
+    )
     try:
-        run = await agent.run(
-            "Write the listing.",
-            deps=ListingDeps(
-                animal=animal,
-                titles=titles,
-                log=log,
-                taken_names=taken,
-                request=request,
-                litter_title=titles[theme][0].name if theme else None,
-                first_of_litter=first_of_litter,
-            ),
-            usage_limits=LISTING_LIMITS,
-        )
+        # The lookup tool is synchronous and runs `qloo` as a subprocess; PydanticAI
+        # runs sync tools in a worker thread.
+        run = await agent.run("Write the listing.", deps=deps, usage_limits=LISTING_LIMITS)
         result.draft = run.output
         # The confirmed checks come from fixed sentences, never from the model.
         result.bio = list(run.output.bio) + [
             BioSentence(text=c.text, facts=[c.source])
             for c in check_sentences(animal.checks, pronouns(animal.sex))
         ]
+        # deps.titles now includes any lookalike titles the agent found.
         result.references = [
-            reference_for(o, titles[o.entity_id][0].name) for o in run.output.names
+            reference_for(o, deps.titles[o.entity_id][0].name) for o in run.output.names
         ]
         result.hook = f"Named after {result.references[0]}."
+        used = {o.entity_id for o in run.output.names}
+        result.lookalikes = [v for k, v in deps.lookalikes.items() if k in used]
     except AGENT_FAILURES as exc:
         log.add("error", f"The listing did not pass its checks ({type(exc).__name__})")
         result.fallback_reason = (
@@ -305,6 +310,7 @@ async def run_pipeline(
             # or, as the first one named, takes all its names from one title.
             theme=theme,
             first_of_litter=bool(litter_mates) and theme is None,
+            qloo=qloo,
         )
         result.steps = list(log.steps)
         (save or store.put_listing)(result)

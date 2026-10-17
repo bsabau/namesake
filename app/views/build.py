@@ -245,7 +245,12 @@ def listing_view(
             available=draft is not None,
             name=local_name,
             name_source=(
-                name_badge(draft.names[0].source, draft.names[0].entity_id, profile)
+                name_badge(
+                    draft.names[0].source,
+                    draft.names[0].entity_id,
+                    profile,
+                    title_names(profile, result).get(draft.names[0].entity_id),
+                )
                 if draft
                 else ""
             ),
@@ -284,8 +289,20 @@ def listing_view(
     )
 
 
-def name_badge(source: str, entity_id: str, profile: LocationProfile) -> str:
+def title_names(profile: LocationProfile, result: ListingResult | None) -> dict[str, str]:
+    """Every title a name may come from, by Qloo ID: the area's, then this animal's lookalikes."""
+    names = {e.id: e.name for e in profile.pet_entities + profile.local_tastes}
+    for look in result.lookalikes if result else []:
+        names.setdefault(look.entity.id, look.entity.name)
+    return names
+
+
+def name_badge(
+    source: str, entity_id: str, profile: LocationProfile, title: str | None = None
+) -> str:
     """Claim local strength only where Qloo's ranking for this area says so."""
+    if source == "lookalike":
+        return f"Has a lookalike in {title}"
     if source == "local":
         return "Watched locally"
     if entity_id in profile.ranked:
@@ -301,7 +318,7 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
             value=None,
             placeholder="No name yet: the agent's name options appear after a run.",
         )
-    titles = {e.id: e.name for e in profile.pet_entities + profile.local_tastes}
+    titles = title_names(profile, result)
     refs = result.references
     options = []
     for i, o in enumerate(draft.names):
@@ -309,7 +326,7 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
         options.append(
             NameOptionView(
                 name=o.name,
-                badge=name_badge(o.source, o.entity_id, profile),
+                badge=name_badge(o.source, o.entity_id, profile, titles.get(o.entity_id)),
                 title=titles.get(o.entity_id, o.character),
                 reference=reference,
                 why=o.why,
@@ -530,6 +547,34 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
     return returned, reading
 
 
+def lookalike_why(
+    animal: Animal, result: ListingResult | None
+) -> tuple[list[WhyItem], list[WhyItem]]:
+    """What Qloo returned for each lookalike title, and the agent's reading of the match."""
+    returned, reading = [], []
+    if result is None or result.draft is None:
+        return returned, reading
+    reasons = {o.entity_id: o.choice_reason for o in result.draft.names}
+    for look in result.lookalikes:
+        e = look.entity
+        kind = e.type.removeprefix("urn:entity:").replace("_", " ")
+        found = "Found in Qloo. "
+        if look.candidates > 1:
+            found = f"Qloo has {look.candidates} entries with this name. "
+        returned.append(
+            WhyItem(title=f"{e.name} ({kind})", detail=found + sentences(e.description))
+        )
+        detail = (
+            f"{look.animal} in it shares this {animal.species}'s recorded look: "
+            f"{and_list(look.shared_look)}. That match is the agent's reading; Qloo confirmed "
+            "the title, not how its animals look."
+        )
+        if reasons.get(e.id):
+            detail += f" {cap(reasons[e.id].rstrip('.'))}."
+        reading.append(WhyItem(title=f"Why {e.name}", detail=detail))
+    return returned, reading
+
+
 def build_result_view(
     animal: Animal,
     location: Location,
@@ -543,6 +588,8 @@ def build_result_view(
 ) -> ResultView:
     ordered = venue_order(profile)
     returned, reading = why(location, profile)
+    look_returned, look_reading = lookalike_why(animal, listing)
+    returned, reading = look_returned + returned, look_reading + reading
     named = [m for m in litter or [] if m.name]
     listing_ = listing_view(animal, listing, profile, generic, refined)
     return ResultView(

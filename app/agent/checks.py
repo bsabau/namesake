@@ -132,9 +132,12 @@ def check_name(
         problems.append(f"name {name!r} refers to a {reference_role} character")
     if role == "person":
         problems.append(f"name {name!r} refers to a real person; use a character or object")
-    if strict and source != "pet":
+    # A lookalike title features an animal like this one, and its name must be that
+    # animal's own (checked in the listing agent), so it is as safe as a pet title.
+    if strict and source not in ("pet", "lookalike"):
         problems.append(
-            f"name {name!r}: for this dog use only names drawn from the pet-themed titles"
+            f"name {name!r}: for this dog use only names drawn from the pet-themed or "
+            "lookalike titles"
         )
     return problems
 

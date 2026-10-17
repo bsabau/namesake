@@ -32,12 +32,13 @@ The review found no study showing that names or wording speed adoption. Being se
 
 ## Output 2: name options
 
-Name options come from two sources. Each option carries a badge naming its source:
+Name options come from three sources. Each option carries a badge naming its source:
 
 | Source | Where it comes from |
 |---|---|
 | Pet-themed, strong here | Pet-themed entities that survive the local-lift check (pipeline steps A–C) |
 | Loved here generally | The area's top tastes by type (step E). Screened harder, because these lists lean on national hits and identity-coded titles. |
+| Has a lookalike in … | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
 
 Each option shows the Qloo entity, its type and the evidence (affinity, popularity, lift). Our reading of why it suits the animal is shown separately. The volunteer picks one. Ranking uses both affinity and popularity, so a recognisable reference beats a niche one.
 

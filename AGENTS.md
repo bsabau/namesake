@@ -251,7 +251,7 @@ The shelter is fictional too. Do not use real shelter names, logos or photos.
 **The agent's job.** Given an animal's facts and a location:
 1. Find pet-themed entities that are strong locally, and check each one's lift against a baseline. Keep the strong ones, and try again once if too few survive.
 2. Pick venues that their fans favour.
-3. Propose name references from both sources, resolve and screen each one.
+3. Propose name references from both sources, plus up to two titles with an animal that looks like this one, resolve and screen each one.
 4. Write the listing from the facts.
 
 The steps where the model reads results and decides what to try next are what make this an agent. Calls that are always made the same way, such as the heatmap for the map, go through `qloo exec` in plain code. Plain code also checks the agent's output: that every fact traces, the name screen, duplicate references, and word count.

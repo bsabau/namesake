@@ -190,3 +190,18 @@ The refusal keeps the edit and names the missing words.
 **Why:** "two animals in one shelter never share a reference, except a litter named as a set." Letting the first listing choose keeps the agent's judgement, and restricting the others to one title is a check code can enforce: a name from another title is refused like any invented ID.
 
 **Follows:** a member whose draft cannot be fixed falls back to the template, as any listing does. The result page lists the litter's names with links.
+
+## 14. Lookalike names: titles with an animal that looks like this one
+
+**Decided** (the author agreed on 17 October):
+- The listing agent may look up one or two films, TV shows or books with an animal that looks like this one, through a `look_up_lookalike` tool over `QlooClient` (`describe`, cached and spaced like every call).
+- It must quote the shared look from the animal's recorded `look`. Code refuses the lookup, before any Qloo call, when a quoted word is not in the record, or when the words are only ones every animal of that size shares ("large", "mixed breed").
+- A found title gives at most one name: that animal's own, with an animal role. Qloo's `needs_input` candidates are kept, and a name from one of them needs a stated reason.
+- The name is offered as an option with the badge "Has a lookalike in <title>". It is never the first name, so the local version still shows what the area's taste data adds.
+- The strict screen for bully-breed dogs allows lookalike names, since they must be an animal's own name.
+- Not used for a litter, which is named as a set.
+- The Why panel shows what Qloo returned for the title, and separately the agent's reading of the match, stating that Qloo confirmed the title, not how its animals look.
+
+**Why:** the area's titles are chosen per location and species (decision 1), so they know nothing about the individual animal. A lookalike makes a name personal at one or two cached calls per listing, without making the venues and map per animal, which would cost about 8 calls each. Matching on the recorded look only, never breed reputation or temperament, keeps it within the listing rules.
+
+**Follows:** a live listing run costs up to two more Qloo calls. Qloo says nothing about local strength for these titles; checking that (a heatmap against the baseline) would be one more call each and is left for later.

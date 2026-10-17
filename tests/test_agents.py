@@ -277,7 +277,9 @@ def test_bully_type_dog_gets_only_pet_title_names(roster):
     }
     result, _, log = run(Script([PLAN], [local, DRAFT]), roster)
     assert result.draft is not None
-    assert any("only names drawn from the pet-themed titles" in s.text for s in log.steps)
+    assert any(
+        "only names drawn from the pet-themed or lookalike titles" in s.text for s in log.steps
+    )
 
 
 def test_without_a_model_everything_falls_back_and_says_so(roster):
