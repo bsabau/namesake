@@ -14,7 +14,7 @@ from pydantic_ai.models import Model
 
 from app.agent.steps import StepLog
 from app.locations import Location
-from app.profile import VENUE_LIMIT, Entity, screen
+from app.profile import VENUE_LIMIT, Entity, rank_band, screen
 from app.qloo.envelope import Envelope
 from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
 
@@ -84,7 +84,10 @@ The shelter is in {place}. You use Qloo, a taste-data service, through three too
    choose up to 3 that could host an adoption event or display a flyer: public,
    family-friendly, community places such as cafes, parks, arts centres, bookshops, pet
    shops or breweries with event space. Reject private homes and residences, gyms,
-   nightlife-first bars, and anything marked excluded. Prefer venues marked stands_out.
+   nightlife-first bars, and anything marked excluded. Qloo lists venues best first, so
+   rank 1 is the strongest evidence. Prefer venues with position "top", then "middle", and
+   among those prefer venues marked stands_out. Pick a venue with position "bottom" only
+   when no higher one is suitable, and then say so in its reason.
 
 Write about places and titles, never about individual people. Keep reasons to one sentence.
 """
@@ -218,6 +221,7 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
     deps.latest_venues = {r["entity_id"] for r in env.results}
     baseline = deps.baseline_venues
     venues = []
+    total = len(env.results)
     for rank, r in enumerate(env.results, start=1):
         props = r.get("properties") or {}
         description = props.get("short_description") or props.get("description")
@@ -228,6 +232,8 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
             "neighbourhood": (props.get("geocode") or {}).get("name"),
             "description": _short(description),
             "rank": rank,
+            "out_of": total,
+            "position": rank_band(rank, total),
             "stands_out": baseline is not None and r["entity_id"] not in baseline,
             "excluded": f"screened out: {excluded}" if excluded else None,
         }

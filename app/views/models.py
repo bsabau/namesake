@@ -193,6 +193,10 @@ class VenueView(BaseModel):
     description: str | None
     stands_out: bool
     badge: str
+    # Qloo's rank for this place, plainly: "2nd of 15", and where that sits in the list.
+    rank: str
+    rank_band: Literal["top", "middle", "bottom"]
+    rank_note: str
     evidence: str
     # The agent's reason for suggesting it: our reading, shown apart from the evidence.
     chosen: bool = False

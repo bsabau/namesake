@@ -253,6 +253,14 @@ def screen(description: str | None) -> str | None:
     return next((word for word in UNSUITABLE if word in text), None)
 
 
+def rank_band(rank: int, total: int) -> str:
+    """Where a place sits in Qloo's list, best first: 'top', 'middle' or 'bottom' third."""
+    third = -(-total // 3)
+    if rank <= third:
+        return "top"
+    return "bottom" if rank > total - third else "middle"
+
+
 def build_profile(qloo: QlooClient, location: Location, seeds: Seeds) -> LocationProfile:
     """The fixed lookup: seed titles, resolved by name, then the shared assembly."""
     b = _Builder(qloo, location)

@@ -542,3 +542,23 @@ def test_a_badge_reports_qloos_position_even_for_a_dropped_title(roster):
     assert name_badge("pet", DOG_SHOW, profile) == (
         "Pet-themed title, ranked 2nd of 2 here by Qloo"
     )
+
+
+def test_find_venues_tells_the_agent_where_each_place_ranks():
+    from types import SimpleNamespace
+
+    from app.agent.profile_agent import INSTRUCTIONS, ProfileDeps, find_venues
+    from app.profile import Entity
+
+    deps = ProfileDeps(
+        qloo=FakeQloo(full_script()), location=LOCATION, species="dog", log=StepLog()
+    )
+    for i, name in [(DOG_SHOW, "Example Dog Show"), (CAT_SHOW, "Example Cat Show")]:
+        deps.titles_seen[i] = Entity(id=i, name=name, type="urn:entity:tv_show")
+    out = find_venues(SimpleNamespace(deps=deps), [DOG_SHOW, CAT_SHOW])
+    venues = out["venues"]
+    assert [v["rank"] for v in venues] == list(range(1, len(venues) + 1))
+    assert {v["out_of"] for v in venues} == {len(venues)}
+    assert venues[0]["position"] == "top" and venues[-1]["position"] != "top"
+    # The instructions name the field the agent should weigh.
+    assert 'position "top"' in INSTRUCTIONS

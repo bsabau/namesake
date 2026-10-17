@@ -151,6 +151,8 @@
       <li class="venue">
         <p><strong>{{ venue.name }}</strong>
           <span class="tag {{ 'tag-strong' if venue.stands_out }}">{{ venue.badge }}</span></p>
+        <p class="venue-rank rank-{{ venue.rank_band }}" data-role="venue-rank">
+          <strong>{{ venue.rank }}</strong> · {{ venue.rank_note }}</p>
         <p class="venue-place">{{ venue.place }}</p>
         {% if venue.description %}<p class="venue-description">{{ venue.description }}</p>{% endif %}
         <p class="evidence"><span>Qloo:</span> {{ venue.evidence }}</p>

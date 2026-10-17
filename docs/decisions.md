@@ -24,6 +24,8 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 
 **Follows:** each chosen venue shows Qloo's rank and the comparison with the baseline (what Qloo returned), separately from the agent's reason (our reading).
 
+**Revised 17 October:** the "stands out" badge is yes-or-no, so a place ranked 15th of 15 for pet-show fans earned it as readily as the 1st. The agent now sees each venue's position in Qloo's list (top, middle or bottom third) and is told to prefer the top, then the middle, and to give a reason when it picks from the bottom. Each venue card states the rank plainly ("2nd of 15 · near the top of Qloo's list"). The author chose this over withholding the badge from low-ranked places.
+
 ## 3. Ranking titles: one small `rank` call, with a stated fallback
 
 **Decided:**

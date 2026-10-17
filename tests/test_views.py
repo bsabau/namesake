@@ -1,9 +1,12 @@
+import re
+
 import pytest
 
 from app.locations import load_locations
-from app.profile import LocationProfile, build_profile
+from app.profile import LocationProfile, build_profile, rank_band
 from app.views.build import (
     FEATURED,
+    RANK_NOTES,
     build_result_view,
     build_start_view,
     result_id,
@@ -177,3 +180,24 @@ def test_a_pet_name_claims_local_strength_only_when_qloo_ranked_it():
     p.ranked = []
     assert name_badge("pet", dog, p) == "Pet-themed title"
     assert name_badge("local", dog, p) == "Watched locally"
+
+
+def test_rank_band_splits_qloos_list_in_thirds():
+    assert [rank_band(r, 15) for r in (1, 5, 6, 10, 11, 15)] == [
+        "top",
+        "top",
+        "middle",
+        "middle",
+        "bottom",
+        "bottom",
+    ]
+    assert rank_band(1, 1) == "top"
+    assert [rank_band(r, 2) for r in (1, 2)] == ["top", "bottom"]
+
+
+def test_venue_rank_is_stated_plainly(roster):
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    total = len(profile().venues)
+    for v in view.venues:
+        assert re.fullmatch(rf"\d+(st|nd|rd|th) of {total}", v.rank)
+        assert v.rank_note == RANK_NOTES[v.rank_band]

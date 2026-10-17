@@ -6,7 +6,7 @@ from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
 from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, templated_listing
 from app.locations import Location
-from app.profile import LocationProfile, Venue
+from app.profile import LocationProfile, Venue, rank_band
 from app.qloo.geohash import bounds
 from app.views.models import (
     AddAnimalView,
@@ -356,6 +356,13 @@ def map_view(location: Location, profile: LocationProfile) -> MapView:
     )
 
 
+RANK_NOTES = {
+    "top": "near the top of Qloo's list",
+    "middle": "middle of Qloo's list",
+    "bottom": "near the bottom of Qloo's list",
+}
+
+
 def venue_order(profile: LocationProfile) -> list[Venue]:
     """The venues to suggest, never screened ones.
 
@@ -387,12 +394,16 @@ def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueV
     else:
         evidence += f"; also {ordinal(v.baseline_rank)} for fans of {base}."
         badge = "Popular nearby generally"
+    band = rank_band(v.rank, total)
     return VenueView(
         name=v.name,
         place=", ".join(x for x in [v.neighbourhood, v.address] if x),
         description=sentences(v.description) or None,
         stands_out=v.distinctive,
         badge=badge,
+        rank=f"{ordinal(v.rank)} of {total}",
+        rank_band=band,
+        rank_note=RANK_NOTES[band],
         evidence=evidence,
         chosen=v.chosen_reason is not None,
         reason=v.chosen_reason,
