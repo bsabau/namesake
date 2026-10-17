@@ -44,7 +44,7 @@ Two agents and some plain code call Qloo through the official harness (`qloo exe
 | A map of where pet-show fans stand out | `where_popular` within the neighbourhood, for the top title and the baseline | Code | Raw affinity saturates near 1.0, so the map shows **lift**: the pet title's cell score minus the baseline's. |
 | What the area tends to watch | `recommend` TV and films with `signal_location` | Code | A second, labelled source of name options. |
 | Titles with an animal that looks like this one | `describe` | **Agent**, per animal, at most two | A personal name option, badged "Has a lookalike in …". The shared look must be quoted from the animal's record. |
-| A volunteer types their own area | `where_popular` for the baseline within the typed text | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here", instead of a weak listing. `needs_input` becomes candidate buttons. |
+| A volunteer types their own area, or right-clicks the shelter's spot on the map | `where_popular` for the baseline within the area's name | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here", instead of a weak listing. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
 
 The decisions behind each row, with their evidence, are in [`docs/decisions.md`](docs/decisions.md) and [`docs/qloo-findings.md`](docs/qloo-findings.md).
 
@@ -144,7 +144,7 @@ Qloo's terms forbid publishing its response data, so real responses live only in
 
 Taste data from the Qloo API. This project is not affiliated with or endorsed by Qloo.
 
-The animals and the shelter are fictional, and the photos are AI-generated. Map tiles © OpenStreetMap contributors.
+The animals and the shelter are fictional, and the photos are AI-generated. Map tiles and place names © OpenStreetMap contributors; place lookups by Photon (komoot).
 
 ## Licence
 

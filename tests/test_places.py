@@ -1,0 +1,219 @@
+"""Area names for the location field and the map pick: a fake geocoder only, never Photon.
+
+The answers below are invented, in Photon's shape (GeoJSON features).
+"""
+
+from urllib.parse import parse_qs, urlparse
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app import main
+from app.custom_location import location_id
+from app.locations import Location
+from app.places import Allowance, Places, areas_around, label_for
+from app.store import Store
+from tests.test_product import client, profile  # noqa: F401 - fixtures
+
+HOME = (40.67, -73.98)
+
+
+def feature(name, lat=HOME[0], lon=HOME[1], **props):
+    return {
+        "geometry": {"type": "Point", "coordinates": [lon, lat]},
+        "properties": {"name": name, **props},
+    }
+
+
+class FakeGeocoder:
+    def __init__(self, *answers):
+        self.answers = list(answers)
+        self.urls = []
+
+    def __call__(self, url):
+        self.urls.append(url)
+        answer = self.answers.pop(0) if self.answers else {"features": []}
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+
+def places(*answers):
+    fake = FakeGeocoder(*answers)
+    return Places("https://geocoder.example", fetch=fake), fake
+
+
+def test_an_area_is_named_with_one_wider_place():
+    assert label_for({"name": "Example Slope", "type": "locality", "district": "Exampleton",
+                      "city": "Example City"}) == "Example Slope, Exampleton"  # fmt: skip
+    assert label_for({"name": "Example City", "type": "city", "state": "Example State",
+                      "district": "Ignored"}) == "Example City, Example State"  # fmt: skip
+    assert label_for({"name": "Exampleton", "type": "district", "city": "Exampleton",
+                      "state": "Example State"}) == "Exampleton, Example State"  # fmt: skip
+    # Names the location field would refuse are never offered.
+    assert label_for({"name": "District 9", "type": "district"}) is None
+    assert label_for({"type": "city"}) is None
+
+
+def test_a_spot_is_named_by_the_areas_in_its_address_never_the_address():
+    house = {"type": "house", "housenumber": "1", "street": "Example Street",
+             "locality": "Example Slope", "district": "Exampleton", "city": "Example City",
+             "state": "Example State"}  # fmt: skip
+    assert areas_around(house) == [
+        "Example Slope, Exampleton",
+        "Exampleton, Example City",
+        "Example City, Example State",
+    ]
+    # The nearest object's own name is never used, unless it is itself an area.
+    plant = {"type": "street", "name": "Example Avenue", "city": "Example City"}
+    assert areas_around(plant) == ["Example City"]
+    town = {"type": "city", "name": "Example City", "state": "Example State"}
+    assert areas_around(town) == ["Example City, Example State"]
+    assert areas_around({"type": "house", "street": "Example Road"}) == []
+
+
+def test_suggestions_ask_for_areas_only_and_are_cached():
+    lookup, fake = places(
+        {
+            "features": [
+                feature("Example Slope", type="locality", district="Exampleton"),
+                feature("Example Slope", type="locality", district="Exampleton"),
+                feature("Area 51", type="locality"),
+            ]
+        }
+    )
+    assert [p.label for p in lookup.search("exam")] == ["Example Slope, Exampleton"]
+    asked = parse_qs(urlparse(fake.urls[0]).query)
+    assert asked["q"] == ["exam"]
+    assert sorted(asked["layer"]) == ["city", "district", "locality"]
+    lookup.search("exam")
+    assert len(fake.urls) == 1
+    # Too short to be worth a lookup.
+    assert lookup.search("ex") == [] and len(fake.urls) == 1
+
+
+def test_suggestions_rank_near_the_map_area_given_only_to_about_11_km():
+    lookup, fake = places({"features": []})
+    lookup.search("example", near=(40.6712, -73.9819))
+    asked = parse_qs(urlparse(fake.urls[0]).query)
+    assert (asked["lat"], asked["lon"]) == (["40.7"], ["-74.0"])
+
+
+def test_a_failed_lookup_is_not_cached():
+    lookup, fake = places(OSError("down"), {"features": [feature("Example Slope")]})
+    assert lookup.search("example") == []
+    assert [p.label for p in lookup.search("example")] == ["Example Slope"]
+    assert len(fake.urls) == 2
+
+
+def test_a_picked_spot_leaves_the_server_rounded_to_about_100_m():
+    house = feature(None, type="house", locality="Example Slope", district="Exampleton")
+    lookup, fake = places({"features": [house]})
+    found = lookup.at(40.671234, -73.981987)
+    assert [p.label for p in found] == ["Example Slope, Exampleton", "Exampleton"]
+    assert (found[0].latitude, found[0].longitude) == (40.671, -73.982)
+    asked = parse_qs(urlparse(fake.urls[0]).query)
+    assert (asked["lat"], asked["lon"]) == (["40.671"], ["-73.982"])
+    # Whatever is nearest, so the area comes from its address.
+    assert "layer" not in asked
+
+
+def test_with_no_geocoder_nothing_is_asked():
+    fake = FakeGeocoder()
+    lookup = Places("", fetch=fake)
+    assert lookup.search("example") == [] and lookup.at(*HOME) == []
+    assert fake.urls == []
+
+
+def test_each_visitor_has_a_per_minute_allowance():
+    allowance = Allowance(per_minute=2)
+    assert allowance.take("a") and allowance.take("a")
+    assert not allowance.take("a")
+    assert allowance.take("b")
+
+
+# The endpoints and the pin
+
+
+@pytest.fixture
+def geocoder(monkeypatch):
+    fake = FakeGeocoder()
+    lookup = Places("https://geocoder.example", fetch=fake)
+    monkeypatch.setattr(main, "places", lambda: lookup)
+    monkeypatch.setattr(main, "PLACE_LOOKUPS", Allowance())
+    return fake
+
+
+def test_the_api_suggests_areas(client, geocoder):  # noqa: F811
+    geocoder.answers = [{"features": [feature("Example Slope", district="Exampleton")]}]
+    body = client.get("/api/places", params={"q": "example"}).json()
+    assert body["places"][0]["label"] == "Example Slope, Exampleton"
+
+
+def test_the_api_names_the_area_around_a_spot(client, geocoder):  # noqa: F811
+    house = feature(None, type="house", locality="Example Slope", city="Example City")
+    geocoder.answers = [{"features": [house]}, {"features": []}]
+    found = client.get("/api/places/at", params={"lat": 40.67, "lon": -73.98}).json()
+    assert [p["label"] for p in found["places"]] == ["Example Slope, Example City", "Example City"]
+    empty = client.get("/api/places/at", params={"lat": 0.5, "lon": 0.5}).json()
+    assert empty["places"] == [] and "No neighbourhood or city" in empty["message"]
+    assert client.get("/api/places/at", params={"lat": 91, "lon": 0}).status_code == 422
+
+
+def test_lookups_are_off_without_a_geocoder_and_limited_per_visitor(client, monkeypatch):  # noqa: F811
+    assert client.get("/api/places", params={"q": "example"}).status_code == 404
+    monkeypatch.setattr(main, "places", lambda: Places("https://geocoder.example", FakeGeocoder()))
+    monkeypatch.setattr(main, "PLACE_LOOKUPS", Allowance(per_minute=1))
+    assert client.get("/api/places", params={"q": "example"}).status_code == 200
+    assert client.get("/api/places", params={"q": "example"}).status_code == 429
+
+
+def known_area(text="Example Slope, Exampleton") -> str:
+    """A checked area already in the store, so posting it costs no Qloo call."""
+    Store(main.get_settings().cache_db).put_location(
+        Location(
+            id=location_id(text),
+            label=text,
+            region="Typed location",
+            query=text,
+            city=text,
+            latitude=HOME[0],
+            longitude=HOME[1],
+            zoom=14,
+        )  # fmt: skip
+    )
+    return text
+
+
+def test_the_page_looks_places_up_through_the_apps_own_api():
+    form = main.LocationForm()
+    assert form.suggestions_url.startswith("/api/") and form.pick_url.startswith("/api/")
+
+
+def option(client, loc_id):  # noqa: F811
+    start = client.get("/api/start", params={"location": loc_id}).json()
+    return next(o for o in start["locations"] if o["id"] == loc_id)
+
+
+def test_a_picked_spot_is_this_visits_pin_and_qloo_gets_the_name(client):  # noqa: F811
+    text = known_area()
+    form = {"text": text, "pin_lat": "40.6712", "pin_lon": "-73.9819"}
+    response = client.post("/locations", data=form, follow_redirects=False)
+    assert response.status_code == 303
+    loc_id = location_id(text)
+    picked = option(client, loc_id)
+    assert picked["pin"] == {"latitude": 40.6712, "longitude": -73.9819}
+    assert "never goes to Qloo" in picked["map_note"]
+    result = client.get(f"/api/results/dog-02@{loc_id}").json()
+    assert result["map"]["pin"] == {"latitude": 40.6712, "longitude": -73.9819}
+    # Another visitor never sees it.
+    other = TestClient(main.app).get("/api/start", params={"location": loc_id}).json()
+    assert next(o for o in other["locations"] if o["id"] == loc_id)["pin"] is None
+
+
+def test_a_pin_far_from_the_area_or_not_a_number_is_dropped(client):  # noqa: F811
+    text = known_area()
+    loc_id = location_id(text)
+    for lat, lon in [("51.5", "-0.12"), ("nan", "nan"), ("", ""), ("x", "1")]:
+        client.post("/locations", data={"text": text, "pin_lat": lat, "pin_lon": lon})
+        assert option(client, loc_id)["pin"] is None

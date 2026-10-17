@@ -1,0 +1,96 @@
+// Suggestions for the typed shelter area: area names from the view model's
+// suggestions_url (/api/places), ranked near the area selected on the map, in a list
+// under the field. Arrow keys move, Enter picks, Escape closes. If the lookup fails,
+// typing works as before.
+
+(function () {
+  const field = document.getElementById("custom-location-text");
+  const list = document.getElementById("place-suggestions");
+  if (!field || !list || !field.dataset.suggestUrl) return;
+
+  let timer = null;
+  let asked = "";
+  let active = -1;
+
+  const items = () => [...list.querySelectorAll("li")];
+  const close = () => {
+    list.hidden = true;
+    field.setAttribute("aria-expanded", "false");
+    field.removeAttribute("aria-activedescendant");
+    active = -1;
+  };
+  const highlight = (i) => {
+    const all = items();
+    active = (i + all.length) % all.length;
+    all.forEach((li, n) => li.setAttribute("aria-selected", String(n === active)));
+    field.setAttribute("aria-activedescendant", all[active].id);
+  };
+  const choose = (label) => {
+    field.value = label;
+    asked = label;
+    close();
+    field.focus();
+  };
+
+  // The selected area's centre, from the map's data, so nearby places come first.
+  const near = () => {
+    const data = document.getElementById("map-points");
+    const checked = document.querySelector('input[name="location"]:checked');
+    if (!data || !checked) return "";
+    const p = JSON.parse(data.textContent).find((x) => x.id === checked.value);
+    return p ? `&lat=${p.latitude}&lon=${p.longitude}` : "";
+  };
+
+  const show = (places) => {
+    list.replaceChildren(
+      ...places.map((p, n) => {
+        const li = document.createElement("li");
+        li.id = `place-suggestion-${n}`;
+        li.setAttribute("role", "option");
+        li.textContent = p.label;
+        // mousedown, not click: it lands before the field loses focus.
+        li.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+          choose(p.label);
+        });
+        return li;
+      }),
+    );
+    list.hidden = !places.length;
+    field.setAttribute("aria-expanded", String(places.length > 0));
+    active = -1;
+  };
+
+  field.addEventListener("input", () => {
+    clearTimeout(timer);
+    const text = field.value.trim();
+    if (text.length < 3) return close();
+    if (text === asked) return;
+    timer = setTimeout(async () => {
+      asked = text;
+      try {
+        const url = `${field.dataset.suggestUrl}?q=${encodeURIComponent(text)}${near()}`;
+        const response = await fetch(url);
+        if (!response.ok) return close();
+        const body = await response.json();
+        if (field.value.trim() === text) show(body.places);
+      } catch {
+        close(); // no suggestions this time; the field still takes what is typed
+      }
+    }, 300);
+  });
+
+  field.addEventListener("keydown", (event) => {
+    if (list.hidden) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      highlight(active + (event.key === "ArrowDown" ? 1 : -1));
+    } else if (event.key === "Enter" && active >= 0) {
+      event.preventDefault(); // pick the suggestion; a second Enter submits
+      choose(items()[active].textContent);
+    } else if (event.key === "Escape") {
+      close();
+    }
+  });
+  field.addEventListener("blur", close);
+})();

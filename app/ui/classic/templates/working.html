@@ -22,6 +22,15 @@
   <ol class="steps" data-role="steps" aria-live="polite">
     {% for step in view.steps %}<li class="step step-{{ step.kind }}">{{ step.text }}</li>{% endfor %}
   </ol>
+  {% if not view.finished %}
+  {# Decoration for sighted visitors; the steps list above is what screen readers follow. #}
+  <p class="busy" data-role="busy" aria-hidden="true"
+     data-words="{{ view.busy_words|tojson|forceescape }}" data-since="{{ view.busy_since }}">
+    <span class="busy-dot"></span>
+    <span class="busy-word">{{ view.busy_words[0] }}</span><span class="busy-ellipsis"></span>
+    <span class="busy-time"></span>
+  </p>
+  {% endif %}
 
   <p><a class="result-link" href="{{ view.result_url }}">See the result</a></p>
   <noscript><p>Reload this page to see new steps.</p></noscript>

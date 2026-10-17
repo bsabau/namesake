@@ -71,6 +71,17 @@ def test_working_screen_meets_the_contract(client, ui):
         assert f'data-role="{role}"' in response.text, f"{ui} working: missing {role}"
 
 
+def test_the_working_screen_shows_a_sign_of_life_while_running(client, monkeypatch):
+    # Runs end at once without a model, so the page is shown as if still running.
+    built = main.working_view
+    monkeypatch.setattr(
+        main, "working_view", lambda *a, **k: built(*a, **k).model_copy(update={"finished": False})
+    )
+    response = client.post("/runs", data={"animal": "dog-02", "location": "park-slope"})
+    words = main.WorkingView.model_fields["busy_words"].default
+    assert 'data-role="busy"' in response.text and words[0] in response.text
+
+
 @pytest.mark.parametrize("ui", main.UIS)
 def test_ui_folders_never_reach_for_data(ui):
     # A UI renders view models only: no fetches outside the app's own /api/.
@@ -79,6 +90,8 @@ def test_ui_folders_never_reach_for_data(ui):
             text = path.read_text(encoding="utf-8")
             for call in ["qloo exec", "qloo mcp", "/v2/", "hackathon.api"]:
                 assert call not in text, f"{path.name} reaches for Qloo: {call}"
+            # Place lookups go through /api/places, never to the geocoder itself.
+            assert "photon" not in text.lower(), f"{path.name} reaches for the geocoder"
             assert "fetch(" not in text or "/api/" in text
 
 

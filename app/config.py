@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     live_runs_per_day: int = 60
     new_locations_per_day: int = 10
 
+    # Area names for the location field and the map pick (app/places.py). Empty turns the
+    # suggestions and the map pick off; typing a place still works.
+    geocoder_url: str = "https://photon.komoot.io"
+
     # Default interface: a folder under app/ui/. `?ui=<name>` overrides it per request.
     ui: str = "classic"
 

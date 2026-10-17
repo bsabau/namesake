@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from functools import cache
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -29,6 +29,7 @@ from app.custom_location import check_location, clean, location_id
 from app.limits import LimitReached
 from app.listing import generic_name, missing_cautions, stage_for
 from app.locations import Location, load_locations
+from app.places import MAX_PIN_KM, Allowance, Places, distance_km
 from app.profile import LocationProfile, build_profile, load_seeds
 from app.qloo.cache import Cache
 from app.qloo.exec import QlooClient
@@ -68,6 +69,8 @@ from app.views.models import (
     LitterMateView,
     LocationForm,
     NoticeView,
+    PlaceOption,
+    PlacesView,
     ResultView,
     StartView,
     WorkingView,
@@ -99,6 +102,18 @@ def templates_for(ui: str) -> Jinja2Templates:
     templates = Jinja2Templates(directory=UI_ROOT / ui / "templates")
     templates.env.filters["plain"] = plain
     return templates
+
+
+@cache
+def places_for(url: str) -> Places:
+    return Places(url)
+
+
+def places() -> Places:
+    return places_for(get_settings().geocoder_url)
+
+
+PLACE_LOOKUPS = Allowance()
 
 
 def pick_ui(requested: str | None) -> str:
@@ -266,6 +281,7 @@ def start_view(
         selected.id,
         examples=example_links(ready, ui_query),
         added=added,
+        pins=session.pins if session else None,
     )
     if form is not None:
         view.location_form = form
@@ -320,6 +336,7 @@ def result_view(animal_id: str, location_id: str | None, session: Session | None
         refined=refined,
         litter=litter_view(animal, location, store),
         image_url=added_photo_url(animal, animal.id in session.photos) if added else None,
+        pin=session.pins.get(location.id) if session else None,
     )
 
 
@@ -657,13 +674,75 @@ async def add_animal(
     )
 
 
+def place_lookup(request: Request) -> Places:
+    lookup = places()
+    if not lookup.enabled:
+        raise HTTPException(404, "place lookups are off here; type the area instead")
+    if not PLACE_LOOKUPS.take(visitor(request)):
+        raise HTTPException(429, "too many place lookups; wait a minute, or type the area")
+    return lookup
+
+
+@app.get("/api/places")
+def api_places(
+    request: Request,
+    q: str = Query("", max_length=200),
+    lat: float | None = Query(None, ge=-90, le=90),
+    lon: float | None = Query(None, ge=-180, le=180),
+) -> PlacesView:
+    """Area names matching what the visitor is typing in the location field, ranked near
+    the area on the map when lat and lon are given."""
+    near = (lat, lon) if lat is not None and lon is not None else None
+    found = place_lookup(request).search(q, near)
+    return PlacesView(places=[PlaceOption(**p.model_dump()) for p in found])
+
+
+@app.get("/api/places/at")
+def api_place_at(
+    request: Request,
+    lat: float = Query(..., ge=-90, le=90),
+    lon: float = Query(..., ge=-180, le=180),
+) -> PlacesView:
+    """The areas a spot the visitor picked for the shelter lies in, most local first."""
+    found = place_lookup(request).at(lat, lon)
+    if not found:
+        return PlacesView(
+            message="No neighbourhood or city was found at that spot. Pick a spot in a town, "
+            "or type the area."
+        )
+    return PlacesView(places=[PlaceOption(**p.model_dump()) for p in found])
+
+
+def pin_from(latitude: str, longitude: str) -> tuple[float, float] | None:
+    """The spot picked on the map, from the form; None when absent or not a place on Earth."""
+    try:
+        lat, lon = float(latitude), float(longitude)
+    except ValueError:
+        return None
+    return (lat, lon) if -90 <= lat <= 90 and -180 <= lon <= 180 else None
+
+
+def keep_pin(request: Request, location: Location, pin: tuple[float, float] | None) -> None:
+    """Remember the picked spot for this visit, if it lies in the area Qloo checked."""
+    if pin and distance_km(pin, (location.latitude, location.longitude)) <= MAX_PIN_KM:
+        own_session(request).pins[location.id] = pin
+
+
 @app.post("/locations", response_class=HTMLResponse)
-def add_location(request: Request, text: str = Form(""), ui: str | None = Form(None)):
-    """A typed shelter area: checked with Qloo once, then offered like a preset."""
+def add_location(
+    request: Request,
+    text: str = Form(""),
+    pin_lat: str = Form(""),
+    pin_lon: str = Form(""),
+    ui: str | None = Form(None),
+):
+    """A typed shelter area: checked with Qloo once, then offered like a preset. With a
+    spot picked on the map, the spot is kept for this visit's maps; Qloo gets the text."""
     chosen_ui = pick_ui(ui)
     settings = get_settings()
     store = Store(settings.cache_db)
     typed = " ".join(text.split())
+    pin = pin_from(pin_lat, pin_lon)
 
     def back(form: LocationForm, status: int) -> HTMLResponse:
         view = start_view(None, session_of(request), form, ui_suffix(request, ui))
@@ -675,6 +754,7 @@ def add_location(request: Request, text: str = Form(""), ui: str | None = Form(N
     if cleaned is not None:
         known = store.get_location(location_id(cleaned))
         if known is not None:
+            keep_pin(request, known, pin)
             return RedirectResponse(
                 f"/?location={known.id}{ui_suffix(request, ui)}", status_code=303
             )
@@ -697,6 +777,7 @@ def add_location(request: Request, text: str = Form(""), ui: str | None = Form(N
         form = LocationForm(message=checked.message, value=typed, candidates=checked.candidates)
         return back(form, status)
     store.put_location(checked.location)
+    keep_pin(request, checked.location, pin)
     return RedirectResponse(
         f"/?location={checked.location.id}{ui_suffix(request, ui)}", status_code=303
     )
