@@ -197,12 +197,12 @@ The refusal keeps the edit and names the missing words.
 - The listing agent may look up one or two films, TV shows or books with an animal that looks like this one, through a `look_up_lookalike` tool over `QlooClient` (`describe`, cached and spaced like every call).
 - It must quote the shared look from the animal's recorded `look`. Code refuses the lookup, before any Qloo call, when a quoted word is not in the record, or when the words are only ones every animal of that size shares ("large", "mixed breed").
 - Only films, TV shows and books: a story with an animal in it. Brands are left out.
-- A found title gives at most one name: that animal's own, with an animal role. Code checks both the offered name and the character against the animal the agent looked up ("Scooby" matches "Scooby-Doo").
+- A found title gives at most one name: that animal's own, with an animal role. Code checks both the offered name and the character against the animal the agent looked up. The name may shorten it ("Scooby" for "Scooby-Doo") but never add to it ("Rex the Brave" for "Rex").
 - Any `needs_input` answer is a choice, even with one candidate: the name needs a stated reason, and the Why panel says the agent chose among Qloo's candidates instead of "found in Qloo". The reason may only say which work it is; a taste claim or a temperament word is sent back, for the profile agent's title choices too.
 - The name is offered as an option with the badge "Has a lookalike in <title>". It is never the first name, so the local version still shows what the area's taste data adds.
 - The strict screen for bully-breed dogs allows lookalike names, since they must be an animal's own name.
 - Not used for a litter, which is named as a set.
-- The Why panel shows what Qloo returned for the title, and separately the agent's reading of the match, stating that Qloo confirmed the title, not how its animals look.
+- The Why panel shows what Qloo returned for the title, and separately the agent's reading of the match. It says Qloo confirmed the title (or, after `needs_input`, that the agent chose it among Qloo's candidates), never how its animals look.
 
 **Why:** the area's titles are chosen per location and species (decision 1), so they know nothing about the individual animal. A lookalike makes a name personal at one or two cached calls per listing, without making the venues and map per animal, which would cost about 8 calls each. Matching on the recorded look only, never breed reputation or temperament, keeps it within the listing rules.
 

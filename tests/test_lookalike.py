@@ -356,3 +356,23 @@ def test_the_profile_agents_choice_reason_is_screened_too(roster):
     _, store, log = run(Script([{**PLAN, "titles": titles}, PLAN], [DRAFT]), roster)
     assert any("makes a claim about tastes" in s.text for s in log.steps)
     assert store.get_profile(LOCATION.id, "dog").made_by == "agent"
+
+
+def test_a_lookalike_name_may_shorten_the_animal_never_lengthen_it():
+    # muse: "Rex the Brave" passed as Rex's own name.
+    brave = NameOption(**{**REX, "name": "Rex the Brave"})
+    assert any("its name 'Rex the Brave' must be Rex" in p for p in check_lookalike(brave, LOOK))
+    scooby = LOOK.model_copy(update={"animal": "Scooby-Doo"})
+    short = NameOption(**{**REX, "name": "Scooby", "character": "Scooby-Doo"})
+    assert check_lookalike(short, scooby) == []
+
+
+def test_asking_again_about_another_animal_records_that_animal(roster):
+    # muse: a re-ask with a different animal returned the old record, naming the old animal.
+    d = deps(roster)
+    ctx = SimpleNamespace(deps=d)
+    look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"])
+    look_up_lookalike(ctx, "Example Dog Film", "movie", "Max", ["brindle"])
+    assert d.lookalikes[DOG_FILM].animal == "Max" and d.lookups == 2
+    max_ = NameOption(**{**REX, "name": "Max", "character": "Max"})
+    assert check_lookalike(max_, d.lookalikes[DOG_FILM]) == []

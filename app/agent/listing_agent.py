@@ -65,8 +65,8 @@ class ListingDeps:
     qloo: QlooClient | None = None
     lookups: int = 0
     lookalikes: dict[str, Lookalike] = field(default_factory=dict)
-    # Each lookup's answer by (title, kind), so asking twice costs one lookup.
-    answers: dict[tuple[str, str], dict[str, Any]] = field(default_factory=dict)
+    # Each lookup's answer by (title, kind, animal), so asking twice costs one lookup.
+    answers: dict[tuple[str, str, str], dict[str, Any]] = field(default_factory=dict)
 
     @property
     def strict(self) -> bool:
@@ -200,7 +200,7 @@ def look_up_lookalike(
     deps = ctx.deps
     if deps.qloo is None or deps.litter_title or deps.first_of_litter:
         return {"status": "unavailable: lookalike titles are not used for this listing"}
-    asked = (title.strip().lower(), kind)
+    asked = (title.strip().lower(), kind, animal_in_it.strip().lower())
     if asked in deps.answers:
         # Asked again, often after a repair: the same answer, not another lookup.
         return deps.answers[asked]
@@ -237,7 +237,7 @@ def _look_up(
         return {"status": env}
 
     def keep(entity: Entity, candidates: int, chosen: bool) -> None:
-        if entity.id in deps.titles:
+        if entity.id in deps.titles and deps.titles[entity.id][1] != "lookalike":
             # Already offered from the profile: it keeps that source and its rules.
             return
         deps.lookalikes[entity.id] = Lookalike(
@@ -278,8 +278,11 @@ def _look_up(
 
 def check_lookalike(option: "NameOption", look: Lookalike) -> list[str]:
     problems = []
-    for what, text in (("character", option.character), ("name", option.name)):
-        if not same_animal(text, look.animal):
+    for what, text, ok in (
+        ("character", option.character, same_animal(option.character, look.animal)),
+        ("name", option.name, shortens(option.name, look.animal)),
+    ):
+        if not ok:
             problems.append(
                 f"name {option.name!r}: its {what} {text!r} must be {look.animal}, the "
                 f"lookalike you looked up in {look.entity.name}"
@@ -296,6 +299,13 @@ def check_lookalike(option: "NameOption", look: Lookalike) -> list[str]:
             option.choice_reason, f"the choice_reason for {option.name!r}"
         )
     return problems
+
+
+def shortens(name: str, animal: str) -> bool:
+    """The name is the animal's own, perhaps shortened ("Scooby" for "Scooby-Doo"), never
+    lengthened ("Rex the Brave" for "Rex")."""
+    said, own = look_names(name), look_names(animal)
+    return bool(said) and own[: len(said)] == said
 
 
 def same_animal(said: str, animal: str) -> bool:

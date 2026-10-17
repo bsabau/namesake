@@ -52,7 +52,7 @@ class TitleChoice(BaseModel):
     why: str = Field(description="One sentence: why this title is about pets or animals.")
     choice_reason: str | None = Field(
         default=None,
-        description="Required when Qloo offered several candidates: why this one.",
+        description="Required when Qloo returned candidates instead of one match: why this one.",
     )
 
 
