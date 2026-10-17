@@ -143,9 +143,8 @@ def test_a_famous_person_in_the_reference_fails():
 )
 def test_an_identity_coded_name_or_reference_fails(bad, reference, word):
     problems = check_name(bad, source="local", role="character", strict=False, reference=reference)
-    assert problems == [
-        f"name {bad!r} refers to {word!r}, coded to a religion, race or political identity"
-    ]
+    # The message leaves the word out: the step log is shown to visitors.
+    assert problems == [f"name {bad!r} is coded to a religion, race or political identity"]
 
 
 def test_identity_words_match_whole_words_only():
@@ -180,18 +179,27 @@ def test_a_fiction_title_passes():
     assert check_title("Bingo", "character", "Example Dog Show", None) == []
 
 
-def test_a_cast_surname_in_the_description_passes():
+def test_a_cast_name_in_the_description_passes():
     # The dry run on saved listings: a voice actor named Harris coded a cartoon about cats.
     described = "An animated film with the voices of Example Harris and Example Pope."
     assert check_title("Marie", "kitten", "Example Cats", described) == []
     assert check_title("Marie", "kitten", "Harris and the Cats", None) != []
+    # Codex: first names too.
+    voiced = "With the voices of Mohammed Example, Jesús Example and Shiva Example."
+    assert check_title("Rex", "dog", "Example Dogs", voiced) == []
+
+
+def test_a_plural_political_word_fails():
+    # Codex: whole-word matching let "Republicans" through.
+    assert check_title("Rex", "dog", "Republicans and Their Dogs", None) != []
+    assert check_title("Rex", "dog", "Example", "A satire about communists.") != []
 
 
 def test_a_title_coded_to_an_identity_fails_for_every_role():
-    problems = check_title("Rex", "dog", "Example Film", "A dog in the life of Jesus.")
+    problems = check_title("Rex", "dog", "Example Film", "A dog in the life of Christ.")
     assert problems == [
-        "name 'Rex': Example Film is coded to a religion, race or political identity "
-        "('jesus'); use another title"
+        "name 'Rex': Example Film is coded to a religion, race or political identity; "
+        "use another title"
     ]
 
 

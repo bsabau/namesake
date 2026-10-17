@@ -40,7 +40,8 @@ ANIMAL_ROLES = ("puppy", "dog", "cat", "kitten", "animal")
 FAMOUS_PEOPLE = (
     "oprah", "beyonce", "beyoncé", "rihanna", "adele", "shakira", "madonna", "cher",
     "kanye", "eminem", "lizzo", "zendaya", "taylor swift", "dolly parton", "kardashian",
-    "elon musk", "bezos", "zuckerberg", "lebron", "messi", "ronaldo", "serena williams",
+    "elon musk", "musk", "bezos", "zuckerberg", "lebron", "messi", "ronaldo",
+    "serena williams", "parton",
 )  # fmt: skip
 # Phrases in a title's name or description that mark it as about real people: a name
 # from one must be an animal's own (Marley in "Marley & Me" is a dog; the author is not
@@ -50,24 +51,27 @@ REAL_PEOPLE_TITLES = (
     "news satire", "newsmagazine", "reality show", "reality series", "reality television",
     "reality tv", "reality competition", "documentary", "docuseries", "biographical",
     "biopic", "biography", "memoir", "autobiography", "game show", "stand-up",
-    "variety show", "sketch comedy", "true story", "based on the life", "podcast",
+    "variety show", "sketch comedy", "true story", "based on the life",
 )  # fmt: skip
 # References coded to a religion, a race or a political identity. The strictest screen
 # for bully-type dogs is a rule on sources, not a list of human first names, which would
 # itself be a stereotype.
-# These are also searched in a title's description, which names its cast, so none of
-# them may be a common surname ("The Aristocats" stars Phil Harris).
+# These are also searched in a title's description, which names its cast, so each is a
+# word nobody bears as a first name or surname but the figure it names ("The
+# Aristocats" stars Phil Harris; Jesús and Mohammed are common first names). Plurals are
+# listed, since matching is by whole word.
 IDENTITY_TERMS = (
-    "jesus", "christ", "allah", "muhammad", "mohammed", "buddha", "krishna", "shiva",
-    "vishnu", "ganesha", "messiah", "rabbi", "imam", "jihad",
-    "thug", "ghetto", "gangsta", "gypsy", "eskimo", "redskin", "squaw",
+    "christ", "allah", "buddha", "messiah", "rabbi", "rabbis", "imam", "imams", "jihad",
+    "thug", "thugs", "ghetto", "gangsta", "gypsy", "gypsies", "eskimo", "redskin", "squaw",
     "trump", "biden", "obama", "putin", "maga",
-    "democrat", "republican", "commie", "communist", "socialist", "fascist",
-    "confederate", "hitler", "stalin", "lenin",
+    "democrat", "democrats", "republican", "republicans", "commie", "commies",
+    "communist", "communists", "socialist", "socialists", "fascist", "fascists",
+    "confederate", "confederacy", "hitler", "stalin", "lenin",
 )  # fmt: skip
-# In a name, its reference and a title's name only: these are surnames too.
+# In a name, its reference and a title's name only: these are people's names too.
 IDENTITY_CODED = IDENTITY_TERMS + (
-    "moses", "ganesh", "prophet", "pope", "lucifer", "crusade", "crusader", "savage",
+    "jesus", "muhammad", "mohammed", "krishna", "shiva", "vishnu", "ganesh", "ganesha",
+    "moses", "prophet", "pope", "lucifer", "crusade", "crusader", "crusaders", "savage",
     "clinton", "harris", "bernie", "dixie", "mao",
 )  # fmt: skip
 
@@ -172,11 +176,9 @@ def check_name(
     person = find_word(f"{name} {reference}", FAMOUS_PEOPLE)
     if role == "person" or person:
         problems.append(f"name {name!r} refers to a real person; use a character or object")
-    coded = find_word(f"{name} {reference}", IDENTITY_CODED)
-    if coded:
-        problems.append(
-            f"name {name!r} refers to {coded!r}, coded to a religion, race or political identity"
-        )
+    # The message names the category, not the word: the step log is shown to visitors.
+    if find_word(f"{name} {reference}", IDENTITY_CODED):
+        problems.append(f"name {name!r} is coded to a religion, race or political identity")
     # A lookalike title features an animal like this one, and its name must be that
     # animal's own (checked in the listing agent), so it is as safe as a pet title.
     if strict and source not in ("pet", "lookalike"):
@@ -198,11 +200,10 @@ def check_title(name: str, role: str, title: str, description: str | None) -> li
             f"name {name!r}: {title} is about real people ({real!r}), so a name from it "
             "must be an animal's own"
         )
-    coded = find_word(title, IDENTITY_CODED) or find_word(description or "", IDENTITY_TERMS)
-    if coded:
+    if find_word(title, IDENTITY_CODED) or find_word(description or "", IDENTITY_TERMS):
         problems.append(
-            f"name {name!r}: {title} is coded to a religion, race or political identity "
-            f"({coded!r}); use another title"
+            f"name {name!r}: {title} is coded to a religion, race or political identity; "
+            "use another title"
         )
     return problems
 
@@ -399,7 +400,6 @@ def check_why(animal: Animal, why: str, name: str) -> list[str]:
 
 
 NAME_JOINERS = ("in", "of", "the", "and", "de", "da", "von", "van", "le", "la")
-ROLES = ("puppy", "dog", "cat", "kitten", "animal", "character", "object", "title")
 
 
 def reference_text(character: str, role: str, title: str) -> str:
