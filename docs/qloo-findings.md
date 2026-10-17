@@ -136,7 +136,7 @@ Question: fans of a pet-supply brand are more likely to own a pet than fans of a
 | | Pet films (saved profile) | Brands: Chewy, BarkBox, Purina | Films plus Chewy |
 |---|---|---|---|
 | Resolving the names | *Bluey* had 2 entries, *Garfield* 5 elsewhere | 1 entry each, clearly the pet brand | — |
-| Places also on Yellowstone's list | 8 of 15 | 2 of 15 | 2 of 15 |
+| Places also on Yellowstone's list | 7 of 15 | 2 of 15 | 2 of 15 |
 | Places shared with the films' list | — | 2 of 15 | 2 of 15 |
 | Kinds of place | arts centres, a music school, performance spaces, a gym, an arena | 4 hotels, bars, bakeries, a board-game café, a pet-supply shop | close to the brands' list; the films' arts centres drop out |
 | Heatmap within Park Slope | 15 cells | 20 cells (Chewy) | — |
