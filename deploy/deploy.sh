@@ -103,10 +103,12 @@ ssh "$HOST" "mkdir $D/src.new"
 git archive --format=tar HEAD | ssh "$HOST" "tar -x -C $D/src.new"
 # Backups left by a deploy that finished but stopped during its cleanup are stale. The
 # image to come back to is the one the app's container uses, running or stopped, found by
-# Compose's labels so no compose file or .env is read; else the current tag.
+# Compose's labels so no compose file or .env is read; else the current tag. Docker's
+# containerd image store can prune an image a container still runs, so it may be gone.
 swap="rm -rf src.prev compose.yml.prev .env.prev
   app=\$(docker ps -aq --filter label=com.docker.compose.project=namesake --filter label=com.docker.compose.service=app --filter label=com.docker.compose.oneoff=False | head -n 1)
-  if [ -n \"\$app\" ]; then docker tag \"\$(docker inspect -f '{{.Image}}' \"\$app\")\" namesake-app:prev
+  img=\$([ -n \"\$app\" ] && docker inspect -f '{{.Image}}' \"\$app\" || true)
+  if [ -n \"\$img\" ] && docker image inspect \"\$img\" >/dev/null 2>&1; then docker tag \"\$img\" namesake-app:prev
   elif docker image inspect namesake-app >/dev/null 2>&1; then docker tag namesake-app namesake-app:prev; fi
   touch .deploying
   if [ -d src ]; then mv src src.prev; fi; mv src.new src
