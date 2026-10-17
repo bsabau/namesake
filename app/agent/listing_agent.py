@@ -363,6 +363,15 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
     return draft
 
 
+def shown_bio(animal: Animal, draft: ListingDraft) -> list[BioSentence]:
+    """The bio as shown: the agent's sentences, then the confirmed checks, which come from
+    fixed sentences in code, never from the model."""
+    return list(draft.bio) + [
+        BioSentence(text=c.text, facts=[c.source])
+        for c in check_sentences(animal.checks, pronouns(animal.sex))
+    ]
+
+
 def record_problems(animal: Animal, draft: ListingDraft) -> list[str]:
     """What in the bio and the names' reasons is not in the animal's record. Needs no
     Qloo data, so app/agent/recheck.py can apply it to saved drafts as well."""

@@ -3,12 +3,13 @@
     python -m app.agent.recheck
 
 A draft saved under older checks is checked again against the animal's record (the bio
-and the names' reasons). One that passes is saved as current; one that fails, or that a
+and the names' reasons). One that passes is saved as current, with the confirmed checks
+rebuilt from today's fixed sentences; one that fails, or that a
 recheck of the record cannot cover (see app/agent/results.py), is left as it is and runs
 again when next opened. deploy/deploy.sh runs this on every deploy.
 """
 
-from app.agent.listing_agent import record_problems
+from app.agent.listing_agent import record_problems, shown_bio
 from app.agent.results import (
     CHECKS_VERSION,
     LOOKALIKE_LISTINGS_FROM,
@@ -36,7 +37,8 @@ def recheck(store: Store, roster: Roster) -> tuple[int, int]:
         # An animal added in a session is not in the roster; its listing runs again.
         animal = roster.get(result.animal_id)
         if animal and recheckable(result) and not record_problems(animal, result.draft):
-            store.put_listing(result.model_copy(update={"checks_version": CHECKS_VERSION}))
+            update = {"checks_version": CHECKS_VERSION, "bio": shown_bio(animal, result.draft)}
+            store.put_listing(result.model_copy(update=update))
             kept += 1
         else:
             rerun += 1

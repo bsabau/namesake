@@ -15,8 +15,9 @@
 # are handled by deploy/prepare_var.py, run as root in a one-off container, so any ssh
 # user that can run docker and write NAMESAKE_DIR can deploy. Saved listings are held to
 # today's checks (app/agent/recheck.py) before the new version starts. Only committed
-# changes are deployed. If any step fails, the previous source and image come back and
-# the previous version keeps running, or is started again.
+# changes are deployed. The source, compose.yml, .env and the image change together, and
+# if any step fails, including the check through the proxy, all four come back and the
+# previous version keeps running, or is started again.
 set -euo pipefail
 HOST=${NAMESAKE_HOST:?set NAMESAKE_HOST=user@host}
 DIR=${NAMESAKE_DIR:-/opt/namesake}
@@ -39,20 +40,35 @@ D=$(printf %q "$DIR")
 NET=$(printf %q "$PROXY_NETWORK")
 remote() { ssh "$HOST" "set -euo pipefail; cd $D; $1"; }
 put() { ssh "$HOST" "umask 077; cat > $D/$1" < "$2"; }
-# The previous source and image, kept as src.prev and namesake-app:prev until the new
-# version is healthy. The upload is dropped either way.
+# The previous version, kept as src.prev, compose.yml.prev, .env.prev (when --env
+# replaced it) and the image namesake-app:prev until the new one is healthy. The upload
+# is dropped either way.
 roll_back() {
-  remote "if [ -d src.prev ]; then rm -rf src && mv src.prev src; fi; rm -f upload/cache.sqlite
+  remote "if [ -d src.prev ]; then rm -rf src && mv src.prev src; fi
+    if [ -f compose.yml.prev ]; then mv compose.yml.prev compose.yml; fi
+    if [ -f .env.prev ]; then mv .env.prev .env; fi
+    rm -f upload/cache.sqlite
     if docker image inspect namesake-app:prev >/dev/null 2>&1; then docker tag namesake-app:prev namesake-app; fi"
+}
+# After the new container started: back to the previous version, and start it again.
+start_previous() {
+  echo "→ Starting the previous version again"
+  roll_back
+  remote "if docker image inspect namesake-app:prev >/dev/null 2>&1; then docker compose up -d --no-build --remove-orphans; else echo 'no previous version to start'; fi" \
+    || echo "✗ The previous version did not start either: check 'docker compose ps' on the server"
+  exit 1
 }
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 SHA=$(git rev-parse --short HEAD)
 echo "→ Preparing $HOST:$DIR for $SHA"
+ssh "$HOST" true || { echo "✗ cannot reach $HOST over ssh"; exit 1; }
 ssh "$HOST" "mkdir -p $D && cd $D && if [ ! -d var ]; then mkdir var && chmod 700 var; fi && mkdir -p upload && chmod 700 upload" \
   || { echo "✗ $DIR is not writable by the ssh user: create it once as root (deploy/README.md)"; exit 1; }
-put compose.yml deploy/compose.yml
+# New files wait as *.new until the source is swapped; leftovers of a stopped run go first.
+remote "rm -rf compose.yml.new .env.new src.new"
+put compose.yml.new deploy/compose.yml
 
 if [ -n "$ENV" ]; then
   echo "→ Writing .env (values not shown)"
@@ -62,9 +78,9 @@ if [ -n "$ENV" ]; then
   (umask 077; uv run --quiet python deploy/make_env.py --subnet "$subnets" --network "$PROXY_NETWORK" > "$work/env")
   put .env.new "$work/env"
   # A cut-off transfer fails put() above, so a complete file is one with every key.
-  remote "for k in QLOO_API_KEY AGENT_BASE_URL AGENT_API_KEY AGENT_MODEL AGENT_API FORWARDED_ALLOW_IPS PROXY_NETWORK; do grep -q \"^\$k=.\" .env.new; done; chmod 600 .env.new; mv .env.new .env"
+  remote "for k in QLOO_API_KEY AGENT_BASE_URL AGENT_API_KEY AGENT_MODEL AGENT_API FORWARDED_ALLOW_IPS PROXY_NETWORK; do grep -q \"^\$k=.\" .env.new; done; chmod 600 .env.new"
 fi
-remote "test -s .env" || { echo "✗ no .env on the server; run once with --env"; exit 1; }
+remote "test -s .env || test -s .env.new" || { echo "✗ no .env on the server; run once with --env"; exit 1; }
 
 if [ -n "$SEED" ]; then
   echo "→ Uploading the local cache"
@@ -73,10 +89,16 @@ if [ -n "$SEED" ]; then
 fi
 
 echo "→ Copying the source"
-ssh "$HOST" "rm -rf $D/src.new && mkdir $D/src.new"
+ssh "$HOST" "mkdir $D/src.new"
 git archive --format=tar HEAD | ssh "$HOST" "tar -x -C $D/src.new"
-remote "rm -rf src.prev; if [ -d src ]; then mv src src.prev; fi; mv src.new src
-  if docker image inspect namesake-app >/dev/null 2>&1; then docker tag namesake-app namesake-app:prev; fi"
+# The image to come back to is the one the running container uses, whatever the tags say.
+remote "rm -rf src.prev compose.yml.prev .env.prev
+  running=\$(docker compose -f compose.yml.new ps -q app 2>/dev/null || true)
+  if [ -n \"\$running\" ]; then docker tag \"\$(docker inspect -f '{{.Image}}' \$running)\" namesake-app:prev
+  else docker image rm namesake-app:prev >/dev/null 2>&1 || true; fi
+  if [ -d src ]; then mv src src.prev; fi; mv src.new src
+  if [ -f compose.yml ]; then mv compose.yml compose.yml.prev; fi; mv compose.yml.new compose.yml
+  if [ -f .env.new ]; then if [ -f .env ]; then mv .env .env.prev; fi; mv .env.new .env; fi"
 
 echo "→ Building"
 if ! remote "docker compose build"; then
@@ -102,35 +124,39 @@ if ! remote "docker compose run --rm --no-deps app python -m app.agent.recheck";
 fi
 
 echo "→ Restarting"
-tries=60
-remote "docker compose up -d --remove-orphans" || tries=0
-
-echo "→ Checking /health and that the cache is writable"
 ok=""
-for _ in $(seq 1 $tries); do
-  # mode=rw opens the cache file prepare_var.py made sure of, and never creates one.
-  if remote "docker compose exec -T app python -c \"import sqlite3, urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health'); c = sqlite3.connect('file:/app/var/cache.sqlite?mode=rw', uri=True); c.execute('BEGIN IMMEDIATE'); c.rollback()\"" >/dev/null 2>&1; then
-    ok=1
-    break
-  fi
-  sleep 2
-done
+# Only a container that `up` just started is checked: if `up` fails, the old one may
+# still answer.
+if remote "docker compose up -d --remove-orphans"; then
+  echo "→ Checking /health and that the cache is writable"
+  for _ in $(seq 1 60); do
+    # mode=rw opens the cache file prepare_var.py made sure of, and never creates one.
+    if remote "docker compose exec -T app python -c \"import sqlite3, urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health'); c = sqlite3.connect('file:/app/var/cache.sqlite?mode=rw', uri=True); c.execute('BEGIN IMMEDIATE'); c.rollback()\"" >/dev/null 2>&1; then
+      ok=1
+      break
+    fi
+    sleep 2
+  done
+fi
 if [ -z "$ok" ]; then
   echo "✗ The new version did not start, or was not healthy within 2 minutes. Recent logs:"
   remote "docker compose logs --tail=60 app" || true
-  echo "→ Starting the previous version again"
-  roll_back
-  remote "if docker image inspect namesake-app:prev >/dev/null 2>&1; then docker compose up -d --no-build --remove-orphans; else echo 'no previous version to start'; fi" \
-    || echo "✗ The previous version did not start either: check 'docker compose ps' on the server"
-  exit 1
+  start_previous
 fi
-remote "rm -rf src.prev upload/cache.sqlite"
 
 if [ -n "${NAMESAKE_URL:-}" ]; then
   echo "→ Checking $NAMESAKE_URL/health through the proxy"
-  curl -fsS --max-time 20 "$NAMESAKE_URL/health" >/dev/null \
-    || { echo "✗ The app is running, but $NAMESAKE_URL does not answer: check the Caddy site block (deploy/README.md)"; exit 1; }
+  ok=""
+  for _ in $(seq 1 10); do
+    if curl -fsS --max-time 20 "$NAMESAKE_URL/health" >/dev/null; then ok=1; break; fi
+    sleep 3
+  done
+  if [ -z "$ok" ]; then
+    echo "✗ The app is running, but $NAMESAKE_URL does not answer: check the Caddy site block and PROXY_NETWORK (deploy/README.md)"
+    start_previous
+  fi
 fi
+remote "rm -rf src.prev compose.yml.prev .env.prev upload/cache.sqlite"
 
 # Only this project's leftover images, and never a reason to fail a good deploy.
 remote "docker image prune -f --filter label=com.docker.compose.project=namesake >/dev/null 2>&1 || true; docker compose ps"

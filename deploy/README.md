@@ -41,7 +41,7 @@ The Qloo cache in `var/` holds Qloo response data. It stays on this host and is 
 NAMESAKE_HOST=user@host NAMESAKE_URL=https://namesake.example.com deploy/deploy.sh
 ```
 
-Only committed changes are deployed. Every deploy re-checks the saved listings against today's checks (`app/agent/recheck.py`): one that passes stays, one that fails runs again when next opened. If any step fails, the previous source and image (`namesake-app:prev`) come back: before the restart the running container is untouched, and after it the previous version is started again. To roll back on purpose, check out the earlier commit and deploy again.
+Only committed changes are deployed. Every deploy re-checks the saved listings against today's checks (`app/agent/recheck.py`): one that passes stays, one that fails runs again when next opened. The source, `compose.yml`, `.env` and the image change together. If any step fails, the check through the proxy included, all four come back (the image as `namesake-app:prev`, the one the running container used): before the restart the running container is untouched, and after it the previous version is started again. To roll back on purpose, check out the earlier commit and deploy again.
 
 ## Settings worth knowing
 
