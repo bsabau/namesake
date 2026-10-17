@@ -29,7 +29,7 @@ from app.custom_location import check_location, clean, location_id
 from app.limits import LimitReached
 from app.listing import generic_name, missing_cautions, stage_for
 from app.locations import Location, load_locations
-from app.places import MAX_PIN_KM, PIN_DECIMALS, Allowance, Places, Throttled, distance_km
+from app.places import MAX_PIN_KM, PIN_DECIMALS, Places, Throttled, distance_km
 from app.profile import LocationProfile, build_profile, load_seeds
 from app.qloo.cache import Cache
 from app.qloo.exec import QlooClient
@@ -113,9 +113,6 @@ def places() -> Places:
     return places_for(get_settings().geocoder_url)
 
 
-PLACE_LOOKUPS = Allowance()
-
-
 def pick_ui(requested: str | None) -> str:
     ui = requested or get_settings().ui
     if ui not in UIS:
@@ -168,7 +165,8 @@ async def session_cookie(request: Request, call_next):
     # A page or answer built for one visitor's session (their pin, added animals) is
     # never kept by a cache on the way.
     session_bound = known or request.state.new_session_id
-    if session_bound and "cache-control" not in response.headers:
+    shared_file = request.url.path.startswith(("/static/", "/ui/"))
+    if session_bound and not shared_file and "cache-control" not in response.headers:
         response.headers["Cache-Control"] = "private, no-store"
     if request.state.new_session_id:
         response.set_cookie(
@@ -686,11 +684,6 @@ def place_lookup() -> Places:
     return lookup
 
 
-def visitor_allowance(request: Request):
-    """Asked only when a lookup would reach the geocoder: cached answers are free."""
-    return lambda: PLACE_LOOKUPS.take(visitor(request))
-
-
 TOO_MANY_LOOKUPS = "too many place lookups; wait a minute, or type the area"
 
 
@@ -705,7 +698,7 @@ def api_places(
     the area on the map when lat and lon are given."""
     near = (lat, lon) if lat is not None and lon is not None else None
     try:
-        found = place_lookup().search(q, near, allow=visitor_allowance(request))
+        found = place_lookup().search(q, near, visitor=visitor(request))
     except Throttled:
         raise HTTPException(429, TOO_MANY_LOOKUPS) from None
     return PlacesView(places=[PlaceOption(**p.model_dump()) for p in found])
@@ -719,7 +712,7 @@ def api_place_at(
 ) -> PlacesView:
     """The areas a spot the visitor picked for the shelter lies in, most local first."""
     try:
-        found = place_lookup().at(lat, lon, allow=visitor_allowance(request))
+        found = place_lookup().at(lat, lon, visitor=visitor(request))
     except Throttled:
         raise HTTPException(429, TOO_MANY_LOOKUPS) from None
     if not found:

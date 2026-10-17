@@ -14,7 +14,10 @@
   // since the last step. The words come from the view model (data-words).
   const busy = root.querySelector('[data-role="busy"]');
   // Counted from the server's last step, so a reload does not restart the clock.
-  let lastStep = Date.now() - 1000 * Number(busy ? busy.dataset.seconds : 0);
+  let lastStep = Date.now() - 1000 * (Number(busy && busy.dataset.seconds) || 0);
+  // The stream replays the steps already on the page first; only later ones are new.
+  const shown = list.children.length;
+  let streamed = 0;
   let timers = [];
   const stopBusy = () => {
     timers.forEach(clearInterval);
@@ -37,7 +40,8 @@
   }
 
   source.addEventListener("step", (event) => {
-    lastStep = Date.now();
+    streamed += 1;
+    if (streamed > shown) lastStep = Date.now();
     if (first) { list.innerHTML = ""; first = false; }
     const step = JSON.parse(event.data);
     const item = document.createElement("li");

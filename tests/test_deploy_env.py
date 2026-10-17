@@ -70,3 +70,11 @@ def test_only_a_valid_ipv4_proxy_subnet_is_trusted():
     assert make_env.proxy_subnet("fd00::/64 10.0.0.0/8") == "10.0.0.0/8"
     with pytest.raises(make_env.MissingValue, match="no IPv4 subnet"):
         make_env.proxy_subnet("172.18.0.0/16fd00::/64")
+
+
+def test_the_geocoder_setting_goes_to_the_host_even_when_empty(tmp_path):
+    # Flash: GEOCODER_URL= in the local .env never reached the host, so lookups stayed on.
+    env = make_env.build_env(
+        *files(tmp_path, LOCAL + "GEOCODER_URL=\n"), "172.18.0.0/16", "proxy_default"
+    )
+    assert env["GEOCODER_URL"] == "" and "GEOCODER_URL=\n" in make_env.render(env)

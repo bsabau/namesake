@@ -124,23 +124,41 @@ def test_an_odd_or_cut_off_answer_is_no_suggestions():
 
 
 def test_only_calls_that_reach_the_geocoder_count():
-    lookup, fake = places({"features": [feature("Example Slope")]})
-    allowance = Allowance(per_minute=1)
-    take = lambda: allowance.take("visitor")  # noqa: E731
-    lookup.search("example", allow=take)
-    lookup.search("example", allow=take)  # cached: free
-    lookup.search("12 Example Street", allow=take)  # refused before any call: free
+    fake = FakeGeocoder({"features": [feature("Example Slope")]})
+    lookup = Places("https://geocoder.example", fake, per_visitor=Allowance(per_minute=1))
+    lookup.search("example", visitor="a")
+    lookup.search("example", visitor="a")  # cached: free
+    lookup.search("12 Example Street", visitor="a")  # refused before any call: free
     with pytest.raises(Throttled):
-        lookup.search("another example", allow=take)
+        lookup.search("another example", visitor="a")
     assert len(fake.urls) == 1
+    lookup.search("another example", visitor="b")
 
 
-def test_everyone_together_has_an_allowance_too():
+def test_everyone_together_has_an_allowance_and_a_refusal_costs_the_visitor_nothing():
+    # Codex, muse, Flash: a lookup refused by the overall allowance spent the visitor's.
     fake = FakeGeocoder()
-    lookup = Places("https://geocoder.example", fetch=fake, overall=Allowance(per_minute=1))
-    lookup.search("example")
+    lookup = Places(
+        "https://geocoder.example", fake,
+        per_visitor=Allowance(per_minute=1), overall=Allowance(per_minute=1),
+    )  # fmt: skip
+    lookup.search("example", visitor="a")
     with pytest.raises(Throttled):
-        lookup.search("another example")
+        lookup.search("another example", visitor="b")
+    lookup.overall = Allowance(per_minute=5)
+    lookup.search("another example", visitor="b")  # b's one lookup is still there
+    assert len(fake.urls) == 2
+
+
+def test_a_lookup_refused_by_the_visitors_allowance_gives_back_everyones():
+    lookup = Places(
+        "https://geocoder.example", FakeGeocoder(),
+        per_visitor=Allowance(per_minute=1), overall=Allowance(per_minute=2),
+    )  # fmt: skip
+    lookup.search("example", visitor="a")
+    with pytest.raises(Throttled):
+        lookup.search("another example", visitor="a")
+    lookup.search("third example", visitor="b")  # everyone's second is not spent
 
 
 def test_a_failed_lookup_is_not_cached():
@@ -184,7 +202,6 @@ def geocoder(monkeypatch):
     fake = FakeGeocoder()
     lookup = Places("https://geocoder.example", fetch=fake)
     monkeypatch.setattr(main, "places", lambda: lookup)
-    monkeypatch.setattr(main, "PLACE_LOOKUPS", Allowance())
     return fake
 
 
@@ -206,10 +223,11 @@ def test_the_api_names_the_area_around_a_spot(client, geocoder):  # noqa: F811
 
 def test_lookups_are_off_without_a_geocoder_and_limited_per_visitor(client, monkeypatch):  # noqa: F811
     assert client.get("/api/places", params={"q": "example"}).status_code == 404
-    monkeypatch.setattr(main, "places", lambda: Places("https://geocoder.example", FakeGeocoder()))
-    monkeypatch.setattr(main, "PLACE_LOOKUPS", Allowance(per_minute=1))
+    lookup = Places("https://geocoder.example", FakeGeocoder(), per_visitor=Allowance(1))
+    monkeypatch.setattr(main, "places", lambda: lookup)
     assert client.get("/api/places", params={"q": "example"}).status_code == 200
-    assert client.get("/api/places", params={"q": "example"}).status_code == 429
+    assert client.get("/api/places", params={"q": "example"}).status_code == 200  # cached
+    assert client.get("/api/places", params={"q": "other example"}).status_code == 429
 
 
 def known_area(text="Example Slope, Exampleton") -> str:
@@ -261,6 +279,10 @@ def test_the_pin_is_kept_to_about_10_m_and_pages_with_it_are_never_cached(client
     assert option(client, location_id(text))["pin"] == {"latitude": 40.6712, "longitude": -73.982}
     page = client.get("/", params={"location": location_id(text)})
     assert page.headers["cache-control"] == "private, no-store"
+    # Flash: shared files stay cacheable for a visitor with a session.
+    assert "no-store" not in client.get("/ui/classic/static/style.css").headers.get(
+        "cache-control", ""
+    )
 
 
 def test_qloo_gets_the_area_name_alone_and_candidates_keep_the_pin(client, monkeypatch):  # noqa: F811
