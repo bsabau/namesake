@@ -45,10 +45,11 @@ def test_map_gets_every_preset_point():
 
 
 def test_map_scripts_are_served_and_credit_openstreetmap():
-    for name in ["location-map.js", "result-map.js"]:
-        js = client.get(f"/ui/classic/static/{name}")
-        assert js.status_code == 200
-        assert "OpenStreetMap" in js.text
+    for ui in ["classic", "warm"]:
+        for name in ["location-map.js", "result-map.js"]:
+            js = client.get(f"/ui/{ui}/static/{name}")
+            assert js.status_code == 200
+            assert "OpenStreetMap" in js.text
 
 
 def _checked_id(html: str) -> str:
@@ -86,4 +87,5 @@ def test_with_no_area_chosen_the_bar_asks_for_one():
 
 def test_the_shelter_bar_script_is_served():
     # Flash: without it, a closed panel with no area chosen strands the visitor again.
-    assert client.get("/ui/classic/static/shelter-bar.js").status_code == 200
+    for ui in ["classic", "warm"]:
+        assert client.get(f"/ui/{ui}/static/shelter-bar.js").status_code == 200

@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     geocoder_url: str = "https://photon.komoot.io"
 
     # Default interface: a folder under app/ui/. `?ui=<name>` overrides it per request.
-    ui: str = "classic"
+    ui: str = "warm"
 
     animals_file: Path = ROOT / "data" / "animals" / "animals.json"
     locations_file: Path = ROOT / "data" / "locations.json"

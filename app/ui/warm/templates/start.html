@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block head %}
+{% include "leaflet.html" %}
+<script defer src="{{ ui_static('location-map.js') }}"></script>
+<script defer src="{{ ui_static('place-suggest.js') }}"></script>
+<script defer src="{{ ui_static('shelter-bar.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<section class="intro">
+  <h1>{{ view.title }}</h1>
+  <p>{{ view.intro }}</p>
+</section>
+
+
+<form id="custom-location" action="{{ view.location_form.action }}" method="post">
+  {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
+  {# The spot picked on the map, set by location-map.js; Qloo only ever gets the text. #}
+  <input type="hidden" id="pin-lat" name="pin_lat" value="{{ view.location_form.pin_lat }}">
+  <input type="hidden" id="pin-lon" name="pin_lon" value="{{ view.location_form.pin_lon }}">
+</form>
+
+<form id="pick" action="/runs" method="post">
+  {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
+  {# The chosen area as a slim bar; its panel holds everything for changing it. #}
+  <details class="shelter{% if not view.shelter.chosen %} unchosen{% endif %}" id="shelter" data-role="shelter"{% if view.shelter.open %} open{% endif %}>
+    <summary>
+      <span class="shelter-heading">{{ view.shelter.heading }}:</span>
+      <span class="shelter-place"><strong class="shelter-name" id="shelter-name">{{ view.shelter.name }}</strong><span class="shelter-region" id="shelter-region">{{ view.shelter.region }}</span></span>
+      <span class="shelter-toggle"><span class="when-closed"><span class="if-chosen">{{ view.shelter.change }}</span><span class="if-unchosen">{{ view.shelter.choose }}</span></span><span class="when-open">{{ view.shelter.close }}</span></span>
+    </summary>
+  <section class="where">
+    <fieldset class="locations">
+      <legend><h2>{{ view.shelter.panel_heading }}</h2></legend>
+      {% if view.location_form.message %}
+      {# A failed area check: said where the visitor will see it, and no area stays chosen. #}
+      <p class="location-alert" id="location-alert" role="alert">{{ view.location_form.message }}</p>
+      {% endif %}
+      <div class="location-options">
+        {% for location in view.locations %}
+        <label class="location-option">
+          <input type="radio" name="location" value="{{ location.id }}" required
+                 {% if location.selected %}checked{% endif %}>
+          <span class="location-label">{{ location.label }}</span>
+          <span class="location-region">{{ location.region }}</span>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="custom-location" data-role="custom-location">
+        <label for="custom-location-text">{{ view.location_form.label }}</label>
+        <div class="inline-field">
+          <div class="suggest-wrap">
+          <input id="custom-location-text" form="custom-location" type="text" name="text"
+                 maxlength="80" value="{{ view.location_form.value }}"
+                 placeholder="{{ view.location_form.placeholder }}"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false"
+                 aria-controls="place-suggestions" autocomplete="off"
+                 data-suggest-url="{{ view.location_form.suggestions_url }}">
+          <ul id="place-suggestions" class="suggestions" role="listbox" hidden></ul>
+          </div>
+          <button type="submit" form="custom-location">Check with Qloo</button>
+        </div>
+        <p class="hint">{{ view.location_form.hint }}</p>
+        {% if view.location_form.candidates %}
+        <div class="candidates" data-role="candidates">
+          {% for candidate in view.location_form.candidates %}
+          <button type="submit" form="custom-location" name="text" value="{{ candidate }}">{{ candidate }}</button>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </fieldset>
+
+    <figure class="location-map">
+      <div id="location-map" data-role="map" role="img"
+           aria-label="Map of the area around the shelter"
+           data-pick-url="{{ view.location_form.pick_url }}"></div>
+      <figcaption id="map-note">{{ view.map_note }}</figcaption>
+      <p class="hint map-hint">{{ view.location_form.map_hint }}</p>
+    </figure>
+    <script type="application/json" id="map-points">{{ view.locations|plain|tojson }}</script>
+  </section>
+  </details>
+
+{% if view.examples %}
+  <section class="examples" data-role="examples">
+    <h2>{{ view.examples_heading }}</h2>
+    <ul>
+      {% for example in view.examples %}<li><a class="example" href="{{ example.url }}">{{ example.label }}</a></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <h2 class="step-heading">Pick an animal</h2>
+
+  <ul class="animal-grid">
+    {% for animal in view.animals %}
+    <li id="{{ animal.id }}">
+      <button class="animal-card" type="submit" name="animal" value="{{ animal.id }}">
+        <img src="{{ animal.image_url }}" alt="{{ animal.alt }}" width="800" height="800" loading="lazy">
+        <span class="animal-body">
+          <span class="animal-meta">
+            {{ animal.meta }}
+            {% for badge in animal.badges %}<span class="badge">{{ badge }}</span>{% endfor %}
+          </span>
+          <span class="animal-look">{{ animal.look }}</span>
+          <span class="animal-temperament">{{ animal.temperament }}</span>
+        </span>
+      </button>
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% for litter in view.litters %}
+  <section class="litter" id="{{ litter.id }}">
+    <img src="{{ litter.image_url }}" alt="{{ litter.alt }}" width="800" height="800" loading="lazy">
+    <div>
+      <h2>{{ litter.title }}</h2>
+      <p>{{ litter.text }}</p>
+      <button type="submit" name="animal" value="{{ litter.id }}">Name the litter</button>
+    </div>
+  </section>
+  {% endfor %}
+
+  <p class="add-animal">
+    <button type="submit" class="link-button" formaction="{{ view.add_animal_url }}"
+            formmethod="get">{{ view.add_animal_label }}</button>
+  </p>
+</form>
+{% endblock %}

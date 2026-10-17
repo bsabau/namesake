@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app.main as main
+from app.config import get_settings
 from app.profile import build_profile
 from tests.qloo_fakes import SEEDS, FakeQloo, standard_script
 
@@ -44,8 +45,25 @@ def client(monkeypatch):
     return TestClient(main.app)
 
 
-def test_there_is_at_least_one_ui():
-    assert "classic" in main.UIS
+def test_both_skins_are_found():
+    assert {"classic", "warm"} <= set(main.UIS)
+
+
+def test_the_default_ui_is_warm():
+    # The declared default, not the effective one: a UI=classic override is allowed.
+    assert type(get_settings()).model_fields["ui"].default == "warm"
+    assert main.pick_ui(None) == get_settings().ui
+
+
+def test_every_ui_has_every_screen():
+    # A skin copied from classic must keep every template and script, or a route 500s.
+    def names(ui, suffix):
+        found = (main.UI_ROOT / ui).rglob(f"*{suffix}")
+        return {p.name for p in found if not p.name.startswith("_")}
+
+    for ui in main.UIS:
+        assert names(ui, ".html") == names("classic", ".html"), f"{ui} lacks a template"
+        assert names(ui, ".js") == names("classic", ".js"), f"{ui} lacks a script"
 
 
 @pytest.mark.parametrize("ui", main.UIS)
@@ -88,12 +106,15 @@ def test_the_working_screen_shows_a_sign_of_life_while_running(client, monkeypat
 def test_ui_folders_never_reach_for_data(ui):
     # A UI renders view models only: no fetches outside the app's own /api/.
     for path in (main.UI_ROOT / ui).rglob("*"):
-        if path.suffix in {".html", ".js"}:
+        if path.suffix in {".html", ".js", ".css"}:
             text = path.read_text(encoding="utf-8")
             for call in ["qloo exec", "qloo mcp", "/v2/", "hackathon.api"]:
                 assert call not in text, f"{path.name} reaches for Qloo: {call}"
             # Place lookups go through /api/places, never to the geocoder itself.
             assert "photon" not in text.lower(), f"{path.name} reaches for the geocoder"
+            # Fonts are served from the UI's own folder: no visitor is sent to a font service.
+            for host in ["fonts.googleapis.com", "fonts.gstatic.com"]:
+                assert host not in text, f"{path.name} loads a font from {host}"
             # Every fetch goes to a URL the page was given (a data-*-url from the view
             # model, under /api/), never to a URL written into the script.
             for call in re.findall(r"fetch\(([^)]*)\)", text):
@@ -140,8 +161,39 @@ def test_add_animal_screen_meets_the_contract(client, ui):
         assert f'data-role="{role}"' in html, f"{ui} add animal: missing {role}"
 
 
-def test_ui_files_are_linked_with_their_version(client):
+@pytest.mark.parametrize("ui", main.UIS)
+def test_ui_files_are_linked_with_their_version(client, ui):
     # A script cached from before a deploy kept running against the new page.
-    page = client.get("/").text
-    version = main.static_version("classic")
+    page = client.get("/", params={"ui": ui}).text
+    version = main.static_version(ui)
     assert f"location-map.js?v={version}" in page and f"style.css?v={version}" in page
+
+
+def test_the_default_ui_is_served_at_the_root(client):
+    version = main.static_version(get_settings().ui)
+    assert f"/ui/{get_settings().ui}/static/style.css?v={version}" in client.get("/").text
+
+
+def test_the_warm_font_is_self_hosted_and_cacheable(client):
+    fonts = main.UI_ROOT / "warm" / "static" / "fonts"
+    files = sorted(fonts.glob("*.woff2"))
+    assert files and (fonts / "OFL.txt").exists(), "the font ships with its licence"
+    for path in files:
+        response = client.get(f"/ui/warm/static/fonts/{path.name}")
+        assert response.status_code == 200
+        # Registered in app/main.py: a slim Linux image has no mime.types file for .woff2.
+        assert response.headers["content-type"] == "font/woff2"
+        # Shared files are cacheable: a validator is sent and no session rule forbids it.
+        assert "etag" in response.headers or "last-modified" in response.headers
+        assert "no-store" not in response.headers.get("cache-control", "")
+        assert len(response.content) < 150_000, f"{path.name} is not a subsetted woff2"
+    css = (fonts.parent / "style.css").read_text(encoding="utf-8")
+    assert "@font-face" in css and "font-display: swap" in css
+
+
+@pytest.mark.parametrize("ui", main.UIS)
+def test_provenance_lines_are_marked_in_every_ui(ui):
+    # What Qloo returned and how Namesake read it stay two marked lines, never one.
+    template = (main.UI_ROOT / ui / "templates" / "result.html").read_text(encoding="utf-8")
+    for marker in ['class="evidence"', 'class="reading"', "from-qloo"]:
+        assert marker in template, f"{ui} result: no {marker}"
