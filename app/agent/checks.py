@@ -199,8 +199,14 @@ IDENTITY_CATEGORIES = (
     "evangelicals", "hindu", "hinduism", "sikh", "mormon", "mormons", "religion",
     "religious", "the church", "a church", "gospel", "political", "politics", "politician",
     "politicians", "president", "presidential", "election", "elections", "senate",
-    "congress", "congressional", "partisan", "liberals", "conservatives", "activist",
-    "activism", "civil rights", "racism", "racist", "racial", "race relations",
+    "congress", "congressional", "partisan", "liberal", "liberals", "conservative",
+    "conservatives", "activist", "activism", "civil rights", "racism", "racist", "racial",
+    "race relations", "christian community", "christian church",
+)  # fmt: skip
+# The same kind of words, safe in a show's name too (none is a first name or surname).
+IDENTITY_CATEGORY_NAMES = (
+    "political", "politics", "president", "presidential", "election", "elections",
+    "senate", "congress", "religion", "religious", "gospel",
 )  # fmt: skip
 
 
@@ -208,8 +214,10 @@ def mentions_identity(name: str, description: str | None) -> bool:
     """A show whose name or description mentions a religion, race or politics: the
     identity screen plus everyday category words. A word list, so the page says
     "mentions", not "is about"."""
-    return identity_coded(name, description) or bool(
-        find_word(description or "", IDENTITY_CATEGORIES)
+    return (
+        identity_coded(name, description)
+        or bool(find_word(description or "", IDENTITY_CATEGORIES))
+        or bool(find_word(name, IDENTITY_CATEGORY_NAMES))
     )
 
 

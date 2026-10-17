@@ -629,12 +629,17 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
     if profile.baselines and profile.baseline_source == "area":
         named = [e.name for e in profile.baselines if e.id not in hidden]
         lead = f"{and_list(named)}: the TV shows" if named else "The TV shows"
-        later = (
-            " One of them was chosen before that rule and is not named here; the next run "
-            "chooses it again."
-            if hidden
-            else ""
-        )
+        later = ""
+        if hidden and not named:
+            later = (
+                " They were chosen before that rule and are not named here; the next run "
+                "chooses them again."
+            )
+        elif hidden:
+            later = (
+                " One of them was chosen before that rule and is not named here; the next run "
+                "chooses it again."
+            )
         reading.append(
             WhyItem(
                 title="Why compare with this area's top shows",

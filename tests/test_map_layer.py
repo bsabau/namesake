@@ -17,7 +17,7 @@ from app.profile import (
     finish_profile,
     needs_finishing,
 )
-from app.views.build import build_result_view
+from app.views.build import build_result_view, why
 from tests.qloo_fakes import (
     BASELINE,
     BASELINE_2,
@@ -465,9 +465,7 @@ def test_when_every_top_show_is_left_out_the_seed_stands_in_and_says_why():
     assert "mentions a religion, race or politics" in note
 
 
-def test_the_page_never_names_a_saved_comparison_show_the_screen_rejects(roster):
-    from app.views.build import why
-
+def test_the_page_never_names_a_saved_comparison_show_the_screen_rejects():
     p = build_profile(FakeQloo(standard_script()), LOCATION, SEEDS)
     doc = Entity(
         id="00000000-0000-4000-8000-000000000311",
@@ -481,3 +479,24 @@ def test_the_page_never_names_a_saved_comparison_show_the_screen_rejects(roster)
     assert "Example Portraits" not in text and "Example Drama" in text
     compare = next(i for i in reading if i.title == "Why compare with this area's top shows")
     assert "is not named here; the next run chooses it again" in compare.detail
+
+    both = stale.model_copy(update={"baselines": [doc, doc.model_copy(update={"id": "x2"})]})
+    compare = next(i for i in why(LOCATION, both)[1] if i.title.startswith("Why compare"))
+    assert compare.detail.startswith("The TV shows Qloo ranks highest")
+    assert "They were chosen before that rule and are not named here" in compare.detail
+
+
+def test_category_words_in_a_show_name_count_too():
+    def show(i: int, name: str, description: str | None = None) -> Entity:
+        return Entity(id=f"id-{i}", name=name, type="urn:entity:tv_show", description=description)
+
+    tastes = [
+        show(1, "The Example Election"),
+        show(2, "Example Town", "A made-up drama about a conservative town."),
+        show(3, "Example Quiz"),
+        show(4, "Example Bake Off"),
+    ]
+    assert [e.name for e in baseline_from_tastes(tastes, [])] == [
+        "Example Quiz",
+        "Example Bake Off",
+    ]
