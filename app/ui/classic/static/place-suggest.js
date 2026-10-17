@@ -77,13 +77,15 @@
       try {
         // The area's centre to one decimal (about 11 km): enough to rank nearby places.
         const response = await fetch(`${field.dataset.suggestUrl}?q=${encodeURIComponent(text)}${near()}`);
+        if (text !== asked) return; // superseded by a later lookup, which owns the list
         if (!response.ok) return close();
         const body = await response.json();
-        if (text !== asked) return; // superseded by a later lookup
+        if (text !== asked) return;
         answer = { text, places: body.places };
         if (field.value.trim() === text) show(answer.places);
       } catch {
-        close(); // no suggestions this time; the field still takes what is typed
+        // No suggestions this time; the field still takes what is typed.
+        if (text === asked) close();
       }
     }, 300);
   });
