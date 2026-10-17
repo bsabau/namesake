@@ -72,7 +72,7 @@ ssh "$HOST" "mkdir -p $D && cd $D && if [ ! -d var ]; then mkdir var && chmod 70
 # never overwritten.
 if remote "[ -e .deploying ]"; then
   echo "→ An earlier deploy did not finish; restoring the version before it first"
-  roll_back
+  roll_back || { echo "✗ Could not restore the version before it: see src.prev, compose.yml.prev and .env.prev on the server"; exit 1; }
   remote "if docker image inspect namesake-app:prev >/dev/null 2>&1; then docker compose up -d --no-build --remove-orphans; fi" \
     || { echo "✗ The restored version did not start: check 'docker compose ps' on the server"; exit 1; }
 fi
@@ -165,16 +165,19 @@ fi
 public=0
 if [ -n "${NAMESAKE_URL:-}" ]; then
   echo "→ Checking $NAMESAKE_URL/health through the proxy"
+  answered=""
   for _ in $(seq 1 10); do
     public=0
     curl -fsS --max-time 20 "$NAMESAKE_URL/health" >/dev/null || public=$?
-    # 0 is done, and 22 is an answer from the proxy: neither is retried.
-    if [ "$public" -eq 0 ] || [ "$public" -eq 22 ]; then break; fi
+    [ "$public" -eq 0 ] && break
+    [ "$public" -eq 22 ] && answered=1
     sleep 3
   done
-  # 22: the proxy answered with an error, so it cannot reach this version. Anything else
-  # (no DNS, no connection from here) may be this machine's network, not the deploy.
-  if [ "$public" -eq 22 ]; then
+  # 22: the proxy answered with an error, so it cannot reach this version; a brief 502
+  # right after the restart is retried, and a later failure to connect from here does not
+  # hide it. Without one (no DNS, no connection from here) it may be this machine's
+  # network, not the deploy.
+  if [ "$public" -ne 0 ] && [ -n "$answered" ]; then
     echo "✗ The app is running, but $NAMESAKE_URL answers with an error: check the Caddy site block and PROXY_NETWORK (deploy/README.md)"
     start_previous
   fi
