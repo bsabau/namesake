@@ -128,3 +128,22 @@ Most Qloo work depends on the location and the species, not the individual anima
 The agentic steps are 1, 2, 3, 5 and 8: the model reads Qloo's answers and decides what to try next. The three presets are precomputed, so the demo spends no quota. A custom location costs about 8 calls, roughly a minute with the spacing, shown in the live log.
 
 **Decided:** see `docs/decisions.md`, entries 1 to 5 (15 October 2026).
+
+## Pet-supply brands as venue signals (17 October)
+
+Question: fans of a pet-supply brand are more likely to own a pet than fans of a cartoon about one. Do their places suit an adoption flyer better? Probe: `scripts/probe_pet_brands.py`, 7 live calls (one wasted on a wrong input), Park Slope, compared with the saved dog profile, whose venue signals are *Bluey* and *PAW Patrol*.
+
+| | Pet films (saved profile) | Brands: Chewy, BarkBox, Purina | Films plus Chewy |
+|---|---|---|---|
+| Resolving the names | *Bluey* had 2 entries, *Garfield* 5 elsewhere | 1 entry each, clearly the pet brand | — |
+| Places also on Yellowstone's list | 8 of 15 | 2 of 15 | 2 of 15 |
+| Places shared with the films' list | — | 2 of 15 | 2 of 15 |
+| Kinds of place | arts centres, a music school, performance spaces, a gym, an arena | 4 hotels, bars, bakeries, a board-game café, a pet-supply shop | close to the brands' list; the films' arts centres drop out |
+| Heatmap within Park Slope | 15 cells | 20 cells (Chewy) | — |
+
+Reading:
+- Brand fans' places differ much more from the baseline's, so more of them "stand out". But many are hotels and bars, which suit a flyer no better than the films' places do. The one clear gain is a pet-supply shop (Unleashed by Petco), 8th of 15.
+- Mixing one brand into the films' signals does not combine the two: the brand dominates, and the films' distinctive arts venues (Brooklyn Arts Exchange, BAM Fisher) disappear.
+- One area and one set of brands, so this is a hint, not a result.
+
+**Not adopted for now.** The profile keeps pet-themed titles as venue signals. A brand-only list of pet-owner places, screened for hotels, could be a separate, labelled section later, at one more call per profile.
