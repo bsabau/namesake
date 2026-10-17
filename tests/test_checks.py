@@ -98,7 +98,7 @@ def test_a_pet_title_name_still_passes_the_strict_screen():
 @pytest.mark.parametrize("bad", ["Killer", "KILLER", "killer"])
 def test_a_blocklisted_word_fails_case_insensitively(bad):
     problems = name(bad)
-    assert problems == [f"name {bad!r} contains 'killer'"]
+    assert problems == [f"name {bad!r} contains a weapon, violence or hate word"]
 
 
 def test_more_than_three_syllables_fails():
@@ -185,7 +185,7 @@ def test_a_cast_name_in_the_description_passes():
     assert check_title("Marie", "kitten", "Example Cats", described) == []
     assert check_title("Marie", "kitten", "Harris and the Cats", None) != []
     # Codex: first names too.
-    voiced = "With the voices of Mohammed Example, Jesús Example and Shiva Example."
+    voiced = "With the voices of Mohammed Example, Jesús Example and Jihad Example."
     assert check_title("Rex", "dog", "Example Dogs", voiced) == []
 
 
@@ -391,7 +391,7 @@ def test_a_weapon_in_the_reference_fails_even_for_an_object_name():
         strict=True,
         reference="a rifle in Example Dog Show",
     )
-    assert problems == ["name 'Rifle' contains 'rifle'"]
+    assert problems == ["name 'Rifle' contains a weapon, violence or hate word"]
 
 
 def test_a_character_is_a_plain_name():

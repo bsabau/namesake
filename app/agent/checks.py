@@ -56,12 +56,12 @@ REAL_PEOPLE_TITLES = (
 # References coded to a religion, a race or a political identity. The strictest screen
 # for bully-type dogs is a rule on sources, not a list of human first names, which would
 # itself be a stereotype.
-# These are also searched in a title's description, which names its cast, so each is a
-# word nobody bears as a first name or surname but the figure it names ("The
-# Aristocats" stars Phil Harris; Jesús and Mohammed are common first names). Plurals are
-# listed, since matching is by whole word.
+# These are also searched in a title's description, which names its cast, so none is a
+# name people commonly bear: "The Aristocats" stars Phil Harris, and Jesús, Mohammed
+# and Jihad are common first names, while a cast member called Obama or Stalin is not.
+# Plurals are listed, since matching is by whole word.
 IDENTITY_TERMS = (
-    "christ", "allah", "buddha", "messiah", "rabbi", "rabbis", "imam", "imams", "jihad",
+    "christ", "allah", "buddha", "messiah", "rabbi", "rabbis", "imam", "imams",
     "thug", "thugs", "ghetto", "gangsta", "gypsy", "gypsies", "eskimo", "redskin", "squaw",
     "trump", "biden", "obama", "putin", "maga",
     "democrat", "democrats", "republican", "republicans", "commie", "commies",
@@ -70,7 +70,7 @@ IDENTITY_TERMS = (
 )  # fmt: skip
 # In a name, its reference and a title's name only: these are people's names too.
 IDENTITY_CODED = IDENTITY_TERMS + (
-    "jesus", "muhammad", "mohammed", "krishna", "shiva", "vishnu", "ganesh", "ganesha",
+    "jesus", "jihad", "muhammad", "mohammed", "krishna", "shiva", "vishnu", "ganesh", "ganesha",
     "moses", "prophet", "pope", "lucifer", "crusade", "crusader", "crusaders", "savage",
     "clinton", "harris", "bernie", "dixie", "mao",
 )  # fmt: skip
@@ -165,9 +165,9 @@ def check_name(
     total = sum(syllables(w) for w in re.split(r"[ -]", name) if w)
     if total > 3:
         problems.append(f"name {name!r} has {total} syllables; use one to three")
-    hit = find_word(f"{name} {reference}", NAME_BLOCKLIST)
-    if hit:
-        problems.append(f"name {name!r} contains {hit!r}")
+    # Like the identity screen, the message leaves the word out (the log is shown).
+    if find_word(f"{name} {reference}", NAME_BLOCKLIST):
+        problems.append(f"name {name!r} contains a weapon, violence or hate word")
     villain = find_word(f"{name} {reference}", FAMOUS_VILLAINS)
     if villain:
         problems.append(f"name {name!r} refers to {villain!r}, a villain or tragic animal")
