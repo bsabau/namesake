@@ -426,9 +426,11 @@ def build_profile(
         tastes, baselines, source = area_baseline(b, location, seeds, pets)
         notes: list[str] = []
     else:
+        # The prepared list was chosen before any pet title was known: choose again from
+        # the same answer, so a seed title among the top shows is replaced, not dropped.
         tastes, baselines, source, notes = prepared
-        pet_ids = {e.id for e in pets}
-        baselines = [e for e in baselines if e.id not in pet_ids]
+        if source == "area":
+            baselines, source = choose_baseline(b, location, seeds, tastes, True, pets)
     profile = assemble_profile(b, location, pets, baselines)
     profile.local_tastes, profile.baseline_source = tastes, source
     profile.notes = notes + profile.notes
@@ -442,18 +444,35 @@ def area_baseline(
     source). When Qloo's list is unusable, or every top show mentions animals, the seed
     show stands in, and a note says so."""
     tastes = b.tastes(location)
-    baselines = baseline_from_tastes(tastes, pets) if b.tastes_ok else []
+    baselines, source = choose_baseline(b, location, seeds, tastes, b.tastes_ok, pets)
+    return tastes, baselines, source
+
+
+def choose_baseline(
+    b: "_Builder",
+    location: Location,
+    seeds: Seeds,
+    tastes: list[Entity],
+    usable: bool,
+    pets: list[Entity],
+) -> tuple[list[Entity], str]:
+    """The baseline from an answer already in hand: the area's top shows when the answer
+    is usable and leaves some, else the seed show, with a note either way it falls short."""
+    baselines = baseline_from_tastes(tastes, pets) if usable else []
     if baselines:
-        return tastes, baselines, "area"
+        return baselines, "area"
     seed = b.resolve(seeds.baseline)
     if seed is None:
-        return tastes, [], "seed"
+        b.profile.notes.append(
+            "No show to compare with could be found, so the venues and the map are not compared."
+        )
+        return [], "seed"
     b.profile.notes.append(
         f"Qloo's list of the shows people around {location.label} watch most could not be "
         f"used, so the comparison is with one widely watched show unrelated to pets, "
         f"{seed.name}."
     )
-    return tastes, [seed], "seed"
+    return [seed], "seed"
 
 
 def baseline_for(
@@ -473,7 +492,13 @@ def finish_profile(
     keeping what Namesake's AI chose (titles, order, venues and its reasons), with fixed
     calls only: cached ones are free, so only what was missing reaches Qloo. None when
     Qloo still could not complete it."""
-    tastes, baselines, source, notes = baseline_for(qloo, location, seeds, old.pet_entities)
+    if not old.pet_entities:
+        return None
+    if old.version >= PROFILE_VERSION and old.baselines:
+        # Finishing: the baseline the AI's choices were made against stays as it was.
+        tastes, baselines, source, notes = old.local_tastes, old.baselines, old.baseline_source, []
+    else:
+        tastes, baselines, source, notes = baseline_for(qloo, location, seeds, old.pet_entities)
     new = profile_from(qloo, location, old.pet_entities, baselines, old.venue_signals or None)
     if not new.complete:
         return None
@@ -573,6 +598,11 @@ def assemble_profile(
     base_maps = [m for m in base if m]
     p.maps_missing = len(p.map_titles) + len(p.baselines) - len(pet_maps) - len(base_maps)
     p.cells = combine_cells(pet_maps, base_maps)
+    if p.cells and base_maps and not any(c.lift is not None for c in p.cells):
+        p.notes.append(
+            "No map cell was scored for both the pet shows and the shows they are compared "
+            "with, so the map shows no comparison."
+        )
     return p
 
 

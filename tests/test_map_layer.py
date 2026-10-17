@@ -272,3 +272,79 @@ def test_the_pipeline_saves_an_unfinished_profile_and_finishes_it_next_run(roste
     )
     assert store.get_profile(LOCATION.id, "dog").complete
     assert any("Finishing the saved profile" in s.text for s in log.steps)
+
+
+def test_finishing_keeps_the_baseline_the_ai_chose_against():
+    # Codex: finishing must not swap the comparison the AI's venue reasons were written for.
+    p = profile()
+    drama_only = [e for e in p.baselines if e.id == BASELINE]
+    old = p.model_copy(update={"baselines": drama_only, "maps_missing": 1})
+    script = standard_script()
+    script[
+        key(
+            "recommend",
+            {"target_type": "place", "signals": [BASELINE], "filter_location": LOCATION.query,
+             "limit": 15},
+        )
+    ] = script[
+        key(
+            "recommend",
+            {"target_type": "place", "signals": [BASELINE, BASELINE_2],
+             "filter_location": LOCATION.query, "limit": 15},
+        )
+    ]  # fmt: skip
+    new = finish_profile(old, LOCATION, FakeQloo(script), SEEDS)
+    assert [e.id for e in new.baselines] == [BASELINE]
+
+
+def test_a_profile_with_no_titles_is_not_saved(roster):
+    # Codex, Flash: an empty profile would be "finished" forever without a call that helps.
+    from app.store import Store
+    from tests.test_agents import Script, _tmp_db, run
+
+    store = Store(_tmp_db())
+    run(Script([], []), roster, model=False, store=store, qloo=FakeQloo({}))
+    assert store.get_profile(LOCATION.id, "dog") is None
+
+
+def test_the_fallback_refills_its_baseline_when_a_seed_title_is_a_top_show():
+    # Codex: a seed pet title among the area's top two was dropped, not replaced.
+    kitchen = Entity(id=CAT_SHOW, name="Example Kitchen", type="urn:entity:tv_show")
+    drama = Entity(id=BASELINE, name="Example Drama", type="urn:entity:tv_show")
+    comedy = Entity(id=BASELINE_2, name="Example Comedy", type="urn:entity:tv_show")
+    tastes = [kitchen, drama, comedy]
+    prepared = (tastes, baseline_from_tastes(tastes, []), "area", [])
+    p = build_profile(FakeQloo(standard_script()), LOCATION, SEEDS, prepared)
+    assert [e.id for e in p.baselines] == [BASELINE, BASELINE_2] and p.complete
+
+
+def test_a_finer_baseline_map_is_brought_to_the_pet_maps_precision():
+    pets = {"dr5rks": scored(0.8)}
+    base = {"dr5rks5": scored(0.4), "dr5rks6": scored(0.2)}
+    cells = combine_cells([pets], [base])
+    assert [(c.geohash, round(c.lift, 3)) for c in cells] == [("dr5rks", 0.5)]
+
+
+def test_a_map_with_no_shared_cell_says_so(roster):
+    # Flash: the key promised warm and cool on an all-grey map, with no reason given.
+    script = standard_script()
+    for entity in (BASELINE, BASELINE_2):
+        k = key("where_popular", {"entity": entity, "within": LOCATION.query, "limit": 20})
+        script[k] = envelope("where_popular", results=[cell_far()])
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    assert any("no comparison" in n for n in p.notes)
+    view = build_result_view(roster.get("dog-02"), LOCATION, p)
+    assert view.map.note.startswith("Grey: no cell was scored for both")
+    assert not any(i.title == "Lift on the map" for i in view.our_reading)
+
+
+def test_a_saved_profile_qloo_still_cannot_finish_is_used_as_it_is(roster):
+    from app.store import Store
+    from tests.test_agents import Script, _tmp_db, full_script, run
+
+    store = Store(_tmp_db())
+    script = full_script()
+    del script[key("where_popular", {"entity": BASELINE_2, "within": LOCATION.query, "limit": 20})]
+    run(Script([], []), roster, model=False, store=store, qloo=FakeQloo(script))
+    _, _, log = run(Script([], []), roster, model=False, store=store, qloo=FakeQloo(script))
+    assert any("could not finish it yet" in s.text for s in log.steps)

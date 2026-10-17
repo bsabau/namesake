@@ -164,7 +164,8 @@ def baseline_refusal(deps: ProfileDeps, entity_ids: list[str]) -> dict[str, Any]
     names = [deps.baseline_titles[i] for i in entity_ids if i in deps.baseline_titles]
     if not names:
         return None
-    deps.log.add("check", f"Refused {', '.join(names)}: one of this area's top shows")
+    # The step log names no baseline title (decision 18); the model is told which.
+    deps.log.add("check", "Refused a title that is one of the shows used for the comparison")
     return {
         "status": f"{', '.join(names)} is one of this area's top shows, which the comparison "
         "uses; send pet-themed titles only"

@@ -434,6 +434,8 @@ def map_view(
         ),
         note=(
             f"Warm: pet-show fans stand out here more than {base}. Cool: less. Grey: no comparison."
+            if any(c.lift is not None for c in cells)
+            else "Grey: no cell was scored for both, so there is no comparison here."
             if cells
             else None
         ),
@@ -611,6 +613,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                 detail="Scored by Qloo from 0 to 1, as ranks within the area.",
             )
         )
+    if any(c.lift is not None for c in profile.cells):
         reading.append(
             WhyItem(
                 title="Lift on the map",

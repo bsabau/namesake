@@ -86,10 +86,9 @@ async def agent_profile(
     prompt = "Build the profile."
     if baselines:
         # Said up front, so no lookup or repair round is spent on them.
-        prompt += (
-            f" {' and '.join(e.name for e in baselines)} are this area's top shows, used only "
-            "as the comparison: do not propose them as pet-themed titles."
-        )
+        names = " and ".join(e.name for e in baselines)
+        what = "this area's top shows" if source == "area" else "the show used"
+        prompt += f" {names}: {what} for the comparison; do not propose them as pet titles."
     run = await agent.run(prompt, deps=deps, usage_limits=PROFILE_LIMITS)
     plan = run.output
 
@@ -195,7 +194,10 @@ async def _build_profile(
 
     profile.species = species
     # Saved even when unfinished, so a listing made now keeps its titles' evidence; the
-    # next run finishes it (get_profile).
+    # next run finishes it (get_profile). A profile with no titles has nothing to finish.
+    if not profile.pet_entities:
+        log.add("note", "No pet-themed title could be found; the next run tries again")
+        return profile
     store.put_profile(profile)
     if not profile.complete:
         log.add("note", "Qloo could not finish this area's profile; the next run finishes it")
