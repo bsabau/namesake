@@ -382,6 +382,8 @@ class _Builder:
             )
             return []
         if not env.has_results:
+            # A whole answer with no shows in it is usable: it says there are none.
+            self.tastes_ok = env.status in ("ok", "empty")
             return []
         self.tastes_ok = env.status == "ok"
         return [
@@ -471,14 +473,19 @@ def choose_baseline(
             f"{BASELINE_NOTE}none could be found, so the venues and the map are not compared."
         )
         return [], "seed"
-    why = (
-        f"every show people around {location.label} watch most mentions animals or is one of "
-        "the pet titles here"
-        if usable and tastes
-        else f"Qloo's list of the shows people around {location.label} watch most could not be used"
-    )
+    if not usable:
+        why = (
+            f"Qloo's list of the shows people around {location.label} watch most could not be used"
+        )
+    elif not tastes:
+        why = f"Qloo returned no shows that people around {location.label} watch most"
+    else:
+        why = (
+            f"every show people around {location.label} watch most mentions animals or is one "
+            "of the pet titles here"
+        )
     b.profile.notes.append(
-        f"{BASELINE_NOTE}{why}, so it is one widely watched show unrelated to pets, {seed.name}."
+        f"{BASELINE_NOTE}{why}, so it is one widely watched show unrelated to pets: {seed.name}."
     )
     return [seed], "seed"
 
