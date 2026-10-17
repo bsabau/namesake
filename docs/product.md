@@ -60,7 +60,7 @@ The plan's success measure is adoptions and returns; likes and reach are left ou
 | Step | Harness workflow | Who decides | Cached per |
 |---|---|---|---|
 | A. Find pet tags (dog, cat, pets, animals) | `find_tags` | code, fixed queries | global |
-| B. Pet-themed entities strong here | `recommend`, pet tags as `include_tags`, `signal_location` | agent: which types, keep or drop | location |
+| B. Pet-themed entities strong here | `describe` for the titles the agent proposes; then `recommend` with one of them as the signal plus `signal_location`, per type (decision 20). Pet tags as filters returned almost nothing (milestone 1) | agent proposes and searches; a classifier sorts the search results; agent judges the unclear ones | location |
 | C. Local lift against a baseline | `where_popular` for the top two entities and the area's top two shows (decision 18); lift = the entities' averaged score in a cell minus the baseline shows' | code computes; agent drops entities with no lift | entity and city |
 | D. Venues fans favour | `recommend` for places, surviving entities as signals, location near the shelter | agent picks about three, with reasons | location |
 | E. General local tastes | `recommend` with `signal_location` per type | agent proposes, screens, keeps | location |
