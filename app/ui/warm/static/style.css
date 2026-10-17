@@ -137,10 +137,9 @@ main, .site-header, .site-footer {
   padding-bottom: 22px;
 }
 
+/* Inline, not flex, so the header's baseline alignment uses the name, not the paw. */
 .brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: inline-block;
   color: var(--primary-ink);
   font-weight: 800;
   font-size: 1.35rem;
@@ -148,7 +147,13 @@ main, .site-header, .site-footer {
   border-radius: 999px;
 }
 
-.brand .paw { font-size: 1.15em; color: var(--primary); transform: rotate(-12deg); }
+.brand .paw {
+  font-size: 1.1em;
+  margin-right: 6px;
+  color: var(--primary);
+  vertical-align: -0.15em;
+  transform: rotate(-12deg);
+}
 
 .tagline, .site-footer { color: var(--muted); font-size: 0.9rem; }
 
@@ -247,12 +252,16 @@ main, .site-header, .site-footer {
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+  grid-auto-rows: 1fr;
   gap: 18px;
 }
 
-/* Animal cards are submit buttons: picking one opens the result. */
+/* Animal cards are submit buttons: picking one opens the result. Every card in a row is
+   as tall as the tallest, whatever the length of its text. */
+.animal-grid > li { display: flex; }
 button.animal-card {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   padding: 0;
   font: inherit;
