@@ -210,7 +210,7 @@ def check_title(
             f"name {name!r}: {title} is about real people ({why}), so a name from it "
             "must be an animal's own"
         )
-    if find_word(title, IDENTITY_CODED) or find_word(description or "", IDENTITY_TERMS):
+    if identity_coded(title, description):
         problems.append(
             f"name {name!r}: {title} is coded to a religion, race or political identity; "
             "use another title"

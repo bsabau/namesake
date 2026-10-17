@@ -628,7 +628,8 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                 title="Why compare with this area's top shows",
                 detail=f"{and_list([e.name for e in profile.baselines])}: the TV shows Qloo "
                 f"ranks highest for people around {location.label}, leaving out any whose "
-                "name or description mentions animals. A place or map cell that ranks high "
+                "name or description mentions animals or that is tied to a religion, race or "
+                "political identity. A place or map cell that ranks high "
                 "for their fans too is popular here generally, not because of pets.",
             )
         )

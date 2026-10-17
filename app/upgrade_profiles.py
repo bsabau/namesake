@@ -20,7 +20,7 @@ import argparse
 
 from app.config import get_settings
 from app.locations import load_locations
-from app.profile import PROFILE_VERSION, finish_profile, load_seeds
+from app.profile import finish_profile, load_seeds, needs_finishing
 from app.runs import qloo_client
 from app.store import Store
 
@@ -51,7 +51,7 @@ def main() -> None:
                 print(f"{loc_id} {species}: its area is no longer saved; skipped")
                 continue
             old = store.get_profile(loc_id, species)
-            if old is None or (old.version >= PROFILE_VERSION and old.complete):
+            if old is None or not needs_finishing(old):
                 continue
             new = finish_profile(old, location, qloo, seeds)
             if new is None:

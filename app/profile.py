@@ -513,7 +513,7 @@ def choose_baseline(
     else:
         why = (
             f"every show people around {location.label} watch most mentions animals, is one "
-            "of the pet titles here, or is tied to a religion or politics"
+            "of the pet titles here, or is tied to a religion, race or political identity"
         )
     b.profile.notes.append(
         f"{BASELINE_NOTE}{why}, so it is one widely watched show unrelated to pets: {seed.name}."
@@ -531,6 +531,18 @@ def baseline_for(
     return tastes, baselines, source, b.profile.notes
 
 
+def stale_baseline(profile: LocationProfile) -> bool:
+    """A saved comparison that today's screen would not choose: a show coded to a religion,
+    race or political identity (saved before that rule)."""
+    return any(identity_coded(e.name, e.description) for e in profile.baselines)
+
+
+def needs_finishing(profile: LocationProfile) -> bool:
+    """A saved profile to finish before use: an older version, missing parts, or a
+    comparison chosen before today's screen."""
+    return profile.version < PROFILE_VERSION or not profile.complete or stale_baseline(profile)
+
+
 def finish_profile(
     old: LocationProfile, location: Location, qloo: QlooClient, seeds: Seeds
 ) -> LocationProfile | None:
@@ -540,8 +552,9 @@ def finish_profile(
     Qloo still could not complete it."""
     if not old.pet_entities:
         return None
-    if old.version >= PROFILE_VERSION and old.baselines:
-        # Finishing: the baseline the AI's choices were made against stays as it was.
+    if old.version >= PROFILE_VERSION and old.baselines and not stale_baseline(old):
+        # Finishing: the baseline the AI's choices were made against stays as it was;
+        # one that fails today's screen is chosen again below.
         tastes, baselines, source = old.local_tastes, old.baselines, old.baseline_source
         notes = [n for n in old.notes if n.startswith(BASELINE_NOTE)]
     else:

@@ -15,6 +15,7 @@ from app.profile import (
     build_profile,
     combine_cells,
     finish_profile,
+    needs_finishing,
 )
 from app.views.build import build_result_view
 from tests.qloo_fakes import (
@@ -22,6 +23,7 @@ from tests.qloo_fakes import (
     BASELINE_2,
     CAT_SHOW,
     DOG_SHOW,
+    LOCAL_QUIZ,
     LOCAL_SHOWS,
     LOCATION,
     SEEDS,
@@ -399,3 +401,22 @@ def test_the_seed_note_says_why_and_survives_finishing():
         p.model_copy(update={"maps_missing": 1}), LOCATION, FakeQloo(script), SEEDS
     )
     assert note in finished.notes
+
+
+def test_a_saved_comparison_the_screen_would_not_choose_is_chosen_again():
+    # Codex, muse: profiles saved before the identity screen kept their comparison.
+    p = build_profile(FakeQloo(standard_script()), LOCATION, SEEDS)
+    assert p.complete and not needs_finishing(p)
+    doc = Entity(
+        id=LOCAL_QUIZ,
+        name="Example Portraits",
+        type="urn:entity:tv_show",
+        description="A made-up documentary about Obama's portraits.",
+    )
+    stale = p.model_copy(update={"baselines": [p.baselines[0], doc]})
+    assert needs_finishing(stale)
+    finished = finish_profile(stale, LOCATION, FakeQloo(standard_script()), SEEDS)
+    assert [e.id for e in finished.baselines] == [BASELINE, BASELINE_2]
+    assert not needs_finishing(finished)
+    # The AI's titles are kept.
+    assert [e.id for e in finished.pet_entities] == [e.id for e in p.pet_entities]
