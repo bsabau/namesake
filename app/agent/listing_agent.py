@@ -18,7 +18,7 @@ from app.agent import checks
 from app.agent.profile_agent import StoryKind, qloo_call
 from app.agent.steps import StepLog
 from app.animals import Animal
-from app.listing import age_phrase, check_sentences, pronouns
+from app.listing import check_sentences, look_text, pronouns
 from app.profile import Entity
 from app.qloo.exec import QlooClient
 
@@ -165,7 +165,7 @@ REQUEST = (
 def facts_block(animal: Animal) -> str:
     lines = [
         f'- temperament: "{animal.temperament}"',
-        f'- look: "{age_phrase(animal.age)} {animal.sex} {animal.species}: {animal.look}"',
+        f'- look: "{look_text(animal)}"',
     ]
     lines += [f'- fact:{i}: "{f}"' for i, f in enumerate(animal.facts)]
     return "\n".join(lines)
@@ -336,7 +336,6 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
         if option.name.lower() in deps.taken_names:
             problems.append(f"name {option.name!r} is already used at this shelter")
         seen_names.add(option.name.lower())
-        problems += checks.check_why(deps.animal, option.why, option.name)
         problems += checks.check_name(
             option.name,
             source=option.source,
@@ -353,20 +352,36 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
         problems.append("a lookalike title gives one name only")
     if deps.first_of_litter and len({o.entity_id for o in draft.names}) > 1:
         problems.append("a litter named as a set takes all its names from one title")
-    appended = check_sentences(deps.animal.checks, pronouns(deps.animal.sex))
-    problems += checks.check_bio(
-        deps.animal,
-        [(s.text, s.facts) for s in draft.bio],
-        extra_words=sum(len(c.text.split()) for c in appended),
-    )
+    problems += record_problems(deps.animal, draft)
     first = draft.names[0]
     if first.entity_id in deps.titles:
         problems += checks.check_hook(hook_for(first, deps.titles[first.entity_id][0].name))
     if problems:
         deps.log.add("check", "Sent back for a fix: " + "; ".join(problems))
         raise ModelRetry("Fix these and answer again: " + "; ".join(problems))
-    deps.log.add("check", "Listing checked: every fact used, nothing added, names pass the screen")
+    deps.log.add("check", "Listing checked: built from the recorded facts, names pass the screen")
     return draft
+
+
+def shown_bio(animal: Animal, draft: ListingDraft) -> list[BioSentence]:
+    """The bio as shown: the agent's sentences, then the confirmed checks, which come from
+    fixed sentences in code, never from the model."""
+    return list(draft.bio) + [
+        BioSentence(text=c.text, facts=[c.source])
+        for c in check_sentences(animal.checks, pronouns(animal.sex))
+    ]
+
+
+def record_problems(animal: Animal, draft: ListingDraft) -> list[str]:
+    """What in the bio and the names' reasons is not in the animal's record. Needs no
+    Qloo data, so app/agent/recheck.py can apply it to saved drafts as well."""
+    problems = [p for o in draft.names for p in checks.check_why(animal, o.why, o.name)]
+    appended = check_sentences(animal.checks, pronouns(animal.sex))
+    return problems + checks.check_bio(
+        animal,
+        [(s.text, s.facts) for s in draft.bio],
+        extra_words=sum(len(c.text.split()) for c in appended),
+    )
 
 
 def output_spec(mode: str):

@@ -16,16 +16,15 @@ from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
 
 from app.agent.listing_agent import (
-    BioSentence,
     ListingDeps,
     build_listing_agent,
     reference_for,
+    shown_bio,
 )
 from app.agent.profile_agent import ProfileDeps, build_profile_agent
 from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import StepLog
 from app.animals import ADDED_PREFIX, Animal
-from app.listing import check_sentences, pronouns
 from app.locations import Location
 from app.profile import (
     Entity,
@@ -241,11 +240,7 @@ async def write_listing(
         # runs sync tools in a worker thread.
         run = await agent.run("Write the listing.", deps=deps, usage_limits=LISTING_LIMITS)
         result.draft = run.output
-        # The confirmed checks come from fixed sentences, never from the model.
-        result.bio = list(run.output.bio) + [
-            BioSentence(text=c.text, facts=[c.source])
-            for c in check_sentences(animal.checks, pronouns(animal.sex))
-        ]
+        result.bio = shown_bio(animal, run.output)
         # deps.titles now includes any lookalike titles the agent found.
         result.references = [
             reference_for(o, deps.titles[o.entity_id][0].name) for o in run.output.names

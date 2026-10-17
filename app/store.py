@@ -11,7 +11,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ValidationError
 
-from app.agent.results import CHECKS_VERSION, PLAIN_LISTINGS_FROM, ListingResult
+from app.agent.results import CHECKS_VERSION, ListingResult
 from app.locations import Location
 from app.profile import LocationProfile
 
@@ -115,6 +115,16 @@ class Store:
         results = (self._load(ListingResult, k) for k in keys)
         return [r for r in results if r is not None and _current(r)]
 
+    def saved_listings(self) -> list[ListingResult]:
+        """Every saved listing, current or not, for app/agent/recheck.py."""
+        with sqlite3.connect(self.path) as db:
+            keys = [
+                row[0]
+                for row in db.execute("SELECT key FROM agent_results WHERE key LIKE 'listing:%'")
+            ]
+        results = (self._load(ListingResult, k) for k in keys)
+        return [r for r in results if r is not None]
+
     def get_location(self, location_id: str) -> Location | None:
         """A location a visitor typed and Qloo had data for."""
         return self._load(Location, f"location:{location_id}")
@@ -158,7 +168,4 @@ class Store:
 
 def _current(result: ListingResult) -> bool:
     """Held to today's checks. A templated fallback has no draft and is always current."""
-    if result.draft is None or result.checks_version == CHECKS_VERSION:
-        return True
-    lookalike = any(o.source == "lookalike" for o in result.draft.names)
-    return result.checks_version >= PLAIN_LISTINGS_FROM and not lookalike
+    return result.draft is None or result.checks_version == CHECKS_VERSION

@@ -153,8 +153,17 @@ STOPWORDS = frozenset((
 GLUE = frozenset((
     "always", "often", "usually", "likes", "enjoys", "seems", "tends", "quite", "really",
     "little", "bit", "both", "each", "every", "old", "year", "years", "week", "weeks", "month",
-    "months", "male", "female", "dog", "cat", "kitten", "puppy", "one", "ones",
+    "months", "male", "female", "dog", "cat", "one", "ones",
 ))  # fmt: skip
+# "puppy" and "kitten" are not glue: they claim an age, so a bio or reason may use them
+# only for an animal recorded as under a year old (app/listing.py, life_stage).
+
+
+def stage_word(animal: Animal) -> set[str]:
+    from app.listing import life_stage
+
+    stage = life_stage(animal)
+    return {_stem(stage)} if stage else set()
 
 
 def _stem(word: str) -> str:
@@ -179,12 +188,12 @@ def _segments(fact: str) -> list[str]:
 
 
 def fact_texts(animal: Animal) -> dict[str, str]:
-    from app.listing import CHECK_SENTENCES, age_phrase
+    from app.listing import CHECK_SENTENCES, look_text
 
     texts = {
         "temperament": animal.temperament,
         # The same wording the agent is shown, so a faithful copy passes.
-        "look": f"{age_phrase(animal.age)} {animal.sex} {animal.species}: {animal.look}",
+        "look": look_text(animal),
     }
     texts |= {f"fact:{i}": f for i, f in enumerate(animal.facts)}
     for field, answers in CHECK_SENTENCES.items():
@@ -228,7 +237,7 @@ def check_grounded(
     texts = fact_texts(animal)
     source = _texts_for(animal, keys)
     problems = []
-    extra = sorted(_content(text) - _content(source))
+    extra = sorted(_content(text) - _content(source) - stage_word(animal))
     if extra:
         problems.append(f"{label} says things its facts do not: {extra}; restate only the facts")
     negation = find_word(text, NEGATIONS)
@@ -312,7 +321,12 @@ def check_why(animal: Animal, why: str, name: str) -> list[str]:
     # A reason draws on some facts, so it need not restate any of them whole.
     grounded = check_grounded(animal, why, keys, label, whole=False)
     problems = [p for p in grounded if "says things" not in p]
-    allowed = _content(_texts_for(animal, keys)) | _content(" ".join(WHY_GLUE)) | _content(name)
+    allowed = (
+        _content(_texts_for(animal, keys))
+        | _content(" ".join(WHY_GLUE))
+        | _content(name)
+        | stage_word(animal)
+    )
     extra = sorted(_content(why) - allowed)
     if extra:
         problems.append(f"{label} says things the facts do not: {extra}")

@@ -329,29 +329,35 @@ def test_a_failed_lookup_is_not_sent_again(roster):
     assert len(d.qloo.calls) == 1
 
 
-def test_saved_listings_with_lookalike_names_are_rerun_under_the_new_checks(tmp_path):
+def test_saved_listings_with_lookalike_names_are_rerun_under_the_new_checks(roster, tmp_path):
     # Codex: a listing saved before the lookalike fixes still loaded as current.
     from app.agent.listing_agent import ListingDraft
+    from app.agent.recheck import recheck
     from app.agent.results import CHECKS_VERSION, ListingResult
     from app.store import Store
 
     store = Store(tmp_path / "store.sqlite")
     plain = ListingDraft.model_validate(DRAFT)
     looks = ListingDraft.model_validate(with_rex())
-
-    def saved(animal, draft, version):
+    for animal, draft, version in [
+        ("dog-02", plain, 5),
+        ("dog-01", plain, 4),
+        ("dog-03", looks, 6),
+        ("cat-01", looks, 7),
+    ]:
         store.put_listing(
             ListingResult(animal_id=animal, location_id="x", checks_version=version, draft=draft)
         )
-        return store.get_listing(animal, "x")
-
-    # Only the lookalike checks changed after version 5, so plain listings from 5 on hold.
-    assert saved("a", plain, 5) is not None
-    assert saved("b", plain, CHECKS_VERSION - 1) is not None
-    assert saved("c", plain, 4) is None
-    # A listing with a lookalike name is rerun unless it passed today's checks.
-    assert saved("d", looks, CHECKS_VERSION - 1) is None
-    assert saved("e", looks, CHECKS_VERSION) is not None
+    # An older draft is never shown as it is, only once a recheck has held it to today's
+    # checks.
+    assert store.listings_at("x") == []
+    recheck(store, roster)
+    current = {r.animal_id for r in store.listings_at("x")}
+    # Only the lookalike checks changed after version 5, so a plain listing from 5 on can
+    # be rechecked; one with a lookalike name only from 7, when those checks last changed.
+    assert "dog-02" in current
+    assert not current & {"dog-01", "dog-03"}
+    assert store.get_listing("dog-02", "x").checks_version == CHECKS_VERSION
 
 
 def test_the_profile_agents_choice_reason_is_screened_too(roster):

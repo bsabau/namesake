@@ -32,7 +32,8 @@ RUN uv sync --frozen --no-dev
 COPY app ./app
 COPY data ./data
 
-RUN useradd --create-home namesake && chown -R namesake /app
+# var/ exists in the image so a Docker volume mounted there starts out owned by the app.
+RUN useradd --create-home namesake && mkdir -p /app/var && chown -R namesake /app
 USER namesake
 
 ENV PATH="/app/.venv/bin:$PATH" \

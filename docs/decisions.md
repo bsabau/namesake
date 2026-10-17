@@ -154,7 +154,7 @@ The refusal keeps the edit and names the missing words.
 - Only work that can reach Qloo or a model is counted. With no model and Qloo in replay, a run is a free fallback.
 - A location check is tried against the cache first. An answer Qloo gave before, even a thin or ambiguous one, is free. A check that needs Qloo reserves its slot before the call, so two at once cannot both pass a cap. The slot is given back if no live call was made.
 - Reopening an added animal's result, kept in the session, is free like any saved result.
-- uvicorn runs with `--proxy-headers`. `FORWARDED_ALLOW_IPS` names the host's proxy, so the client address is the real visitor's.
+- uvicorn runs with `--proxy-headers`. `FORWARDED_ALLOW_IPS` is the IPv4 subnet of the proxy's Docker network, so the client address is the real visitor's. Revised 17 October: Caddy's own address changes when its container restarts, so the whole subnet is trusted; any container on that network could forge a visitor address and dodge the per-visitor limit, while the daily caps still hold. Acceptable on a host with one operator (`deploy/README.md`).
 
 ## 12. A typed location goes to Qloo as typed, and is checked once before any run
 
@@ -218,3 +218,14 @@ The refusal keeps the edit and names the missing words.
 **Why:** the evidence review (`docs/research/adoption-evidence-review.md`) found tone was not associated with engagement in the one study that measured it (Morrison 2024) and lists the effect of a listing's tone on returns as an open question. A setting with no evidence behind it, and no design in `docs/product.md`, would add a choice to the start screen that the judges and volunteers would have to understand, for no measured gain. The audit rated the gap major only because the brief and the design disagreed; this entry makes them agree.
 
 **Follows:** the start view model, the form and the JSON API stay as they are. If a tone experiment is ever wanted, it belongs in the measurement design first, as a recorded variant, and only then on the screen.
+
+## 16. Saved listings are rechecked, not rerun, when only the record checks change
+
+**Decided** (17 October, from Codex's review of milestone 5):
+- A saved listing is shown only if it was held to today's checks (`CHECKS_VERSION` in `app/agent/results.py`).
+- When the checks change, `app/agent/recheck.py` re-runs the record checks, the bio and the names' reasons, on every saved draft. A draft that passes is saved as current; one that fails runs again when next opened. `deploy/deploy.sh` runs it on every deploy, before the new version starts.
+- A recheck covers only those checks, since they need nothing but the animal's record. Drafts saved before the last change to any other check (the name screen, lookalike names) are rerun: `PLAIN_LISTINGS_FROM` and `LOOKALIKE_LISTINGS_FROM` say how far back a recheck is enough.
+
+**Why:** version 8 allowed "puppy" and "kitten" only for an animal under a year. Saved drafts from before were never held to that. Rerunning every one would cost a model run each and leave the start page's examples to run live during judging. Of the 14 saved drafts, 13 passed the recheck; the 14th, from version 5 with a lookalike name, was already set to run again.
+
+**Follows:** a change to any other check must raise those floors, or a saved draft that skipped it is shown.

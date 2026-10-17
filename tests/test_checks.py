@@ -361,3 +361,44 @@ def test_reference_text_uses_an_before_a_vowel():
         "Roquefort, an animal in Example Film"
     )
     assert reference_text("Bingo", "dog", "Example Show") == "Bingo, a dog in Example Show"
+
+
+def test_puppy_or_kitten_only_when_the_recorded_age_says_so(roster):
+    # Codex: "She is a puppy" passed for the 4-year-old lead dog.
+    from app.agent.checks import check_bio, check_grounded
+    from app.listing import life_stage, stage_for
+
+    adult = roster.get("dog-02")
+    problems = check_bio(
+        adult,
+        [
+            (
+                "She is a puppy: strong but gentle and leans on people for attention.",
+                ["temperament"],
+            ),
+            ("She needs an owner comfortable with a big dog.", ["fact:0"]),
+            ("She knows basic commands.", ["fact:1"]),
+        ],
+        extra_words=0,
+    )
+    assert any("puppy" in p for p in problems)
+    assert life_stage(adult) is None
+
+    # Allowed, never required, for a young animal (Flash: the label had become mandatory).
+    kitten = roster.get("kitten-01")
+    look = "She is a 10-week-old female cat: grey tabby."
+    with_word = "She is a 10-week-old female cat, a kitten: grey tabby."
+    if kitten.sex == "male":
+        look, with_word = (
+            t.replace("She", "He").replace("female", "male") for t in (look, with_word)
+        )
+    assert check_grounded(kitten, look, ["look"], "x") == []
+    assert check_grounded(kitten, with_word, ["look"], "x") == []
+
+    # Under a year in weeks or months, never a year or more (DeepSeek, muse, Grok: 52 weeks).
+    assert [stage_for("dog", a) for a in ("10 weeks", "51 weeks", "52 weeks", "100 weeks")] == [
+        "puppy", "puppy", None, None,
+    ]  # fmt: skip
+    assert [stage_for("cat", a) for a in ("4 months", "11 months", "12 months", "2 years")] == [
+        "kitten", "kitten", None, None,
+    ]  # fmt: skip
