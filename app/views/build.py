@@ -427,10 +427,15 @@ def map_view(
         pin=Pin(latitude=pin[0], longitude=pin[1]) if pin else None,
         cells=cells,
         legend=(
-            f"Warm cells: {pets} rank this part of {location.label} higher than {base} do. "
-            "Cool cells: lower. Grey: only the pet shows have a score there. Where several "
-            "shows scored a cell, their scores are averaged. Scores are ranks within the area, "
-            "so they compare places here, not with other cities."
+            (
+                f"Warm cells: {pets} rank this part of {location.label} higher than {base} do. "
+                "Cool cells: lower. Grey: only the pet shows have a score there. Where several "
+                "shows scored a cell, their scores are averaged. Scores are ranks within the "
+                "area, so they compare places here, not with other cities."
+            )
+            if any(c.lift is not None for c in cells)
+            else f"Cells: where {pets} rank high within {location.label}. No cell was also "
+            f"scored for {base}, so the map shows no comparison here."
         ),
         note=(
             f"Warm: pet-show fans stand out here more than {base}. Cool: less. Grey: no comparison."

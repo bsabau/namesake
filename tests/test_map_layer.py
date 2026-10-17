@@ -348,3 +348,33 @@ def test_a_saved_profile_qloo_still_cannot_finish_is_used_as_it_is(roster):
     run(Script([], []), roster, model=False, store=store, qloo=FakeQloo(script))
     _, _, log = run(Script([], []), roster, model=False, store=store, qloo=FakeQloo(script))
     assert any("could not finish it yet" in s.text for s in log.steps)
+
+
+def test_the_seed_note_says_why_and_survives_finishing():
+    # Flash: when every top show is a pet title, Qloo's list was used, not unusable;
+    # Codex: finishing a profile kept its baseline but dropped this note.
+    script = standard_script()
+    tastes_key = key(
+        "recommend", {"target_type": "tv_show", "signal_location": LOCATION.query, "limit": 10}
+    )
+    script[tastes_key] = envelope("recommend", results=[LOCAL_SHOWS[0]])  # a puppy show only
+    script[
+        key(
+            "recommend",
+            {"target_type": "place", "signals": [BASELINE], "filter_location": LOCATION.query,
+             "limit": 15},
+        )
+    ] = script[
+        key(
+            "recommend",
+            {"target_type": "place", "signals": [BASELINE, BASELINE_2],
+             "filter_location": LOCATION.query, "limit": 15},
+        )
+    ]  # fmt: skip
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    note = next(n for n in p.notes if n.startswith("The comparison:"))
+    assert "mentions animals or is one of the pet titles" in note
+    finished = finish_profile(
+        p.model_copy(update={"maps_missing": 1}), LOCATION, FakeQloo(script), SEEDS
+    )
+    assert note in finished.notes

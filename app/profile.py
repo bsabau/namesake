@@ -448,6 +448,10 @@ def area_baseline(
     return tastes, baselines, source
 
 
+# Notes about the comparison itself start with this, so finishing a profile keeps them.
+BASELINE_NOTE = "The comparison: "
+
+
 def choose_baseline(
     b: "_Builder",
     location: Location,
@@ -464,13 +468,17 @@ def choose_baseline(
     seed = b.resolve(seeds.baseline)
     if seed is None:
         b.profile.notes.append(
-            "No show to compare with could be found, so the venues and the map are not compared."
+            f"{BASELINE_NOTE}none could be found, so the venues and the map are not compared."
         )
         return [], "seed"
+    why = (
+        f"every show people around {location.label} watch most mentions animals or is one of "
+        "the pet titles here"
+        if usable and tastes
+        else f"Qloo's list of the shows people around {location.label} watch most could not be used"
+    )
     b.profile.notes.append(
-        f"Qloo's list of the shows people around {location.label} watch most could not be "
-        f"used, so the comparison is with one widely watched show unrelated to pets, "
-        f"{seed.name}."
+        f"{BASELINE_NOTE}{why}, so it is one widely watched show unrelated to pets, {seed.name}."
     )
     return [seed], "seed"
 
@@ -496,7 +504,8 @@ def finish_profile(
         return None
     if old.version >= PROFILE_VERSION and old.baselines:
         # Finishing: the baseline the AI's choices were made against stays as it was.
-        tastes, baselines, source, notes = old.local_tastes, old.baselines, old.baseline_source, []
+        tastes, baselines, source = old.local_tastes, old.baselines, old.baseline_source
+        notes = [n for n in old.notes if n.startswith(BASELINE_NOTE)]
     else:
         tastes, baselines, source, notes = baseline_for(qloo, location, seeds, old.pet_entities)
     new = profile_from(qloo, location, old.pet_entities, baselines, old.venue_signals or None)
@@ -598,7 +607,7 @@ def assemble_profile(
     base_maps = [m for m in base if m]
     p.maps_missing = len(p.map_titles) + len(p.baselines) - len(pet_maps) - len(base_maps)
     p.cells = combine_cells(pet_maps, base_maps)
-    if p.cells and base_maps and not any(c.lift is not None for c in p.cells):
+    if p.cells and p.baselines and not any(c.lift is not None for c in p.cells):
         p.notes.append(
             "No map cell was scored for both the pet shows and the shows they are compared "
             "with, so the map shows no comparison."

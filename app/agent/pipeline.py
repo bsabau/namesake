@@ -88,7 +88,8 @@ async def agent_profile(
         # Said up front, so no lookup or repair round is spent on them.
         names = " and ".join(e.name for e in baselines)
         what = "this area's top shows" if source == "area" else "the show used"
-        prompt += f" {names}: {what} for the comparison; do not propose them as pet titles."
+        them = "them" if len(baselines) > 1 else "it"
+        prompt += f" {names}: {what} for the comparison; do not propose {them} as pet titles."
     run = await agent.run(prompt, deps=deps, usage_limits=PROFILE_LIMITS)
     plan = run.output
 
