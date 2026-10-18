@@ -891,12 +891,14 @@ def qloo_part(
     backed = [e for e in pets if e in ranked or e in listed]
     qloo = []
     if backed:
+        # Each title counted once: ranked, else only in Qloo's lists for the area.
+        only_listed = [e for e in listed if e not in ranked]
         how = and_list(
             ([f"{len(ranked)} ranked here"] if ranked else [])
-            + ([f"{len(listed)} in its lists for the area"] if listed else [])
+            + ([f"{len(only_listed)} only in its lists for the area"] if only_listed else [])
         )
         qloo.append(
-            f"{plural(len(backed), 'title')} with its evidence for {location.label} ({how})"
+            f"{plural(len(backed), 'title')} with Qloo's evidence for {location.label} ({how})"
         )
     elif pets:
         qloo.append(f"{plural(len(pets), 'title')} looked up")
@@ -906,7 +908,7 @@ def qloo_part(
             f"{venue_titles(profile)}"
         )
     if profile.cells:
-        qloo.append(f"heatmaps that make {plural(len(profile.cells), 'map cell')}")
+        qloo.append(f"{plural(len(profile.cells), 'map cell')} from its heatmaps")
     qloo_text = cap("; ".join(qloo)) + "." if qloo else f"Nothing for {location.label} yet."
 
     ai = []
@@ -930,6 +932,8 @@ def qloo_part(
         ai_text = cap("; ".join(ai)) + "."
         if draft is None:
             ai_text += " The names and bio are the fixed template."
+        if not agent:
+            ai_text += " The titles are a fixed lookup."
     elif agent:
         ai_text = "Kept the titles above; the names and bio are the fixed template."
     else:
