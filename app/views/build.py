@@ -15,6 +15,7 @@ from app.profile import (
     LocationProfile,
     Venue,
     baseline_titles,
+    for_children,
     layer_titles,
     rank_band,
 )
@@ -518,7 +519,9 @@ def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueV
     )
 
 
-def plan(animal: Animal, location: Location, venues: list[Venue]) -> list[PlanItem]:
+def plan(
+    animal: Animal, location: Location, venues: list[Venue], left_out: list[Venue] | None = None
+) -> list[PlanItem]:
     items = [
         PlanItem(
             text="Share the listing through the personal networks of foster carers and volunteers.",
@@ -550,11 +553,32 @@ def plan(animal: Animal, location: Location, venues: list[Venue]) -> list[PlanIt
                 basis="Qloo",
             )
         )
+    if left_out:
+        whose = "their descriptions are" if len(left_out) > 1 else "its description is"
+        items.append(
+            PlanItem(
+                text=f"Left out {and_list([v.name for v in left_out])}: {whose} about children, "
+                f"and this {animal.species} is not recorded as good with them.",
+                basis="Our suggestion",
+            )
+        )
     if location.community_channel:
         items.append(
             PlanItem(text=f"Also reach {location.community_channel}.", basis="Our suggestion")
         )
     return items
+
+
+def child_safe(animal: Animal, venues: list[Venue]) -> tuple[list[Venue], list[Venue]]:
+    """The venues to suggest, and those left out: for an animal recorded as not good with
+    children, a venue whose own Qloo description is about children is left out. Unknown
+    keeps them all; the record alone decides, never a guess about the area."""
+    if animal.checks.good_with_children != "no":
+        return venues, []
+    return (
+        [v for v in venues if not for_children(v.description)],
+        [v for v in venues if for_children(v.description)],
+    )
 
 
 KIND_WORDS = {"tv_show": "TV shows", "movie": "films", "book": "books"}
@@ -749,7 +773,10 @@ def build_result_view(
     image_url: str | None = None,
     pin: tuple[float, float] | None = None,
 ) -> ResultView:
-    ordered = venue_order(profile)
+    every = venue_order(profile)
+    ordered, left_out = child_safe(animal, every)
+    # Name only the ones that would have been shown.
+    left_out = [v for v in every[:VENUES_SHOWN] if v in left_out]
     returned, reading = why(location, profile)
     look_returned, look_reading = lookalike_why(animal, listing)
     returned, reading = look_returned + returned, look_reading + reading
@@ -767,7 +794,7 @@ def build_result_view(
         map=map_view(location, profile, pin),
         venues=[venue_view(v, location, profile) for v in ordered[:VENUES_SHOWN]],
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
-        plan=plan(animal, location, ordered),
+        plan=plan(animal, location, ordered, left_out),
         qloo_returned=returned,
         our_reading=reading,
         notes=profile.notes,

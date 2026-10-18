@@ -63,7 +63,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
    - the listing, with a **Generic / Local, with Qloo** toggle; both share the same bio, and the local one adds a name from Qloo's titles and one line saying where it comes from
    - the **name options**, each with its source badge, Qloo's title and the reason Namesake's AI gives, kept apart
    - a **map** of where pet-show fans stand out within the area, and the **places to ask**, each with Qloo's rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline
-   - the **exposure checklist**, each item labelled Research, Qloo or Our suggestion
+   - the **exposure checklist**, each item labelled Research, Qloo or Our suggestion; for an animal recorded as not good with children, places Qloo describes as for children are left out, and the checklist says so
    - a **Why** drawer with two columns, "Qloo returned" and "How Namesake read it" (Namesake's AI and its code)
 4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software.
 

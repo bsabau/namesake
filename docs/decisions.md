@@ -52,6 +52,8 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 
 **Follows:** revisit in milestone 4 only if time allows. If done, geocode at profile-build time with a cached, rate-respecting service, never from the browser.
 
+**Revised 18 October, per animal:** when an animal's record says it is not good with children, the result leaves out venues whose own Qloo description is about children (whole words: children, kids, toddler, playground, preschool, daycare, nursery, elementary, youth, baby), and the plan names the ones that would have been shown, labelled as our suggestion. "Unknown" and "yes" keep every venue: the record alone decides, and nothing is inferred about the area or its people. The area profile is shared by every animal there, so this is a filter on the view, with no Qloo call. The author asked, on 18 October, why the app avoids age demographics yet uses children's shows; a probe showed the venues barely change between children's and adult pet titles, so the per-animal filter is the useful part.
+
 ## 5. Agent-chosen Qloo calls go through our client, not `qloo mcp`
 
 **Decided:**

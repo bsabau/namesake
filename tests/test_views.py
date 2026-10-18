@@ -202,3 +202,47 @@ def test_venue_rank_is_stated_plainly(roster):
     for v in view.venues:
         assert re.fullmatch(rf"\d+(st|nd|rd|th) of {total}", v.rank)
         assert v.rank_note == RANK_NOTES[v.rank_band]
+
+
+def kids_profile() -> LocationProfile:
+    p = profile()
+    for v in p.venues:
+        if v.name == "Garden Cafe":
+            v.description = "A cafe with a garden and a kids' playground."
+    return p
+
+
+def with_children(roster, answer):
+    animal = roster.get("dog-02")
+    return animal.model_copy(
+        update={"checks": animal.checks.model_copy(update={"good_with_children": answer})}
+    )
+
+
+def test_an_animal_not_good_with_children_is_not_sent_to_places_for_children(roster):
+    view = build_result_view(with_children(roster, "no"), LOCATION, kids_profile())
+    assert "Garden Cafe" not in [v.name for v in view.venues]
+    left = [i for i in view.plan if i.text.startswith("Left out")]
+    assert [i.text for i in left] == [
+        "Left out Garden Cafe: its description is about children, and this dog is not "
+        "recorded as good with them."
+    ]
+    assert left[0].basis == "Our suggestion"
+
+
+def test_unknown_or_yes_keeps_every_venue(roster):
+    for answer in ("unknown", "yes"):
+        view = build_result_view(with_children(roster, answer), LOCATION, kids_profile())
+        assert "Garden Cafe" in [v.name for v in view.venues]
+        assert not any(i.text.startswith("Left out") for i in view.plan)
+
+
+def test_the_children_words_match_whole_words_only():
+    from app.profile import for_children
+
+    assert for_children("A children's museum.") == "children"
+    assert for_children("Toddler classes and a playground.") == "toddler"
+    assert for_children("A youth orchestra.") == "youth"
+    assert for_children("A bar for kidney-shaped pools.") is None
+    assert for_children("A babysitting-free brewery.") is None
+    assert for_children(None) is None
