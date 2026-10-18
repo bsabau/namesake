@@ -388,7 +388,7 @@ def name_badge(
     liked = None
     if found:
         liked = (
-            "in Qloo's list for this area asked with its pet tags"
+            "in Qloo's list for this area, asked with its pet tags"
             if found.by_tags
             else f"liked here by fans of {found.signal}"
         )
@@ -532,7 +532,9 @@ def map_view(
     venues: list[Venue] | None = None,
 ) -> MapView:
     titles = layer_titles(profile)
-    pets = f"fans of {and_list([e.name for e in titles])}" if titles else "pet-show fans"
+    pets = (
+        f"fans of {and_list([e.name for e in titles])}" if titles else "fans of pet-themed titles"
+    )
     base = compared_with(profile) or "a baseline"
     cells = []
     for c in profile.cells:
@@ -571,7 +573,7 @@ def map_view(
             f"place. The places to ask are for fans of {and_list([e.name for e in asked])}. "
         )
     key = (
-        f"Warm: pet-show fans stand out here more than {base}. Cool: less, or level. "
+        f"Warm: fans of pet-themed titles stand out here more than {base}. Cool: less, or level. "
         "Grey: no comparison."
         if any(c.lift is not None for c in cells)
         else "Grey: no cell was scored for both, so there is no comparison here."
@@ -589,7 +591,7 @@ def map_view(
         # still map thinly (decision 12), and the page says so.
         thin = (
             f"Only {len(cells)} map cell{'s' if len(cells) != 1 else ''} here: Qloo's data for "
-            f"pet-show fans around {location.label} is thin, so the map says little. "
+            f"fans of pet-themed titles around {location.label} is thin, so the map says little. "
         )
     placed = [
         v
@@ -716,7 +718,7 @@ def cell_reading(
     shelter: tuple[float, float] | None = None,
 ) -> str | None:
     """Where OpenStreetMap places a venue on the lift map, read in the map's own terms:
-    ranks within the area, for pet-show fans as a group against the comparison shows."""
+    ranks within the area, for fans of pet-themed titles as a group against the comparison shows."""
     if v.latitude is None or v.longitude is None:
         return None
     c = cell_of(v, profile)
@@ -729,8 +731,8 @@ def cell_reading(
     base = compared_with(profile) or "the comparison shows"
     how = "higher than" if c.lift > 0 else "lower than" if c.lift < 0 else "as high as"
     return (
-        f"OpenStreetMap places it where pet-show fans rank this part of {location.label} "
-        f"{how} {base} do ({c.lift:+.2f})."
+        f"OpenStreetMap places it where fans of pet-themed titles rank this part of "
+        f"{location.label} {how} {base} do (lift {c.lift:+.2f} on Qloo's maps)."
     )
 
 
@@ -770,7 +772,7 @@ def venue_view(
         badge = "Not compared"
     elif v.distinctive:
         evidence += f"; not among the {profile.baseline_venue_count} places for {base}."
-        badge = "Stands out for pet-show fans"
+        badge = "Stands out for fans of pet-themed titles"
     else:
         evidence += f"; also {ordinal(v.baseline_rank)} for {base}."
         badge = "Popular nearby generally"
@@ -836,10 +838,6 @@ def plan(
                 "children.",
                 basis="Our suggestion",
             )
-        )
-    if location.community_channel:
-        items.append(
-            PlanItem(text=f"Also reach {location.community_channel}.", basis="Our suggestion")
         )
     return items
 
@@ -1098,7 +1096,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                 detail="The pet shows' score minus the score for "
                 f"{compared_with(profile) or 'the baseline'} in the same cell, each averaged over "
                 "the shows that scored it. It is relative: "
-                "where in this area pet-show fans stand out, not how many there are.",
+                "where in this area fans of pet-themed titles stand out, not how many there are.",
             )
         )
     for call in profile.calls:

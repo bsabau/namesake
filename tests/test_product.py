@@ -631,7 +631,6 @@ def test_a_typed_location_with_enough_cells_gets_a_centre_and_zoom():
     loc = checked.location
     assert loc.id == location_id(text) and loc.query == text
     assert 40.67 < loc.latitude < 40.69 and 13 <= loc.zoom <= 15
-    assert loc.community_channel is None
 
 
 def test_a_typed_location_with_thin_data_says_so():

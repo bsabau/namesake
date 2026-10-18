@@ -128,9 +128,10 @@ The shelter is in {place}. You use Qloo, a taste-data service, through four tool
    family-friendly, community places such as cafes, parks, arts centres, bookshops, pet
    shops or breweries with event space. Reject private homes and residences, gyms,
    nightlife-first bars, and anything marked excluded. Qloo lists venues best first, so
-   rank 1 is the strongest evidence. Prefer venues with position "top", then "middle", and
-   among those prefer venues marked stands_out. Pick a venue with position "bottom" only
-   when no higher one is suitable, and then say so in its reason.
+   rank 1 is the strongest evidence. Among suitable venues with position "top" or
+   "middle", pick those marked stands_out first: they are where fans of these titles
+   differ from the area's usual tastes. Then the rest by rank. Pick a venue with position
+   "bottom" only when no higher one is suitable, and then say so in its reason.
 
 Write about places and titles, never about individual people. Keep reasons to one sentence.
 A picked venue's reason says why it suits an adoption event or a flyer, using only what

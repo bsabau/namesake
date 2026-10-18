@@ -55,7 +55,9 @@ def test_result_venues_put_distinctive_suitable_places_first(roster):
 def test_plan_separates_research_qloo_and_our_suggestions(roster):
     view = build_result_view(roster.get("dog-02"), LOCATION, profile())
     bases = [item.basis for item in view.plan]
-    assert bases.count("Qloo") == 1 and bases[-1] == "Our suggestion"
+    # The community-channel suggestion is gone (decided 18 October): no source on the page.
+    assert bases.count("Qloo") == 1 and "Our suggestion" not in bases
+    assert not any("language" in item.text for item in view.plan)
     assert any("rescue partners" in item.text for item in view.plan)
     cat = build_result_view(roster.get("cat-01"), LOCATION, profile())
     assert not any("rescue partners" in item.text for item in cat.plan)
@@ -365,7 +367,8 @@ def test_a_thin_map_says_so_on_the_page():
     p = profile()
     p.cells = p.cells[:2]
     assert map_view(LOCATION, p).legend.startswith(
-        f"Only 2 map cells here: Qloo's data for pet-show fans around {LOCATION.label} is thin"
+        f"Only 2 map cells here: Qloo's data for fans of pet-themed titles around "
+        f"{LOCATION.label} is thin"
     )
 
 
