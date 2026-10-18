@@ -850,3 +850,33 @@ def test_an_ais_own_title_qloo_listed_later_stays_the_ais_own(roster):
     # The same "added N of its own" in the steps and the strip.
     assert after.process[2].detail == before.process[2].detail
     assert after.qloo_part.ai == before.qloo_part.ai
+
+
+def test_the_working_view_names_who_did_each_step(roster):
+    from types import SimpleNamespace
+
+    from app.agent.steps import StepLog
+    from app.views.build import build_working_view
+
+    log = StepLog()
+    log.add("start", "Building the profile")
+    log.add("qloo", "Asking Qloo")
+    log.add("decision", "The litter's names will all come from a title")
+    log.add("check", "Listing checked")
+    log.add("note", "Using the saved profile")
+    log.add("error", "The run stopped")
+    log.add("done", "Done")
+    run = SimpleNamespace(id="r1", result_url="/result?animal=dog-02&location=x", log=log)
+    view = build_working_view(run, roster.get("dog-02"), LOCATION)
+    assert view.headline == "Writing her story…"
+    assert [s.actor for s in view.steps] == ["code", "qloo", "ai", "code", "code", "code", "code"]
+    # Every kind the log can emit has an actor, for steps that arrive over the stream.
+    assert view.actors == {
+        "start": "code", "qloo": "qloo", "decision": "ai", "check": "code",
+        "note": "code", "done": "code", "error": "code",
+    }  # fmt: skip
+    assert [(k.actor, k.label) for k in view.actor_key] == [
+        ("qloo", "Qloo"), ("ai", "Namesake's AI"), ("code", "Code")
+    ]  # fmt: skip
+    him = build_working_view(run, roster.get("dog-01"), LOCATION)
+    assert him.headline == "Writing his story…"

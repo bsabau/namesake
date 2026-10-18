@@ -362,3 +362,39 @@ def test_the_fallback_waits_for_three_errors_in_a_row(name):
     assert out[:2] == ["https://keyed.example/{z}", "https://keyed.example/{z}"]
     # Three layers in all: the first, the one after the scheme change, the fallback.
     assert out[2:] == ["https://plain.example/{z}", "plain", "true", "3"]
+
+
+def test_the_story_working_page_marks_each_step_by_who_did_it(client):
+    # The timeline's marks come from the view model (StepView.actor and the kind-to-actor
+    # mapping for streamed steps), never from a guess in the script.
+    page = client.post(
+        "/runs", data={"animal": "dog-02", "location": "park-slope", "ui": "story"}
+    ).text
+    assert 'data-actors="' in page and "&#34;qloo&#34;: &#34;qloo&#34;" in page
+    assert "Writing her story…" in page
+    for label in ["Qloo", "Namesake&#39;s AI", "Code"]:
+        assert 'class="actor-' in page and label in page
+    assert 'class="step step-note actor-code"' in page
+    assert 'class="steps timeline" data-role="steps"' in page
+    script = (main.UI_ROOT / "story" / "static" / "working.js").read_text(encoding="utf-8")
+    assert "root.dataset.actors" in script and 'actors[step.kind] || "code"' in script
+
+
+def test_the_story_start_page_reads_as_the_result_does(client, monkeypatch):
+    # Finished stories first, then 01 the shelter area and 02 the animals as taped photos.
+    import app.store as store_module
+
+    page = client.get("/", params={"ui": "story"}).text
+    assert page.index('class="headline"') < page.index('data-role="shelter"')
+    assert page.index('class="step-no" aria-hidden="true">01') < page.index('data-role="shelter"')
+    assert page.index('data-role="shelter"') < page.index('class="step-no" aria-hidden="true">02')
+    assert page.index(">02") < page.index('class="animal-grid taped"')
+    # The radio markup the location tests read is unchanged.
+    assert re.search(
+        r'<input type="radio" name="location" value="park-slope" required\s+checked>', page
+    )
+    # With a saved example, the band of finished stories comes before 01.
+    monkeypatch.setattr(store_module.Store, "get_listing", lambda self, a, loc: object())
+    page = client.get("/", params={"ui": "story"}).text
+    assert 'class="examples band" data-role="examples"' in page
+    assert page.index("Read a finished story") < page.index('aria-hidden="true">01')

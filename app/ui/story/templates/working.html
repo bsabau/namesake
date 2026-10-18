@@ -7,20 +7,31 @@
 {% endblock %}
 
 {% block content %}
-<section class="working" data-role="working"
-         data-events-url="{{ view.events_url }}" data-result-url="{{ view.result_url }}">
-  <div class="who">
-    <img src="{{ view.animal.image_url }}" alt="{{ view.animal.alt }}" width="120" height="120">
-    <div>
-      <p class="animal-meta">{{ view.animal.meta }}</p>
-      <h1 class="working-title">{{ view.title }}</h1>
+{# The story being written: the animal, the headline, and the steps as a timeline, each
+   marked by who did it (the view model's actor for its kind; data-actors for the ones
+   that arrive over the stream). #}
+<section class="working story-working" data-role="working"
+         data-events-url="{{ view.events_url }}" data-result-url="{{ view.result_url }}"
+         data-actors="{{ view.actors|tojson|forceescape }}">
+  <div class="working-head">
+    <figure class="portrait portrait-small">
+      <img src="{{ view.animal.image_url }}" alt="{{ view.animal.alt }}" width="800" height="800">
+    </figure>
+    <div class="working-intro">
+      <p class="animal-meta">{{ view.animal.meta }}
+        {% for badge in view.animal.badges %}<span class="badge">{{ badge }}</span>{% endfor %}</p>
+      <h1 class="headline working-title">{{ view.headline or view.title }}</h1>
+      <p class="lead">{{ view.title }}.</p>
       <p class="where-label" data-role="status">
         {{ 'Finished.' if view.finished else 'Working. Each step appears as it happens.' }}</p>
+      <ul class="step-key" aria-label="Who did each step">
+        {% for key in view.actor_key %}<li class="actor-{{ key.actor }}">{{ key.label }}</li>{% endfor %}
+      </ul>
     </div>
   </div>
 
-  <ol class="steps" data-role="steps" aria-live="polite">
-    {% for step in view.steps %}<li class="step step-{{ step.kind }}">{{ step.text }}</li>{% endfor %}
+  <ol class="steps timeline" data-role="steps" aria-live="polite">
+    {% for step in view.steps %}<li class="step step-{{ step.kind }} actor-{{ step.actor }}">{{ step.text }}</li>{% endfor %}
   </ol>
   {% if not view.finished %}
   {# Decoration for sighted visitors; the steps list above is what screen readers follow. #}

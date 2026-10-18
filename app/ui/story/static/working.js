@@ -39,13 +39,16 @@
     }, 1000));
   }
 
+  // Who did a step, by its kind: the view model's mapping (data-actors), never guessed here.
+  const actors = JSON.parse(root.dataset.actors || "{}");
+
   source.addEventListener("step", (event) => {
     streamed += 1;
     if (streamed > shown) lastStep = Date.now();
     if (first) { list.innerHTML = ""; first = false; }
     const step = JSON.parse(event.data);
     const item = document.createElement("li");
-    item.className = `step step-${step.kind}`;
+    item.className = `step step-${step.kind} actor-${actors[step.kind] || "code"}`;
     item.textContent = step.text;
     list.appendChild(item);
   });
