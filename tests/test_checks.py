@@ -511,7 +511,17 @@ def test_names_that_put_an_animal_down_are_refused():
     assert check_name("Toulouse", source="pet", role="cat", strict=False,
                       reference="Scat Cat") == []  # fmt: skip
     # Everyday shelter words, and names that only contain a listed word, pass.
-    for name in ("Scooby", "Muttley", "Scrappy", "Squeeks", "Ratchet", "Mutt", "Runt", "Pesto"):
+    for name in (
+        "Scooby",
+        "Muttley",
+        "Scrappy",
+        "Squeeks",
+        "Ratchet",
+        "Mutt",
+        "Runt",
+        "Pesto",
+        "Ratty",
+    ):
         assert check_name(name, source="pet", role="dog", strict=False) == [], name
 
 

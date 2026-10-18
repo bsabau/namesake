@@ -25,14 +25,15 @@ NAME_BLOCKLIST = (
 
 # Words no adoption listing should call an animal (decided 18 October, after a rebuild
 # offered "Garbage" and "Scat"): dirt, waste, pests and insults. Whole words, as above,
-# so plurals and variants are listed. "Mutt" and "Runt" are everyday shelter words, kept.
+# so plurals and variants are listed. "Mutt" and "Runt" are everyday shelter words, and
+# "Ratty" is the Water Rat of The Wind in the Willows: kept.
 UNFLATTERING = (
     "garbage", "trash", "trashy", "rubbish", "junk", "junky", "junkie", "junkyard", "scat",
-    "poop", "poopy", "poo", "dung", "stink", "stinky", "stinker", "smelly", "dirty",
-    "filthy", "grubby", "ugly", "fatty", "fatso", "dumb", "dummy", "stupid", "idiot",
-    "idiots", "loser", "losers", "freak", "freaks", "freaky", "rat", "rats", "ratty",
+    "poop", "poopy", "poo", "dung", "stink", "stinky", "stinker", "stinkers", "smelly", "dirty",
+    "filthy", "grubby", "ugly", "fatty", "fatso", "dumb", "dummy", "dummies", "stupid", "idiot",
+    "idiots", "loser", "losers", "freak", "freaks", "freaky", "rat", "rats",
     "roach", "roaches", "cockroach", "maggot", "maggots", "pest", "pests", "vermin",
-    "leech", "mangy", "flea", "fleas", "fleabag",
+    "leech", "leeches", "mangy", "flea", "fleas", "fleabag", "fleabags",
 )  # fmt: skip
 
 # Well-known villains and tragic animals: the model also declares each reference's role,
