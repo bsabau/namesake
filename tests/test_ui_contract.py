@@ -218,8 +218,10 @@ def test_story_maps_use_keyless_attributed_tiles_quieted_in_both_schemes():
     # CARTO's basemaps now need a key, which must never reach the browser (AGENTS.md).
     for name in ("location-map.js", "result-map.js"):
         text = (main.UI_ROOT / "story" / "static" / name).read_text()
-        assert "tile.openstreetmap.org" in text and "OpenStreetMap" in text
-        assert "cartocdn" not in text and "apikey" not in text.lower()
+        assert "tile.openstreetmap.org" in text
+        assert "openstreetmap.org/copyright" in text  # the attribution option itself
+        assert "cartocdn" not in text
+        assert not re.search(r"api_?key|[?&]key=|token", text, re.IGNORECASE)
     css = (main.UI_ROOT / "story" / "static" / "style.css").read_text()
     assert ".leaflet-tile-pane { filter:" in css and "invert(1)" in css
 

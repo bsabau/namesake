@@ -852,7 +852,7 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
 }
 .map-key p { margin: 2px 0 0; }
 
-/* Leaflet's own chrome, brought onto the palette. The tiles stay as OpenStreetMap draws them. */
+/* Leaflet's own chrome, brought onto the palette. The tiles are quieted by a filter at the end of this file. */
 .leaflet-container { font-family: inherit; }
 .leaflet-bar { border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); overflow: hidden; }
 .leaflet-touch .leaflet-bar { border: 1px solid var(--border); }

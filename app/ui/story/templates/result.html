@@ -44,14 +44,14 @@
         {% for option in view.name.options %}
         <li class="name-option"><label>
           <input type="radio" name="local_name" value="{{ option.name }}" data-hook="{{ option.hook }}" data-badge="{{ option.badge }}" data-copy="{{ option.copy_text }}" {% if option.name == view.chosen_name %}checked{% endif %}>
-          <strong>{{ option.name }}</strong><span class="option-title">from {{ option.title }}</span>
+          <strong>{{ option.name }}</strong>{% if option.title and option.title != option.name %}<span class="option-title">from {{ option.title }}</span>{% endif %}
         </label></li>
         {% endfor %}
       </ul>
       <div class="name-provenance" aria-live="polite">
         {% for option in view.name.options %}
         <div class="provenance-pair" data-name-detail="{{ option.name }}"{% if option.name != view.chosen_name %} hidden{% endif %}>
-          <p class="evidence"><span>Qloo:</span> {{ option.title }} · {{ option.badge }}.</p>
+          <p class="evidence"><span>Qloo:</span> {% if option.title and option.title not in option.badge %}{{ option.title }} · {% endif %}{{ option.badge }}.</p>
           <p class="reading"><span>Namesake's AI:</span> {{ option.reference }}. {{ option.why }}</p>
         </div>
         {% endfor %}
