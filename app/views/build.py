@@ -6,7 +6,6 @@ import time
 from app.agent.checks import mentions_identity
 from app.agent.listing_agent import Lookalike, NameOption
 from app.agent.results import ListingResult
-from app.agent.steps import StepKind
 from app.animals import Animal, LitterPhoto, Roster
 from app.classify import bucket
 from app.config import get_settings
@@ -1534,14 +1533,17 @@ def build_result_view(
     )
 
 
-# Who did a step, by its kind (app/agent/steps.py): Qloo answered, Namesake's AI decided,
-# or the run's own code (its start and end, its notes, its checks, an error).
-STEP_ACTORS = {"qloo": "qloo", "decision": "ai"}
-ACTOR_LABELS = [("qloo", "Qloo"), ("ai", "Namesake's AI"), ("code", "Code")]
+# Who did a step, as the step records it (app/agent/steps.py), and its label.
+ACTOR_LABELS = [
+    ("qloo", "Qloo"),
+    ("ai", "Namesake's AI"),
+    ("classifier", "Classifier (TypeSafe's Jev)"),
+    ("code", "Code"),
+]
 
 
-def step_actor(kind: str) -> str:
-    return STEP_ACTORS.get(kind, "code")
+def actor_label(actor: str) -> str:
+    return dict(ACTOR_LABELS).get(actor, "Code")
 
 
 def build_working_view(
@@ -1556,8 +1558,11 @@ def build_working_view(
         location=location_option(location, True),
         events_url=f"/api/runs/{run.id}/events",
         result_url=run.result_url + ui_query,
-        steps=[StepView(kind=s.kind, text=s.text, actor=step_actor(s.kind)) for s in run.log.steps],
-        actors={kind: step_actor(kind) for kind in StepKind.__args__},
+        steps=[
+            StepView(kind=s.kind, text=s.text, actor=s.actor, label=actor_label(s.actor))
+            for s in run.log.steps
+        ],
+        actor_labels=dict(ACTOR_LABELS),
         actor_key=[ActorKey(actor=a, label=label) for a, label in ACTOR_LABELS],
         finished=run.log.finished,
         seconds_since_step=int(time.time() - run.log.steps[-1].at) if run.log.steps else 0,

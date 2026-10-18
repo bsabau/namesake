@@ -90,7 +90,7 @@
      the lift colours are Qloo's cells. */
   --accent: #227880;
   --lift-up: #d4603f;
-  --lift-down: #3b8ea5;
+  --lift-down: #3f78c2;       /* cool cells: a clear blue, apart from the teal ring */
   --lift-none: #8a7f75;
 
   --radius: 14px;
@@ -135,7 +135,7 @@
     --tape: rgb(120 100 60 / 0.6);
     --accent: #7fcbd3;
     --lift-up: #f0916f;
-    --lift-down: #6cc0d6;
+    --lift-down: #7fb0ea;
     --lift-none: #9a8f84;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 20px rgb(0 0 0 / 0.35);
     --shadow-hover: 0 2px 4px rgb(0 0 0 / 0.45), 0 14px 28px rgb(0 0 0 / 0.45);
@@ -298,7 +298,9 @@ button.animal-card {
 button.animal-card:hover, button.animal-card:focus-visible {
   border-color: var(--primary);
   box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  button.animal-card:hover, button.animal-card:focus-visible { transform: translateY(-2px); }
 }
 
 .animal-body > span { display: block; }
@@ -493,7 +495,8 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
   font-weight: 600;
 }
 .fact-row li:last-child { border-right: 0; margin-right: 0; }
-.fact-icon { display: inline-flex; color: var(--primary); font-size: 1.25rem; flex: none; }
+/* The record's own marks, in neutral ink: not a choice, not Qloo's. */
+.fact-icon { display: inline-flex; color: var(--muted); font-size: 1.25rem; flex: none; }
 .fact-icon .paw { transform: rotate(-12deg); }
 .still-to-learn { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; color: var(--muted); font-size: 0.9rem; }
 .still-to-learn .fact-icon { color: var(--muted); }
@@ -795,8 +798,8 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--primary-ink);
-  color: var(--on-primary);
+  background: var(--heading);
+  color: var(--bg);
   font-size: 0.8rem;
   font-weight: 800;
   flex: none;
@@ -870,7 +873,9 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
 .basis-our-suggestion { border-color: var(--ai); background: var(--ai-soft); color: var(--ai-ink); }
 
 /* Working: the animal's taped photo, the headline, a key, and the steps as a timeline,
-   each marked by who did it: terracotta for Qloo, sage for Namesake's AI, ink for code. */
+   each marked by who did it, in colour and in words: terracotta for Qloo's part of the
+   work (its calls and its answers), sage for Namesake's AI, grey for the classifier
+   (TypeSafe's Jev), ink for the run's own code. */
 .working-head { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px 36px; align-items: center; margin-top: 18px; }
 .portrait-small { margin: 10px 6px 0; }
 .portrait-small::before { width: 64px; height: 20px; top: -8px; left: 18px; }
@@ -890,6 +895,13 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
 .step-key li::before { margin-right: 6px; vertical-align: 0.02em; }
 .step-key .actor-qloo::before, .timeline .actor-qloo::before { background: var(--qloo); }
 .step-key .actor-ai::before, .timeline .actor-ai::before { background: var(--ai); }
+.step-key .actor-classifier::before, .timeline .actor-classifier::before { background: var(--border-strong); }
+.timeline .actor-classifier { border-left-color: var(--border-strong); }
+/* The actor in words on every step, so colour is never the only cue. */
+.step-actor { display: inline-block; margin-right: 4px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text); }
+.actor-qloo .step-actor { color: var(--qloo-ink); }
+.actor-ai .step-actor { color: var(--ai-ink); }
+.actor-classifier .step-actor { color: var(--muted); }
 /* More specific than the `.steps` box below, which the classic layout still uses. */
 .steps.timeline { position: relative; list-style: none; margin: 26px 0 14px; padding: 0 0 0 30px; background: none; border: 0; box-shadow: none; font-size: inherit; }
 .timeline::before { content: ""; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; background: var(--border-strong); opacity: 0.45; }
@@ -920,7 +932,6 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
 .who p { margin: 0; }
 .who h1 { margin: 2px 0; font-size: 1.8rem; line-height: 1.15; }
 .where-label { color: var(--muted); font-size: 0.9rem; }
-.working-title { font-size: 1.6rem; }
 
 .steps {
   margin: 20px 0;
@@ -932,7 +943,6 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
   font-size: 0.95rem;
 }
 .steps li { margin: 4px 0; }
-.step-qloo::marker { color: var(--qloo-ink); font-weight: 800; }
 .step-check { color: var(--muted); }
 .step-error { color: var(--attention-ink); font-weight: 700; }
 .step-done { font-weight: 700; }
@@ -1008,7 +1018,6 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
   text-decoration: none;
 }
 .example:hover { background: var(--highlight); color: var(--on-highlight); }
-.examples h2 { font-size: 1.1rem; margin: 0; }
 .examples { margin-bottom: 28px; }
 .add-animal a, .litter button { margin-top: 8px; }
 .add-animal-form h1 { font-size: 2.2rem; margin: 16px 0 6px; }
@@ -1147,7 +1156,8 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
 .leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
 
 /* Suggested places on the result map, numbered as in the list. */
-.venue-pin span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--primary-ink); color: var(--on-primary); font-weight: 800; font-size: 0.8rem; border: 2px solid #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.35); }
+/* The numbers mark Qloo's places in the list's order: neutral ink, not a choice. */
+.venue-pin span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--heading); color: var(--bg); font-weight: 800; font-size: 0.8rem; border: 2px solid #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.35); }
 
 /* The search above the start map: it only moves the map. */
 .map-search { margin: 0 0 8px; }
@@ -1157,3 +1167,7 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Under the "01 Shelter area" heading the bar's own "Shelter area:" label is for screen
+   readers only; the heading says it once. */
+.shelter-heading { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

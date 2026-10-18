@@ -12,7 +12,7 @@
    that arrive over the stream). #}
 <section class="working story-working" data-role="working"
          data-events-url="{{ view.events_url }}" data-result-url="{{ view.result_url }}"
-         data-actors="{{ view.actors|tojson|forceescape }}">
+         data-actor-labels="{{ view.actor_labels|tojson|forceescape }}">
   <div class="working-head">
     <figure class="portrait portrait-small">
       <img src="{{ view.animal.image_url }}" alt="{{ view.animal.alt }}" width="800" height="800">
@@ -21,9 +21,9 @@
       <p class="animal-meta">{{ view.animal.meta }}
         {% for badge in view.animal.badges %}<span class="badge">{{ badge }}</span>{% endfor %}</p>
       <h1 class="headline working-title">{{ view.headline or view.title }}</h1>
-      <p class="lead">{{ view.title }}.</p>
+      <p class="lead">{{ view.location.label }}, {{ view.location.region }}.</p>
       <p class="where-label" data-role="status">
-        {{ 'Finished.' if view.finished else 'Working. Each step appears as it happens.' }}</p>
+        {{ 'Finished.' if view.finished else 'Each step appears as it happens.' }}</p>
       <ul class="step-key" aria-label="Who did each step">
         {% for key in view.actor_key %}<li class="actor-{{ key.actor }}">{{ key.label }}</li>{% endfor %}
       </ul>
@@ -31,7 +31,7 @@
   </div>
 
   <ol class="steps timeline" data-role="steps" aria-live="polite">
-    {% for step in view.steps %}<li class="step step-{{ step.kind }} actor-{{ step.actor }}">{{ step.text }}</li>{% endfor %}
+    {% for step in view.steps %}<li class="step step-{{ step.kind }} actor-{{ step.actor }}"><span class="step-actor">{{ step.label }}</span> {{ step.text }}</li>{% endfor %}
   </ol>
   {% if not view.finished %}
   {# Decoration for sighted visitors; the steps list above is what screen readers follow. #}

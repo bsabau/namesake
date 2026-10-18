@@ -370,14 +370,64 @@ def test_the_story_working_page_marks_each_step_by_who_did_it(client):
     page = client.post(
         "/runs", data={"animal": "dog-02", "location": "park-slope", "ui": "story"}
     ).text
-    assert 'data-actors="' in page and "&#34;qloo&#34;: &#34;qloo&#34;" in page
+    assert 'data-actor-labels="' in page and "&#34;classifier&#34;" in page
     assert "Writing her story…" in page
-    for label in ["Qloo", "Namesake&#39;s AI", "Code"]:
-        assert 'class="actor-' in page and label in page
-    assert 'class="step step-note actor-code"' in page
+    for label in ["Qloo", "Namesake&#39;s AI", "Classifier (TypeSafe&#39;s Jev)", "Code"]:
+        assert label in page
+    assert 'class="step step-note actor-code"><span class="step-actor">Code</span>' in page
     assert 'class="steps timeline" data-role="steps"' in page
+    # Streamed steps take their actor from the event, never from the kind; the label from
+    # the view model's list; a step without an actor is code's.
     script = (main.UI_ROOT / "story" / "static" / "working.js").read_text(encoding="utf-8")
-    assert "root.dataset.actors" in script and 'actors[step.kind] || "code"' in script
+    assert "root.dataset.actorLabels" in script and 'step.actor || "code"' in script
+    assert "actors[step.kind]" not in script
+
+
+def test_every_actor_renders_in_words_and_colour_on_the_story_working_page(monkeypatch):
+    # A Qloo call, an AI decision, the classifier's sorting and a code note, each with its
+    # actor in text and in its class, on the page and on the stream.
+    import asyncio
+
+    import app.runs as runs
+
+    async def scripted(*args, **kwargs):
+        log = kwargs["log"]
+        log.add("qloo", "Asking Qloo which TV shows people around Example tend to like")
+        log.add("decision", "The litter's names will all come from Example Show")
+        log.add("note", "20 TV shows: the classifier found 3 about pets", actor="classifier")
+        log.add("note", "Qloo returned 15 places; 4 stand out against the baseline")
+        while not log._listeners:
+            await asyncio.sleep(0.01)
+
+    monkeypatch.setattr(runs, "run_pipeline", scripted)
+    with TestClient(main.app) as client:
+        location = client.post(
+            "/runs",
+            data={"animal": "dog-02", "location": "park-slope", "ui": "story"},
+            follow_redirects=False,
+        ).headers["location"]
+        run_id = location.rsplit("?", 1)[0].rsplit("/", 1)[-1]
+        with client.stream("GET", f"/api/runs/{run_id}/events") as stream:
+            lines = [line for line in stream.iter_lines() if line.startswith("data:")]
+        page = client.get(f"/runs/{run_id}", params={"ui": "story"}).text
+    import json
+
+    events = [json.loads(line[5:]) for line in lines[:-1]]
+    assert [e["actor"] for e in events] == ["qloo", "ai", "classifier", "code"]
+    assert all(set(e) == {"kind", "text", "actor"} for e in events)
+    assert 'class="step step-qloo actor-qloo"><span class="step-actor">Qloo</span>' in page
+    assert (
+        'class="step step-decision actor-ai"><span class="step-actor">Namesake&#39;s AI</span>'
+        in page
+    )
+    assert (
+        'class="step step-note actor-classifier"><span class="step-actor">'
+        "Classifier (TypeSafe&#39;s Jev)</span>" in page
+    )
+    assert (
+        'class="step step-note actor-code"><span class="step-actor">Code</span> '
+        "Qloo returned 15 places" in page
+    )
 
 
 def test_the_story_start_page_reads_as_the_result_does(client, monkeypatch):

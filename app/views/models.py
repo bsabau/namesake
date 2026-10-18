@@ -321,9 +321,10 @@ class ProcessStep(BaseModel):
 class StepView(BaseModel):
     kind: str
     text: str
-    # Who did it, from the kind: "qloo" (an answer from Qloo), "ai" (a decision of
-    # Namesake's AI) or "code" (the run's own steps and checks).
+    # Who did it, as the step records it: "qloo" (its calls and answers), "ai" (a decision
+    # of Namesake's AI), "classifier" (TypeSafe's Jev) or "code" (the run's own steps).
     actor: str = "code"
+    label: str = "Code"
 
 
 class ActorKey(BaseModel):
@@ -341,8 +342,8 @@ class WorkingView(BaseModel):
     events_url: str
     result_url: str
     steps: list[StepView]
-    # Each step kind's actor, for steps that arrive over the live stream, and the key.
-    actors: dict[str, str] = {}
+    # Each actor's label, for the key and for steps that arrive over the live stream.
+    actor_labels: dict[str, str] = {}
     actor_key: list[ActorKey] = []
     finished: bool
     # A sign of life between steps, so a long model call never looks stuck: words to

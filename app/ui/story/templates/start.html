@@ -28,7 +28,6 @@
   {# Finished stories first: they open at once, from saved runs. #}
   <section class="examples band" data-role="examples">
     <h2>Read a finished story</h2>
-    <p class="lead">{{ view.examples_heading }}</p>
     <ul>
       {% for example in view.examples %}<li><a class="example" href="{{ example.url }}">{{ example.label }}</a></li>{% endfor %}
     </ul>

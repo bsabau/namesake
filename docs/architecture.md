@@ -149,7 +149,7 @@ sequenceDiagram
     end
 ```
 
-- **The step log** (`StepLog`) is what the Working page streams over server-sent events. A follower gets every step exactly once, including those logged before it connected.
+- **The step log** (`StepLog`) is what the Working page streams over server-sent events. Each step records who did it (`actor`: Qloo's calls and answers, a decision of Namesake's AI, the classifier, or the run's own code), given where it is logged. A follower gets every step exactly once, including those logged before it connected.
 - **Refine** (`POST /refine`) reruns the listing with a volunteer's request, for that visitor only. **Approve** (`POST /approve`) records the chosen name and version for the measurement log. A listing for an animal a visitor added, and any refined listing, stays in their session and is never saved.
 
 ## Typed areas and the map pick
@@ -245,7 +245,7 @@ The start, result and working screens' view models are also served as JSON, so a
 | `GET /api/start?location=` | `StartView`: animals, areas, the shelter bar, examples |
 | `GET /api/results/{animal}@{location}` | `ResultView`: Qloo's part and the AI's (`qloo_part`), listing versions, names, map, venues, plan, Why panel |
 | `GET /api/runs/{id}` | `WorkingView`: the run's steps so far |
-| `GET /api/runs/{id}/events` | the step log as server-sent events (`step`, then `done`) |
+| `GET /api/runs/{id}/events` | the step log as server-sent events: a `step` per step with its `kind`, `text` and `actor` (`qloo`, `ai`, `classifier` or `code`, given where the step is logged), then `done` |
 | `GET /api/places?q=&lat=&lon=` | area names for the typed field (ranked near the map's area) and the search above the start map (unbiased) |
 | `GET /api/places/at?lat=&lon=` | the areas a picked spot lies in |
 | `GET /health` | `{"status": "ok"}` |

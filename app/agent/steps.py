@@ -15,12 +15,24 @@ from typing import Literal
 from pydantic import BaseModel
 
 StepKind = Literal["start", "qloo", "decision", "check", "note", "done", "error"]
+# Who did a step: Qloo (its calls and its answers: Qloo's part of the work), Namesake's AI
+# (a decision of the model), the classifier (TypeSafe's Jev sorting titles), or the run's
+# own code (its start and end, its notes, its checks, an error).
+Actor = Literal["qloo", "ai", "classifier", "code"]
+ACTOR_BY_KIND: dict[str, str] = {"qloo": "qloo", "decision": "ai"}
+
+
+def actor_for(kind: str) -> str:
+    """The actor a kind implies when the logging site gives none: code, unless the kind
+    is Qloo's or the AI's. An unknown kind is code's."""
+    return ACTOR_BY_KIND.get(kind, "code")
 
 
 class Step(BaseModel):
     at: float
     kind: StepKind
     text: str
+    actor: Actor = "code"
 
 
 class StepLog:
@@ -31,8 +43,8 @@ class StepLog:
         self._lock = threading.Lock()
         self._listeners: list[asyncio.Queue[Step | None]] = []
 
-    def add(self, kind: StepKind, text: str) -> Step:
-        step = Step(at=time.time(), kind=kind, text=text)
+    def add(self, kind: StepKind, text: str, actor: Actor | None = None) -> Step:
+        step = Step(at=time.time(), kind=kind, text=text, actor=actor or actor_for(kind))
         with self._lock:
             self.steps.append(step)
             self._notify(step)
