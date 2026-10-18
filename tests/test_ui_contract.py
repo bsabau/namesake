@@ -23,6 +23,7 @@ REQUIRED = {
         "version-local",
         "approve",
         "refine",
+        "qloo-part",
         "qloo-returned",
         "our-reading",
         "map",
