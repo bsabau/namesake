@@ -95,7 +95,7 @@ sequenceDiagram
         T->>P: get or build the area profile
         P->>Q: fixed calls: local shows, baseline venues
         P->>M: profile agent: which titles, which venues
-        M->>Q: describe; recommend titles in the area's lists (its choice)
+        M->>Q: describe, then recommend titles in the area's lists (its choice)
         M->>J: inside that search, the classifier sorts what Qloo returned, before the AI sees it
         M->>Q: rank, recommend place (its choice)
         P->>Q: fixed calls: heatmaps for the map
