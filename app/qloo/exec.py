@@ -54,6 +54,12 @@ def _subprocess_runner(
     return subprocess.run(args, env=env, capture_output=True, text=True, timeout=timeout)
 
 
+# Retries of a retryable error, per workflow. The harness's recovery text says to retry
+# once; `rank` gets a second try, since it is the most rate-limited workflow and runs once
+# per profile, where a refusal costs the titles their order for the area.
+RETRIES = {"rank": 2}
+
+
 class QlooClient:
     def __init__(
         self,
@@ -67,6 +73,7 @@ class QlooClient:
         clock: Callable[[], float] = time.time,
         min_interval: float = 5.0,
         retry_delay: float = 5.0,
+        rate_limit_delay: float = 20.0,
         timeout: float = 90.0,
     ):
         self.cache = cache
@@ -78,6 +85,7 @@ class QlooClient:
         self.clock = clock
         self.min_interval = min_interval
         self.retry_delay = retry_delay
+        self.rate_limit_delay = rate_limit_delay
         self.timeout = timeout
         self.live_calls = 0
 
@@ -96,9 +104,13 @@ class QlooClient:
 
         data = self._call(operation, input_)
         envelope = Envelope.parse(data)
-        if envelope.retryable:
-            # The harness's recovery text says to retry the same request once.
-            self.sleep(self.retry_delay)
+        for attempt in range(1, RETRIES.get(operation, 1) + 1):
+            if not envelope.retryable:
+                break
+            # A rate limit gets a longer wait than other retryable errors, and a longer one
+            # again on a second try.
+            limited = envelope.error is not None and envelope.error.code == "QLOO_RATE_LIMIT"
+            self.sleep((self.rate_limit_delay if limited else self.retry_delay) * attempt)
             data = self._call(operation, input_)
             envelope = Envelope.parse(data)
 

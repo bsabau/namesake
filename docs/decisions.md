@@ -31,7 +31,7 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 **Decided:**
 - The agent ranks at most 5 resolved titles with one `rank` call per profile.
 - If that call fails, the agent keeps its own order and the profile says so.
-- It never retries `rank` beyond the client's single retry.
+- It never retries `rank` beyond the client's retries. Revised 18 October (decision 20): the client gives `rank` two retries after a rate limit, 20 and 40 seconds apart, because a refusal costs the titles their order and one retry after 5 seconds was not enough at the 2-second spacing; still never more, and only when Qloo marks the error retryable.
 
 **Why:**
 - `rank` with ten options was refused four times in a row, while other workflows sent in between went through. It seems to cost more than other calls.
@@ -273,7 +273,7 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** lists cannot be complete. The model is still told to avoid real people and identity-coded names, and the volunteer chooses and approves; the lists catch the famous cases when the model does not.
 
-## 20. Pet titles from the area's own lists, sorted by a classifier; the Qloo spacing lowered
+## 20. Pet titles from the area's own lists, sorted by a classifier; the Qloo spacing revisited
 
 **Decided** (the author, 17 October, after the probes in `docs/qloo-findings.md`: "lets do it now, also the limit change"):
 - Namesake's AI gets a fourth tool, `find_local_titles`: for one of its found pet titles and a kind (TV, films, books), `recommend` with that title as the signal plus `signal_location`, 20 results: what people around the area who like it also like. Up to three searches per profile. The titles found join the AI's own in the one `rank` call for the area, now up to 8 titles.
@@ -281,7 +281,7 @@ The refusal keeps the edit and names the missing words.
 - Jev gets a title's name, kind and Qloo's description, nothing about a visitor, an animal or a place. Answers are cached in SQLite by the title as described, the questions and the model, so a title is classified once; any failure of Jev or its cache leaves the title to the AI, and after the first failure a run stops asking. Its privacy policy says inputs are not used for training; retention is "as long as reasonably necessary", and it is hosted in the US.
 - A pet title coded to a religion, race or political identity is refused by `check_plan`, with the word lists of decision 19 (the area's lists carry such titles). A title the classifier marks as about real people (≥ 0.8) gives only animals' names, like one whose description says so (checks version 10).
 - The page shows where each found title came from ("3rd of 20 in Qloo's list of TV shows people around Austin who like PAW Patrol tend to like") in Qloo's column of the Why panel, and the classifier's scores in the reading column, with a credit in the footer. A name from a found title is badged "liked here by fans of PAW Patrol".
-- The Qloo spacing drops from 5 to 2 seconds (`QLOO_MIN_INTERVAL`), and the profile upgrade's from 120 to 10: 30 calls 10 seconds apart passed on 17 October. Both are settings, so they go back up if Qloo refuses; `deploy/make_env.py` now passes `QLOO_MIN_INTERVAL` and the `TYPESAFE_*` settings to the host.
+- The Qloo spacing dropped from 5 to 2 seconds (`QLOO_MIN_INTERVAL`), and the profile upgrade's from 120 to 10: 30 calls 10 seconds apart passed on 17 October. On 18 October `rank` was refused at 2 seconds in a live run for Hoboken, even after its retry, so the default went back to 5; a rate limit now waits 20 seconds before the retry, and `rank`, which runs once per profile, gets a second retry after 40. Both spacings are settings; `deploy/make_env.py` now passes `QLOO_MIN_INTERVAL` and the `TYPESAFE_*` settings to the host.
 
 **Why:** the AI proposes titles a broad US audience knows, so its list does not change with the area; only the ranking reorders it. Searching from its titles into the area's own lists finds pet titles that are strong there: in one recorded run for Austin the two titles Qloo ranked were both found this way, and in a probe for Barcelona the AI's own titles mostly had no ranking at all (`docs/qloo-findings.md`). The area's top lists alone hold almost no pet titles (1 of 30 in Park Slope), so the search starts from a pet title. A classifier, rather than the AI alone, sorts the 20 results because it gives a probability per question and is cheap (about $0.001 for 60 titles in the probes); the AI still decides every unclear case, with a reason, and Qloo's ranking still decides the order.
 
