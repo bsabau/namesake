@@ -1,8 +1,31 @@
-// Map of the selected shelter location: Leaflet with OpenStreetMap tiles.
+// Map of the selected shelter location: Leaflet over the basemap the view model names.
 // The preset locations come from the page (#map-points, the view model's list);
 // picking a location card moves the map there. Right-click (long-press on a phone)
 // asks the view model's pick_url (/api/places/at) for the areas around that spot; choosing one sends its
 // name to the location form, with the spot as the visit's pin.
+
+// The basemap under the map, from the view model's tiles (MapTiles in app/views/): a light
+// and a dark tile URL, the attribution and the subdomains. Nothing here names a tile
+// server; with the MAP_TILES_KEY setting the URLs are CARTO's, without it OpenStreetMap's.
+// The dark URL is used when the browser prefers a dark scheme, and the map follows a
+// change of scheme. When both URLs are the same (OpenStreetMap), the container is marked
+// so the stylesheet can quieten the tiles instead.
+function addBasemap(map, container, tiles) {
+  if (!tiles || !tiles.url) return;
+  const dark = matchMedia("(prefers-color-scheme: dark)");
+  let layer = null;
+  const show = () => {
+    if (layer) layer.remove();
+    layer = L.tileLayer(dark.matches ? tiles.dark_url || tiles.url : tiles.url, {
+      maxZoom: tiles.max_zoom || 19,
+      subdomains: tiles.subdomains || "abc",
+      attribution: tiles.attribution || "",
+    }).addTo(map);
+  };
+  show();
+  dark.addEventListener("change", show);
+  if (!tiles.dark_url || tiles.dark_url === tiles.url) container.classList.add("tiles-plain");
+}
 
 (function () {
   const container = document.getElementById("location-map");
@@ -33,11 +56,9 @@
   // The grid can settle after the map is created; re-measure so no tiles are missing.
   new ResizeObserver(() => map.invalidateSize()).observe(container);
 
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  }).addTo(map);
+  // The basemap comes from the view model (#map-tiles: CARTO with a key, else OpenStreetMap).
+  const tiles = document.getElementById("map-tiles");
+  addBasemap(map, container, tiles ? JSON.parse(tiles.textContent) : null);
 
   const accent = getComputedStyle(document.documentElement)
     .getPropertyValue("--accent").trim() || "#d96a4a";

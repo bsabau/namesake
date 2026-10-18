@@ -557,3 +557,63 @@ def test_a_venue_that_stands_out_says_so_in_plain_words(roster):
     view = build_result_view(roster.get("dog-02"), LOCATION, profile())
     standing = [v for v in view.venues if v.stands_out]
     assert standing and all(v.badge == "Stands out for fans of pet-themed titles" for v in standing)
+
+
+def test_map_tiles_are_carto_with_a_key_and_openstreetmap_without(monkeypatch):
+    from app.config import get_settings
+    from app.views.build import map_tiles
+
+    monkeypatch.setattr(get_settings(), "map_tiles_key", "test-key")
+    tiles = map_tiles()
+    assert (
+        tiles.url == "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=test-key"
+    )
+    assert (
+        tiles.dark_url
+        == "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=test-key"
+    )
+    assert tiles.subdomains == "abcd" and tiles.max_zoom == 20
+    assert "openstreetmap.org/copyright" in tiles.attribution
+    assert "carto.com/attributions" in tiles.attribution
+
+    monkeypatch.setattr(get_settings(), "map_tiles_key", "")
+    plain = map_tiles()
+    assert plain.url == plain.dark_url == "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    assert plain.subdomains == "" and plain.max_zoom == 19
+    assert "CARTO" not in plain.attribution and "key" not in plain.url
+
+
+def test_every_map_carries_its_tiles(roster, monkeypatch):
+    from app.config import get_settings
+
+    locations = load_locations(get_settings().locations_file)
+    monkeypatch.setattr(get_settings(), "map_tiles_key", "test-key")
+    start = build_start_view(roster, locations, locations[0].id)
+    result = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    assert "key=test-key" in start.map_tiles.url and "key=test-key" in result.map.tiles.url
+    # Served as JSON too: the key is a public basemap key that reaches the browser.
+    assert "test-key" in result.model_dump_json()
+
+
+def test_the_animal_card_lists_the_record_and_what_is_unknown(roster):
+    from app.views.build import animal_card
+
+    card = animal_card(roster.get("dog-02"))
+    assert card.facts == ["Needs an owner comfortable with a big dog", "Knows basic commands"]
+    assert card.unknown == ["children", "dogs", "cats", "house-training", "bite history"]
+    card = animal_card(roster.get("cat-03"))
+    assert card.facts[-2:] == ["Best without other dogs", "Best without cats"]
+    assert "dogs" not in card.unknown and "children" in card.unknown
+    card = animal_card(roster.get("dog-01"))
+    assert card.facts == ["Good with children", "House-trained"]
+
+
+def test_story_headings_use_the_animals_pronoun(roster):
+    her = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    assert her.story_heading == "Let's tell her story."
+    assert her.introduction_heading == "Her introduction"
+    assert her.travel_heading == "Help her story travel"
+    assert her.story_lead.endswith("A plan for getting her seen.")
+    him = build_result_view(roster.get("dog-01"), LOCATION, profile())
+    assert him.story_heading == "Let's tell his story."
+    assert him.introduction_heading == "His introduction"

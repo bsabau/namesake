@@ -46,8 +46,8 @@ def client(monkeypatch):
     return TestClient(main.app)
 
 
-def test_both_skins_are_found():
-    assert {"classic", "warm"} <= set(main.UIS)
+def test_every_skin_is_found():
+    assert {"classic", "warm", "story"} <= set(main.UIS)
 
 
 def test_the_default_ui_is_warm():
@@ -175,12 +175,15 @@ def test_the_default_ui_is_served_at_the_root(client):
     assert f"/ui/{get_settings().ui}/static/style.css?v={version}" in client.get("/").text
 
 
-def test_the_warm_font_is_self_hosted_and_cacheable(client):
-    fonts = main.UI_ROOT / "warm" / "static" / "fonts"
+@pytest.mark.parametrize("ui", ["warm", "story"])
+def test_the_fonts_are_self_hosted_and_cacheable(client, ui):
+    fonts = main.UI_ROOT / ui / "static" / "fonts"
     files = sorted(fonts.glob("*.woff2"))
     assert files and (fonts / "OFL.txt").exists(), "the font ships with its licence"
+    if ui == "story":
+        assert (fonts / "OFL-fraunces.txt").exists(), "Fraunces ships with its licence"
     for path in files:
-        response = client.get(f"/ui/warm/static/fonts/{path.name}")
+        response = client.get(f"/ui/{ui}/static/fonts/{path.name}")
         assert response.status_code == 200
         # Registered in app/main.py: a slim Linux image has no mime.types file for .woff2.
         assert response.headers["content-type"] == "font/woff2"
@@ -226,3 +229,49 @@ def test_the_venues_note_is_labelled_as_namesakes_reading(client, ui):
         "/result", params={"animal": "dog-02", "location": "park-slope", "ui": ui}
     ).text
     assert 'data-role="venues-note"><span>Namesake:</span>' in page
+
+
+def test_story_maps_take_their_tiles_from_the_view_model(client, monkeypatch):
+    # The basemap is the view model's (CARTO with the MAP_TILES_KEY setting, else
+    # OpenStreetMap); the scripts never name a tile server, let alone a key.
+    for name in ["result-map.js", "location-map.js"]:
+        script = (main.UI_ROOT / "story" / "static" / name).read_text(encoding="utf-8")
+        assert "addBasemap(map, container" in script
+        assert (
+            "key=" not in script and "cartocdn" not in script and "tile.openstreetmap" not in script
+        )
+    monkeypatch.setattr(get_settings(), "map_tiles_key", "test-key")
+    start = client.get("/", params={"ui": "story"}).text
+    assert 'id="map-tiles"' in start and "key=test-key" in start
+    result = client.get(
+        "/result", params={"animal": "dog-02", "location": "park-slope", "ui": "story"}
+    ).text
+    assert "dark_all" in result and "key=test-key" in result
+
+
+def test_the_story_result_tells_the_story_in_order(client):
+    # The structure the skin was built to (docs/img/story-structure.png, decision 24).
+    page = client.get(
+        "/result", params={"animal": "dog-02", "location": "park-slope", "ui": "story"}
+    ).text
+    marks = [
+        "tell her story.",
+        "Choose a name",
+        'data-role="qloo-part"',
+        "Her introduction",
+        'data-role="approve"',
+        "Want to adjust the wording?",
+        "Not yet known, so not mentioned",
+        "Behind this story",
+        'data-role="qloo-returned"',
+        'data-role="our-reading"',
+        "Help her story travel",
+        'data-role="map"',
+        "Places to ask",
+        'data-role="venues-note"',
+        "Other ways to help",
+        'data-role="qloo-credit"',
+    ]
+    positions = [page.index(mark) for mark in marks]
+    assert positions == sorted(positions), marks
+    assert "What we know" in page and "Still to learn: children" in page

@@ -6,7 +6,7 @@ This is the technical tour: the parts, who decides what, how a request flows thr
 
 ```mermaid
 flowchart LR
-    browser["Browser<br/>warm UI (default) or classic:<br/>Jinja pages, a little JavaScript,<br/>Leaflet map"]
+    browser["Browser<br/>warm UI (default), story or classic:<br/>Jinja pages, a little JavaScript,<br/>Leaflet map"]
     subgraph app["One container: FastAPI app"]
         routes["Routes<br/>app/main.py"]
         views["View models<br/>app/views/"]
@@ -52,7 +52,7 @@ flowchart LR
 - **A classifier sorts titles the AI finds in the area's lists** (decision 20): TypeSafe's Jev answers yes-or-no questions with a probability (pets central, dogs, cats, family audience, real people). Code keeps the clear pet titles, sets the clear others aside, and leaves the rest to the AI. It receives a title's name, kind and Qloo's description only; its answers are cached; without a key, or after a failure, the AI judges the titles itself.
 - **Plain code checks everything the AI returns** before anything is saved or shown. The checks are PydanticAI output validators (`check_plan`, `check_draft`): a failed check goes back to the model with its reasons, as its one repair round. `check_plan` asks that every title and venue came from Qloo in this run, that no picked venue is screened out or a listed national chain, that a place standing out near the top or middle of Qloo's list is picked or rejected with a reason, that no title is identity-coded, and that the plan keeps each title the venues were asked for.
 - **Qloo's answer and Namesake's reading stay apart.** View models carry them as separate fields, and the UI contract test checks that both render, along with the summary of each party's part at the top of the result (`data-role="qloo-part"`) (`data-role="qloo-returned"` and `"our-reading"`).
-- **The UI is a replaceable skin.** Routes build typed view models (`app/views/`); a UI folder (`app/ui/<name>/`) only renders them, and the same view models are served as JSON under `/api/`. `warm` is the default and `classic` is kept for comparison (decision 21); `?ui=<name>` switches UI per request, and the contract test runs against both.
+- **The UI is a replaceable skin.** Routes build typed view models (`app/views/`); a UI folder (`app/ui/<name>/`) only renders them, and the same view models are served as JSON under `/api/`. `warm` is the default, `story` tells the result as a story to two mockups (decision 24), and `classic` is kept for comparison (decision 21); `?ui=<name>` switches UI per request, and the contract test runs against all three. The map's basemap is a view-model piece too (`MapTiles`): CARTO's Positron and Dark Matter with the `MAP_TILES_KEY` setting, OpenStreetMap's tiles without; story's map scripts read it from the page, warm and classic keep their OpenStreetMap layer.
 
 ## Who decides what
 
@@ -268,7 +268,8 @@ Everything that differs between machines is an environment variable (`.env` loca
 | `NEW_LOCATIONS_PER_DAY` | 10 | new typed areas checked per day |
 | `GEOCODER_URL` | Photon's public server | empty turns suggestions, the map pick and the venue pins off |
 | `TYPESAFE_API_KEY`, `TYPESAFE_BASE_URL`, `TYPESAFE_MODEL` | none, TypeSafe's API, `jev-latest` | the title classifier; without a key it is off and the AI judges the titles; an `https://` base URL only |
-| `UI` | `warm` | the default interface (`classic` is kept) |
+| `UI` | `warm` | the default interface (`story` and `classic` are kept) |
+| `MAP_TILES_KEY` | none | a CARTO basemap key for the story skin's maps (Positron light, Dark Matter dark); without it, OpenStreetMap's standard tiles. It reaches the browser, where tile requests come from, so it is a public key restricted by domain in CARTO's dashboard |
 
 ## Limits and safety
 
@@ -276,7 +277,7 @@ Everything that differs between machines is an environment variable (`.env` loca
 - **Visitors**: live runs are capped per visitor per hour, and per day for everyone together; new typed areas per day. Place lookups have their own allowance (30 a minute per visitor, 120 for everyone), and only calls that reach Photon count.
 - **Classifier**: a 10-second timeout per title; any failure of Jev or its cache leaves the title to the AI, and after the first failed call a run uses saved answers only, so a slow classifier costs one timeout.
 - **Model**: the per-run request and tool-call limits above, and one repair round. Then the profile falls back to a fixed lookup with the seed titles, and the listing to a templated one that says why.
-- **Secrets** live in environment variables (`SecretStr`, never logged) and, on the server, in a `.env` with mode 600 that CI never touches.
+- **Secrets** live in environment variables (`SecretStr`, never logged) and, on the server, in a `.env` with mode 600 that CI never touches. The one exception that reaches the browser is the map tile key (`MAP_TILES_KEY`): tile requests come from the visitor's browser, so the page carries it in its map JSON; it is a public basemap key, restricted by domain, and still never committed.
 
 ## Testing and delivery
 

@@ -8,6 +8,7 @@ from app.agent.listing_agent import Lookalike, NameOption
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
 from app.classify import bucket
+from app.config import get_settings
 from app.custom_location import MIN_CELLS
 from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, pronouns, templated_listing
 from app.locations import Location
@@ -39,6 +40,7 @@ from app.views.models import (
     LitterMateView,
     LocationOption,
     MapCell,
+    MapTiles,
     MapView,
     NameOptionView,
     NameView,
@@ -63,6 +65,7 @@ VENUES_IN_PLAN = 3
 # Within this, a place gets a walking estimate and the map frames its pin.
 WALKABLE_KM = 3
 OBJECT_PRONOUN = {"female": "her", "male": "him"}
+POSSESSIVE = {"female": "her", "male": "his"}
 CHECK_LABELS = {
     "good_with_children": "children",
     "good_with_dogs": "dogs",
@@ -120,6 +123,33 @@ PIN_NOTE = (
 )
 
 
+OSM_ATTRIBUTION = (
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+)
+CARTO_ATTRIBUTION = OSM_ATTRIBUTION + ' &copy; <a href="https://carto.com/attributions">CARTO</a>'
+# CARTO's raster basemaps take the key as `?key=` (carto.com/basemaps, "Get your API key").
+CARTO_TILES = "https://{{s}}.basemaps.cartocdn.com/{style}/{{z}}/{{x}}/{{y}}{{r}}.png?key={key}"
+OSM_TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+
+
+def map_tiles(key: str | None = None) -> MapTiles:
+    """The basemap for every map: CARTO's Positron (light) and Dark Matter (dark) with the
+    `MAP_TILES_KEY` setting, else OpenStreetMap's standard tiles. The key goes to the
+    browser on purpose: tile requests come from there (AGENTS.md, Secrets)."""
+    key = get_settings().map_tiles_key if key is None else key
+    if key:
+        return MapTiles(
+            url=CARTO_TILES.format(style="light_all", key=key),
+            dark_url=CARTO_TILES.format(style="dark_all", key=key),
+            attribution=CARTO_ATTRIBUTION,
+            subdomains="abcd",
+            max_zoom=20,
+        )
+    return MapTiles(
+        url=OSM_TILES, dark_url=OSM_TILES, attribution=OSM_ATTRIBUTION, subdomains="", max_zoom=19
+    )
+
+
 def location_option(
     location: Location, selected: bool = False, pin: tuple[float, float] | None = None
 ) -> LocationOption:
@@ -166,6 +196,34 @@ def added_photo_url(animal: Animal, has_photo: bool) -> str:
     return f"/photos/{animal.id}" if has_photo else PLACEHOLDER_PHOTO
 
 
+CONFIRMED_LINES = {
+    "good_with_children": {"yes": "Good with children", "no": "Not for a home with children"},
+    "good_with_dogs": {"yes": "Gets on with dogs", "no": "Best without other dogs"},
+    "good_with_cats": {"yes": "Gets on with cats", "no": "Best without cats"},
+    "house_trained": {"yes": "House-trained", "no": "Not yet house-trained"},
+    "bite_history": {"yes": "A bite on record", "no": "No bite on record"},
+}
+
+
+def recorded_facts(animal: Animal) -> list[str]:
+    """The shelter's record as short lines: the observed facts, then the confirmed answers,
+    each as the record has it. Nothing unrecorded, and nothing read into it."""
+    confirmed = [
+        CONFIRMED_LINES[field][answer]
+        for field in CHECK_SENTENCES
+        if (answer := getattr(animal.checks, field)) in CONFIRMED_LINES[field]
+    ]
+    return [cap(f.rstrip(".")) for f in animal.facts] + confirmed
+
+
+def unknown_checks(animal: Animal) -> list[str]:
+    return [
+        CHECK_LABELS[field]
+        for field in CHECK_SENTENCES
+        if getattr(animal.checks, field) == "unknown"
+    ]
+
+
 def animal_card(animal: Animal, image_url: str | None = None) -> AnimalCard:
     added = image_url is not None
     return AnimalCard(
@@ -180,6 +238,8 @@ def animal_card(animal: Animal, image_url: str | None = None) -> AnimalCard:
         badges=(["added by you"] if added else [])
         + (["litter"] if animal.litter else [])
         + (["long stay"] if any("months" in h for h in animal.history) else []),
+        facts=recorded_facts(animal),
+        unknown=unknown_checks(animal),
     )
 
 
@@ -237,6 +297,7 @@ def build_start_view(
             "taste data about pet-themed shows near the shelter."
         ),
         locations=options,
+        map_tiles=map_tiles(),
         animals=(added or []) + [animal_card(a) for a in animals],
         litters=[litter_card(lit) for lit in roster.litters],
     )
@@ -285,11 +346,7 @@ def listing_view(
         ListingSentence(text=t, basis=", ".join(dict.fromkeys(basis_label(k) for k in keys)))
         for t, keys in bio
     ]
-    unknown = [
-        CHECK_LABELS[field]
-        for field in CHECK_SENTENCES
-        if getattr(animal.checks, field) == "unknown"
-    ]
+    unknown = unknown_checks(animal)
     left_out = []
     if unknown:
         left_out.append(f"Not yet known, so not mentioned: {and_list(unknown)}.")
@@ -659,6 +716,7 @@ def map_view(
         shelter_radius_m=shelter_radius(location),
         pin=Pin(latitude=pin[0], longitude=pin[1]) if pin else None,
         cells=cells,
+        tiles=map_tiles(),
         venues=[
             VenuePin(
                 number=n,
@@ -1316,6 +1374,13 @@ def build_result_view(
         ),
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
         plan=plan(animal, location, ordered, named_skips),
+        story_heading=f"Let's tell {POSSESSIVE.get(animal.sex or '', 'their')} story.",
+        story_lead=(
+            "A name from local taste data. An introduction from the shelter's records. "
+            f"A plan for getting {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen."
+        ),
+        introduction_heading=f"{cap(POSSESSIVE.get(animal.sex or '', 'their'))} introduction",
+        travel_heading=f"Help {POSSESSIVE.get(animal.sex or '', 'their')} story travel",
         qloo_returned=returned,
         our_reading=reading,
         notes=profile.notes,

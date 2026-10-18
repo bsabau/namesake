@@ -1,5 +1,6 @@
-// Picking another name option shows the local version as it reads with that name.
-// Every value comes from the view model, carried on the option; nothing is built here.
+// Picking another name option shows the local version as it reads with that name, and
+// the "Why this name?" pair for it. Every value comes from the view model, carried on
+// the option or already in the page; nothing is built here.
 document.addEventListener("change", (event) => {
   const input = event.target;
   if (input.name !== "local_name") return;
@@ -15,4 +16,7 @@ document.addEventListener("change", (event) => {
   const choice = document.querySelector('input[name="variant"][value="local"]');
   const text = choice && choice.parentElement.querySelector(".version-choice-text");
   if (text) text.textContent = input.dataset.choice;
+  document.querySelectorAll("[data-name-detail]").forEach((pair) => {
+    pair.hidden = pair.dataset.nameDetail !== input.value;
+  });
 });
