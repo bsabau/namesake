@@ -7,6 +7,7 @@ import re
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
 import app.main as main
 from app.config import get_settings
@@ -46,8 +47,8 @@ def client(monkeypatch):
     return TestClient(main.app)
 
 
-def test_both_skins_are_found():
-    assert {"classic", "warm"} <= set(main.UIS)
+def test_every_skin_is_found():
+    assert {"classic", "warm", "story"} <= set(main.UIS)
 
 
 def test_the_default_ui_is_warm():
@@ -175,12 +176,15 @@ def test_the_default_ui_is_served_at_the_root(client):
     assert f"/ui/{get_settings().ui}/static/style.css?v={version}" in client.get("/").text
 
 
-def test_the_warm_font_is_self_hosted_and_cacheable(client):
-    fonts = main.UI_ROOT / "warm" / "static" / "fonts"
+@pytest.mark.parametrize("ui", ["warm", "story"])
+def test_the_fonts_are_self_hosted_and_cacheable(client, ui):
+    fonts = main.UI_ROOT / ui / "static" / "fonts"
     files = sorted(fonts.glob("*.woff2"))
     assert files and (fonts / "OFL.txt").exists(), "the font ships with its licence"
+    if ui == "story":
+        assert (fonts / "OFL-fraunces.txt").exists(), "Fraunces ships with its licence"
     for path in files:
-        response = client.get(f"/ui/warm/static/fonts/{path.name}")
+        response = client.get(f"/ui/{ui}/static/fonts/{path.name}")
         assert response.status_code == 200
         # Registered in app/main.py: a slim Linux image has no mime.types file for .woff2.
         assert response.headers["content-type"] == "font/woff2"
@@ -226,3 +230,135 @@ def test_the_venues_note_is_labelled_as_namesakes_reading(client, ui):
         "/result", params={"animal": "dog-02", "location": "park-slope", "ui": ui}
     ).text
     assert 'data-role="venues-note"><span>Namesake:</span>' in page
+
+
+def test_story_maps_take_their_tiles_from_the_view_model(client, monkeypatch):
+    # The basemap is the view model's (CARTO with the MAP_TILES_KEY setting, else
+    # OpenStreetMap); the scripts never name a tile server, let alone a key.
+    for name in ["result-map.js", "location-map.js"]:
+        script = (main.UI_ROOT / "story" / "static" / name).read_text(encoding="utf-8")
+        assert "addBasemap(map, container" in script
+        assert (
+            "key=" not in script and "cartocdn" not in script and "tile.openstreetmap" not in script
+        )
+    monkeypatch.setattr(get_settings(), "map_tiles_key", SecretStr("test-key"))
+    start = client.get("/", params={"ui": "story"}).text
+    assert 'id="map-tiles"' in start and "key=test-key" in start
+    result = client.get(
+        "/result", params={"animal": "dog-02", "location": "park-slope", "ui": "story"}
+    ).text
+    assert "dark_all" in result and "key=test-key" in result
+
+
+def test_the_story_result_tells_the_story_in_order(client):
+    # The structure the skin was built to (docs/img/story-structure.png, decision 24).
+    page = client.get(
+        "/result", params={"animal": "dog-02", "location": "park-slope", "ui": "story"}
+    ).text
+    marks = [
+        "tell her story.",
+        "Choose a name",
+        'data-role="qloo-part"',
+        "Her introduction",
+        'data-role="approve"',
+        "Want to adjust the wording?",
+        "Not yet known, so not mentioned",
+        "Behind this story",
+        'data-role="qloo-returned"',
+        'data-role="our-reading"',
+        "Help her story travel",
+        'data-role="map"',
+        "Places to ask",
+        'data-role="venues-note"',
+        "Other ways to help",
+        'data-role="qloo-credit"',
+    ]
+    positions = [page.index(mark) for mark in marks]
+    assert positions == sorted(positions), marks
+    assert "What we know" in page and "Still to learn: children" in page
+
+
+@pytest.mark.parametrize("ui", main.UIS)
+def test_a_name_options_title_always_carries_the_qloo_label(ui):
+    # The title under a name is Qloo's answer: wherever a skin prints it, the line carries
+    # the Qloo label on an evidence line, never bare under Namesake's name.
+    template = (main.UI_ROOT / ui / "templates" / "result.html").read_text(encoding="utf-8")
+    lines = [line for line in template.splitlines() if "option.title" in line]
+    assert lines, f"{ui} result: no name option title"
+    for line in lines:
+        assert "evidence" in line and "<span>Qloo" in line, f"{ui}: {line.strip()}"
+
+
+def test_story_maps_fall_back_when_the_keyed_basemap_fails():
+    # A refused key, a quota or an outage must not leave the map blank: after a few tile
+    # errors the scripts switch to the fallback the view model names (OpenStreetMap).
+    for name in ["result-map.js", "location-map.js"]:
+        script = (main.UI_ROOT / "story" / "static" / name).read_text(encoding="utf-8")
+        assert (
+            "tileerror" in script and "fallback_url" in script and "fallback_attribution" in script
+        )
+        assert "tileload" in script
+
+
+# The map script, run in node with a stub Leaflet, so the fallback's behaviour is tested,
+# not only its wording. The page's IIFE finds no map container and returns at once.
+BASEMAP_HARNESS = """
+const made = [];
+globalThis.L = { tileLayer(url, options) {
+  const layer = { url, options, handlers: {}, on(e, cb) { this.handlers[e] = cb; return this; },
+    addTo() { made.push(this); return this; }, remove() {} };
+  return layer;
+} };
+const schemeListeners = [];
+globalThis.matchMedia = () => ({
+  matches: false, addEventListener: (_, cb) => schemeListeners.push(cb),
+});
+globalThis.document = { getElementById: () => null };
+const classes = new Set();
+const container = { classList: {
+  toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)), add: (c) => classes.add(c),
+} };
+%s
+const tiles = {
+  url: "https://keyed.example/{z}", dark_url: "https://keyed-dark.example/{z}",
+  attribution: "keyed", subdomains: "abcd", max_zoom: 20,
+  fallback_url: "https://plain.example/{z}", fallback_attribution: "plain", fallback_max_zoom: 19,
+};
+addBasemap({}, container, tiles);
+const out = [];
+const current = () => made[made.length - 1];
+const fire = (e) => current().handlers[e] && current().handlers[e]();
+// Two errors, a loaded tile, two more errors: still the keyed layer.
+fire("tileerror"); fire("tileerror"); fire("tileload"); fire("tileerror"); fire("tileerror");
+out.push(current().url);
+// A scheme change starts a fresh count (the loaded tile first clears the two pending).
+fire("tileload"); fire("tileerror"); fire("tileerror");
+schemeListeners.forEach((cb) => cb());
+fire("tileerror"); fire("tileerror");
+out.push(current().url);
+// Three in a row: the fallback, with its own attribution, and the plain-tiles mark.
+fire("tileerror");
+out.push(current().url, current().options.attribution);
+out.push(String(classes.has("tiles-plain")), String(made.length));
+console.log(JSON.stringify(out));
+"""
+
+
+@pytest.mark.parametrize("name", ["result-map.js", "location-map.js"])
+def test_the_fallback_waits_for_three_errors_in_a_row(name):
+    import json
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    script = (main.UI_ROOT / "story" / "static" / name).read_text(encoding="utf-8")
+    result = subprocess.run(
+        [node, "-e", BASEMAP_HARNESS % script], capture_output=True, text=True, timeout=30
+    )
+    assert result.returncode == 0, result.stderr
+    out = json.loads(result.stdout.strip().splitlines()[-1])
+    assert out[:2] == ["https://keyed.example/{z}", "https://keyed.example/{z}"]
+    # Three layers in all: the first, the one after the scheme change, the fallback.
+    assert out[2:] == ["https://plain.example/{z}", "plain", "true", "3"]

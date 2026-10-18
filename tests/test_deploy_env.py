@@ -78,3 +78,12 @@ def test_the_geocoder_setting_goes_to_the_host_even_when_empty(tmp_path):
         *files(tmp_path, LOCAL + "GEOCODER_URL=\n"), "172.18.0.0/16", "proxy_default"
     )
     assert env["GEOCODER_URL"] == "" and "GEOCODER_URL=\n" in make_env.render(env)
+
+
+def test_the_map_tiles_key_goes_to_the_host_and_is_optional(tmp_path):
+    env = make_env.build_env(
+        *files(tmp_path, LOCAL + "MAP_TILES_KEY=fake-tiles-key\n"), "172.18.0.0/16", "proxy_default"
+    )
+    assert env["MAP_TILES_KEY"] == "fake-tiles-key"
+    env = make_env.build_env(*files(tmp_path), "172.18.0.0/16", "proxy_default")
+    assert "MAP_TILES_KEY" not in env

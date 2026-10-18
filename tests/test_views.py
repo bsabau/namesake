@@ -1,6 +1,7 @@
 import re
 
 import pytest
+from pydantic import SecretStr
 
 from app.locations import load_locations
 from app.profile import LocationProfile, Venue, build_profile, rank_band
@@ -557,3 +558,295 @@ def test_a_venue_that_stands_out_says_so_in_plain_words(roster):
     view = build_result_view(roster.get("dog-02"), LOCATION, profile())
     standing = [v for v in view.venues if v.stands_out]
     assert standing and all(v.badge == "Stands out for fans of pet-themed titles" for v in standing)
+
+
+def test_map_tiles_are_carto_with_a_key_and_openstreetmap_without(monkeypatch):
+    from app.config import get_settings
+    from app.views.build import map_tiles
+
+    monkeypatch.setattr(get_settings(), "map_tiles_key", SecretStr("test-key"))
+    tiles = map_tiles()
+    assert (
+        tiles.url == "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=test-key"
+    )
+    assert (
+        tiles.dark_url
+        == "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=test-key"
+    )
+    assert tiles.subdomains == "abcd" and tiles.max_zoom == 20
+    assert "openstreetmap.org/copyright" in tiles.attribution
+    assert "carto.com/attributions" in tiles.attribution
+
+    monkeypatch.setattr(get_settings(), "map_tiles_key", None)
+    plain = map_tiles()
+    assert plain.url == plain.dark_url == "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    assert plain.subdomains == "" and plain.max_zoom == 19
+    assert "CARTO" not in plain.attribution and "key" not in plain.url
+    # A keyed basemap that keeps failing gives way to OpenStreetMap, named by the view model.
+    assert tiles.fallback_url == plain.url and tiles.fallback_attribution == plain.attribution
+    assert plain.fallback_url == ""
+
+
+def test_every_map_carries_its_tiles(roster, monkeypatch):
+    from app.config import get_settings
+
+    locations = load_locations(get_settings().locations_file)
+    monkeypatch.setattr(get_settings(), "map_tiles_key", SecretStr("test-key"))
+    start = build_start_view(roster, locations, locations[0].id)
+    result = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    assert "key=test-key" in start.map_tiles.url and "key=test-key" in result.map.tiles.url
+    # Served as JSON too: the key is a public basemap key that reaches the browser.
+    assert "test-key" in result.model_dump_json()
+    # But never in a settings dump: it is a SecretStr like the other keys.
+    assert "test-key" not in repr(get_settings())
+
+
+def test_the_animal_card_lists_the_record_and_what_is_unknown(roster):
+    from app.views.build import animal_card
+
+    card = animal_card(roster.get("dog-02"))
+    assert card.facts == ["Needs an owner comfortable with a big dog", "Knows basic commands"]
+    assert card.unknown == ["children", "dogs", "cats", "house-training", "bite history"]
+    card = animal_card(roster.get("cat-03"))
+    assert card.facts[-2:] == ["Best without other dogs", "Best without cats"]
+    assert "dogs" not in card.unknown and "children" in card.unknown
+    card = animal_card(roster.get("dog-01"))
+    assert card.facts == ["Good with children", "House-trained"]
+
+
+def test_story_headings_use_the_animals_pronoun(roster):
+    her = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    assert her.story_heading == "Let's tell her story."
+    assert her.introduction_heading == "Her introduction"
+    assert her.travel_heading == "Help her story travel"
+    assert her.story_lead.endswith("A plan for getting her seen.")
+    him = build_result_view(roster.get("dog-01"), LOCATION, profile())
+    assert him.story_heading == "Let's tell his story."
+    assert him.introduction_heading == "His introduction"
+
+
+def test_the_confirmed_lines_cover_every_check():
+    from app.listing import CHECK_SENTENCES
+    from app.views.build import CONFIRMED_LINES
+
+    assert set(CONFIRMED_LINES) == set(CHECK_SENTENCES)
+    for field, lines in CONFIRMED_LINES.items():
+        assert set(lines) == set(CHECK_SENTENCES[field]) == {"yes", "no"}
+
+
+def test_a_check_the_lines_do_not_know_is_skipped_not_an_error(roster, monkeypatch):
+    from app.views import build
+
+    monkeypatch.setattr(build, "CONFIRMED_LINES", {})
+    assert build.animal_card(roster.get("dog-01")).facts == []
+
+
+def test_the_story_leads_are_true_of_each_version(roster):
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile())  # no draft
+    assert view.story_lead.startswith("No local name yet: it needs a run of Namesake's AI. ")
+    assert view.story_lead_generic.startswith(
+        "A common pet name from a fixed list, not from Qloo. "
+    )
+    assert view.story_lead.endswith("A plan for getting her seen.")
+    assert view.story_lead_generic.endswith("A plan for getting her seen.")
+
+
+def test_the_process_steps_say_what_happened_for_a_fixed_lookup(roster):
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    facts, context, interpret = view.process
+    assert facts.title == "Start with the facts" and "fixed template" in facts.detail
+    assert context.title == "Add local context"
+    # The fixed lookup's fake profile has the area's watched list, places and cells but no
+    # ranking: it says so.
+    assert context.detail.startswith(
+        f"Qloo returned its list of titles watched around {LOCATION.label}, 4 places near "
+        "the shelter for fans of"
+    )
+    assert "map cells within" in context.detail
+    assert context.detail.endswith("Its ranking of the titles was unavailable.")
+    assert "ranking of" not in context.detail.split(".")[0]
+    assert interpret.title == "Interpret and check"
+    assert interpret.detail.startswith("The titles are a fixed lookup, so no AI judged them; ")
+    assert "the names and the introduction are a fixed template" in interpret.detail
+    assert "code added the shelter's confirmed answers" in interpret.detail
+    assert (
+        "classifier" not in interpret.detail and "checked that every place" not in interpret.detail
+    )
+
+
+def test_the_process_steps_name_the_classifier_and_the_ais_part_for_an_agent_profile(roster):
+    from app.profile import FoundIn, PetVerdict
+
+    p = agent_profile()
+    p.order_source, p.ranked = "agent", []
+    p.pet_entities[0].found_in = FoundIn(
+        signal="x", kind="tv_show", position=2, out_of=20, by_tags=True
+    )
+    p.pet_entities[0].verdict = PetVerdict(
+        pets=0.5, dogs=0.5, cats=0.1, family=0.9, real_people=0.05
+    )
+    facts, context, interpret = build_result_view(roster.get("dog-02"), LOCATION, p).process
+    assert context.detail.startswith(
+        f"Qloo returned lists of titles people around {LOCATION.label} tend to like, asked "
+        "with its pet tags"
+    )
+    assert context.detail.endswith("Its ranking of the titles was unavailable.")
+    assert interpret.detail.startswith(
+        "A classifier (TypeSafe's Jev) sorted the titles in Qloo's lists and kept the clear "
+        "pet titles; Namesake's AI judged 1 unclear title, added 1 title of its own, picked "
+        "1 of the places to ask and set the order, as Qloo's ranking was unavailable; "
+    )
+    assert "kept a title only with Qloo's evidence for the area" in interpret.detail
+    assert "checked that every place came from Qloo" in interpret.detail
+
+
+def test_the_process_steps_for_an_empty_profile_promise_nothing(roster):
+    p = LocationProfile(location_id=LOCATION.id)
+    facts, context, interpret = build_result_view(roster.get("dog-02"), LOCATION, p).process
+    assert context.detail == f"Qloo returned nothing for {LOCATION.label} yet."
+    assert "fixed lookup" in interpret.detail
+
+
+def test_the_process_steps_say_when_the_ais_own_titles_stayed_without_evidence(roster):
+    # Decision 22: no evidence for any title keeps the AI's own, and the step says so, as
+    # "Who chose" does; it never claims the titles were kept only with Qloo's evidence.
+    p = agent_profile()
+    p.titles_confirmed, p.ranked, p.order_source = False, [], "agent"
+    for e in p.pet_entities:
+        e.found_in = e.listed_in = None
+    _, context, interpret = build_result_view(roster.get("dog-02"), LOCATION, p).process
+    assert "Namesake's AI's own titles were kept" in interpret.detail
+    assert "added 2 titles of its own" in interpret.detail
+    assert "kept a title only with Qloo's evidence" not in interpret.detail
+    assert "Its ranking of the titles was unavailable." in context.detail
+    p.titles_confirmed = True
+    _, _, interpret = build_result_view(roster.get("dog-02"), LOCATION, p).process
+    assert "kept a title only with Qloo's evidence for the area" in interpret.detail
+
+
+def test_the_process_steps_count_every_way_qloo_listed_a_title(roster):
+    from app.profile import Entity, FoundIn
+
+    p = agent_profile()
+    p.ranked, p.venues, p.cells = [], [], []
+    # Found by a search with one of its titles, not by the pet tags.
+    p.pet_entities[0].found_in = FoundIn(
+        signal="Example Cat Show", kind="tv_show", position=3, out_of=20
+    )
+    _, context, _ = build_result_view(roster.get("dog-02"), LOCATION, p).process
+    assert context.detail.startswith(
+        "Qloo returned lists of what people here who like its titles also tend to like"
+    )
+    assert "pet tags" not in context.detail
+    # Listed in a better place elsewhere, and the area's own watched list, count too.
+    p.pet_entities[0].found_in = None
+    p.pet_entities[0].listed_in = FoundIn(
+        signal="x", kind="movie", position=1, out_of=20, by_tags=True
+    )
+    p.local_tastes = [
+        Entity(
+            id="00000000-0000-4000-8000-00000000aa01",
+            name="Example Local",
+            type="urn:entity:tv_show",
+        )
+    ]
+    _, context, _ = build_result_view(roster.get("dog-02"), LOCATION, p).process
+    assert context.detail.startswith(
+        f"Qloo returned lists of titles people around {LOCATION.label} tend to like, asked "
+        f"with its pet tags and its list of titles watched around {LOCATION.label}."
+    )
+    assert "nothing" not in context.detail
+
+
+def test_the_process_steps_count_the_place_cards_the_page_shows(roster):
+    # A pick the code screens out, or skips for this animal, is not counted as picked.
+    p = agent_profile()
+    for v in p.venues:
+        v.chosen_reason = "a reason"
+    kids = next(v for v in p.venues if v.name == "Community Hall")
+    kids.description = "A hall with a playgroup for children."
+    cat = roster.get("cat-03").model_copy(deep=True)
+    cat.checks.good_with_children = "no"
+    view = build_result_view(cat, LOCATION, p)
+    _, _, interpret = view.process
+    assert f"picked {len(view.venues)} of the places to ask" in interpret.detail
+    # The strip at the top says the same number as the step and the cards.
+    assert f"picked {len(view.venues)} of the places to ask" in view.qloo_part.ai
+    assert "Community Hall" not in [v.name for v in view.venues]
+    everyone = build_result_view(roster.get("dog-02"), LOCATION, p)
+    assert f"picked {len(everyone.venues)} of the places to ask" in everyone.process[2].detail
+    assert f"picked {len(everyone.venues)} of the places to ask" in everyone.qloo_part.ai
+    assert len(everyone.venues) == len(view.venues) + 1
+
+
+def test_the_local_lead_follows_the_listings_state(roster):
+    from app.agent.results import CHECKS_VERSION, ListingResult
+    from tests.test_product import saved_listing
+
+    animal = roster.get("dog-02")
+
+    # The AI ran, but its draft failed the checks: the page falls back and says why.
+    def fell_back(reason):
+        return ListingResult(
+            animal_id=animal.id,
+            location_id=LOCATION.id,
+            checks_version=CHECKS_VERSION,
+            fallback_reason=reason,
+        )
+
+    failed = fell_back(
+        "The draft from Namesake's AI did not pass the checks after one repair, so this is "
+        "the templated listing."
+    )
+    view = build_result_view(animal, LOCATION, profile(), failed)
+    assert view.story_lead.startswith("No local name yet: Namesake's AI's draft did not pass")
+    # The pipeline's other two reasons are not a failed draft: the paper says which.
+    for reason in [
+        "No model is configured, so this is the templated listing.",
+        "Qloo returned no titles to draw names from.",
+    ]:
+        view = build_result_view(animal, LOCATION, profile(), fell_back(reason))
+        assert view.story_lead.startswith("No local name yet: the templated listing says why. ")
+        assert view.listing.fallback_note == reason
+    # A draft whose first name is a lookalike: Qloo found the title, the AI matched it.
+    listing = saved_listing()
+    listing.draft.names[0].source = "lookalike"
+    view = build_result_view(animal, LOCATION, profile(), listing)
+    assert view.story_lead.startswith("A name from a lookalike title Qloo found, matched by")
+    # A pet-themed title with local evidence.
+    view = build_result_view(animal, LOCATION, profile(), saved_listing())
+    assert view.story_lead.startswith("A name from local taste data. ")
+    assert view.story_lead_generic.startswith(
+        "A common pet name from a fixed list, not from Qloo. "
+    )
+
+
+def test_the_leads_for_a_litter_named_as_a_set(roster):
+    from app.views.models import LitterMateView
+    from tests.test_product import saved_listing
+
+    kitten = roster.get("kitten-01")
+    mates = [
+        LitterMateView(name="Bingo", url="/a", current=True),
+        LitterMateView(name="Biscuit", url="/b"),
+    ]
+    view = build_result_view(kitten, LOCATION, profile(), saved_listing("kitten-01"), litter=mates)
+    assert view.story_lead.startswith("A name from local taste data, one of a set for the litter. ")
+    assert view.story_lead_generic.startswith(
+        "A common pet name from a fixed list, not from Qloo and not a set. "
+    )
+
+
+def test_an_ais_own_title_qloo_listed_later_stays_the_ais_own(roster):
+    # Codex, PR #37: listed_in marks local evidence, not who proposed the title.
+    from app.profile import FoundIn
+
+    p = agent_profile()
+    before = build_result_view(roster.get("dog-02"), LOCATION, p)
+    for e in p.pet_entities:
+        if not e.found_in:
+            e.listed_in = FoundIn(signal="x", kind="movie", position=4, out_of=20)
+    after = build_result_view(roster.get("dog-02"), LOCATION, p)
+    # The same "added N of its own" in the steps and the strip.
+    assert after.process[2].detail == before.process[2].detail
+    assert after.qloo_part.ai == before.qloo_part.ai

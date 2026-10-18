@@ -33,7 +33,7 @@ These shape most decisions below, so keep them in mind when making trade-offs. C
 
 ## Rules that always apply
 
-- **Secrets:** keys live in environment variables or the harness's private config. Never write a key into the repo, a log line, a test fixture, a browser bundle, or model prompts. `.env` is git-ignored; `.env.example` holds names only.
+- **Secrets:** keys live in environment variables or the harness's private config. Never write a key into the repo, a log line, a test fixture, a browser bundle, or model prompts. `.env` is git-ignored; `.env.example` holds names only. The map tile key (`MAP_TILES_KEY`) is the one exception that reaches the browser, because tile requests come from the visitor's browser: it is a public basemap key, restricted by domain in CARTO's dashboard, and it is still never committed.
 - **Qloo data stays out of the repo.** Qloo's terms forbid publishing its response data in a public repository. Live responses go to the SQLite cache and to the git-ignored `var/qloo-recordings/`. Tests use the hand-written envelopes in `tests/fixtures/qloo/synthetic/`, with invented IDs (`00000000-0000-4000-8000-…`) and invented names. `tests/test_no_qloo_data.py` enforces this. Precomputed examples live in the cache database, which is deployed privately and never committed. Screenshots and the README may show entity names and scores; Qloo confirmed this on Discord.
 - **No personal data to Qloo:** send cultural entities and places, never names, emails or identifiers. The app has no accounts. The same holds for the classifier (TypeSafe's Jev, decision 20): it gets a title's name, kind and Qloo's description, nothing else.
 - **How results are worded:** Qloo returns aggregate affinities. Write "people in this area tend to like X", never a claim or probability about an individual. Do not infer sensitive traits (politics, health, finances, race, religion) from taste data.
@@ -117,7 +117,7 @@ These flags cannot be combined with a custom prompt, which is why the guidelines
 | --- | --- |
 | Language and tooling | Python 3.12, uv, ruff, pytest |
 | Web | FastAPI, Jinja templates, HTMX, server-sent events for the agent's live log |
-| Map | Leaflet with OpenStreetMap tiles (keep the attribution) |
+| Map | Leaflet with OpenStreetMap tiles (keep the attribution); the story skin draws CARTO's Positron and Dark Matter when `MAP_TILES_KEY` is set, falling back to OpenStreetMap (decision 24) |
 | Agent | PydanticAI 2.x with structured output |
 | Qloo, agent-chosen calls | PydanticAI function tools over `QlooClient` (`qloo exec`), so every call is cached and spaced; see `docs/decisions.md` #5 |
 | Qloo, fixed calls | `QlooClient` (`qloo exec` as a subprocess returning JSON) |
@@ -134,7 +134,7 @@ The author wants to try more than one interface, so no screen's logic lives in a
 
 - **View models.** Each screen has a typed view model in `app/views/`, such as `StartView` or `ResultView`. Routes build it from domain objects. It holds everything the screen shows, already worded and in display order, and it contains no HTML.
 - **JSON API.** The same view models are served as JSON under `/api/` (`/api/start`, `/api/results/{id}`, and the SSE step log at `/api/runs/{id}/events`). A different interface, even a single static HTML page with a script, can be built on the API alone.
-- **UIs.** Each UI is a folder of templates and static files: `app/ui/<name>/templates/` and `app/ui/<name>/static/`. A UI only renders view models. It never calls Qloo, the agent or the cache, and it never re-derives data. The `UI` setting picks the default UI (`warm`; `classic` is the first skin, kept for comparison), and `?ui=<name>` switches UI per request so two can be compared side by side. See `docs/decisions.md` #21.
+- **UIs.** Each UI is a folder of templates and static files: `app/ui/<name>/templates/` and `app/ui/<name>/static/`. A UI only renders view models. It never calls Qloo, the agent or the cache, and it never re-derives data. The `UI` setting picks the default UI (`warm`; `story` tells the result as a story, and `classic` is the first skin, kept for comparison), and `?ui=<name>` switches UI per request so two can be compared side by side. See `docs/decisions.md` #21 and #24.
 - **Shared test contract.** Tests check the view models and the API. One smoke test, run against every UI, checks that each screen renders the elements that must be there, found by `data-role` attributes: the name, the provenance split, the map, the photo credit and the Qloo credit. A new UI passes that test or isn't finished.
 
 ## The Qloo harness: what is known
@@ -281,7 +281,7 @@ app/
   custom_location.py checks a typed shelter area with Qloo before any run
   qloo/              exec wrapper, envelope types, cache, geohash helpers
   views/             UI-neutral view models, one per screen, also served as JSON
-  ui/<name>/         one folder per UI: templates/ and static/ (warm is the default; classic is kept)
+  ui/<name>/         one folder per UI: templates/ and static/ (warm is the default; story and classic are kept)
   static/            shared assets: web-sized animal photos
 data/animals/        animals.json and original photos
 data/locations.json  the preset shelter locations

@@ -24,6 +24,23 @@ class Pin(BaseModel):
     longitude: float
 
 
+class MapTiles(BaseModel):
+    """The basemap under a map: a Leaflet tile URL template for light and dark mode, its
+    attribution and subdomains. Built from the `MAP_TILES_KEY` setting: CARTO's Positron
+    and Dark Matter with a key, OpenStreetMap's standard tiles without."""
+
+    url: str
+    dark_url: str
+    attribution: str
+    subdomains: str
+    max_zoom: int
+    # Where a map goes when the keyed basemap keeps failing (key refused, quota, outage):
+    # OpenStreetMap's tiles, with their own attribution.
+    fallback_url: str = ""
+    fallback_attribution: str = ""
+    fallback_max_zoom: int = 19
+
+
 class VenuePin(BaseModel):
     """A suggested venue on the map, numbered as in the list beside it."""
 
@@ -59,6 +76,10 @@ class AnimalCard(BaseModel):
     litter: bool
     featured: bool = False
     badges: list[str] = []
+    # What the shelter recorded, as short lines: the observed facts, then the confirmed
+    # answers; and the checks still unknown, as labels ("children", "dogs").
+    facts: list[str] = []
+    unknown: list[str] = []
 
 
 class LitterCard(BaseModel):
@@ -129,6 +150,7 @@ class StartView(BaseModel):
     # The caption under the map for the area shown first.
     map_note: str
     location_form: LocationForm = LocationForm()
+    map_tiles: "MapTiles | None" = None
     animals: list[AnimalCard]
     litters: list[LitterCard]
     add_animal_url: str = "/animals/new"
@@ -250,6 +272,7 @@ class MapView(BaseModel):
     cells: list[MapCell]
     venues: list[VenuePin] = []
     legend: str
+    tiles: MapTiles | None = None
     # A short key drawn on the map itself; the legend under it says the rest.
     note_heading: str = "What the colours mean"
     note: str | None = None
@@ -283,6 +306,14 @@ class PlanItem(BaseModel):
 
 
 class WhyItem(BaseModel):
+    title: str
+    detail: str
+
+
+class ProcessStep(BaseModel):
+    """One of the three steps behind a result, worded from what the profile and the
+    listing record: the facts, Qloo's local context, the interpretation and the checks."""
+
     title: str
     detail: str
 
@@ -354,6 +385,17 @@ class ResultView(BaseModel):
     venues_empty: str = "No venues for this area yet."
     plan_heading: str
     plan: list[PlanItem]
+    # Headings worded with the animal's pronoun ("Let's tell her story.", "Her
+    # introduction", "Help her story travel"), for a skin that tells the result as a story.
+    story_heading: str = ""
+    # The lead under the headline, for the local version and for the generic one, each
+    # true of that version (a Qloo name, a fixed-list name, or no local name yet).
+    story_lead: str = ""
+    story_lead_generic: str = ""
+    introduction_heading: str = ""
+    travel_heading: str = ""
+    # "Behind this story": three steps from the actual profile and listing (decision 24).
+    process: list[ProcessStep] = []
     qloo_returned: list[WhyItem]
     our_reading: list[WhyItem]
     notes: list[str]

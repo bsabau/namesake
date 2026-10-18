@@ -8,6 +8,7 @@ from app.agent.listing_agent import Lookalike, NameOption
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
 from app.classify import bucket
+from app.config import get_settings
 from app.custom_location import MIN_CELLS
 from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, pronouns, templated_listing
 from app.locations import Location
@@ -39,11 +40,13 @@ from app.views.models import (
     LitterMateView,
     LocationOption,
     MapCell,
+    MapTiles,
     MapView,
     NameOptionView,
     NameView,
     Pin,
     PlanItem,
+    ProcessStep,
     QlooPart,
     Question,
     ResultView,
@@ -63,6 +66,7 @@ VENUES_IN_PLAN = 3
 # Within this, a place gets a walking estimate and the map frames its pin.
 WALKABLE_KM = 3
 OBJECT_PRONOUN = {"female": "her", "male": "him"}
+POSSESSIVE = {"female": "her", "male": "his"}
 CHECK_LABELS = {
     "good_with_children": "children",
     "good_with_dogs": "dogs",
@@ -120,6 +124,38 @@ PIN_NOTE = (
 )
 
 
+OSM_ATTRIBUTION = (
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+)
+CARTO_ATTRIBUTION = OSM_ATTRIBUTION + ' &copy; <a href="https://carto.com/attributions">CARTO</a>'
+# CARTO's raster basemaps take the key as `?key=` (carto.com/basemaps, "Get your API key").
+CARTO_TILES = "https://{{s}}.basemaps.cartocdn.com/{style}/{{z}}/{{x}}/{{y}}{{r}}.png?key={key}"
+OSM_TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+
+
+def map_tiles(key: str | None = None) -> MapTiles:
+    """The basemap for every map: CARTO's Positron (light) and Dark Matter (dark) with the
+    `MAP_TILES_KEY` setting, else OpenStreetMap's standard tiles. The key goes to the
+    browser on purpose: tile requests come from there (AGENTS.md, Secrets)."""
+    if key is None:
+        secret = get_settings().map_tiles_key
+        key = secret.get_secret_value() if secret else ""
+    if key:
+        return MapTiles(
+            url=CARTO_TILES.format(style="light_all", key=key),
+            dark_url=CARTO_TILES.format(style="dark_all", key=key),
+            attribution=CARTO_ATTRIBUTION,
+            subdomains="abcd",
+            max_zoom=20,
+            # A keyed basemap that keeps failing gives way to OpenStreetMap's tiles.
+            fallback_url=OSM_TILES,
+            fallback_attribution=OSM_ATTRIBUTION,
+        )
+    return MapTiles(
+        url=OSM_TILES, dark_url=OSM_TILES, attribution=OSM_ATTRIBUTION, subdomains="", max_zoom=19
+    )
+
+
 def location_option(
     location: Location, selected: bool = False, pin: tuple[float, float] | None = None
 ) -> LocationOption:
@@ -166,6 +202,34 @@ def added_photo_url(animal: Animal, has_photo: bool) -> str:
     return f"/photos/{animal.id}" if has_photo else PLACEHOLDER_PHOTO
 
 
+CONFIRMED_LINES = {
+    "good_with_children": {"yes": "Good with children", "no": "Not for a home with children"},
+    "good_with_dogs": {"yes": "Gets on with dogs", "no": "Best without other dogs"},
+    "good_with_cats": {"yes": "Gets on with cats", "no": "Best without cats"},
+    "house_trained": {"yes": "House-trained", "no": "Not yet house-trained"},
+    "bite_history": {"yes": "A bite on record", "no": "No bite on record"},
+}
+
+
+def recorded_facts(animal: Animal) -> list[str]:
+    """The shelter's record as short lines: the observed facts, then the confirmed answers,
+    each as the record has it. Nothing unrecorded, and nothing read into it."""
+    confirmed = [
+        CONFIRMED_LINES[field][answer]
+        for field in CHECK_SENTENCES
+        if (answer := getattr(animal.checks, field)) in CONFIRMED_LINES.get(field, {})
+    ]
+    return [cap(f.rstrip(".")) for f in animal.facts] + confirmed
+
+
+def unknown_checks(animal: Animal) -> list[str]:
+    return [
+        CHECK_LABELS[field]
+        for field in CHECK_SENTENCES
+        if getattr(animal.checks, field) == "unknown"
+    ]
+
+
 def animal_card(animal: Animal, image_url: str | None = None) -> AnimalCard:
     added = image_url is not None
     return AnimalCard(
@@ -180,6 +244,8 @@ def animal_card(animal: Animal, image_url: str | None = None) -> AnimalCard:
         badges=(["added by you"] if added else [])
         + (["litter"] if animal.litter else [])
         + (["long stay"] if any("months" in h for h in animal.history) else []),
+        facts=recorded_facts(animal),
+        unknown=unknown_checks(animal),
     )
 
 
@@ -237,6 +303,7 @@ def build_start_view(
             "taste data about pet-themed shows near the shelter."
         ),
         locations=options,
+        map_tiles=map_tiles(),
         animals=(added or []) + [animal_card(a) for a in animals],
         litters=[litter_card(lit) for lit in roster.litters],
     )
@@ -285,11 +352,7 @@ def listing_view(
         ListingSentence(text=t, basis=", ".join(dict.fromkeys(basis_label(k) for k in keys)))
         for t, keys in bio
     ]
-    unknown = [
-        CHECK_LABELS[field]
-        for field in CHECK_SENTENCES
-        if getattr(animal.checks, field) == "unknown"
-    ]
+    unknown = unknown_checks(animal)
     left_out = []
     if unknown:
         left_out.append(f"Not yet known, so not mentioned: {and_list(unknown)}.")
@@ -659,6 +722,7 @@ def map_view(
         shelter_radius_m=shelter_radius(location),
         pin=Pin(latitude=pin[0], longitude=pin[1]) if pin else None,
         cells=cells,
+        tiles=map_tiles(),
         venues=[
             VenuePin(
                 number=n,
@@ -1182,7 +1246,10 @@ def plural(n: int, word: str) -> str:
 
 
 def qloo_part(
-    location: Location, profile: LocationProfile, listing: ListingResult | None
+    location: Location,
+    profile: LocationProfile,
+    listing: ListingResult | None,
+    places_shown: int | None = None,
 ) -> QlooPart:
     """Qloo's part of this result and the AI's, counted from what the profile holds: no
     calls, nothing invented. Each part says only what that party did: Qloo returned the
@@ -1219,13 +1286,15 @@ def qloo_part(
         own = [e for e in pets if not e.found_in]
         judged = [e for e in pets if e.found_in and bucket(e.verdict) != "kept"]
         # As the cards show them: a screened pick or a listed chain is left out (decision 23).
-        picked = venue_order(profile)
+        # The places the cards show (after the per-animal skip and the display cap), the
+        # same count as the process steps; without it, every place the code would suggest.
+        picked = len(venue_order(profile)) if places_shown is None else places_shown
         if own:
             ai.append(f"proposed {plural(len(own), 'title')} for Qloo to check")
         if judged:
             ai.append(f"judged {plural(len(judged), 'unclear title')}")
         if picked:
-            ai.append(f"picked {len(picked)} of the places to ask")
+            ai.append(f"picked {picked} of the places to ask")
         if len(pets) > 1 and profile.order_source != "qloo_rank":
             ai.append("set the order, as Qloo's ranking was unavailable")
     draft = listing.draft if listing else None
@@ -1244,6 +1313,137 @@ def qloo_part(
             "Not used here: the titles are a fixed lookup, and the names and bio a fixed template."
         )
     return QlooPart(qloo=qloo_text, ai=ai_text)
+
+
+def process_steps(
+    location: Location,
+    profile: LocationProfile,
+    listing: ListingResult | None,
+    places_shown: int | None = None,
+) -> list[ProcessStep]:
+    """The three steps behind this story: what each party did for this result, from what
+    the profile and the listing record. Nothing is promised that did not happen: a fixed
+    lookup, a missing ranking, titles kept without Qloo's evidence or a templated listing
+    each say so (decisions 20, 22 and 23). `places_shown` is the number of place cards the
+    page shows (after the screens and the per-animal skip); without it, `venue_order`."""
+    draft = listing.draft if listing else None
+    agent = profile.made_by == "agent"
+    pets = profile.pet_entities
+    # Every way a title can sit in one of Qloo's lists for the area: its pet-tag lists, a
+    # search by one of its titles, or the area's own watched list.
+    found = [f for e in pets for f in (e.found_in, e.listed_in) if f]
+    facts = ProcessStep(
+        title="Start with the facts",
+        detail="The shelter's record supplies every sentence of the introduction"
+        + (", written by Namesake's AI" if draft else ", built by a fixed template")
+        + ". Anything not recorded stays unsaid.",
+    )
+    returned = []
+    if any(f.by_tags for f in found):
+        returned.append(
+            f"lists of titles people around {location.label} tend to like, asked with its pet tags"
+        )
+    if any(not f.by_tags for f in found):
+        returned.append("lists of what people here who like its titles also tend to like")
+    if profile.local_tastes:
+        returned.append(f"its list of titles watched around {location.label}")
+    if profile.ranked:
+        returned.append(f"its ranking of {plural(len(profile.ranked), 'title')} here")
+    if profile.venues:
+        returned.append(
+            f"{plural(len(profile.venues), 'place')} near the shelter for fans of "
+            f"{venue_titles(profile)}"
+        )
+    if profile.cells:
+        returned.append(f"{plural(len(profile.cells), 'map cell')} within {location.label}")
+    detail = (
+        f"Qloo returned {and_list(returned)}."
+        if returned
+        else f"Qloo returned nothing for {location.label} yet."
+    )
+    if pets and not profile.ranked:
+        detail += " Its ranking of the titles was unavailable."
+    context = ProcessStep(title="Add local context", detail=detail)
+
+    did = []
+    if any(e.verdict for e in pets):
+        did.append(
+            "a classifier (TypeSafe's Jev) sorted the titles in Qloo's lists and kept the "
+            "clear pet titles"
+        )
+    checks = []
+    if agent:
+        # Who proposed a title is where it was found (found_in), as in the strip: listed_in
+        # is local evidence, and also marks an AI's own title Qloo listed later.
+        own = [e for e in pets if not e.found_in]
+        judged = [e for e in pets if e.found_in and bucket(e.verdict) != "kept"]
+        # The places the cards show, as the strip counts them: never a pick the code
+        # screened out or skipped for this animal.
+        picked = len(venue_order(profile)) if places_shown is None else places_shown
+        ai = []
+        if judged:
+            ai.append(f"judged {plural(len(judged), 'unclear title')}")
+        if own:
+            ai.append(f"added {plural(len(own), 'title')} of its own")
+        if picked:
+            ai.append(f"picked {picked} of the places to ask")
+        if len(pets) > 1 and profile.order_source != "qloo_rank":
+            ai.append("set the order, as Qloo's ranking was unavailable")
+        if ai:
+            did.append("Namesake's AI " + and_list(ai))
+        if profile.titles_confirmed:
+            checks.append("kept a title only with Qloo's evidence for the area")
+        else:
+            # Decision 22: with no evidence for any title, the AI's own stay, and the page
+            # says so (as "Who chose" does in the Why panel).
+            did.append(
+                "none of the titles has Qloo's ranking or a place in the area's lists, so "
+                "Namesake's AI's own titles were kept"
+            )
+        checks.append("checked that every place came from Qloo")
+    else:
+        did.append("the titles are a fixed lookup, so no AI judged them")
+    if draft:
+        did.append("Namesake's AI chose the names and wrote the introduction")
+        checks.append("screened the names")
+        checks.append("traced every sentence to the record")
+    else:
+        did.append("the names and the introduction are a fixed template")
+        checks.append("added the shelter's confirmed answers to the introduction")
+    did.append("code " + and_list(checks))
+    interpret = ProcessStep(title="Interpret and check", detail=cap("; ".join(did)) + ".")
+    return [facts, context, interpret]
+
+
+def story_leads(
+    animal: Animal, listing: ListingResult | None, named_as_set: bool = False
+) -> tuple[str, str]:
+    """The lead under the headline for the local version and for the generic one, each
+    true of its version's state: a name backed by local taste data, a lookalike's name (a
+    title Qloo found, matched by the AI), a set name for a litter, no local name because
+    the AI's draft failed its checks, or no run yet; and the fixed-list generic name."""
+    them = OBJECT_PRONOUN.get(animal.sex or "", "them")
+    tail = f"An introduction from the shelter's records. A plan for getting {them} seen."
+    draft = listing.draft if listing else None
+    reason = (listing.fallback_reason or "") if listing else ""
+    if draft is None and "did not pass the checks" in reason:
+        # The pipeline's third reason; the other two (no model, no titles) are not a
+        # failed draft, and the paper prints the reason itself.
+        local = "No local name yet: Namesake's AI's draft did not pass its checks. "
+    elif draft is None and reason:
+        local = "No local name yet: the templated listing says why. "
+    elif draft is None:
+        local = "No local name yet: it needs a run of Namesake's AI. "
+    elif draft.names[0].source == "lookalike":
+        local = "A name from a lookalike title Qloo found, matched by Namesake's AI. "
+    elif named_as_set:
+        local = "A name from local taste data, one of a set for the litter. "
+    else:
+        local = "A name from local taste data. "
+    generic = "A common pet name from a fixed list, not from Qloo. "
+    if named_as_set:
+        generic = "A common pet name from a fixed list, not from Qloo and not a set. "
+    return local + tail, generic + tail
 
 
 def build_result_view(
@@ -1301,7 +1501,7 @@ def build_result_view(
         location=location_option(location, True),
         litter=litter or [],
         litter_note=("Named as a set with the rest of the litter:" if len(named) > 1 else None),
-        qloo_part=qloo_part(location, profile, listing),
+        qloo_part=qloo_part(location, profile, listing, len(shown)),
         name=name_view(listing, profile, listing_.text),
         listing=listing_,
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
@@ -1316,6 +1516,12 @@ def build_result_view(
         ),
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
         plan=plan(animal, location, ordered, named_skips),
+        story_heading=f"Let's tell {POSSESSIVE.get(animal.sex or '', 'their')} story.",
+        story_lead=story_leads(animal, listing, len(named) > 1)[0],
+        story_lead_generic=story_leads(animal, listing, len(named) > 1)[1],
+        introduction_heading=f"{cap(POSSESSIVE.get(animal.sex or '', 'their'))} introduction",
+        travel_heading=f"Help {POSSESSIVE.get(animal.sex or '', 'their')} story travel",
+        process=process_steps(location, profile, listing, len(shown)),
         qloo_returned=returned,
         our_reading=reading,
         notes=profile.notes,
