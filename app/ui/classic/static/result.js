@@ -9,7 +9,7 @@ document.addEventListener("change", (event) => {
   const hook = version.querySelector(".hook");
   if (hook) hook.textContent = input.dataset.hook;
   const source = version.querySelector(".name-source-text");
-  if (source) source.textContent = input.dataset.badge;
+  if (source) source.textContent = input.dataset.source;
   const copy = document.getElementById("copy-local");
   if (copy) copy.value = input.dataset.copy;
 });

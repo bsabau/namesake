@@ -538,7 +538,7 @@ def approve(
         if option is None:
             raise HTTPException(400, "pick one of the name options")
         name, hook = option.name, option.hook
-        source = f"Qloo, {option.badge.lower()}: {option.title}"
+        source = option.approved_source
     else:
         name, source = version.name, "a fixed list of common pet names, not Qloo"
         # The generic name is worked out afresh; approve only the one the volunteer saw.
@@ -567,7 +567,7 @@ def approve(
         for v in view.listing.versions:
             v.selected = v.variant == variant
             if v.variant == "local" and variant == "local":
-                v.name, v.hook, v.name_source = name, hook, option.badge
+                v.name, v.hook, v.name_source = name, hook, option.header_source
                 v.copy_text = option.copy_text
         view.chosen_name = name if variant == "local" else view.name.value
         return render(request, chosen_ui, "result.html", view)

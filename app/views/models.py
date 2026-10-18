@@ -166,10 +166,16 @@ class AddAnimalView(BaseModel):
 
 class NameOptionView(BaseModel):
     name: str
-    # What Qloo returned: the title and where Qloo ranked it.
+    # What Qloo returned: the title, and its evidence for the area (for a lookalike, only
+    # that Qloo found the title or offered it among candidates).
     badge: str
     title: str
-    # Our reading: the reference code built from the agent's pick, and the agent's reason.
+    # Beside the Qloo pill under the name when this option is picked.
+    header_source: str
+    # Where the name came from, as an approval records it.
+    approved_source: str
+    # Our reading: the reference code built from the agent's pick, and the agent's reason
+    # (for a lookalike, after the match, which code checked against the record).
     reference: str
     why: str
     # The local version as it reads when this name is chosen.
