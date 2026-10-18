@@ -611,17 +611,29 @@ def stand_out_problems(deps: ProfileDeps, plan: ProfilePlan) -> list[str]:
         and not info["excluded"]
         and not info.get("chain")
     ]
-    picked = {v.entity_id for v in plan.venues}
-    rejected = {v.entity_id for v in plan.rejected_venues}
+    problems = []
+    picked = {v.entity_id for v in plan.venues if v.reason.strip()}
+    rejected = {v.entity_id for v in plan.rejected_venues if v.reason.strip()}
+    for v in plan.venues + plan.rejected_venues:
+        if not v.reason.strip():
+            problems.append(f"venue {v.entity_id} needs a reason")
+    for v in plan.rejected_venues:
+        if v.entity_id not in deps.latest_venues:
+            problems.append(
+                f"rejected venue {v.entity_id} is not among your latest find_venues results"
+            )
+    if both := picked & rejected:
+        problems.append(f"venues {sorted(both)} are both picked and rejected; choose one")
     if not candidates or any(c["entity_id"] in picked for c in candidates):
-        return []
-    unjudged = [c["name"] for c in candidates if c["entity_id"] not in rejected]
-    if not unjudged:
-        return []
-    return [
-        f"none of your places stands out; pick one of these that stand out ({', '.join(unjudged)})"
-        " or reject each with its reason"
-    ]
+        return problems
+    unjudged = [c for c in candidates if c["entity_id"] not in rejected]
+    if unjudged:
+        listed = ", ".join(f"{c['name']} ({c['entity_id']})" for c in unjudged)
+        problems.append(
+            f"none of your places stands out; pick one of these that stand out ({listed}), "
+            "or add each to rejected_venues with its reason"
+        )
+    return problems
 
 
 def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
