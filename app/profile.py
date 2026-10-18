@@ -67,8 +67,8 @@ class Seed(BaseModel):
 
 class Seeds(BaseModel):
     pet: list[Seed]
-    # The probe show for checking a typed area (decision 12). Since profile version 2 it
-    # is no longer the baseline: the area's own top shows are.
+    # The fallback probe for checking a typed area, after the area's own top show
+    # (decision 12). Since profile version 2 it is no longer the baseline.
     baseline: Seed
 
 
@@ -298,14 +298,19 @@ class _Builder:
         self.qloo = qloo
         self.profile = LocationProfile(location_id=location.id)
         self.tastes_ok = False
+        # Why the last call gave no answer: the exception it raised, or None.
+        self.failure: Exception | None = None
 
     def call(self, operation: str, input_: dict[str, Any], purpose: str) -> Envelope | None:
+        self.failure = None
         try:
             env = self.qloo.run(operation, input_)
-        except ReplayMiss:
+        except ReplayMiss as exc:
+            self.failure = exc
             self.profile.notes.append(f"Not precomputed yet: {purpose}.")
             return None
         except QlooExecError as exc:
+            self.failure = exc
             self.profile.notes.append(f"Qloo could not be reached for {purpose}: {exc}")
             return None
         self.profile.calls.append(
@@ -315,6 +320,7 @@ class _Builder:
         )
         if env.status == "error":
             code = env.error.code if env.error else "unknown"
+            self.failure = QlooExecError(f"Qloo returned an error ({code})")
             self.profile.notes.append(f"Qloo returned an error for {purpose} ({code}).")
             return None
         if env.status in ("partial", "degraded"):
@@ -582,8 +588,15 @@ def finish_profile(
 
 
 def resolve_baseline(qloo: QlooClient, location: Location, seed: Seed) -> Entity | None:
-    """The probe show on its own, for checking a typed area (decision 12)."""
-    return _Builder(qloo, location).resolve(seed)
+    """The seed show on its own: the fallback probe for a typed area (decision 12). None
+    when Qloo answered but no entry fits the seed's rule; a lookup that is not cached
+    (live calls off), could not reach Qloo or came back as an error raises, so the check
+    can be tried again."""
+    b = _Builder(qloo, location)
+    entity = b.resolve(seed)
+    if entity is None and b.failure is not None:
+        raise b.failure
+    return entity
 
 
 def assemble_profile(
