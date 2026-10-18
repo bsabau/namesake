@@ -15,10 +15,11 @@ function addBasemap(map, container, tiles) {
   const dark = matchMedia("(prefers-color-scheme: dark)");
   const hasFallback = Boolean(tiles.fallback_url) && tiles.fallback_url !== tiles.url;
   let layer = null;
-  let failed = 0;
+  let failed = 0; // consecutive tile errors on the keyed layer
   let fellBack = false;
   const show = () => {
     if (layer) layer.remove();
+    failed = 0;
     const plain = fellBack || !tiles.dark_url || tiles.dark_url === tiles.url;
     container.classList.toggle("tiles-plain", plain);
     const url = fellBack ? tiles.fallback_url : dark.matches ? tiles.dark_url || tiles.url : tiles.url;
@@ -28,6 +29,8 @@ function addBasemap(map, container, tiles) {
       attribution: (fellBack ? tiles.fallback_attribution : tiles.attribution) || "",
     }).addTo(map);
     if (hasFallback && !fellBack) {
+      // Only a layer that keeps failing gives way: a loaded tile resets the count.
+      layer.on("tileload", () => { failed = 0; });
       layer.on("tileerror", () => {
         failed += 1;
         if (failed >= 3) {

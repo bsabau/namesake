@@ -297,3 +297,68 @@ def test_story_maps_fall_back_when_the_keyed_basemap_fails():
         assert (
             "tileerror" in script and "fallback_url" in script and "fallback_attribution" in script
         )
+        assert "tileload" in script
+
+
+# The map script, run in node with a stub Leaflet, so the fallback's behaviour is tested,
+# not only its wording. The page's IIFE finds no map container and returns at once.
+BASEMAP_HARNESS = """
+const made = [];
+globalThis.L = { tileLayer(url, options) {
+  const layer = { url, options, handlers: {}, on(e, cb) { this.handlers[e] = cb; return this; },
+    addTo() { made.push(this); return this; }, remove() {} };
+  return layer;
+} };
+const schemeListeners = [];
+globalThis.matchMedia = () => ({
+  matches: false, addEventListener: (_, cb) => schemeListeners.push(cb),
+});
+globalThis.document = { getElementById: () => null };
+const classes = new Set();
+const container = { classList: {
+  toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)), add: (c) => classes.add(c),
+} };
+%s
+const tiles = {
+  url: "https://keyed.example/{z}", dark_url: "https://keyed-dark.example/{z}",
+  attribution: "keyed", subdomains: "abcd", max_zoom: 20,
+  fallback_url: "https://plain.example/{z}", fallback_attribution: "plain", fallback_max_zoom: 19,
+};
+addBasemap({}, container, tiles);
+const out = [];
+const current = () => made[made.length - 1];
+const fire = (e) => current().handlers[e] && current().handlers[e]();
+// Two errors, a loaded tile, two more errors: still the keyed layer.
+fire("tileerror"); fire("tileerror"); fire("tileload"); fire("tileerror"); fire("tileerror");
+out.push(current().url);
+// A scheme change starts a fresh count (the loaded tile first clears the two pending).
+fire("tileload"); fire("tileerror"); fire("tileerror");
+schemeListeners.forEach((cb) => cb());
+fire("tileerror"); fire("tileerror");
+out.push(current().url);
+// Three in a row: the fallback, with its own attribution, and the plain-tiles mark.
+fire("tileerror");
+out.push(current().url, current().options.attribution);
+out.push(String(classes.has("tiles-plain")), String(made.length));
+console.log(JSON.stringify(out));
+"""
+
+
+@pytest.mark.parametrize("name", ["result-map.js", "location-map.js"])
+def test_the_fallback_waits_for_three_errors_in_a_row(name):
+    import json
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    script = (main.UI_ROOT / "story" / "static" / name).read_text(encoding="utf-8")
+    result = subprocess.run(
+        [node, "-e", BASEMAP_HARNESS % script], capture_output=True, text=True, timeout=30
+    )
+    assert result.returncode == 0, result.stderr
+    out = json.loads(result.stdout.strip().splitlines()[-1])
+    assert out[:2] == ["https://keyed.example/{z}", "https://keyed.example/{z}"]
+    # Three layers in all: the first, the one after the scheme change, the fallback.
+    assert out[2:] == ["https://plain.example/{z}", "plain", "true", "3"]

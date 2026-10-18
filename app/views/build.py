@@ -1311,14 +1311,22 @@ def qloo_part(
 
 
 def process_steps(
-    location: Location, profile: LocationProfile, listing: ListingResult | None
+    location: Location,
+    profile: LocationProfile,
+    listing: ListingResult | None,
+    places_shown: int | None = None,
 ) -> list[ProcessStep]:
-    """ "Behind this story": what each party did for this result, from what the profile and
-    the listing record. Nothing is promised that did not happen: a fixed lookup, a missing
-    ranking or a templated listing each say so (decisions 20, 22 and 23)."""
+    """The three steps behind this story: what each party did for this result, from what
+    the profile and the listing record. Nothing is promised that did not happen: a fixed
+    lookup, a missing ranking, titles kept without Qloo's evidence or a templated listing
+    each say so (decisions 20, 22 and 23). `places_shown` is the number of place cards the
+    page shows (after the screens and the per-animal skip); without it, `venue_order`."""
     draft = listing.draft if listing else None
     agent = profile.made_by == "agent"
     pets = profile.pet_entities
+    # Every way a title can sit in one of Qloo's lists for the area: its pet-tag lists, a
+    # search by one of its titles, or the area's own watched list.
+    found = [f for e in pets for f in (e.found_in, e.listed_in) if f]
     facts = ProcessStep(
         title="Start with the facts",
         detail="The shelter's record supplies every sentence of the introduction"
@@ -1326,10 +1334,14 @@ def process_steps(
         + ". Anything not recorded stays unsaid.",
     )
     returned = []
-    if any(e.found_in and e.found_in.by_tags for e in pets):
+    if any(f.by_tags for f in found):
         returned.append(
             f"lists of titles people around {location.label} tend to like, asked with its pet tags"
         )
+    if any(not f.by_tags for f in found):
+        returned.append("lists of what people here who like its titles also tend to like")
+    if profile.local_tastes:
+        returned.append(f"its list of titles watched around {location.label}")
     if profile.ranked:
         returned.append(f"its ranking of {plural(len(profile.ranked), 'title')} here")
     if profile.venues:
@@ -1358,19 +1370,29 @@ def process_steps(
     if agent:
         own = [e for e in pets if not e.found_in]
         judged = [e for e in pets if e.found_in and bucket(e.verdict) != "kept"]
-        picked = [v for v in profile.venues if v.chosen_reason]
+        # The places the cards show, as the strip counts them: never a pick the code
+        # screened out or skipped for this animal.
+        picked = len(venue_order(profile)) if places_shown is None else places_shown
         ai = []
         if judged:
             ai.append(f"judged {plural(len(judged), 'unclear title')}")
         if own:
             ai.append(f"added {plural(len(own), 'title')} of its own")
         if picked:
-            ai.append(f"picked {len(picked)} of the places to ask")
+            ai.append(f"picked {picked} of the places to ask")
         if len(pets) > 1 and profile.order_source != "qloo_rank":
             ai.append("set the order, as Qloo's ranking was unavailable")
         if ai:
             did.append("Namesake's AI " + and_list(ai))
-        checks.append("kept a title only with Qloo's evidence for the area")
+        if profile.titles_confirmed:
+            checks.append("kept a title only with Qloo's evidence for the area")
+        else:
+            # Decision 22: with no evidence for any title, the AI's own stay, and the page
+            # says so (as "Who chose" does in the Why panel).
+            did.append(
+                "none of the titles has Qloo's ranking or a place in the area's lists, so "
+                "Namesake's AI's own titles were kept"
+            )
         checks.append("checked that every place came from Qloo")
     else:
         did.append("the titles are a fixed lookup, so no AI judged them")
@@ -1386,16 +1408,30 @@ def process_steps(
     return [facts, context, interpret]
 
 
-def story_leads(animal: Animal, listing: ListingResult | None) -> tuple[str, str]:
-    """The lead under the headline for the local version and for the generic one."""
+def story_leads(
+    animal: Animal, listing: ListingResult | None, named_as_set: bool = False
+) -> tuple[str, str]:
+    """The lead under the headline for the local version and for the generic one, each
+    true of its version's state: a name backed by local taste data, a lookalike's name (a
+    title Qloo found, matched by the AI), a set name for a litter, no local name because
+    the AI's draft failed its checks, or no run yet; and the fixed-list generic name."""
     them = OBJECT_PRONOUN.get(animal.sex or "", "them")
     tail = f"An introduction from the shelter's records. A plan for getting {them} seen."
-    local = (
-        "A name from local taste data. "
-        if listing and listing.draft
-        else "No local name yet: it needs a run of Namesake's AI. "
-    )
-    return local + tail, "A common pet name from a fixed list, not from Qloo. " + tail
+    draft = listing.draft if listing else None
+    if draft is None and listing is not None and listing.fallback_reason:
+        local = "No local name yet: Namesake's AI's draft did not pass its checks. "
+    elif draft is None:
+        local = "No local name yet: it needs a run of Namesake's AI. "
+    elif draft.names[0].source == "lookalike":
+        local = "A name from a lookalike title Qloo found, matched by Namesake's AI. "
+    elif named_as_set:
+        local = "A name from local taste data, one of a set for the litter. "
+    else:
+        local = "A name from local taste data. "
+    generic = "A common pet name from a fixed list, not from Qloo. "
+    if named_as_set:
+        generic = "A common pet name from a fixed list, not from Qloo and not a set. "
+    return local + tail, generic + tail
 
 
 def build_result_view(
@@ -1469,11 +1505,11 @@ def build_result_view(
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
         plan=plan(animal, location, ordered, named_skips),
         story_heading=f"Let's tell {POSSESSIVE.get(animal.sex or '', 'their')} story.",
-        story_lead=story_leads(animal, listing)[0],
-        story_lead_generic=story_leads(animal, listing)[1],
+        story_lead=story_leads(animal, listing, len(named) > 1)[0],
+        story_lead_generic=story_leads(animal, listing, len(named) > 1)[1],
         introduction_heading=f"{cap(POSSESSIVE.get(animal.sex or '', 'their'))} introduction",
         travel_heading=f"Help {POSSESSIVE.get(animal.sex or '', 'their')} story travel",
-        process=process_steps(location, profile, listing),
+        process=process_steps(location, profile, listing, len(shown)),
         qloo_returned=returned,
         our_reading=reading,
         notes=profile.notes,
