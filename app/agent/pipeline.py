@@ -7,6 +7,7 @@ Every failure has a fallback that is said out loud in the step log and on the pa
 """
 
 import asyncio
+import json
 from collections import defaultdict
 from collections.abc import Callable
 
@@ -21,7 +22,7 @@ from app.agent.listing_agent import (
     reference_for,
     shown_bio,
 )
-from app.agent.profile_agent import ProfileDeps, build_profile_agent
+from app.agent.profile_agent import ProfileDeps, build_profile_agent, has_evidence, pet_lists
 from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import StepLog
 from app.animals import ADDED_PREFIX, Animal
@@ -88,7 +89,12 @@ async def agent_profile(
         classifier=classifier,
     )
     agent = build_profile_agent(model, output_mode)
-    prompt = "Build the profile."
+    # Qloo's own pet-themed lists for the area come first; the AI starts from them.
+    found = await asyncio.to_thread(pet_lists, deps)
+    prompt = (
+        "Build the profile. Qloo's lists for this area, asked with its pet tags: "
+        + json.dumps(found, ensure_ascii=False)
+    )
     if baselines:
         # Said up front, so no lookup or repair round is spent on them.
         names = " and ".join(e.name for e in baselines)
@@ -99,8 +105,24 @@ async def agent_profile(
     plan = run.output
 
     chosen = {t.entity_id: t for t in plan.titles}
+    # A title stays only with Qloo's evidence for the area, when any title has it. The
+    # venues were asked for backed titles when the AI sent any (find_venues); a title they
+    # were asked for stays whatever its evidence, since the venues and the map rest on it.
+    backed = [i for i in chosen if has_evidence(deps, i)]
+    asked = deps.venue_signals or []
+    keep = [i for i in chosen if i in backed or i in asked]
+    left_out = [deps.titles_seen[i].name for i in chosen if backed and i not in keep]
+    if left_out:
+        log.add(
+            "check",
+            f"Left out {', '.join(left_out)}: Qloo neither ranks them here nor lists them for "
+            "this area",
+        )
+        chosen = {i: chosen[i] for i in keep}
     order = [i for i in (deps.rank_order or []) if i in chosen]
-    order += [t.entity_id for t in plan.titles if t.entity_id not in order]
+    order += [
+        t.entity_id for t in plan.titles if t.entity_id in chosen and t.entity_id not in order
+    ]
     pets = []
     for entity_id in order:
         entity = deps.titles_seen[entity_id].model_copy()
@@ -119,6 +141,7 @@ async def agent_profile(
         venue.chosen_reason = picks.get(venue.entity_id)
         venue.rejected_reason = rejects.get(venue.entity_id)
     profile.made_by = "agent"
+    profile.left_out_titles, profile.titles_confirmed = left_out, bool(backed)
     profile.order_source = "qloo_rank" if deps.rank_order else "agent"
     # Qloo's full order, so a badge reports the position Qloo actually gave.
     profile.ranked = list(deps.rank_order or [])
