@@ -1373,8 +1373,6 @@ def process_steps(
         )
     checks = []
     if agent:
-        # A title is the AI's own when none of Qloo's lists holds it (found_in or
-        # listed_in); one Qloo listed was judged unless the classifier kept it outright.
         # Who proposed a title is where it was found (found_in), as in the strip: listed_in
         # is local evidence, and also marks an AI's own title Qloo listed later.
         own = [e for e in pets if not e.found_in]
