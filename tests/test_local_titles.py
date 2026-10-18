@@ -488,3 +488,64 @@ def test_a_ranked_found_title_shows_both_badges():
     assert name_badge("pet", PUPPY_SCHOOL, profile) == (
         "Pet-themed title, ranked 1st of 1 here by Qloo; liked here by fans of Example Dog Show"
     )
+
+
+# Venue and map titles by evidence (TODO A3)
+
+
+def test_qloos_ranking_decides_which_titles_the_venues_are_asked_for():
+    from app.agent.profile_agent import evidence_order
+
+    d = deps(FakeClassifier(VERDICTS))
+    find_local_titles(ctx(d), DOG_SHOW, "tv_show")
+    d.titles_seen[CAT_SHOW] = Entity(
+        id=CAT_SHOW, name="Example Cat Show", type="urn:entity:tv_show"
+    )
+    d.rank_order = [CAT_SHOW, PUPPY_SCHOOL]
+    # Ranked first, in Qloo's order; then found titles by their place; then the AI's own.
+    assert evidence_order(d, [DOG_SHOW, CAT_SHOW, PUPPY_SCHOOL, CAT_CAFE]) == [
+        CAT_SHOW,
+        PUPPY_SCHOOL,
+        CAT_CAFE,
+        DOG_SHOW,
+    ]
+
+
+def test_without_a_ranking_found_titles_come_before_the_ais_own():
+    from app.agent.profile_agent import evidence_order
+
+    d = deps(FakeClassifier(VERDICTS))
+    find_local_titles(ctx(d), DOG_SHOW, "tv_show")
+    assert d.rank_order is None
+    # Hoboken, 18 October: the ranking was refused and the AI's first three went to the
+    # venues, while the titles found in the area's lists were left out.
+    assert evidence_order(d, [DOG_SHOW, CAT_CAFE, PUPPY_SCHOOL]) == [
+        PUPPY_SCHOOL,
+        CAT_CAFE,
+        DOG_SHOW,
+    ]
+
+
+def test_find_venues_asks_for_the_top_three_by_evidence():
+    from app.agent.profile_agent import find_venues
+
+    d = deps(FakeClassifier(VERDICTS))
+    find_local_titles(ctx(d), DOG_SHOW, "tv_show")
+    for n, name in ((CAT_SHOW, "Example Cat Show"), (SPACE_OPERA, "Example Other")):
+        d.titles_seen[n] = Entity(id=n, name=name, type="urn:entity:tv_show")
+    order = [PUPPY_SCHOOL, CAT_CAFE, DOG_SHOW]
+    d.qloo = FakeQloo(
+        {
+            key(
+                "recommend",
+                {"target_type": "place", "signals": order,
+                 "filter_location": LOCATION.query, "limit": 15},
+            ): envelope("recommend", results=[])
+        }
+    )  # fmt: skip
+    find_venues(ctx(d), [DOG_SHOW, CAT_SHOW, SPACE_OPERA, CAT_CAFE, PUPPY_SCHOOL])
+    asked = [s.text for s in d.log.steps if s.text.startswith("Finding places")]
+    assert asked == [
+        "Finding places near Example Slope for fans of Example Puppy School, Example Cat Cafe, "
+        "Example Dog Show"
+    ]

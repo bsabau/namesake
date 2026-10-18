@@ -99,7 +99,9 @@ The shelter is in {place}. You use Qloo, a taste-data service, through four tool
 4. Call rank_titles once, with up to 8 found titles of the same kind, your own and the
    local ones together, to order them for this area. If it is unavailable, keep your own
    order.
-5. Call find_venues with your top 2 or 3 titles. From the venues it returns, and only those,
+5. Call find_venues with the titles you keep. Code asks Qloo for venues for the three with
+   the strongest evidence for this area (Qloo's ranking, else their place in the area's
+   lists). From the venues it returns, and only those,
    choose up to 3 that could host an adoption event or display a flyer: public,
    family-friendly, community places such as cafes, parks, arts centres, bookshops, pet
    shops or breweries with event space. Reject private homes and residences, gyms,
@@ -348,15 +350,30 @@ def rank_titles(
     return {"status": "ranked", "order": order}
 
 
+def evidence_order(deps: ProfileDeps, entity_ids: list[str]) -> list[str]:
+    """Titles by their evidence for this area: Qloo's ranking for the area first, then
+    titles found in the area's lists by their place there, then the AI's own order. The
+    venues and the map use the top of this order, so they rest on Qloo, not on the AI's
+    say-so."""
+    ranked = [i for i in deps.rank_order or [] if i in entity_ids]
+    found = sorted(
+        (i for i in entity_ids if i not in ranked and deps.titles_seen[i].found_in),
+        key=lambda i: deps.titles_seen[i].found_in.position,
+    )
+    rest = [i for i in entity_ids if i not in ranked and i not in found]
+    return list(dict.fromkeys(ranked + found + rest))
+
+
 def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str, Any]:
-    """Places near the shelter that fans of these titles favour (up to 3 titles)."""
+    """Places near the shelter that fans of your titles favour. Send the titles you keep;
+    code asks for the three with the strongest evidence for this area."""
     deps = ctx.deps
     unknown = [i for i in entity_ids if i not in deps.titles_seen]
     if unknown:
         return {"status": f"unknown entity_ids {unknown}; look titles up first"}
     if refusal := baseline_refusal(deps, entity_ids):
         return refusal
-    ids = entity_ids[:MAX_VENUE_SIGNALS]
+    ids = evidence_order(deps, entity_ids)[:MAX_VENUE_SIGNALS]
     names = [deps.titles_seen[i].name for i in ids]
     deps.log.add(
         "qloo", f"Finding places near {deps.location.label} for fans of {', '.join(names)}"

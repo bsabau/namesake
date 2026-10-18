@@ -60,7 +60,7 @@ The hackathon asks for an agent, so this is the line that matters: where the mod
 
 | | Namesake's AI decides | Plain code does |
 |---|---|---|
-| **Area profile** | which pet-themed titles to try; which of Qloo's candidates a name means, with a stated reason; which of its titles to search the area's lists with, and which unclear titles found there are about pets; the order when Qloo's ranking is unavailable; which titles to send for venues; which venues suit an adoption event | the area's top shows and the baseline; the baseline's venues; the venue comparison; every heatmap and the map; which titles found in the area's lists to keep or set aside, from the classifier's answers |
+| **Area profile** | which pet-themed titles to try; which of Qloo's candidates a name means, with a stated reason; which of its titles to search the area's lists with, and which unclear titles found there are about pets; the order when Qloo's ranking is unavailable; which titles to keep; which venues suit an adoption event | which three titles the venues and the map are asked for, by evidence (Qloo's ranking, else their place in the area's lists, then the AI's order); the area's top shows and the baseline; the baseline's venues; the venue comparison; every heatmap and the map; which titles found in the area's lists to keep or set aside, from the classifier's answers |
 | **Listing** | which names to offer from the area's titles; which lookalike titles to check, and how to retry one that was refused (with look words quoted from the record); the bio, from the facts | the answers about children, other animals, house-training and bites; the hook line; every check |
 | **Typed area** | nothing | the probe show's lookup and the one heatmap that accepts or refuses it |
 
