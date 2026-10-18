@@ -91,12 +91,19 @@ def test_the_shelter_bar_script_is_served():
         assert client.get(f"/ui/{ui}/static/shelter-bar.js").status_code == 200
 
 
-def test_the_start_map_has_a_search_that_only_moves_it():
+def test_the_start_map_has_a_search_that_only_moves_it(monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "geocoder_url", "https://geocoder.example")
     html = client.get("/").text
-    assert 'id="map-search-text"' in html and 'aria-controls="map-search-suggestions"' in html
-    # It submits nothing: no name, so the form never sends it to Qloo.
-    field = html[
-        html.index('id="map-search-text"') - 200 : html.index('id="map-search-text"') + 400
-    ]
-    assert " name=" not in field
-    assert "Find a place on the map" in html
+    tag = re.search(r'<input id="map-search-text"[^>]*>', html).group(0)
+    # Its own form, which goes nowhere, so Enter never submits the animal picker; no name.
+    assert 'form="map-search-form"' in tag and " name=" not in tag
+    assert '<form id="map-search-form" method="dialog" hidden></form>' in html
+    assert 'aria-controls="map-search-suggestions"' in tag
+    script = client.get("/ui/warm/static/place-suggest.js").text
+    assert 'new CustomEvent("namesake:fly"' in script
+
+
+def test_without_place_lookups_there_is_no_map_search():
+    assert 'id="map-search-text"' not in client.get("/").text

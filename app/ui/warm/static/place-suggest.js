@@ -4,7 +4,16 @@
 // before. Two fields use it: the typed shelter area (picking fills the field) and the
 // search on the map (picking moves the map there, with a "namesake:fly" event).
 
-function attachSuggestions(field, list, onChoose) {
+// The selected area's centre, from the map's data, so nearby places come first.
+function nearSelected() {
+  const data = document.getElementById("map-points");
+  const checked = document.querySelector('input[name="location"]:checked');
+  if (!data || !checked) return "";
+  const p = JSON.parse(data.textContent).find((x) => x.id === checked.value);
+  return p ? `&lat=${p.latitude.toFixed(1)}&lon=${p.longitude.toFixed(1)}` : "";
+}
+
+function attachSuggestions(field, list, onChoose, near = nearSelected) {
   if (!field || !list || !field.dataset.suggestUrl) return;
 
   let timer = null;
@@ -34,15 +43,6 @@ function attachSuggestions(field, list, onChoose) {
     close();
     field.focus();
     onChoose(place);
-  };
-
-  // The selected area's centre, from the map's data, so nearby places come first.
-  const near = () => {
-    const data = document.getElementById("map-points");
-    const checked = document.querySelector('input[name="location"]:checked');
-    if (!data || !checked) return "";
-    const p = JSON.parse(data.textContent).find((x) => x.id === checked.value);
-    return p ? `&lat=${p.latitude.toFixed(1)}&lon=${p.longitude.toFixed(1)}` : "";
   };
 
   const show = (places) => {
@@ -121,7 +121,11 @@ attachSuggestions(
   search.addEventListener("keydown", (event) => {
     if (event.key === "Enter") event.preventDefault();
   });
-  attachSuggestions(search, document.getElementById("map-search-suggestions"), (place) => {
-    document.dispatchEvent(new CustomEvent("namesake:fly", { detail: place }));
-  });
+  // Unbiased: the search is for going somewhere else, not near the area selected.
+  attachSuggestions(
+    search,
+    document.getElementById("map-search-suggestions"),
+    (place) => document.dispatchEvent(new CustomEvent("namesake:fly", { detail: place })),
+    () => "",
+  );
 })();

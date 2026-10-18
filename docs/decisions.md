@@ -247,7 +247,7 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** Photon's public server promises no uptime; swapping it is one setting (`geocoder_url`) and one module (`app/places.py`). Its terms ask for fair use, which the cache and the per-visitor allowance keep to.
 
-**Revised 18 October, a search on the map:** a field above the start map, "Find a place on the map", takes the same area suggestions as the typed-area field (`/api/places`, the same allowance and rules) and only moves the map to the chosen place, so a visitor far from the presets (Barcelona, say) need not pan there by hand before right-clicking the shelter's spot. It has no name, so it never submits, and nothing goes to Qloo.
+**Revised 18 October, a search on the map:** a field above the start map, "Find a place on the map", takes the same area suggestions as the typed-area field (`/api/places`, the same allowance and rules) and only moves the map to the chosen place, so a visitor far from the presets (Barcelona, say) need not pan there by hand before right-clicking the shelter's spot. It belongs to its own empty form (`method="dialog"`), so Enter can never submit the animal picker around it, has no name, and nothing from it goes to Qloo. It is shown only when place lookups are on, and asks without the selected area's bias, since its purpose is to go elsewhere; a chosen place opens at a city-sized zoom.
 
 ## 18. The map combines the top pet titles; the baseline is the area's own top shows
 
