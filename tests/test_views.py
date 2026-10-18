@@ -837,12 +837,16 @@ def test_the_leads_for_a_litter_named_as_a_set(roster):
     )
 
 
-def test_a_title_qloo_listed_elsewhere_is_not_the_ais_own(roster):
+def test_an_ais_own_title_qloo_listed_later_stays_the_ais_own(roster):
+    # Codex, PR #37: listed_in marks local evidence, not who proposed the title.
     from app.profile import FoundIn
 
     p = agent_profile()
-    p.pet_entities[0].listed_in = FoundIn(signal="x", kind="movie", position=4, out_of=20)
-    _, _, interpret = build_result_view(roster.get("dog-02"), LOCATION, p).process
-    # One title listed (and judged, as no classifier kept it), one the AI's own.
-    assert "judged 1 unclear title" in interpret.detail
-    assert "added 1 title of its own" in interpret.detail
+    before = build_result_view(roster.get("dog-02"), LOCATION, p)
+    for e in p.pet_entities:
+        if not e.found_in:
+            e.listed_in = FoundIn(signal="x", kind="movie", position=4, out_of=20)
+    after = build_result_view(roster.get("dog-02"), LOCATION, p)
+    # The same "added N of its own" in the steps and the strip.
+    assert after.process[2].detail == before.process[2].detail
+    assert after.qloo_part.ai == before.qloo_part.ai

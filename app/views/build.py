@@ -1375,8 +1375,10 @@ def process_steps(
     if agent:
         # A title is the AI's own when none of Qloo's lists holds it (found_in or
         # listed_in); one Qloo listed was judged unless the classifier kept it outright.
-        own = [e for e in pets if not (e.found_in or e.listed_in)]
-        judged = [e for e in pets if (e.found_in or e.listed_in) and bucket(e.verdict) != "kept"]
+        # Who proposed a title is where it was found (found_in), as in the strip: listed_in
+        # is local evidence, and also marks an AI's own title Qloo listed later.
+        own = [e for e in pets if not e.found_in]
+        judged = [e for e in pets if e.found_in and bucket(e.verdict) != "kept"]
         # The places the cards show, as the strip counts them: never a pick the code
         # screened out or skipped for this animal.
         picked = len(venue_order(profile)) if places_shown is None else places_shown
