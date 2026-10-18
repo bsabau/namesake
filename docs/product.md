@@ -36,11 +36,11 @@ Name options come from three sources. Each option carries a badge naming its sou
 
 | Source | Where it comes from |
 |---|---|
-| Pet-themed, strong here | Pet-themed entities that survive the local-lift check (pipeline steps A–C) |
+| Pet-themed, strong here | Pet-themed titles with Qloo's evidence for the area (decision 22): ranked here by Qloo ("ranked 1st of 8 here by Qloo"), or placed in one of the area's lists, asked with Qloo's pet tags or for fans of another pet title ("in Qloo's list for this area asked with its pet tags", "liked here by fans of Bluey") |
 | Loved here generally | The area's top tastes by type (step E). Screened harder, because these lists lean on national hits and identity-coded titles. |
 | Has a lookalike in … | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
 
-Each option shows the Qloo entity, its type and the evidence (affinity, popularity, lift). Our reading of why it suits the animal is shown separately. The volunteer picks one. Ranking uses both affinity and popularity, so a recognisable reference beats a niche one.
+Each option shows the Qloo title, its kind and Qloo's evidence for the area (its rank here, or its place in one of the area's lists). Our reading of why it suits the animal is shown separately. The volunteer picks one. Ranking uses both affinity and popularity, so a recognisable reference beats a niche one.
 
 ## Output 3: the exposure plan
 
@@ -59,8 +59,8 @@ The plan's success measure is adoptions and returns; likes and reach are left ou
 
 | Step | Harness workflow | Who decides | Cached per |
 |---|---|---|---|
-| A. Find pet tags (dog, cat, pets, animals) | `find_tags` | probed in milestone 1 only: as filters the tags returned almost nothing, so the app does not use them | global |
-| B. Pet-themed entities strong here | `describe` for the titles the agent proposes; then `recommend` with one of them as the signal plus `signal_location`, per type (decision 20). Pet tags as filters returned almost nothing (milestone 1) | agent proposes and searches; a classifier sorts the search results; agent judges the unclear ones | location |
+| A. Pet-themed titles the area likes | `recommend` per type with the four pet tags as signals plus `signal_location` (decision 22). As filters the tags returned almost nothing (milestone 1) | code asks; a classifier sorts; agent judges the unclear ones | location |
+| B. More pet-themed entities strong here | `describe` for titles the agent adds; then `recommend` with one of them as the signal plus `signal_location`, per type (decision 20) | agent adds and searches; a classifier sorts the search results; agent judges the unclear ones; code keeps only titles Qloo ranks or lists here | location |
 | C. Local lift against a baseline | `where_popular` for the top two entities (a thin first one gives way to the next) and the area's top two shows (decision 18); lift = the entities' averaged score in a cell minus the baseline shows' | code computes; agent drops entities with no lift | entity and city |
 | D. Venues fans favour | `recommend` for places, up to three entities with the strongest evidence as signals, never an identity-coded one (code picks them), location near the shelter | agent picks about three venues, with reasons | location |
 | E. General local tastes | `recommend` with `signal_location` per type | agent proposes, screens, keeps | location |
