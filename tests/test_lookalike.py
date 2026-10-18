@@ -299,15 +299,6 @@ def test_a_single_needs_input_candidate_is_a_choice_not_a_confirmation(roster):
     assert rex.badge == "Offered as a candidate"
     assert "Qloo offered the title as its one candidate" in rex.approved_source
 
-    # A saved lookalike with no recorded match reads plainly on both sides of the Why panel.
-    result.lookalikes[0].shared_look = []
-    view = build_result_view(roster.get("dog-02"), LOCATION, profile, result)
-    reading = {i.title: i.detail for i in view.our_reading}
-    assert reading["Why Example Dog Film"].startswith(
-        "Rex in it is offered as a lookalike for this dog. That match is the reading"
-    )
-    assert next(o for o in view.name.options if o.name == "Rex").why.startswith("A lookalike. ")
-
 
 def test_lookalikes_come_only_from_stories():
     # muse: a brand is not a story with an animal in it.
@@ -319,7 +310,7 @@ def test_lookalikes_come_only_from_stories():
 
 
 def test_a_lookalike_badge_claims_only_what_qloo_did_with_the_title():
-    from app.views.build import look_line, name_badge
+    from app.views.build import approved_source, look_line, name_badge
 
     assert name_badge("lookalike", DOG_FILM, None) == "Title found"
     look = Lookalike(entity=Entity(id=DOG_FILM, name="Example Dog Film", type="urn:entity:movie"),
@@ -328,6 +319,29 @@ def test_a_lookalike_badge_claims_only_what_qloo_did_with_the_title():
     # With no recorded match to show, the AI's line says only that it is a lookalike.
     assert look_line(NameOption(**REX), look) == "A lookalike. "
     assert look_line(NameOption(**REX), None) == "A lookalike. "
+    look.candidates = 3
+    assert approved_source(
+        NameOption(**REX), "Offered as a candidate", "Example Dog Film", look
+    ) == (
+        "a lookalike title, Example Dog Film: Qloo offered the title among candidates, "
+        "and the match is the reading of Namesake's AI"
+    )
+
+
+def test_a_lookalike_with_no_recorded_match_reads_plainly(roster):
+    result, store, _ = run(
+        LookalikeScript([PLAN], [{**DRAFT, "names": [*DRAFT["names"], REX]}]),
+        roster,
+        qloo=FakeQloo(film_script()),
+    )
+    result.lookalikes[0].shared_look = []  # as a saved result might hold it
+    profile = store.get_profile(LOCATION.id, "dog")
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile, result)
+    reading = {i.title: i.detail for i in view.our_reading}
+    assert reading["Why Example Dog Film"].startswith(
+        "Rex in it is offered as a lookalike for this dog. That match is the reading"
+    )
+    assert next(o for o in view.name.options if o.name == "Rex").why.startswith("A lookalike. ")
 
 
 def test_a_choice_reason_cannot_carry_a_taste_claim():
