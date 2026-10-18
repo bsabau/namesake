@@ -494,7 +494,8 @@ def map_view(
         and in_view(v, profile, pin or (location.latitude, location.longitude))
     ]
     numbers = (
-        " Numbers: the places to ask, as listed beside the map (points from OpenStreetMap)."
+        " Numbers: the places to ask plotted here, as numbered in the list (points from "
+        "OpenStreetMap)."
         if placed
         else ""
     )
@@ -581,13 +582,18 @@ def cell_of(v: Venue, profile: LocationProfile):
     return None
 
 
-def cell_reading(v: Venue, location: Location, profile: LocationProfile) -> str | None:
+def cell_reading(
+    v: Venue,
+    location: Location,
+    profile: LocationProfile,
+    shelter: tuple[float, float] | None = None,
+) -> str | None:
     """Where OpenStreetMap places a venue on the lift map, read in the map's own terms:
     ranks within the area, for pet-show fans as a group against the comparison shows."""
     if v.latitude is None or v.longitude is None:
         return None
     c = cell_of(v, profile)
-    if c is None and not in_view(v, profile, (location.latitude, location.longitude)):
+    if c is None and not in_view(v, profile, shelter or (location.latitude, location.longitude)):
         return "OpenStreetMap places it beyond the map's view."
     if c is None:
         return "OpenStreetMap places it outside the mapped cells."
@@ -655,7 +661,7 @@ def venue_view(
         chosen=v.chosen_reason is not None,
         reason=v.chosen_reason,
         number=number,
-        where=cell_reading(v, location, profile),
+        where=cell_reading(v, location, profile, shelter),
         distance=walk(v, shelter or (location.latitude, location.longitude)),
     )
 

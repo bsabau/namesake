@@ -164,7 +164,6 @@ class Venue(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     point_tried: bool = False
-    point_failures: int = 0
     # The agent's judgement, when an agent built the profile.
     chosen_reason: str | None = None
     rejected_reason: str | None = None
@@ -632,13 +631,12 @@ def needs_finishing(profile: LocationProfile) -> bool:
 def carry_points(src: LocationProfile, dst: LocationProfile) -> None:
     """Venue points placed on `src` (decision 4, revised), onto the same venues in `dst`
     where `dst` has none: a profile finished or placed meanwhile keeps both changes."""
-    done = {v.entity_id: v for v in src.venues if v.point_tried or v.point_failures}
+    done = {v.entity_id: v for v in src.venues if v.point_tried}
     for venue in dst.venues:
         prior = done.get(venue.entity_id)
         if prior is not None and not venue.point_tried:
             venue.latitude, venue.longitude = prior.latitude, prior.longitude
-            venue.point_tried = prior.point_tried
-            venue.point_failures = max(venue.point_failures, prior.point_failures)
+            venue.point_tried = True
 
 
 def finish_profile(

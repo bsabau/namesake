@@ -22,8 +22,6 @@ from app.store import Store
 # The venues a page may show: the AI's picks, or the first suitable ones (the page shows
 # five; one more covers a venue an animal's page skips).
 LOCATE_LIMIT = 6
-# A venue whose lookup fails this often is left without a pin.
-MAX_FAILURES = 3
 
 
 def to_locate(profile: LocationProfile) -> list[Venue]:
@@ -41,22 +39,14 @@ def locate_venues(
 ) -> int:
     """Look up the venues not yet tried; returns how many were placed. Stops quietly when
     Photon's allowance is spent: the rest are tried on a later save."""
-    placed, failed_in_a_row = 0, 0
+    placed = 0
     for venue in to_locate(profile):
         try:
             point = places.venue_point(venue.name, venue.address, near)
-        except Throttled:
-            break  # the allowance is spent: a later save tries the rest
-        except LookupFailed:
-            # Not tried yet: a later save tries again, up to MAX_FAILURES times, so one
-            # venue Photon cannot answer never holds up the others for good.
-            venue.point_failures += 1
-            venue.point_tried = venue.point_failures >= MAX_FAILURES
-            failed_in_a_row += 1
-            if failed_in_a_row >= 2:
-                break  # Photon is down: stop asking
-            continue
-        failed_in_a_row = 0
+        except (Throttled, LookupFailed):
+            # The allowance is spent, or Photon is down: nothing is counted against the
+            # venues, and a later save tries the rest. (An odd answer is no match.)
+            break
         venue.point_tried = True
         if point is not None:
             venue.latitude, venue.longitude = point.latitude, point.longitude
@@ -64,7 +54,18 @@ def locate_venues(
     return placed
 
 
+# One writer of a profile's points at a time: the placer, and a run finishing the profile
+# (save_keeping_points), which merge onto the profile as saved under the same lock.
 _locks: defaultdict[tuple[str, str], threading.Lock] = defaultdict(threading.Lock)
+
+
+def save_keeping_points(store: Store, profile: LocationProfile, location_id: str) -> None:
+    """Save a finished profile, carrying the points the placer saved meanwhile."""
+    with _locks[(location_id, profile.species)]:
+        latest = store.get_profile(location_id, profile.species)
+        if latest is not None:
+            carry_points(latest, profile)
+        store.put_profile(profile)
 
 
 def locate_saved(

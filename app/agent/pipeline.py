@@ -37,13 +37,13 @@ from app.profile import (
     baseline_for,
     baseline_venue_ids,
     build_profile,
-    carry_points,
     finish_profile,
     needs_finishing,
     profile_from,
 )
 from app.qloo.exec import QlooClient
 from app.store import Store
+from app.venue_points import save_keeping_points
 
 # Bounds on one agent run: model requests and tool calls.
 # The profile's budget allows up to three find_local_titles searches (decision 20).
@@ -173,8 +173,8 @@ async def get_profile(
             finished = await asyncio.to_thread(finish_profile, saved, location, qloo, seeds)
             if finished is not None:
                 # Venues pinned while this ran (app/venue_points.py) keep their points.
-                carry_points(store.get_profile(location.id, species) or saved, finished)
-                store.put_profile(finished)
+                finished.species = species
+                await asyncio.to_thread(save_keeping_points, store, finished, location.id)
                 return finished
             log.add("note", "Qloo could not finish it yet; using it as it is")
             return saved

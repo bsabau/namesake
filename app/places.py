@@ -220,7 +220,6 @@ class Places:
             return None
         queries = [(f"{name}, {address}", True), (address, False)] if address else [(name, True)]
         for query, named in queries:
-            self._pace()
             params = {
                 "q": " ".join(query.split())[:200],
                 "limit": 1,
@@ -272,17 +271,24 @@ class Places:
             if not self.per_visitor.take(visitor):
                 self.overall.refund("everyone")
                 raise Throttled
-            data = self.fetch(url)
+            if strict:
+                self._pace()  # right before the request, so queued lookups keep apart
+            try:
+                data = self.fetch(url)
+            except (OSError, http.client.HTTPException) as exc:
+                # Down, slow or refusing (a 429): a service failure, not an answer.
+                if strict:
+                    raise LookupFailed(type(exc).__name__) from None
+                raise
             places: list[Place] = []
             for feature in data["features"]:
                 for label, lat, lon in read(feature):
                     if label not in {p.label for p in places}:
                         places.append(Place(label=label, latitude=lat, longitude=lon))
         except (OSError, ValueError, http.client.HTTPException, LookupError, TypeError,
-                AttributeError) as exc:  # fmt: skip
-            # Down, cut off or an odd answer; not cached, so the next try may work.
-            if strict:
-                raise LookupFailed(type(exc).__name__) from None
+                AttributeError):  # fmt: skip
+            # Down, cut off or an odd answer; not cached, so the next try may work. For a
+            # venue lookup an odd answer counts as no match.
             return []
         finally:
             self._calls.release()

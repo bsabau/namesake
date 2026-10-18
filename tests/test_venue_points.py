@@ -92,10 +92,10 @@ def test_the_map_numbers_only_the_placed_venues_as_the_list_does(roster):
 def test_a_failed_lookup_is_tried_again_later():
     # Codex, muse and Flash, PR #25: a Photon outage must not leave a venue unpinned for good.
     p = profile()
-    places, fake = lookup(OSError("down"), OSError("down"))
+    places, fake = lookup(OSError("down"))
     assert locate_venues(p, NEAR, places) == 0
     assert not any(v.point_tried for v in p.venues)
-    assert len(fake.urls) == 2  # two failures in a row: Photon is down, stop asking
+    assert len(fake.urls) == 1  # Photon is down: stop asking, count nothing against venues
 
 
 def test_a_match_without_the_venues_name_falls_back_to_its_address():
@@ -143,15 +143,17 @@ def test_points_placed_meanwhile_survive_a_finished_profile_and_the_reverse():
     assert new.venues[0].latitude == 40.675
 
 
-def test_a_venue_photon_keeps_failing_on_is_given_up_after_three_tries():
-    from app.venue_points import MAX_FAILURES
-
+def test_an_odd_answer_is_no_match_and_does_not_hold_up_the_rest():
+    # Flash, PR #25: a venue whose answer is unusable must not block the others for good.
     p = profile()
-    first = to_locate(p)[0]
-    for _ in range(MAX_FAILURES):
-        places, _ = lookup(ValueError("odd"))  # then no match for the others
-        locate_venues(p, NEAR, places)
-    assert first.point_tried and first.latitude is None and first.point_failures == MAX_FAILURES
+    first, second = to_locate(p)[:2]
+    places, _ = lookup(
+        ValueError("odd"),  # the first venue's name and address
+        ValueError("odd"),  # and its address alone
+        {"features": [feature(second.name, NEAR[0] + 0.001, NEAR[1])]},
+    )
+    assert locate_venues(p, NEAR, places) == 1
+    assert first.point_tried and first.latitude is None and second.latitude is not None
 
 
 def test_a_name_match_needs_the_distinctive_words():
