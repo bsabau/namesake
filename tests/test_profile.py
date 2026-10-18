@@ -1,4 +1,4 @@
-from app.profile import build_profile, screen
+from app.profile import PROFILE_VERSION, build_profile, screen
 from tests.qloo_fakes import (
     BASELINE,
     BASELINE_2,
@@ -19,7 +19,7 @@ def test_complete_profile():
     assert p.complete and p.notes == []
     assert [e.id for e in p.pet_entities] == [DOG_SHOW, CAT_SHOW]
     assert [e.id for e in p.baselines] == [BASELINE, BASELINE_2] and p.baseline is None
-    assert [e.id for e in p.map_titles] == [DOG_SHOW, CAT_SHOW] and p.version == 2
+    assert [e.id for e in p.map_titles] == [DOG_SHOW, CAT_SHOW] and p.version == PROFILE_VERSION
 
 
 def test_ambiguous_seed_is_settled_by_its_rule_and_says_so():

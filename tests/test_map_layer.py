@@ -1,5 +1,6 @@
-"""Profile version 2: the map combines the top pet titles, and the baseline is the area's
-own top shows, leaving out pet-themed ones (decision 18). Fake Qloo, invented data only."""
+"""Profile versions 2 and 3: the map combines the top pet titles, a thin first one gives way
+to the next, and the baseline is the area's own top shows, leaving out pet-themed ones
+(decision 18). Fake Qloo, invented data only."""
 
 from types import SimpleNamespace
 
@@ -9,6 +10,7 @@ from pydantic_ai import ModelRetry
 from app.agent.profile_agent import ProfileDeps, ProfilePlan, check_plan, find_venues
 from app.agent.steps import StepLog
 from app.profile import (
+    PROFILE_VERSION,
     Entity,
     LiftCell,
     baseline_from_tastes,
@@ -16,8 +18,9 @@ from app.profile import (
     combine_cells,
     finish_profile,
     needs_finishing,
+    profile_from,
 )
-from app.views.build import build_result_view, why
+from app.views.build import build_result_view, map_view, why
 from tests.qloo_fakes import (
     BASELINE,
     BASELINE_2,
@@ -27,6 +30,7 @@ from tests.qloo_fakes import (
     LOCATION,
     SEEDS,
     FakeQloo,
+    cell,
     envelope,
     key,
     standard_script,
@@ -151,7 +155,10 @@ def test_an_upgrade_keeps_what_the_ai_chose():
         }
     )
     new = finish_profile(old, LOCATION, FakeQloo(standard_script()), SEEDS)
-    assert new.version == 2 and [e.id for e in new.baselines] == [BASELINE, BASELINE_2]
+    assert new.version == PROFILE_VERSION and [e.id for e in new.baselines] == [
+        BASELINE,
+        BASELINE_2,
+    ]
     assert [e.id for e in new.pet_entities] == [DOG_SHOW, CAT_SHOW]
     assert new.made_by == "agent" and new.order_source == "qloo_rank" and new.species == "dog"
     assert all(v.chosen_reason == "a community arts centre" for v in new.venues)
@@ -500,3 +507,209 @@ def test_category_words_in_a_show_name_count_too():
         "Example Quiz",
         "Example Bake Off",
     ]
+
+
+# The adaptive map: a thin first map title gives way to a spare one
+
+
+EXTRA = Entity(
+    id="00000000-0000-4000-8000-000000000330", name="Example Kitten Show", type="urn:entity:tv_show"
+)
+PETS = [
+    Entity(id=DOG_SHOW, name="Example Dog Show", type="urn:entity:tv_show"),
+    Entity(id=CAT_SHOW, name="Example Cat Show", type="urn:entity:tv_show"),
+    EXTRA,
+]
+BASELINES = [
+    Entity(id=BASELINE, name="Example Drama", type="urn:entity:tv_show"),
+    Entity(id=BASELINE_2, name="Example Comedy", type="urn:entity:tv_show"),
+]
+
+
+def heat_key(entity_id):
+    return key("where_popular", {"entity": entity_id, "within": LOCATION.query, "limit": 20})
+
+
+def spread(n, row="x"):
+    return [cell(f"dr5rk{k}{row}", 40.66 + k / 1000, -73.98, 0.5) for k in range(n)]
+
+
+def adaptive(script, pets=PETS, signals=(DOG_SHOW, CAT_SHOW)):
+    qloo = FakeQloo(script)
+    return qloo, profile_from(qloo, LOCATION, pets, BASELINES, list(signals))
+
+
+def test_a_thin_first_map_title_is_swapped_last_for_a_better_one(roster):
+    # Hoboken, 18 October: the first map title had 1 cell there.
+    script = standard_script()
+    script[heat_key(EXTRA.id)] = envelope("where_popular", results=spread(6))
+    qloo, p = adaptive(script)
+    # The dog show's map has 2 cells, under the bar; the spare's makes the better map.
+    assert [e.id for e in p.map_titles] == [EXTRA.id, CAT_SHOW]
+    assert p.thin_map.title.id == DOG_SHOW and p.thin_map.cells == 2
+    assert p.complete and p.maps_missing == 0 and len(p.cells) == 7
+    heatmaps = [i["entity"] for op, i in qloo.calls if op == "where_popular"]
+    # The comparison's maps come before the spare, so a refusal costs only the spare.
+    assert heatmaps == [DOG_SHOW, BASELINE, BASELINE_2, CAT_SHOW, EXTRA.id]
+    assert p.venue_signals == [DOG_SHOW, CAT_SHOW]  # the venues are not asked again
+    legend = map_view(LOCATION, p).legend
+    assert legend.startswith(
+        "Qloo returned 2 map cells for Example Dog Show within Example Slope, so the map uses "
+        "Example Kitten Show in its place. The places to ask are for fans of Example Dog Show "
+        "and Example Cat Show. "
+    )
+    # The key keeps its heading's subject first: colours, then which title is mapped.
+    assert map_view(LOCATION, p).note.endswith(
+        " Mapped: Example Kitten Show, in place of Example Dog Show."
+    )
+
+
+def test_a_full_first_map_asks_for_no_spare():
+    script = standard_script()
+    script[heat_key(DOG_SHOW)] = envelope("where_popular", results=spread(5, "y"))
+    qloo, p = adaptive(script)
+    assert [e.id for e in p.map_titles] == [DOG_SHOW, CAT_SHOW] and p.thin_map is None
+    assert ("where_popular", {"entity": EXTRA.id, "within": LOCATION.query, "limit": 20}) not in (
+        qloo.calls
+    )
+
+
+def test_a_spare_with_more_cells_but_no_comparison_does_not_replace_the_one_that_has_it():
+    # Flash, PR #14: swapping on cell count alone could lose the map's only lift.
+    script = standard_script()
+    script[heat_key(CAT_SHOW)] = envelope("where_popular", results=spread(2, "z"))
+    script[heat_key(EXTRA.id)] = envelope("where_popular", results=spread(6))
+    _, p = adaptive(script)
+    assert [e.id for e in p.map_titles] == [DOG_SHOW, CAT_SHOW] and p.thin_map is None
+    assert any(c.lift is not None for c in p.cells)
+
+
+def test_a_refused_spare_leaves_the_map_as_it_was_and_says_why():
+    _, p = adaptive(standard_script())  # the spare's heatmap is not cached: no answer
+    assert [e.id for e in p.map_titles] == [DOG_SHOW, CAT_SHOW] and p.thin_map is None
+    assert p.complete and p.maps_missing == 0
+    # A call that never reached Qloo leaves no call row, so its note is the only trace.
+    assert p.notes == ["Not precomputed yet: where fans of Example Kitten Show are, within "
+                       "Example Slope."]  # fmt: skip
+
+
+def test_a_spare_that_answered_but_was_no_better_is_marked_in_the_calls():
+    script = standard_script()
+    script[heat_key(EXTRA.id)] = envelope("where_popular", "empty")
+    _, p = adaptive(script)
+    assert p.thin_map is None and p.notes == []
+    assert p.calls[-1].purpose.endswith("(tried for a thin map, not used)")
+
+
+def test_a_map_qloo_could_not_place_is_empty_and_final():
+    # Flash, PR #14 second re-check: needs_input is cached, so counting it missing would
+    # have every later run try to finish the profile, forever. It arrives empty, with a note.
+    script = standard_script()
+    script[heat_key(BASELINE)] = envelope("where_popular", "needs_input")
+    _, p = adaptive(script)
+    assert p.maps_missing == 0 and p.complete and not needs_finishing(p)
+    assert any("could not tell which place" in n for n in p.notes)
+
+
+def test_an_upgrade_from_version_2_keeps_the_saved_comparison():
+    _, p = adaptive(standard_script())
+    old = p.model_copy(update={"version": 2, "baseline_source": "kept-for-test"})
+    new = finish_profile(old, LOCATION, FakeQloo(standard_script()), SEEDS)
+    assert new.version == PROFILE_VERSION and new.baseline_source == "kept-for-test"
+    assert [e.id for e in new.baselines] == [BASELINE, BASELINE_2]
+
+
+def test_an_empty_first_map_is_thin_too_and_the_profile_can_finish():
+    # Codex, PR #14: an answered map with no cells used to count as missing, so the spare
+    # was never tried and the profile could never finish.
+    script = standard_script()
+    script[heat_key(DOG_SHOW)] = envelope("where_popular", "empty")
+    script[heat_key(EXTRA.id)] = envelope("where_popular", results=spread(6))
+    _, p = adaptive(script)
+    assert [e.id for e in p.map_titles] == [EXTRA.id, CAT_SHOW] and p.thin_map.cells == 0
+    # The caption says it once; the gaps list does not repeat it.
+    assert p.complete and "Qloo returned no map cells for Example Dog Show." not in p.notes
+    assert "Qloo returned 0 map cells for" in map_view(LOCATION, p).legend
+
+
+def test_one_cell_is_singular_on_the_page():
+    script = standard_script()
+    script[heat_key(DOG_SHOW)] = envelope("where_popular", results=spread(1, "q"))
+    script[heat_key(EXTRA.id)] = envelope("where_popular", results=spread(6))
+    _, p = adaptive(script)
+    assert "returned 1 map cell for Example Dog Show" in map_view(LOCATION, p).legend
+
+
+def test_with_no_spare_title_the_thin_map_stays():
+    _, p = adaptive(standard_script(), pets=PETS[:2])
+    assert [e.id for e in p.map_titles] == [DOG_SHOW, CAT_SHOW] and p.thin_map is None
+
+
+def test_a_version_2_profile_is_upgraded_for_the_thin_map_check():
+    _, p = adaptive(standard_script())
+    assert not needs_finishing(p)
+    assert needs_finishing(p.model_copy(update={"version": 2}))
+
+
+def test_a_first_map_qloo_could_not_place_is_thin_and_gives_way():
+    script = standard_script()
+    script[heat_key(DOG_SHOW)] = envelope("where_popular", "needs_input")
+    script[heat_key(EXTRA.id)] = envelope("where_popular", results=spread(6))
+    _, p = adaptive(script)
+    assert p.thin_map.title.id == DOG_SHOW and p.thin_map.cells == 0 and p.complete
+
+
+def test_a_spare_that_errs_keeps_its_note_with_the_code():
+    script = standard_script()
+    script[heat_key(EXTRA.id)] = envelope(
+        "where_popular",
+        "error",
+        error={"code": "QLOO_RATE_LIMIT", "layer": "api", "retryable": True, "recovery": "wait"},
+    )
+    _, p = adaptive(script)
+    assert p.calls[-1].purpose.endswith("(tried for a thin map, not used)")
+    assert any("QLOO_RATE_LIMIT" in n for n in p.notes)
+
+
+def test_a_spare_qloo_could_not_place_is_marked_as_not_used():
+    script = standard_script()
+    script[heat_key(EXTRA.id)] = envelope("where_popular", "needs_input")
+    _, p = adaptive(script)
+    assert p.thin_map is None and p.complete
+    assert p.calls[-1].status == "needs_input"
+    assert p.calls[-1].purpose.endswith("(tried for a thin map, not used)")
+
+
+def test_a_place_qloo_cannot_map_is_finished_once_with_one_note():
+    # Flash, PR #14 third re-check: needs_input is about the place, so every map gets it;
+    # the profile must not be finished again on every run.
+    script = standard_script()
+    for entity in (DOG_SHOW, CAT_SHOW, BASELINE, BASELINE_2, EXTRA.id):
+        script[heat_key(entity)] = envelope("where_popular", "needs_input")
+    _, p = adaptive(script)
+    assert p.cells == [] and p.maps_missing == 0 and p.complete and not needs_finishing(p)
+    assert sum("could not tell which place" in n for n in p.notes) == 1
+
+
+def test_a_swapped_unplaced_map_says_so_in_the_caption():
+    script = standard_script()
+    script[heat_key(DOG_SHOW)] = envelope("where_popular", "needs_input")
+    script[heat_key(EXTRA.id)] = envelope("where_popular", results=spread(6))
+    _, p = adaptive(script)
+    assert p.thin_map.unplaced
+    assert not any("could not tell which place" in n for n in p.notes)  # the map has cells
+    assert map_view(LOCATION, p).legend.startswith(
+        "Qloo could not place Example Dog Show's map within Example Slope, so the map uses "
+        "Example Kitten Show in its place."
+    )
+
+
+def test_a_swap_keeps_the_place_note_while_a_comparison_map_is_unplaced():
+    # Codex, PR #14: the note must stay while a map still in use could not be placed.
+    script = standard_script()
+    for entity in (DOG_SHOW, BASELINE, BASELINE_2):
+        script[heat_key(entity)] = envelope("where_popular", "needs_input")
+    script[heat_key(EXTRA.id)] = envelope("where_popular", results=spread(6))
+    _, p = adaptive(script)
+    assert p.thin_map is not None
+    assert sum("could not tell which place" in n for n in p.notes) == 1
