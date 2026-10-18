@@ -450,7 +450,8 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
         venues.append(info)
     stand_out = sum(1 for v in venues if v["stands_out"])
     deps.log.add("qloo", f"{len(venues)} places; {stand_out} stand out against the baseline")
-    return {"status": "found", "asked_for": names, "venues": venues}
+    asked = [{"entity_id": i, "name": n} for i, n in zip(ids, names, strict=True)]
+    return {"status": "found", "asked_for": asked, "venues": venues}
 
 
 def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:

@@ -582,7 +582,12 @@ def test_find_venues_asks_for_the_top_three_by_evidence():
     # Found titles by their place, then the AI's own order. Example Other was set aside
     # by the classifier in that list, so looking it up later earns it no place there.
     assert d.qloo.calls[-1][1]["signals"] == order and d.venue_signals == order
-    assert out["asked_for"] == ["Example Puppy School", "Example Cat Cafe", "Example Dog Show"]
+    assert [a["name"] for a in out["asked_for"]] == [
+        "Example Puppy School",
+        "Example Cat Cafe",
+        "Example Dog Show",
+    ]
+    assert [a["entity_id"] for a in out["asked_for"]] == order
 
 
 def test_an_ais_title_in_the_areas_list_keeps_its_place_there(roster):
@@ -650,7 +655,8 @@ def test_an_identity_coded_title_is_never_a_venue_signal():
             ): envelope("recommend", results=PET_VENUES)
         }
     )  # fmt: skip
-    assert find_venues(ctx(d), [CAT_SHOW, DOG_SHOW])["asked_for"] == ["Example Dog Show"]
+    asked = find_venues(ctx(d), [CAT_SHOW, DOG_SHOW])["asked_for"]
+    assert asked == [{"entity_id": DOG_SHOW, "name": "Example Dog Show"}]
 
 
 def test_the_plan_keeps_every_title_the_venues_were_asked_for():
