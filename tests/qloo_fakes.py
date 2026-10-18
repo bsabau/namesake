@@ -171,6 +171,17 @@ def standard_script() -> dict[tuple[str, str], Envelope]:
                 "limit": 15,
             },
         ): envelope("recommend", results=PET_VENUES),
+        # The same question in Qloo's ranking order for the area, as the profile agent
+        # now asks it (venue titles by evidence).
+        key(
+            "recommend",
+            {
+                "target_type": "place",
+                "signals": [CAT_SHOW, DOG_SHOW],
+                "filter_location": q,
+                "limit": 15,
+            },
+        ): envelope("recommend", results=PET_VENUES),
         key("recommend", {"target_type": "tv_show", "signal_location": q, "limit": 10}): envelope(
             "recommend", results=LOCAL_SHOWS
         ),

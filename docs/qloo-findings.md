@@ -190,6 +190,10 @@ The question: instead of Namesake's AI proposing pet titles and Qloo checking th
 - `rank` over seven TV titles returned only three: *The Pack* (0.960), *Cesar Millan* (0.958), Bluey (0.870). PAW Patrol, Clifford, Lassie and Scooby-Doo came back with nothing for Barcelona.
 - So outside the US the AI's US-known titles mostly drop out, while the signal-led source finds pet titles that rank above Bluey there; names from both would be animals' names only, as both shows are about real people.
 
+## Venue titles when the ranking is refused (Hoboken, 18 October, one live run)
+
+`rank` was refused with `QLOO_RATE_LIMIT`, even after its retry, so the titles kept the order Namesake's AI proposed them in. The venues were asked for its first three (PAW Patrol, Bluey, Scooby-Doo), and the map's first title, PAW Patrol, scored one cell within Hoboken. The titles with evidence for the area, *Nature Cat* (9th in Qloo's list of what people around Hoboken who like PAW Patrol also like) and *My Cat from Hell*, went to neither. So code now orders the venue and map titles by evidence (decision 20, revised): Qloo's ranking, else each title's place in the area's lists, then the AI's order.
+
 ## A pet index per audience, and the rate limit (17 October, 30 calls)
 
 Top 20 TV shows, films and books for Astoria and Barcelona, for everyone and with `demographic` added (women, men, "millennials", "adults 55-64"); Jev marked the pet titles, and each list was scored as the sum of `p_pets / log2(position + 1)`.

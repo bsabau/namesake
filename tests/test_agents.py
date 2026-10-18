@@ -19,6 +19,7 @@ from tests.qloo_fakes import (
     CAT_SHOW,
     DOG_SHOW,
     LOCATION,
+    PET_VENUES,
     SEEDS,
     FakeQloo,
     envelope,
@@ -111,9 +112,10 @@ DRAFT = {
 class Script:
     """Plays the model: the profile agent's tool calls, then each queued answer."""
 
-    def __init__(self, profile_answers, listing_answers):
+    def __init__(self, profile_answers, listing_answers, venue_titles=(DOG_SHOW, CAT_SHOW)):
         self.profile_answers = list(profile_answers)
         self.listing_answers = list(listing_answers)
+        self.venue_titles = list(venue_titles)
 
     def __call__(self, messages, info):
         tools = {t.name for t in info.function_tools}
@@ -138,7 +140,7 @@ class Script:
             if "rank_titles" not in done:
                 return call("rank_titles", entity_ids=[DOG_SHOW, CAT_SHOW], kind="tv_show")
             if "find_venues" not in done:
-                return call("find_venues", entity_ids=[DOG_SHOW, CAT_SHOW])
+                return call("find_venues", entity_ids=self.venue_titles)
             return answer(self.profile_answers.pop(0))
         return answer(self.listing_answers.pop(0))
 
@@ -547,7 +549,14 @@ def test_a_badge_reports_qloos_position_even_for_a_dropped_title(roster):
     dog_only = {**PLAN, "titles": [PLAN["titles"][0]]}
     rubble = {**DRAFT["names"][2], "name": "Rubble", "character": "Rubble"}
     dog_names = {**DRAFT, "names": [DRAFT["names"][0], DRAFT["names"][2], rubble]}
-    _, store, _ = run(Script([dog_only], [dog_names]), roster)
+    # The venues are asked for the titles the plan keeps (check_plan).
+    venues = key(
+        "recommend",
+        {"target_type": "place", "signals": [DOG_SHOW], "filter_location": LOCATION.query,
+         "limit": 15},
+    )  # fmt: skip
+    qloo = FakeQloo({**full_script(), venues: envelope("recommend", results=PET_VENUES)})
+    _, store, _ = run(Script([dog_only], [dog_names], [DOG_SHOW]), roster, qloo=qloo)
     profile = store.get_profile(LOCATION.id, "dog")
     assert profile.ranked == [CAT_SHOW, DOG_SHOW]
     assert name_badge("pet", DOG_SHOW, profile) == (

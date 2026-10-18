@@ -50,7 +50,7 @@ flowchart LR
 - **One long-lived process** serves everything: pages, the JSON API, the live step log, and the background runs. Qloo's harness is a local process with no hosted URL, so serverless was never an option.
 - **Namesake's AI is two agents** (PydanticAI): a **profile agent** per area and species, and a **listing agent** per animal. Their Qloo tools are plain Python functions over `QlooClient`, so every call they make is cached and spaced like any other (decision 5).
 - **A classifier sorts titles the AI finds in the area's lists** (decision 20): TypeSafe's Jev answers yes-or-no questions with a probability (pets central, dogs, cats, family audience, real people). Code keeps the clear pet titles, sets the clear others aside, and leaves the rest to the AI. It receives a title's name, kind and Qloo's description only; its answers are cached; without a key, or after a failure, the AI judges the titles itself.
-- **Plain code checks everything the AI returns** before anything is saved or shown. The checks are PydanticAI output validators (`check_plan`, `check_draft`): a failed check goes back to the model with its reasons, as its one repair round.
+- **Plain code checks everything the AI returns** before anything is saved or shown. The checks are PydanticAI output validators (`check_plan`, `check_draft`): a failed check goes back to the model with its reasons, as its one repair round. `check_plan` asks that every title and venue came from Qloo in this run, that no title is identity-coded, and that the plan keeps each title the venues were asked for.
 - **Qloo's answer and Namesake's reading stay apart.** View models carry them as separate fields, and the UI contract test checks that both render (`data-role="qloo-returned"` and `"our-reading"`).
 - **The UI is a replaceable skin.** Routes build typed view models (`app/views/`); a UI folder (`app/ui/<name>/`) only renders them, and the same view models are served as JSON under `/api/`. `warm` is the default and `classic` is kept for comparison (decision 21); `?ui=<name>` switches UI per request, and the contract test runs against both.
 
@@ -60,7 +60,7 @@ The hackathon asks for an agent, so this is the line that matters: where the mod
 
 | | Namesake's AI decides | Plain code does |
 |---|---|---|
-| **Area profile** | which pet-themed titles to try; which of Qloo's candidates a name means, with a stated reason; which of its titles to search the area's lists with, and which unclear titles found there are about pets; the order when Qloo's ranking is unavailable; which titles to send for venues; which venues suit an adoption event | the area's top shows and the baseline; the baseline's venues; the venue comparison; every heatmap and the map; which titles found in the area's lists to keep or set aside, from the classifier's answers |
+| **Area profile** | which pet-themed titles to try; which of Qloo's candidates a name means, with a stated reason; which of its titles to search the area's lists with, and which unclear titles found there are about pets; the order when Qloo's ranking is unavailable; which titles to keep; which venues suit an adoption event | which three titles the venues and the map are asked for, by evidence (Qloo's ranking, else their best place in the area's lists, then the AI's order), never an identity-coded one, telling the AI which in `asked_for`; the area's top shows and the baseline; the baseline's venues; the venue comparison; every heatmap and the map; which titles found in the area's lists to keep or set aside, from the classifier's answers |
 | **Listing** | which names to offer from the area's titles; which lookalike titles to check, and how to retry one that was refused (with look words quoted from the record); the bio, from the facts | the answers about children, other animals, house-training and bites; the hook line; every check |
 | **Typed area** | nothing | the probe show's lookup and the one heatmap that accepts or refuses it |
 
@@ -97,7 +97,7 @@ sequenceDiagram
         P->>M: profile agent: which titles, which venues
         M->>Q: describe, then recommend titles in the area's lists (its choice)
         M->>J: inside that search, the classifier sorts what Qloo returned, before the AI sees it
-        M->>Q: rank, recommend place (its choice)
+        M->>Q: rank (its choice), recommend place (code picks the titles by evidence)
         P->>Q: fixed calls: heatmaps for the map
         P->>S: save the profile
         T->>A: write names and bio from the record
@@ -134,7 +134,7 @@ flowchart TD
     base --> basevenues["Baseline venues<br/>recommend place, baseline as signals"]
     seed --> basevenues
     basevenues --> ai["Profile agent (Namesake's AI)<br/>look_up_title: describe<br/>find_local_titles: recommend, up to 3,<br/>sorted by the classifier<br/>rank_titles: rank, once, up to 8 titles<br/>find_venues: recommend place"]
-    ai --> check{"check_plan:<br/>every title and venue<br/>came from Qloo this run?"}
+    ai --> check{"check_plan:<br/>every title and venue came from Qloo this run,<br/>passes the screens, keeps the venues' titles?"}
     check -- no --> ai
     check -- "still no, or the AI fails" --> fixed["Fixed lookup with the seed titles"]
     check -- yes --> assemble
@@ -147,7 +147,7 @@ flowchart TD
 ```
 
 - **Budget**: the profile agent may make at most 20 model requests and 18 tool calls. That is a ceiling; the whole profile, fixed calls included, usually comes to 15 to 17 Qloo calls, one more when the first map title is thin.
-- **Titles from the area's lists** (decision 20): `find_local_titles` asks what people around the area who like one of the AI's titles (or one the classifier kept) also like, for TV, films or books, 20 at a time, up to three searches. Titles the classifier sets aside never reach the AI's plan. Each found title keeps where it was found ("1st of 20 in Qloo's list of TV shows people around Austin who like PAW Patrol tend to like") and the classifier's answers, and the Why panel shows them in separate columns.
+- **Titles from the area's lists** (decision 20): `find_local_titles` asks what people around the area who like one of the AI's titles (or one the classifier kept) also like, for TV, films or books, 20 at a time, up to three searches. Titles the classifier sets aside never reach the AI's plan. Each found title keeps where it was found ("1st of 20 in Qloo's list of TV shows people around Austin who like PAW Patrol tend to like") and the classifier's answers, and the Why panel shows them in separate columns. A title listed again, or one the AI proposed that a list also holds, keeps its best place (`listed_in`), shown in Qloo's column too: that place is what orders the venue and map titles when Qloo's ranking is refused.
 - **The baseline** is the area's top two shows, leaving out any whose name or description mentions animals, a religion, race or politics (decision 18: the page names them as what people here tend to watch, which must not read as a claim about who they are); the AI may not use them as pet titles. If the area's shows are unusable, one seed show stands in, with a note. If even that cannot be found, the venues and the map are left uncompared, and the note says so.
 - **The heatmaps** run in this order: the first pet title, the baseline shows, then the second pet title, so a profile cut short still has a comparison. A refusal leaves a map missing, so the profile is finished on a later run; an answer with no cells, or a `needs_input` (cached and final), counts as an empty map. A first pet title with fewer than five cells within the area gives way to the next pet title when that makes a better map: more cells with a comparison, then more cells. Its heatmap is asked last (one extra call, only then), so a refusal costs only the spare; the map's caption and key say so, and that the venues are still for the titles they were asked for. Profiles saved before this (version 2) are brought up by `app.upgrade_profiles`.
 - **The map** is lift: in each cell, the pet titles' mean score minus the baseline shows' mean score. Within a neighbourhood, a heatmap's `query.affinity` is a rank spread from 0 to 1 inside the area (`docs/qloo-findings.md`), so ranks can be averaged and subtracted. Raw affinity saturates near 1.0, so it is never shown. Maps of different precision are brought to the coarsest one first.
