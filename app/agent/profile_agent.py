@@ -20,8 +20,9 @@ from app.profile import (
     PET_TAGS,
     Entity,
     FoundIn,
-    chain_or_fast_food,
+    chain_name,
     entity_type,
+    fast_food_mention,
     rank_band,
     screen,
     too_few,
@@ -128,8 +129,9 @@ The shelter is in {place}. You use Qloo, a taste-data service, through four tool
    choose up to 3 that could host an adoption event or display a flyer: public,
    family-friendly, community places such as cafes, parks, arts centres, bookshops, pet
    shops or breweries with event space. Reject private homes and residences, gyms,
-   nightlife-first bars, anything marked excluded, and anything marked chain (national
-   chains and fast food): prefer independent, neighbourhood places. Qloo lists venues best first, so
+   nightlife-first bars, anything marked excluded or chain, and, unless its description
+   says otherwise, anything marked fast_food: prefer independent, neighbourhood places.
+   When no independent place suits, pick none. Qloo lists venues best first, so
    rank 1 is the strongest evidence. Among suitable venues with position "top" or
    "middle", pick those marked stands_out first: they are where fans of these titles
    differ from the area's usual tastes. Then the rest by rank. Pick a venue with position
@@ -583,7 +585,8 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
             "position": rank_band(rank, total),
             "stands_out": baseline is not None and r["entity_id"] not in baseline,
             "excluded": f"screened out: {excluded}" if excluded else None,
-            "chain": chain_or_fast_food(r["name"], description),
+            "chain": chain_name(r["name"]),
+            "fast_food": fast_food_mention(description),
         }
         deps.venues_seen[r["entity_id"]] = info
         venues.append(info)
@@ -632,7 +635,7 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
             )
         elif info["excluded"]:
             problems.append(f"venue {info['name']} is {info['excluded']}")
-        elif info.get("chain"):
+        if info is not None and info.get("chain"):
             problems.append(
                 f"venue {info['name']} is {info['chain']}; pick an independent, "
                 "neighbourhood place instead"

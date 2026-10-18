@@ -52,31 +52,46 @@ LEFT_OUT_GROUPS = [
     ("restaurants and hotels", "no room for a stand"),
 ]
 CATEGORY_TAGS = [f"urn:tag:category:place:{c}" for _, cs, _ in VENUE_GROUPS for c in cs]
-# National chains and fast food: Qloo tags them as cafes, and one stood out near Astoria
-# (decided 18 October). Namesake's AI passes over them, and the plan check sends one back.
-# Pet-shop chains are not here: they hold adoption events. Names as Qloo gives them,
-# compared without punctuation or case. Chains named by an everyday word ("Target",
-# "Subway") are left to the AI: matching them would catch "Target Practice".
+# National chains: Qloo tags them as cafes, and one stood out near Astoria (decided
+# 18 October). A place whose name is a chain's, or starts with it, is never suggested
+# (`venue_order` leaves it out, the plan check sends a pick back). Pet-shop chains are not
+# here: they hold adoption events. Chains named by an everyday word ("Target", "Subway")
+# are left to the AI: matching them would catch "Target Practice". A name such as "Five
+# Guys Bakery" would match too; that rare independent place is the stated cost.
 CHAINS = (
     "mcdonalds", "starbucks", "dunkin", "burger king", "wendys", "taco bell", "kfc",
     "chipotle", "panera", "chick fil a", "popeyes", "dominos", "pizza hut", "papa johns",
     "five guys", "shake shack", "sweetgreen", "7 eleven", "cvs", "walgreens", "duane reade",
-    "walmart", "whole foods", "trader joes", "applebees", "ihop", "dennys",
-    "olive garden", "tim hortons", "panda express", "jamba", "pret a manger", "le pain quotidien",
+    "walmart", "whole foods", "trader joes", "applebees", "ihop", "dennys", "olive garden",
+    "tim hortons", "panda express", "jamba", "pret a manger", "le pain quotidien",
+    "paris baguette", "tous les jours", "blank street", "gregorys coffee", "peets coffee",
+    "joe and the juice", "blue bottle", "au bon pain", "arbys", "sonic drive in",
+    "auntie annes", "sbarro",
 )  # fmt: skip
-FAST_FOOD = ("fast food", "fast-food", "drive-thru", "drive thru", "quick-service")
+# Fast food is told to the AI from a place's description, never enforced: a description
+# may name it only to say the place is not ("an alternative to fast food").
+FAST_FOOD = re.compile(
+    r"(?<!no )(?<!not )(?<!without )(?<!alternative to )\b(fast[- ]?food|drive[- ]?thr(?:u|ough)"
+    r"|quick[- ]service)\b"
+)
 
 
-def chain_or_fast_food(name: str, description: str | None) -> str | None:
-    """Why a place is a national chain or fast food, or None (whole words of its name)."""
-    plain = " " + re.sub(r"[^a-z0-9]+", " ", name.lower().replace("'", "")).strip() + " "
-    for chain in CHAINS:
-        if f" {chain} " in plain:
-            return "a national chain"
-    text = (description or "").lower()
-    if any(word in text for word in FAST_FOOD):
-        return "fast food"
-    return None
+def plain_name(name: str) -> str:
+    """A place's name for matching: lower case, no apostrophes (straight or curly), words
+    joined by single spaces."""
+    name = re.sub(r"['‘’ʼ`]", "", name.lower())
+    return re.sub(r"[^a-z0-9]+", " ", name).strip()
+
+
+def chain_name(name: str) -> str | None:
+    """'a national chain' when the name is a listed chain's or starts with it, else None."""
+    plain = plain_name(name)
+    match = any(plain == c or plain.startswith(c + " ") for c in CHAINS)
+    return "a national chain" if match else None
+
+
+def fast_food_mention(description: str | None) -> bool:
+    return bool(FAST_FOOD.search((description or "").lower()))
 
 
 # A full answer with fewer places than this in those kinds and an area's venues are asked

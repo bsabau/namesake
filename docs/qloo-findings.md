@@ -249,3 +249,7 @@ Park Slope, the dog profile's venue titles (*My Cat from Hell*, *Bluey*, *Dogs i
 - **Place categories** (`include_tags` with `urn:tag:category:place:…`, union; tag IDs from `find_tags`, 8 calls): dog parks and breweries gave 3 breweries and no dog park; bookshops and cafes for the cat titles gave 15 places, 14 new (cafes, bakeries, Ninth Street Espresso, a children's play cafe); the final ten categories gave 15 places for the pet titles and 15 for the comparison, 13 of them shared, with a few loosely tagged places (a record bar, a lounge, a diner). No park or pet shop came back for Park Slope. There is no `category:place:bakery` tag.
 
 Decision 23 follows from this.
+
+## Chains within the kinds of place (18 October, from the example rebuild)
+
+With the venues asked within decision 23's kinds and standing-out places preferred, Astoria's dog profile picked McDonald's: Qloo tagged it as a cafe, and it was not among the places for the area's top shows, so it stood out. Park Slope's list held a beauty salon and vintage shop under the same tags. Qloo's category tags are broad: chains and loosely tagged places come through any kind filter, so the app leaves out listed chains by name and leaves the rest to Namesake's AI (decision 23, revised).
