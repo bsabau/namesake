@@ -133,7 +133,8 @@ The shelter is in {place}. You use Qloo, a taste-data service, through four tool
    says otherwise, anything marked fast_food: prefer independent, neighbourhood places.
    When no independent place suits, pick none. Qloo lists venues best first, so
    rank 1 is the strongest evidence. Among suitable venues with position "top" or
-   "middle", pick those marked stands_out first: they are where fans of these titles
+   "middle", pick those marked stands_out first (code sends back a plan that neither picks
+   one nor rejects each with its reason): they are where fans of these titles
    differ from the area's usual tastes. Then the rest by rank. Pick a venue with position
    "bottom" only when no higher one is suitable, and then say so in its reason.
 
@@ -596,6 +597,45 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
     return {"status": "found", "asked_for": asked, "venues": venues}
 
 
+def stand_out_problems(deps: ProfileDeps, plan: ProfilePlan) -> list[str]:
+    """Decided 18 October: when a place near the top or middle of Qloo's list stands out,
+    is not screened out and is not a listed chain, the plan picks one such place or rejects
+    each with a reason. Suitability stays the AI's judgement; skipping them silently does
+    not."""
+    candidates = [
+        info
+        for i, info in deps.venues_seen.items()
+        if i in deps.latest_venues
+        and info["stands_out"]
+        and info["position"] in ("top", "middle")
+        and not info["excluded"]
+        and not info.get("chain")
+    ]
+    problems = []
+    picked = {v.entity_id for v in plan.venues if v.reason.strip()}
+    rejected = {v.entity_id for v in plan.rejected_venues if v.reason.strip()}
+    for v in plan.venues + plan.rejected_venues:
+        if not v.reason.strip():
+            problems.append(f"venue {v.entity_id} needs a reason")
+    for v in plan.rejected_venues:
+        if v.entity_id not in deps.latest_venues:
+            problems.append(
+                f"rejected venue {v.entity_id} is not among your latest find_venues results"
+            )
+    if both := picked & rejected:
+        problems.append(f"venues {sorted(both)} are both picked and rejected; choose one")
+    if not candidates or any(c["entity_id"] in picked for c in candidates):
+        return problems
+    unjudged = [c for c in candidates if c["entity_id"] not in rejected]
+    if unjudged:
+        listed = ", ".join(f"{c['name']} ({c['entity_id']})" for c in unjudged)
+        problems.append(
+            f"none of your places stands out; pick one of these that stand out ({listed}), "
+            "or add each to rejected_venues with its reason"
+        )
+    return problems
+
+
 def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
     """Everything in the plan must come from Qloo during this run, pass the screens, and
     keep each title the venues were asked for."""
@@ -640,6 +680,7 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
                 f"venue {info['name']} is {info['chain']}; pick an independent, "
                 "neighbourhood place instead, or none if no independent place suits"
             )
+    problems += stand_out_problems(deps, plan)
     if deps.titles_seen and deps.venue_signals is None and not plan.venues:
         problems.append("call find_venues before answering")
     # Qloo's titles come first (decision 22): when Qloo backs a title it also judged clearly

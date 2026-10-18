@@ -361,3 +361,93 @@ def test_a_mixed_list_with_no_pick_never_claims_every_place_is_a_chain():
     for v in profile.venues:
         v.unsuitable = "a hookah lounge"
     assert empty_venues(profile).startswith("Every place Qloo listed here was screened out")
+
+
+def test_a_plan_must_pick_or_reject_a_place_that_stands_out():
+    # Decided 18 October: the AI skipped the standing-out places near Astoria.
+    from pydantic_ai import ModelRetry
+
+    from app.agent.profile_agent import ProfilePlan, check_plan
+
+    d = deps(answered(CAFES, True))
+    d.baseline_venues = [c["entity_id"] for c in CAFES if c["name"] != "Example Cafe 1"]
+    out = find_venues(SimpleNamespace(deps=d), [DOG_SHOW])
+    standing = [v for v in out["venues"] if v["stands_out"]]
+    assert [v["name"] for v in standing] == ["Example Cafe 1"]
+
+    def problems(venues, rejected=()):
+        plan = ProfilePlan(
+            titles=[{"entity_id": DOG_SHOW, "why": "dogs"}],
+            venues=[{"entity_id": i, "reason": "It hosts events."} for i in venues],
+            rejected_venues=[{"entity_id": i, "reason": "No room."} for i in rejected],
+        )
+        try:
+            check_plan(SimpleNamespace(deps=d), plan)
+        except ModelRetry as retry:
+            return str(retry)
+        return ""
+
+    first, second = CAFES[0]["entity_id"], CAFES[1]["entity_id"]
+    assert "none of your places stands out" in problems([first])
+    assert "stands out" not in problems([first, second])  # picked it
+    assert "stands out" not in problems([first], rejected=[second])  # judged it
+
+
+def stand_out_deps(standing: set[int], extra: list[dict] = ()):
+    """Six cafes and any extra places, those numbered in `standing` standing out."""
+    places = [*CAFES, *extra]
+    d = deps(answered(places, True))
+    names = {p["entity_id"]: p["name"] for p in places}
+    d.baseline_venues = [
+        i for n, i in enumerate(p["entity_id"] for p in places) if n not in standing
+    ]
+    find_venues(SimpleNamespace(deps=d), [DOG_SHOW])
+    return d, [p["entity_id"] for p in places], names
+
+
+def plan_problems(d, venues=(), rejected=(), reason="A reason."):
+    from app.agent.profile_agent import ProfilePlan, stand_out_problems
+
+    plan = ProfilePlan(
+        titles=[{"entity_id": DOG_SHOW, "why": "dogs"}],
+        venues=[{"entity_id": i, "reason": reason} for i in venues],
+        rejected_venues=[{"entity_id": i, "reason": reason} for i in rejected],
+    )
+    return " ".join(stand_out_problems(d, plan))
+
+
+def test_only_top_and_middle_places_that_stand_out_count():
+    # Six places: ranks 1-2 top, 3-4 middle, 5-6 bottom.
+    d, ids, _ = stand_out_deps({3})
+    assert "none of your places stands out" in plan_problems(d, [ids[0]])
+    d, ids, _ = stand_out_deps({5})
+    assert plan_problems(d, [ids[0]]) == ""  # bottom third: not required
+    d, ids, _ = stand_out_deps(set())
+    d.baseline_venues = None  # no comparison: nothing stands out
+    find_venues(SimpleNamespace(deps=d), [DOG_SHOW])
+    assert plan_problems(d, [ids[0]]) == ""
+
+
+def test_screened_and_chain_places_never_need_judging():
+    chain = venue(41, "Starbucks", "A coffee chain.", {DOG_SHOW: 1.0})
+    d, ids, _ = stand_out_deps({0}, extra=[chain])
+    assert ids[0] == CAFES[0]["entity_id"]
+    d.venues_seen[ids[0]]["excluded"] = "screened out: a hookah lounge"
+    assert plan_problems(d, [ids[1]]) == ""
+
+
+def test_each_standing_out_place_needs_a_judgement_with_a_reason():
+    d, ids, _ = stand_out_deps({1, 2})
+    assert "rejected_venues" in plan_problems(d, [ids[0]], rejected=[ids[1]])
+    assert plan_problems(d, [ids[0]], rejected=[ids[1], ids[2]]) == ""
+    # Picking none and rejecting every standing-out place is a valid answer.
+    assert plan_problems(d, [], rejected=[ids[1], ids[2]]) == ""
+    # A blank reason judges nothing.
+    assert "needs a reason" in plan_problems(d, [ids[1]], reason="  ")
+
+
+def test_rejections_must_come_from_the_latest_search_and_not_be_picked_too():
+    d, ids, _ = stand_out_deps({1})
+    unknown = "00000000-0000-4000-8000-000000000999"
+    assert "not among your latest" in plan_problems(d, [ids[1]], rejected=[unknown])
+    assert "both picked and rejected" in plan_problems(d, [ids[1]], rejected=[ids[1]])
