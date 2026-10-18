@@ -15,7 +15,6 @@ from app.profile import (
     LocationProfile,
     Venue,
     baseline_titles,
-    for_children,
     layer_titles,
     rank_band,
 )
@@ -558,7 +557,7 @@ def plan(
         items.append(
             PlanItem(
                 text=f"Left out {and_list([v.name for v in left_out])}: {whose} about children, "
-                f"and this {animal.species} is not recorded as good with them.",
+                f"and this {animal.species} is recorded as not good with children.",
                 basis="Our suggestion",
             )
         )
@@ -567,6 +566,22 @@ def plan(
             PlanItem(text=f"Also reach {location.community_channel}.", basis="Our suggestion")
         )
     return items
+
+
+# Venues whose own description is about children: left out, per animal, when the record
+# says the animal is not good with children (decision 4). Whole words, so "kid-friendly"
+# and "child care" count; words with other common meanings in venue text ("nursery" for
+# plants, "daycare" for dogs, "baby back ribs", "youth hostel") are left out of the list.
+FOR_CHILDREN = re.compile(
+    r"\b(child|children|kid|kids|toddlers?|playgrounds?|preschools?|kindergartens?|childcare)\b"
+)
+
+
+def for_children(description: str | None) -> str | None:
+    """The word that makes a venue's own description about children, or None."""
+    text = (description or "").lower().replace("’", "'")
+    match = FOR_CHILDREN.search(text)
+    return match.group(1) if match else None
 
 
 def child_safe(animal: Animal, venues: list[Venue]) -> tuple[list[Venue], list[Venue]]:
@@ -775,9 +790,19 @@ def build_result_view(
 ) -> ResultView:
     every = venue_order(profile)
     ordered, left_out = child_safe(animal, every)
-    # Name only the ones that would have been shown.
-    left_out = [v for v in every[:VENUES_SHOWN] if v in left_out]
+    # Name only the ones that would have been shown; the next ones fill their places.
+    left_out = [v for v in every[:VENUES_SHOWN] if any(v is x for x in left_out)]
     returned, reading = why(location, profile)
+    if left_out:
+        # Our reading of Qloo's venues for this animal; what Qloo returned stays as it was.
+        reading.append(
+            WhyItem(
+                title=f"Left out for this {animal.species}",
+                detail=and_list([f"{v.name} ({for_children(v.description)})" for v in left_out])
+                + f": Qloo's description is about children, and the record says this "
+                f"{animal.species} is not good with children.",
+            )
+        )
     look_returned, look_reading = lookalike_why(animal, listing)
     returned, reading = look_returned + returned, look_reading + reading
     named = [m for m in litter or [] if m.name]
@@ -793,6 +818,12 @@ def build_result_view(
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
         map=map_view(location, profile, pin),
         venues=[venue_view(v, location, profile) for v in ordered[:VENUES_SHOWN]],
+        venues_empty=(
+            f"Every place Qloo suggested is about children, so none is suggested for this "
+            f"{animal.species}."
+            if every and not ordered
+            else "No venues for this area yet."
+        ),
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
         plan=plan(animal, location, ordered, left_out),
         qloo_returned=returned,

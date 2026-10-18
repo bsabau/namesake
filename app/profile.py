@@ -430,20 +430,6 @@ class _Builder:
         ]
 
 
-# Venues whose own description is about children. Left out, per animal, when the record
-# says the animal is not good with children (decision 4); whole words only.
-FOR_CHILDREN = re.compile(
-    r"\b(children|kids|kid's|toddlers?|playgrounds?|preschool|daycare|"
-    r"nursery|elementary|youth|babies|baby)\b"
-)
-
-
-def for_children(description: str | None) -> str | None:
-    """The word that makes a venue's own description about children, or None."""
-    match = FOR_CHILDREN.search((description or "").lower())
-    return match.group(1) if match else None
-
-
 def screen(description: str | None) -> str | None:
     """Why a venue is unsuitable for an adoption event, or None."""
     text = (description or "").lower()

@@ -224,10 +224,13 @@ def test_an_animal_not_good_with_children_is_not_sent_to_places_for_children(ros
     assert "Garden Cafe" not in [v.name for v in view.venues]
     left = [i for i in view.plan if i.text.startswith("Left out")]
     assert [i.text for i in left] == [
-        "Left out Garden Cafe: its description is about children, and this dog is not "
-        "recorded as good with them."
+        "Left out Garden Cafe: its description is about children, and this dog is recorded "
+        "as not good with children."
     ]
     assert left[0].basis == "Our suggestion"
+    # Our reading says why; Qloo's own list is untouched.
+    reading = {i.title: i.detail for i in view.our_reading}
+    assert reading["Left out for this dog"].startswith("Garden Cafe (kids): Qloo's description")
 
 
 def test_unknown_or_yes_keeps_every_venue(roster):
@@ -238,11 +241,33 @@ def test_unknown_or_yes_keeps_every_venue(roster):
 
 
 def test_the_children_words_match_whole_words_only():
-    from app.profile import for_children
+    from app.views.build import for_children
 
     assert for_children("A children's museum.") == "children"
+    assert for_children("A child-friendly play cafe.") == "child"
+    assert for_children("Kid’s birthday parties.") == "kid"
     assert for_children("Toddler classes and a playground.") == "toddler"
-    assert for_children("A youth orchestra.") == "youth"
-    assert for_children("A bar for kidney-shaped pools.") is None
-    assert for_children("A babysitting-free brewery.") is None
-    assert for_children(None) is None
+    assert for_children("A child care centre.") == "child"
+    # Other common meanings in venue text are not about children.
+    for text in (
+        "A plant nursery.",
+        "A dog daycare.",
+        "A restaurant serving baby back ribs.",
+        "A youth hostel.",
+        "A bar for kidney-shaped pools.",
+        None,
+    ):
+        assert for_children(text) is None, text
+
+
+def test_when_every_venue_is_for_children_the_page_says_so(roster):
+    p = kids_profile()
+    for v in p.venues:
+        v.description = "A play space for kids."
+    view = build_result_view(with_children(roster, "no"), LOCATION, p)
+    assert view.venues == []
+    assert view.venues_empty == (
+        "Every place Qloo suggested is about children, so none is suggested for this dog."
+    )
+    left = next(i.text for i in view.plan if i.text.startswith("Left out"))
+    assert "their descriptions are about children" in left

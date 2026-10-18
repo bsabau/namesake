@@ -188,6 +188,10 @@ The question: instead of Namesake's AI proposing pet titles and Qloo checking th
 - `rank` over seven TV titles returned only three: *The Pack* (0.960), *Cesar Millan* (0.958), Bluey (0.870). PAW Patrol, Clifford, Lassie and Scooby-Doo came back with nothing for Barcelona.
 - So outside the US the AI's US-known titles mostly drop out, while the signal-led source finds pet titles that rank above Bluey there; names from both would be animals' names only, as both shows are about real people.
 
+## Children's against adult pet titles as venue signals (18 October, 8 calls)
+
+The author asked why the app avoids age demographics yet uses children's shows. Jev's "Is this title made mainly for children?" split 20 pet titles cleanly: children's at 0.85 or more (PAW Patrol 0.98, Clifford 0.98, Bluey 0.97, The Aristocats 0.94, Scooby-Doo 0.92, Bunnicula 0.90), family films between 0.6 and 0.85, and adult-audience titles under 0.1 (Rin Tin Tin, Arthur the King, It's Me or the Dog, My Cat from Hell). But venues for fans of the children's set (Bluey, PAW Patrol, Dogs in Space) and of the adult set shared 10, 11, 7 and 11 of 15 in Park Slope, Astoria, Austin and Hoboken; the children's lists already held an archery range, an arena, a biergarten and a nightclub, and the adult set mostly added bars, breweries and a hookah lounge. So a second venue set per animal was not built. What follows from the animal's record instead: for one not good with children, venues described as for children are left out (decision 4, revised).
+
 ## A pet index per audience, and the rate limit (17 October, 30 calls)
 
 Top 20 TV shows, films and books for Astoria and Barcelona, for everyone and with `demographic` added (women, men, "millennials", "adults 55-64"); Jev marked the pet titles, and each list was scored as the sum of `p_pets / log2(position + 1)`.
