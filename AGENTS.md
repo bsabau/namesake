@@ -52,6 +52,7 @@ These shape most decisions below, so keep them in mind when making trade-offs. C
   - Every option passes a screen for villains, violent or tragic characters, weapon and aggression words, living celebrities, and references coded to a race, religion or political identity.
   - Dogs of bully-breed type get the strictest screen, because research found a measured penalty for names perceived as Black on pit-bull-type dogs.
   - Two animals in one shelter never share a reference, except a litter named as a set.
+- **Docs stay current.** A change updates, in the same PR, every document it makes stale or incomplete: `docs/architecture.md` (the technical tour and its diagrams), the README, `docs/decisions.md` (a new entry, or a dated line in the one it revises), `docs/qloo-findings.md` for anything learned from live calls, `docs/product.md` for the design, and this file. A reviewer treats a PR that changes behaviour without updating those documents as unfinished.
 - **Claims stay within the evidence.** The README, Devpost text and UI may say the tool:
   - drafts accurate listings, name options and an exposure plan quickly
   - follows the published research on listing style
@@ -94,6 +95,7 @@ Check these first. Each one can sink the entry or leak something.
 - An envelope status left unhandled (`ok`, `empty`, `needs_input`, `partial`, `degraded`, `error`), a retry when `retryable` is false, or a `needs_input` forced through as a match.
 - A model name, endpoint or key written into code instead of read from the four `AGENT_*` variables.
 - Work that belongs to a later milestone than the current one.
+- A change that leaves `docs/architecture.md`, the README, `docs/decisions.md`, `docs/qloo-findings.md`, `docs/product.md` or this file describing something the code no longer does, or that adds something they should name (a route, a setting, a table, a Qloo call, a screen) without naming it.
 
 Then ordinary correctness: logic errors, unhandled failures of the `qloo` subprocess, new behaviour with no test.
 
@@ -282,7 +284,7 @@ app/
   static/            shared assets: web-sized animal photos
 data/animals/        animals.json and original photos
 data/locations.json  the preset shelter locations
-docs/                product.md, qloo-findings.md, research/, img/
+docs/                architecture.md, decisions.md, product.md, qloo-findings.md, research/, img/
 scripts/             probe scripts, photo and example builders
 tests/
   fixtures/qloo/synthetic/   hand-written envelopes, invented data

@@ -133,13 +133,15 @@ The image holds Python, Node and the pinned harness. The demo runs this image on
 
 ## Repository
 
+How it works inside, with diagrams: [`docs/architecture.md`](docs/architecture.md).
+
 | Path | What |
 |---|---|
 | `app/agent/` | the two PydanticAI agents (area profile, listing), their Qloo tools, the plain-code checks, the run pipeline |
 | `app/qloo/` | the typed wrapper around `qloo exec`: envelope parsing, cache, spacing, replay |
 | `app/views/`, `app/ui/warm/` | view models (also served as JSON) and the default interface; `app/ui/classic/` is the first skin, kept for `?ui=classic` |
-| `docs/` | [decisions](docs/decisions.md), [Qloo findings](docs/qloo-findings.md), [product design](docs/product.md), [evidence review](docs/research/adoption-evidence-review.md) |
-| `tests/` | about 380 tests, all offline; `tests/test_no_qloo_data.py` keeps Qloo data out of the repo |
+| `docs/` | [architecture](docs/architecture.md), [decisions](docs/decisions.md), [Qloo findings](docs/qloo-findings.md), [product design](docs/product.md), [evidence review](docs/research/adoption-evidence-review.md) |
+| `tests/` | about 400 tests, all offline; `tests/test_no_qloo_data.py` keeps Qloo data out of the repo |
 
 Qloo's terms forbid publishing its response data, so real responses live only in the git-ignored `var/` and the deployed cache.
 
