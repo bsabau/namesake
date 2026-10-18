@@ -175,6 +175,8 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** accepted areas are kept in the store, so typing the same text again costs nothing. A new area's first run builds its profile, at about 8 Qloo calls.
 
+**Revised 18 October:** the probe is the area's own most-watched TV show (the profile's local-tastes call, so it is cached for the profile), and the seed show only when that list is not a plain answer. A US seed show alone made neighbourhoods abroad look thin: Gràcia, Barcelona had 2 cells for *Yellowstone* and 20 for its own top show (`docs/qloo-findings.md`). Still about two calls a check.
+
 ## 13. A litter is named as a set by the first member's choice
 
 **Decided:**

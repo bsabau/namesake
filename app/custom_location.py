@@ -1,8 +1,11 @@
 """A location the visitor types: sent to Qloo as typed, and checked before any run.
 
-One fixed call decides whether the place is usable: where fans of the baseline
-title are, within the typed place. The profile makes the same call later, so it
-comes from the cache. Qloo returns no coordinates for a place name, so the map
+One fixed heatmap decides whether the place is usable: where fans of the area's own
+most-watched TV show are, within the typed place. That show comes from the call the
+profile's local tastes make, so the profile finds it cached. When that list is not a
+plain answer, the seed show is the probe instead (decision 12). A US seed show alone
+left neighbourhoods abroad looking thin: Gràcia, Barcelona had 2 cells for it and 20 for
+its own top show (docs/qloo-findings.md). Qloo returns no coordinates for a place name, so the map
 centre and zoom come from the cells it returns.
 
 - Qloo offers candidates (`needs_input`): the visitor picks one, as buttons.
@@ -58,6 +61,20 @@ def zoom_for(lat_span: float, lon_span: float, latitude: float) -> int:
     return max(9, min(15, int(math.log2(360 / span)) + 1))
 
 
+def local_top_show(qloo: QlooClient, text: str) -> str | None:
+    """The TV show Qloo ranks highest for people around the typed place, or None when the
+    answer is not a plain list. The input matches the profile's local-tastes call."""
+    try:
+        env = qloo.run(
+            "recommend", {"target_type": "tv_show", "signal_location": text, "limit": 10}
+        )
+    except (ReplayMiss, QlooExecError):
+        return None
+    if env.status != "ok" or not env.has_results:
+        return None
+    return env.results[0]["entity_id"]
+
+
 def check_location(qloo: QlooClient, typed: str, seeds: Seeds) -> LocationCheck:
     text = clean(typed)
     if text is None:
@@ -80,12 +97,15 @@ def check_location(qloo: QlooClient, typed: str, seeds: Seeds) -> LocationCheck:
         message="Qloo could not be reached to check this place, and it has not been checked "
         "before. Try again later, or pick one of the preset areas.",
     )
-    baseline = resolve_baseline(qloo, probe, seeds.baseline)
-    if baseline is None:
-        return unavailable
+    probe_id = local_top_show(qloo, text)
+    if probe_id is None:
+        baseline = resolve_baseline(qloo, probe, seeds.baseline)
+        if baseline is None:
+            return unavailable
+        probe_id = baseline.id
     try:
         env = qloo.run(
-            "where_popular", {"entity": baseline.id, "within": text, "limit": HEATMAP_LIMIT}
+            "where_popular", {"entity": probe_id, "within": text, "limit": HEATMAP_LIMIT}
         )
     except (ReplayMiss, QlooExecError):
         return unavailable

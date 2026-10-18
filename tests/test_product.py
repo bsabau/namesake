@@ -854,3 +854,35 @@ def test_a_generic_approval_without_the_shown_name_is_refused_plainly(client):
         data={"animal": "dog-02", "location": "park-slope", "variant": "generic", "text": "Hi."},
     )
     assert response.status_code == 400 and "None" not in response.text
+
+
+def test_a_typed_area_is_probed_with_its_own_top_show():
+    # Gràcia, Barcelona, 18 October: 2 cells for the US seed show, 20 for its own top show.
+    text = "Example Heights, Example City"
+    top = "00000000-0000-4000-8000-000000000320"
+    script = {
+        key(
+            "recommend", {"target_type": "tv_show", "signal_location": text, "limit": 10}
+        ): envelope(
+            "recommend",
+            results=[{"entity_id": top, "name": "Example Local Show", "type": "urn:entity"}],
+        ),
+        key("where_popular", {"entity": top, "within": text, "limit": 20}): envelope(
+            "where_popular", results=cells(20)
+        ),
+    }
+    qloo = FakeQloo(script)
+    checked = check_location(qloo, text, SEEDS)
+    assert checked.status == "ok"
+    # The seed show was never asked for.
+    assert all(op != "describe" for op, _ in qloo.calls)
+
+
+def test_without_a_plain_top_list_the_seed_show_is_the_probe():
+    text, script = location_script(results=cells(6))
+    script[key("recommend", {"target_type": "tv_show", "signal_location": text, "limit": 10})] = (
+        envelope(
+            "recommend", "partial", results=[{"entity_id": CAT_SHOW, "name": "x", "type": "y"}]
+        )
+    )
+    assert check_location(FakeQloo(script), text, SEEDS).status == "ok"
