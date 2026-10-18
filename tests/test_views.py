@@ -223,18 +223,17 @@ def test_the_qloo_part_counts_what_qloo_returned_apart_from_the_ais_part(roster)
         v.chosen_reason = "a community arts centre"
     part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
     assert part.qloo == (
-        f"Qloo gave 2 pet-themed titles with evidence for {LOCATION.label}, their order here, "
+        f"2 pet-themed titles with evidence for {LOCATION.label}, their order here, "
         f"{len(p.venues)} places near the shelter ranked for their fans and "
         f"{len(p.cells)} map cell{'s' if len(p.cells) != 1 else ''}."
     )
     assert part.ai == (
-        "Namesake's AI proposed 2 titles Qloo then checked and picked the places to ask; "
-        "code checked every step."
+        "Proposed 2 titles Qloo then checked and picked the places to ask; code checked every step."
     )
 
 
 def test_the_qloo_part_says_plainly_when_nothing_came_back(roster):
     p = LocationProfile(location_id=LOCATION.id)
     part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
-    assert part.qloo == f"Qloo has given nothing for {LOCATION.label} yet."
-    assert part.ai.startswith("Namesake's AI has not worked on this result")
+    assert part.qloo == f"Nothing for {LOCATION.label} yet."
+    assert part.ai.startswith("Not used for this result")

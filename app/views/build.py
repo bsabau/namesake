@@ -796,11 +796,7 @@ def qloo_part(
         )
     if profile.cells:
         qloo.append(f"{plural(len(profile.cells), 'map cell')}")
-    qloo_text = (
-        "Qloo gave " + and_list(qloo) + "."
-        if qloo
-        else f"Qloo has given nothing for {location.label} yet."
-    )
+    qloo_text = cap(and_list(qloo)) + "." if qloo else f"Nothing for {location.label} yet."
     ai = []
     if profile.made_by == "agent":
         judged = [e for e in found if e.verdict is None or bucket(e.verdict) != "kept"]
@@ -815,9 +811,9 @@ def qloo_part(
     if draft is not None:
         ai.append("chose the names and wrote the bio from the shelter's records")
     ai_text = (
-        "Namesake's AI " + and_list(ai) + "; code checked every step."
+        cap(and_list(ai)) + "; code checked every step."
         if ai
-        else "Namesake's AI has not worked on this result; the listing is the fixed template."
+        else "Not used for this result; the listing is the fixed template."
     )
     return QlooPart(qloo=qloo_text, ai=ai_text)
 

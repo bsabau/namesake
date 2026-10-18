@@ -288,7 +288,8 @@ class WorkingView(BaseModel):
 
 class QlooPart(BaseModel):
     """One line each, near the top of the result: what Qloo returned for this result, and
-    what Namesake's AI did with it, kept apart (provenance)."""
+    what Namesake's AI did with it, kept apart (provenance). The UI labels them "Qloo:"
+    and "Namesake's AI:"."""
 
     qloo: str
     ai: str
