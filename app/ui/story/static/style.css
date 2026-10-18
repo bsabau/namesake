@@ -956,13 +956,15 @@ main, .site-header, .site-footer { max-width: 1320px; padding-left: 32px; paddin
 .story-paper .written-by { font-size: .68rem; margin-top: 14px; }
 .story-paper .listing-meta { margin: 5px 0 0; font-size: .66rem; }
 .story-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 13px; }
-.story-actions .copy, .edit-link { display: block; padding: 11px; border: 1px solid var(--primary-ink); border-radius: 8px; text-align: center; font-size: .85rem; font-weight: 800; text-decoration: none; }
+.story-actions .copy, .story-actions .approve > summary { display: block; padding: 11px; border: 1px solid var(--primary-ink); border-radius: 8px; text-align: center; font-size: .85rem; font-weight: 800; text-decoration: none; }
 .story-actions .copy { background: var(--primary-ink); color: var(--on-primary); }
-.edit-link { background: var(--surface); color: var(--primary-ink); }
-.edit-link span { margin-left: 15px; }
+.story-actions .approve { margin: 0; }
+.story-actions .approve > summary { background: var(--surface); color: var(--primary-ink); cursor: pointer; list-style: none; }
+.story-actions .approve > summary::-webkit-details-marker { display: none; }
+.story-actions .approve[open] { grid-column: 1 / -1; }
 .approve { margin-top: 12px; }
 .approve:not([open]) { margin: 0; padding: 0; border: 0; background: transparent; }
-.approve:not([open]) > summary { font-size: .72rem; margin: 8px 0 0; }
+
 .refine-fields { margin-top: 16px; }
 .refine-fields > label { display: block; font-size: .75rem; font-weight: 700; margin-bottom: 6px; }
 .refine-fields .inline-field input { font-size: .74rem; min-width: 0; }
@@ -1035,8 +1037,7 @@ main, .site-header, .site-footer { max-width: 1320px; padding-left: 32px; paddin
   .story-paper { padding: 20px; }
   .story-paper .listing-text { font-size: 1.05rem; }
   .story-actions { gap: 8px; }
-  .story-actions .copy, .edit-link { font-size: .78rem; padding: 12px 6px; }
-  .edit-link span { margin-left: 4px; }
+  .story-actions .copy, .story-actions .approve > summary { font-size: .85rem; padding: 12px 6px; }
   .story-process, .travel-grid { grid-template-columns: 1fr; }
   .story-process li + li { border-left: 0; padding-left: 0; }
   .behind-story > h2, .travel-heading > h2 { font-size: 2.2rem; }
@@ -1069,3 +1070,22 @@ main, .site-header, .site-footer { max-width: 1320px; padding-left: 32px; paddin
 .leaflet-control-attribution { color: var(--muted); }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* OpenStreetMap's standard tiles, quieted so the lift cells and pins read first; only the
+   tile pane is filtered (as in the warm skin). */
+.leaflet-tile-pane { filter: saturate(0.45) sepia(0.18) brightness(1.04) contrast(0.92); }
+@media (prefers-color-scheme: dark) {
+  .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) saturate(0.35) brightness(0.82) contrast(0.9); }
+}
+
+/* A readability floor: secondary text no smaller than about 13 px, captions 12 px. */
+.portrait figcaption, .site-footer, .story-paper .listing-meta, .story-paper .written-by,
+.toggle-note, .refine-fields .hint, .hint { font-size: .8rem; }
+.option-title, .version-choice { font-size: .82rem; }
+.provenance-pair p, .left-out, .short-explanation, .still-learning, .refine-fields > label,
+.refine-fields .inline-field input, .story-paper .hook { font-size: .9rem; }
+.eyebrow, .why-choice h4 { font-size: .74rem; }
+@media (max-width: 600px) {
+  .option-title { font-size: .76rem; }
+  .tagline { font-size: .74rem; }
+}

@@ -44,14 +44,14 @@
         {% for option in view.name.options %}
         <li class="name-option"><label>
           <input type="radio" name="local_name" value="{{ option.name }}" data-hook="{{ option.hook }}" data-badge="{{ option.badge }}" data-copy="{{ option.copy_text }}" {% if option.name == view.chosen_name %}checked{% endif %}>
-          <strong>{{ option.name }}</strong><span class="option-title">{{ option.title }}</span>
+          <strong>{{ option.name }}</strong><span class="option-title">from {{ option.title }}</span>
         </label></li>
         {% endfor %}
       </ul>
       <div class="name-provenance" aria-live="polite">
         {% for option in view.name.options %}
         <div class="provenance-pair" data-name-detail="{{ option.name }}"{% if option.name != view.chosen_name %} hidden{% endif %}>
-          <p class="evidence"><span>Qloo:</span> {{ option.title }}. {{ option.badge }}.</p>
+          <p class="evidence"><span>Qloo:</span> {{ option.title }}: {{ option.badge }}.</p>
           <p class="reading"><span>Namesake's AI:</span> {{ option.reference }}. {{ option.why }}</p>
         </div>
         {% endfor %}
@@ -77,7 +77,7 @@
         {% if view.listing.fallback_note %}<p class="fallback-note">{{ view.listing.fallback_note }}</p>{% endif %}
         {% if view.listing.refined_note %}<p class="refined-note">{{ view.listing.refined_note }} <button type="submit" form="reset-form" class="link-button">Show the original</button></p>{% endif %}
       </div>
-      <div class="story-actions"><button type="button" class="copy" data-copy-variant>Copy this version</button><a class="edit-link" href="#approval-editor">Edit &amp; approve <span aria-hidden="true">↗</span></a></div>
+      <div class="story-actions"><button type="button" class="copy" data-copy-variant>Copy this version</button>
       <details id="approval-editor" class="approve" data-role="approve"{% if view.approve_error %} open{% endif %}>
         <summary>Edit and approve</summary>
         {% if view.approve_error %}<p class="form-error" role="alert">{{ view.approve_error }}</p>{% endif %}
@@ -85,7 +85,7 @@
         <textarea id="edit-text" name="text" rows="8" maxlength="3000">{{ view.edited_text or view.listing.text }}</textarea>
         {% if view.listing.must_keep %}<p class="hint">Cautions the shelter recorded must stay, word for word: {% for phrase in view.listing.must_keep %}“{{ phrase }}”{% if not loop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
         <button type="submit">Approve the selected version</button><p class="hint">Approving gives you a copy-ready listing and records the version and name for a trial, never the text.</p>
-      </details>
+      </details></div>
       <div class="refine-fields"><label for="refine-text">Want to adjust the wording?</label><div class="inline-field"><input form="refine-form" id="refine-text" type="text" name="text" minlength="3" maxlength="200" required placeholder="{{ view.refine_placeholder }}"><button form="refine-form" type="submit">Refine</button></div><p class="hint">Makes a new version for you only; the same checks apply.</p></div>
       <ul class="left-out">{% for line in view.listing.left_out %}<li>{{ line }}</li>{% endfor %}</ul>
       {% if view.listing.short_note %}<details class="short-explanation"><summary>Why is this introduction short?</summary><p class="short-note">{{ view.listing.short_note }}</p></details>{% endif %}

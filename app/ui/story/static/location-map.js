@@ -33,14 +33,11 @@
   // The grid can settle after the map is created; re-measure so no tiles are missing.
   new ResizeObserver(() => map.invalidateSize()).observe(container);
 
-  const scheme = matchMedia("(prefers-color-scheme: dark)");
-  const tiles = () => scheme.matches ? "dark_all" : "rastertiles/voyager";
-  const tileUrl = () => `https://{s}.basemaps.cartocdn.com/${tiles()}/{z}/{x}/{y}{r}.png`;
-  const base = L.tileLayer(tileUrl(), {
+  // OpenStreetMap's standard tiles, quieted in style.css (CARTO's styles need a key).
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
-  scheme.addEventListener("change", () => base.setUrl(tileUrl()));
 
   const accent = getComputedStyle(document.documentElement)
     .getPropertyValue("--accent").trim() || "#d96a4a";
