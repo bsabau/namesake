@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic_ai import Agent, ModelRetry, NativeOutput, PromptedOutput, RunContext, ToolOutput
 from pydantic_ai.models import Model
 
@@ -104,7 +104,17 @@ class NameOption(BaseModel):
 
 class BioSentence(BaseModel):
     text: str
-    facts: list[str] = Field(description="The fact keys this sentence restates.")
+    facts: list[str] = Field(
+        description='The fact keys this sentence restates, as listed: "temperament", '
+        '"look", "fact:0", "fact:1"…'
+    )
+
+    @field_validator("facts")
+    @classmethod
+    def _numbered_facts(cls, facts: list[str]) -> list[str]:
+        # Models often cite a numbered fact as "0" for "fact:0"; it costs a repair round
+        # for no change in meaning, so it is read as meant.
+        return [f"fact:{f.strip()}" if f.strip().isdigit() else f for f in facts]
 
 
 class ListingDraft(BaseModel):
@@ -130,7 +140,8 @@ Rules:
   title, or an object in it), with that title's entity_id and source, the character's own
   name as it appears in the story, and its role from the list. Short and easy to
   say: one to three syllables. No villains, violent or tragic characters, weapons, real
-  people, or names coded to a race, religion or political identity. From a title about
+  people, names coded to a race, religion or political identity, or names that put an
+  animal down (dirt, waste, pests, insults: "Garbage", "Scat"). From a title about
   real people (a talk show, reality show, documentary or biopic), only an animal's name.
 - Take each option from a different title; repeat a title only once every title you may
   name from is used, since a listing needs three names. A litter named as a set is the

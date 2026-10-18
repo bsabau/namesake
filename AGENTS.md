@@ -49,7 +49,7 @@ These shape most decisions below, so keep them in mind when making trade-offs. C
   - The cultural reference appears only in the name and one hook line, and neither the hook nor a name's reason says anything about temperament.
 - **Names are screened.**
   - Names are short and easy to say, at one to three syllables.
-  - Every option passes a screen for villains, violent or tragic characters, weapon and aggression words, living celebrities, and references coded to a race, religion or political identity.
+  - Every option passes a screen for villains, violent or tragic characters, weapon and aggression words, words that put an animal down (garbage, scat, runt), living celebrities, and references coded to a race, religion or political identity.
   - Dogs of bully-breed type get the strictest screen, because research found a measured penalty for names perceived as Black on pit-bull-type dogs.
   - Two animals in one shelter never share a reference, except a litter named as a set. One animal's options come from different titles while another of the area's open titles is unused (lookalike titles never count).
 - **Docs stay current.** A change updates, in the same PR, every document it makes stale or incomplete: `docs/architecture.md` (the technical tour and its diagrams), the README, `docs/decisions.md` (a new entry, or a dated line in the one it revises), `docs/qloo-findings.md` for anything learned from live calls, `docs/product.md` for the design, and this file. A reviewer treats a PR that changes behaviour without updating those documents as unfinished.

@@ -23,6 +23,15 @@ NAME_BLOCKLIST = (
     "weapon", "assassin", "hitman", "terror", "poison", "corpse", "skull",
 )  # fmt: skip
 
+# Words no adoption listing should call an animal (decided 18 October, after a rebuild
+# offered "Garbage" and "Scat"): dirt, waste, pests and insults. Whole words, as above.
+UNFLATTERING = (
+    "garbage", "trash", "trashy", "rubbish", "junk", "scat", "poop", "poo", "dung",
+    "stink", "stinky", "stinker", "smelly", "dirty", "filthy", "grubby", "ugly", "fatty",
+    "fatso", "dumb", "dummy", "stupid", "idiot", "loser", "freak", "rat", "roach", "maggot",
+    "pest", "vermin", "leech", "mangy", "flea", "fleabag", "mutt", "runt",
+)  # fmt: skip
+
 # Well-known villains and tragic animals: the model also declares each reference's role,
 # but a code list catches the famous ones even when it gets that wrong.
 FAMOUS_VILLAINS = (
@@ -168,6 +177,11 @@ def check_name(
     # Like the identity screen, the message leaves the word out (the log is shown).
     if find_word(f"{name} {reference}", NAME_BLOCKLIST):
         problems.append(f"name {name!r} contains a weapon, violence or hate word")
+    # The name alone: a character may be "Scat Cat", but the name is what the animal is
+    # called. The message names the word, which is harmless to show.
+    unflattering = find_word(name, UNFLATTERING)
+    if unflattering:
+        problems.append(f"name {name!r} is unflattering for an adoption listing ({unflattering!r})")
     villain = find_word(f"{name} {reference}", FAMOUS_VILLAINS)
     if villain:
         problems.append(f"name {name!r} refers to {villain!r}, a villain or tragic animal")
