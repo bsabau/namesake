@@ -22,9 +22,9 @@ from app.config import get_settings  # noqa: E402
 from app.locations import load_locations  # noqa: E402
 from app.profile import (  # noqa: E402
     HEATMAP_LIMIT,
-    VENUE_LIMIT,
     baseline_titles,
     baseline_venue_ids,
+    venue_input,
 )
 from app.qloo.exec import QlooExecError, ReplayMiss  # noqa: E402
 from app.store import Store  # noqa: E402
@@ -74,20 +74,19 @@ def main() -> None:
         print("No pet brand found; stopping.")
         return
 
-    env = call(
-        "recommend",
-        {
-            "target_type": "place",
-            "signals": [b[0] for b in brands],
-            "filter_location": location.query,
-            "limit": VENUE_LIMIT,
-        },
-    )
+    # The brands' places are asked as the saved pet list was (decision 23; a profile from
+    # before it, every place), so that overlap compares like with like; the comparison's
+    # overlap is counted only when it was asked the same way.
+    filtered = bool(profile.venue_categories)
+    bases = baseline_titles(profile)
+    mode, base_ids = baseline_venue_ids(qloo, location, bases) if bases else (None, None)
+    if mode is not None and mode != filtered:
+        print("The comparison is now asked another way than the saved list; not counted.")
+        base_ids = None
+    env = call("recommend", venue_input([b[0] for b in brands], location, filtered))
     if env is None or not env.has_results:
         print(f"Brand venues: {env.status if env else 'unavailable'}")
         return
-    bases = baseline_titles(profile)
-    base_ids = baseline_venue_ids(qloo, location, bases) if bases else None
     titles = {v.entity_id: v for v in profile.venues}
     print(f"\nPlaces near {location.label} for fans of {', '.join(b[1] for b in brands)}:")
     shared_titles = shared_base = 0

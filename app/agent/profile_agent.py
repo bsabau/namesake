@@ -16,7 +16,16 @@ from app.agent.checks import check_choice_reason, identity_coded
 from app.agent.steps import StepLog
 from app.classify import JevClassifier, bucket
 from app.locations import Location
-from app.profile import PET_TAGS, VENUE_LIMIT, Entity, FoundIn, entity_type, rank_band, screen
+from app.profile import (
+    PET_TAGS,
+    Entity,
+    FoundIn,
+    entity_type,
+    rank_band,
+    screen,
+    too_few,
+    venue_input,
+)
 from app.qloo.envelope import Envelope
 from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
 
@@ -47,6 +56,9 @@ class ProfileDeps:
     ambiguous: dict[str, int] = field(default_factory=dict)
     venues_seen: dict[str, dict[str, Any]] = field(default_factory=dict)
     venue_signals: list[str] | None = None
+    # Whether venues are asked within the place categories (app/profile.py VENUE_GROUPS),
+    # as the comparison decided; None until a venue request decides it.
+    venue_filter: bool | None = None
     # The venues from the latest find_venues call: the only ones the plan may pick,
     # because the profile is assembled from that search.
     latest_venues: set[str] = field(default_factory=set)
@@ -529,16 +541,17 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
     deps.log.add(
         "qloo", f"Finding places near {deps.location.label} for fans of {', '.join(names)}"
     )
-    env = qloo_call(
-        deps,
-        "recommend",
-        {
-            "target_type": "place",
-            "signals": ids,
-            "filter_location": deps.location.query,
-            "limit": VENUE_LIMIT,
-        },
-    )
+    filtered = deps.venue_filter is not False
+    env = qloo_call(deps, "recommend", venue_input(ids, deps.location, filtered))
+    if filtered and deps.venue_filter is None and not isinstance(env, str):
+        # No comparison decided it: a full answer with too few such places means every
+        # place; a failed, partial or ambiguous one decides nothing.
+        if too_few(env):
+            filtered = False
+            env = qloo_call(deps, "recommend", venue_input(ids, deps.location, False))
+            deps.venue_filter = False
+        elif env.status == "ok":
+            deps.venue_filter = True
     if isinstance(env, str) or not env.has_results:
         if isinstance(env, str):
             status = env

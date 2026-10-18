@@ -185,7 +185,7 @@ Qloo silently ignores parameters it does not recognise and then returns empty re
 `docs/qloo-findings.md` has the milestone 1 answers and the proposal for the agent, and `docs/decisions.md` what was decided from it; read both before building anything that calls Qloo. In short:
 
 - Pet tags exist but filter TV and films down to almost nothing, and lifestyle tags change nothing as a signal. As signals with the area they give each area its own list of pet-themed titles, which the agent starts from (decision 22); it may add its own, kept only with Qloo's evidence, and searches what people around the area who like them also like; a classifier sorts every list (decision 20).
-- Pet-themed titles as signals give venues near the shelter. Most are just popular nearby, so venues are compared with those of the area's own top shows (decision 18) and screened for event suitability.
+- Pet-themed titles as signals give venues near the shelter. Most are just popular nearby, whatever the titles, so venues are asked only within kinds of place that can host a stand (decision 23), compared with those of the area's own top shows (decision 18) and screened for event suitability.
 - Citywide heatmaps rarely reach the shelter. Heatmaps within the neighbourhood work, and the map layer is the lift of the top two pet titles over the area's top two shows; a title that maps thinly there gives way to the next.
 - Names are often ambiguous; resolving them with a stated reason is an agent step.
 - Raw affinity saturates; use order within a call and lift against a baseline.
@@ -246,7 +246,7 @@ The shelter is fictional too. Do not use real shelter names, logos or photos.
 
 1. **Start:** a grid of the animals, a choice of three preset locations, a custom location field, and a "try an example" button that loads a precomputed result instantly. There is no tone setting: the listing rules fix the voice, and the refine line takes follow-ups (`docs/decisions.md` #15).
 2. **Working:** a live log of the agent's steps, streamed as they happen: entities proposed, each one checked against Qloo, which were kept and which dropped.
-3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges; a map of local lift; the venues as a list with their evidence, and as numbered pins on the map from OpenStreetMap (`docs/decisions.md` #4, revised), skipping those that mention children for an animal recorded as not good with them (`docs/decisions.md` #2); the exposure checklist.
+3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges; a map of local lift; the venues as a list with their evidence, under a note on which kinds of place were asked for and why (`docs/decisions.md` #23), and as numbered pins on the map from OpenStreetMap (`docs/decisions.md` #4, revised), skipping those that mention children for an animal recorded as not good with them (`docs/decisions.md` #2); the exposure checklist.
 4. **Why:** for each choice, the Qloo result behind it, separate from the app's reading of it.
 5. **Refine:** one text line for follow-ups such as "less childish". When Qloo returns `needs_input`, show the candidates here as buttons.
 

@@ -5,6 +5,7 @@ is Qloo data. The fake answers by operation and input; anything not scripted
 raises ReplayMiss, as replay mode would.
 """
 
+import json
 from typing import Any
 
 from app.locations import Location
@@ -214,9 +215,27 @@ def key(operation: str, input_: dict[str, Any]) -> tuple[str, str]:
     return operation, canonical(input_)
 
 
+def with_category_twins(script: dict[tuple[str, str], Envelope]) -> dict:
+    """Each venue question also asked within the place categories, with the same answer.
+    The baseline's two places are fewer than MIN_CATEGORY_VENUES, so a standard profile
+    falls back to every place, as before the categories; tests of the categories script
+    their own answers."""
+    from app.profile import CATEGORY_TAGS
+
+    twins = {}
+    for (operation, text), answer in script.items():
+        input_ = json.loads(text)
+        if operation == "recommend" and input_.get("target_type") == "place":
+            tagged = input_ | {"include_tags": CATEGORY_TAGS, "include_tags_operator": "union"}
+            twins[key(operation, tagged)] = answer
+    return twins | script  # a test's own answer to the filtered question wins
+
+
 class FakeQloo:
-    def __init__(self, script: dict[tuple[str, str], Envelope]):
-        self.script = script
+    def __init__(self, script: dict[tuple[str, str], Envelope], *, twins: bool = True):
+        # Tests written before decision 23 script only the question without the categories;
+        # `twins=False` makes a missing filtered answer a miss, as it would be live.
+        self.script = with_category_twins(script) if twins else script
         self.calls: list[tuple[str, dict]] = []
 
     def run(self, operation: str, input_: dict[str, Any]) -> Envelope:

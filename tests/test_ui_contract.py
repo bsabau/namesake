@@ -217,3 +217,12 @@ def test_the_map_colours_cells_as_the_caption_counts_them(ui):
     script = (main.UI_ROOT / ui / "static" / "result-map.js").read_text(encoding="utf-8")
     assert "cell.lift > 0 ? warm : cool" in script
     assert "cell.lift === null ? 0.25 : 0.3 + 0.5 * Math.min(1, Math.abs(cell.lift))" in script
+
+
+@pytest.mark.parametrize("ui", main.UIS)
+def test_the_venues_note_is_labelled_as_namesakes_reading(client, ui):
+    # The kinds of place are Namesake's choice, so the note carries its label (decision 23).
+    page = client.get(
+        "/result", params={"animal": "dog-02", "location": "park-slope", "ui": ui}
+    ).text
+    assert 'data-role="venues-note"><span>Namesake:</span>' in page
