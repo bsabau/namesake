@@ -251,6 +251,8 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** Photon's public server promises no uptime; swapping it is one setting (`geocoder_url`) and one module (`app/places.py`). Its terms ask for fair use, which the cache and the per-visitor allowance keep to.
 
+**Revised 18 October, a search on the map:** a field above the start map, "Find a place on the map", takes the same area suggestions as the typed-area field (`/api/places`, the same allowance and rules) and only moves the map to the chosen place, so a visitor far from the presets (Barcelona, say) need not pan there by hand before right-clicking the shelter's spot. It belongs to its own empty form (`method="dialog"`), so Enter can never submit the animal picker around it, has no name, and nothing from it goes to Qloo. It is shown only when place lookups are on, and asks without the selected area's bias, since its purpose is to go elsewhere; a chosen place opens at a city-sized zoom.
+
 ## 18. The map combines the top pet titles; the baseline is the area's own top shows
 
 **Decided** (the author, 17 October: "lets go with combined layer", and for the baseline "Local top shows instead"; profile version 2):
@@ -309,6 +311,8 @@ The refusal keeps the edit and names the missing words.
 **Why:** design is a quarter of the score and judges may see one screenshot. The classic look, flat and grey-bordered, read as a prototype for an office tool; a shelter volunteer's tool should look like somewhere an animal lives. The seam built in milestone 2 made this a second folder rather than a rewrite, and keeping classic lets the two be compared on the same data.
 
 **Revised 18 October, the map tiles:** the warm skin keeps OpenStreetMap's standard tiles, quieted by a CSS filter on the tile pane only (lower saturation, a slight warm tint; inverted and dimmed in dark mode), so the lift cells and the shelter's circle read first. CARTO's quieter Voyager and Positron styles, chosen first, now answer every tile with "API KEY REQUIRED", and a keyed provider would put a key in the browser, which AGENTS.md forbids. Classic keeps the plain tiles.
+
+**Revised 18 October, Qloo's part:** the result opens with two parts, "Qloo:" and "Namesake's AI:", in the provenance colours (side by side in warm, stacked on phones and in classic). Qloo's part says what Qloo returned: titles with its evidence for the area (how many ranked here, how many only in its lists), the places near the shelter for fans of the titles they were asked for, and the heatmaps' map cells. The AI's part says what it did, as separate clauses: titles it proposed for Qloo to check, unclear ones it judged, the places it picked, the order when Qloo's ranking was unavailable, the names and bio. A fixed lookup or a template listing says so. Counted by code from the saved profile and listing (`qloo_part` in `app/views/build.py`), no calls. The contract test requires `data-role="qloo-part"` in every skin, so classic renders it too, an exception to "classic gets no new features". Judges may score from one screenshot, and Qloo's role was spread across the Why panel.
 
 **Follows:** UI work that was waiting on this (the "Qloo's part" strip, the venue lift line, the per-run graph) will be built into `warm`, not classic. The README screenshot still shows classic until it is retaken at the end, once the examples are rebuilt on the final code. Classic gets no new features; it is deleted when it is no longer useful for comparison.
 

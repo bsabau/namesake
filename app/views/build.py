@@ -39,6 +39,7 @@ from app.views.models import (
     NameView,
     Pin,
     PlanItem,
+    QlooPart,
     Question,
     ResultView,
     ShelterBar,
@@ -999,6 +1000,74 @@ def lookalike_why(
     return returned, reading
 
 
+def plural(n: int, word: str) -> str:
+    return f"{n} {word}" + ("" if n == 1 else "s")
+
+
+def qloo_part(
+    location: Location, profile: LocationProfile, listing: ListingResult | None
+) -> QlooPart:
+    """Qloo's part of this result and the AI's, counted from what the profile holds: no
+    calls, nothing invented. Each part says only what that party did: Qloo returned the
+    lists, rankings, places and maps; the AI judged, picked and wrote."""
+    pets = profile.pet_entities
+    ranked = [e for e in pets if e.id in profile.ranked]
+    listed = [e for e in pets if e.found_in or e.listed_in]
+    backed = [e for e in pets if e in ranked or e in listed]
+    qloo = []
+    if backed:
+        # Each title counted once: ranked, else only in Qloo's lists for the area.
+        only_listed = [e for e in listed if e not in ranked]
+        how = and_list(
+            ([f"{len(ranked)} ranked here"] if ranked else [])
+            + ([f"{len(only_listed)} only in its lists for the area"] if only_listed else [])
+        )
+        qloo.append(
+            f"{plural(len(backed), 'title')} with Qloo's evidence for {location.label} ({how})"
+        )
+    elif pets:
+        qloo.append(f"{plural(len(pets), 'title')} looked up")
+    if profile.venues:
+        qloo.append(
+            f"{plural(len(profile.venues), 'place')} near the shelter, ranked for fans of "
+            f"{venue_titles(profile)}"
+        )
+    if profile.cells:
+        qloo.append(f"{plural(len(profile.cells), 'map cell')} from its heatmaps")
+    qloo_text = cap("; ".join(qloo)) + "." if qloo else f"Nothing for {location.label} yet."
+
+    ai = []
+    agent = profile.made_by == "agent"
+    if agent:
+        own = [e for e in pets if not e.found_in]
+        judged = [e for e in pets if e.found_in and bucket(e.verdict) != "kept"]
+        picked = [v for v in profile.venues if v.chosen_reason]
+        if own:
+            ai.append(f"proposed {plural(len(own), 'title')} for Qloo to check")
+        if judged:
+            ai.append(f"judged {plural(len(judged), 'unclear title')}")
+        if picked:
+            ai.append(f"picked {len(picked)} of the places to ask")
+        if len(pets) > 1 and profile.order_source != "qloo_rank":
+            ai.append("set the order, as Qloo's ranking was unavailable")
+    draft = listing.draft if listing else None
+    if draft is not None:
+        ai.append("chose the names and wrote the bio from the shelter's records")
+    if ai:
+        ai_text = cap("; ".join(ai)) + "."
+        if draft is None:
+            ai_text += " The names and bio are the fixed template."
+        if not agent:
+            ai_text += " The titles are a fixed lookup."
+    elif agent:
+        ai_text = "Kept the titles above; the names and bio are the fixed template."
+    else:
+        ai_text = (
+            "Not used here: the titles are a fixed lookup, and the names and bio a fixed template."
+        )
+    return QlooPart(qloo=qloo_text, ai=ai_text)
+
+
 def build_result_view(
     animal: Animal,
     location: Location,
@@ -1054,6 +1123,7 @@ def build_result_view(
         location=location_option(location, True),
         litter=litter or [],
         litter_note=("Named as a set with the rest of the litter:" if len(named) > 1 else None),
+        qloo_part=qloo_part(location, profile, listing),
         name=name_view(listing, profile, listing_.text),
         listing=listing_,
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
