@@ -365,8 +365,8 @@ def test_the_fallback_waits_for_three_errors_in_a_row(name):
 
 
 def test_the_story_working_page_marks_each_step_by_who_did_it(client):
-    # The timeline's marks come from the view model (StepView.actor and the kind-to-actor
-    # mapping for streamed steps), never from a guess in the script.
+    # The timeline's marks come from each step's own actor: the view model's StepView.actor
+    # for rendered steps, the event's actor for streamed ones; never a guess in the script.
     page = client.post(
         "/runs", data={"animal": "dog-02", "location": "park-slope", "ui": "story"}
     ).text
