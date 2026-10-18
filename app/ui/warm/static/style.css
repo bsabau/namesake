@@ -658,6 +658,7 @@ button.animal-card:hover, button.animal-card:focus-visible {
 /* Generic / local toggle: both versions are in the page; the picked one shows. */
 .version-toggle {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin: 0 0 14px;
   padding: 4px;

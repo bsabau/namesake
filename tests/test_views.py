@@ -452,21 +452,57 @@ def test_a_fixed_lookup_with_a_saved_listing_says_both(roster):
     )
 
 
+def map_with(scores: list[tuple[float, float | None]]) -> LocationProfile:
+    """A profile whose cells have these (pet, baseline) scores; None is a grey cell."""
+    shaped = profile().model_copy(deep=True)
+    first = shaped.cells[0]
+    shaped.cells = [
+        first.model_copy(
+            update={"geohash": first.geohash[:-1] + "0123456789bcdefg"[i],
+                    "pet_score": pet, "baseline_score": base}
+        )
+        for i, (pet, base) in enumerate(scores)
+    ]  # fmt: skip
+    return shaped
+
+
 def test_the_map_caption_counts_the_warm_cells():
     # Decided 18 October: a mostly cool map says how many cells are warm, as coloured.
-    view = map_view(LOCATION, profile())
-    compared = [c.lift for c in view.cells if c.lift is not None]
-    warm = sum(lift >= 0 for lift in compared)
-    assert len(compared) == 1 and warm == 1
-    assert "stand out in the one cell with a comparison. " in view.legend
+    view = map_view(
+        LOCATION, map_with([(0.9, 0.5), (0.5, 0.9), (0.4, 0.8), (0.3, 0.7), (0.2, 0.6)])
+    )
+    assert view.legend.startswith(
+        "Fans of Example Dog Show and Example Cat Show stand out against fans of this area's "
+        "top shows in 1 of these 5 cells. "
+    )
 
 
-def test_the_count_reads_n_of_m_when_several_cells_compare():
-    many = profile().model_copy(deep=True)
-    many.cells = [many.cells[0].model_copy(update={"geohash": g}) for g in ["dr5rs", "dr5rt"]]
-    many.cells[1].baseline_score = 1.0  # cooler than the pet shows there
-    legend = map_view(LOCATION, many).legend
-    assert "stand out in 1 of these 2 cells. " in legend
+def test_a_tie_is_cool_in_the_count_and_the_key():
+    view = map_with([(0.5, 0.5), (0.9, 0.5), (0.5, 0.9), (0.4, 0.8), (0.3, 0.7)])
+    legend = map_view(LOCATION, view).legend
+    assert "in 1 of these 5 cells. " in legend and "Cool cells: lower, or level." in legend
+
+
+def test_grey_cells_are_left_out_of_the_count():
+    legend = map_view(
+        LOCATION, map_with([(0.9, 0.5), (0.8, None), (0.5, 0.9), (0.4, 0.8), (0.3, 0.7)])
+    ).legend
+    assert "in 1 of the 4 cells with a comparison. " in legend
+
+
+def test_no_warm_cell_says_so():
+    legend = map_view(
+        LOCATION, map_with([(0.5, 0.9), (0.4, 0.8), (0.3, 0.7), (0.2, 0.6), (0.1, 0.5)])
+    ).legend
+    assert (
+        "do not stand out against fans of this area's top shows in any of these cells. " in legend
+    )
+
+
+def test_a_thin_map_gets_no_count():
+    # Fewer than five cells: the thin note says the map says little, so no count.
+    legend = map_view(LOCATION, profile()).legend
+    assert legend.startswith("Only 2 map cells here") and "stand out against" not in legend
 
 
 def test_each_version_button_shows_its_name(roster):

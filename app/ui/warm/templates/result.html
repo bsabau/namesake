@@ -34,7 +34,7 @@
         <label class="version-choice">
           <input type="radio" name="variant" value="{{ version.variant }}"
                  {% if version.selected %}checked{% endif %}{% if not version.available %} disabled{% endif %}>
-          {{ version.choice }}
+          <span class="version-choice-text">{{ version.choice }}</span>
         </label>
         {% endfor %}
       </fieldset>
@@ -75,7 +75,7 @@
           <li class="name-option">
             <label><input type="radio" name="local_name" value="{{ option.name }}"
                           data-hook="{{ option.hook }}" data-source="{{ option.header_source }}"
-                          data-copy="{{ option.copy_text }}" {% if option.name == view.chosen_name %}checked{% endif %}>
+                          data-copy="{{ option.copy_text }}" data-choice="{{ option.version_choice }}" {% if option.name == view.chosen_name %}checked{% endif %}>
               <strong>{{ option.name }}</strong></label>
             <p class="evidence"><span>Qloo:</span> {{ option.title }}. {{ option.badge }}.</p>
             <p class="reading"><span>Namesake's AI:</span> {{ option.reference }}. {{ option.why }}</p>
