@@ -147,7 +147,9 @@ def test_the_note_says_which_kinds_are_in_and_out_and_that_the_places_are_the_ar
     assert venues_note(profile_with(False), "cat").startswith(
         "Qloo's list here, asked for the usual kinds"
     )
-    assert venues_note(profile_with(None), "dog").startswith("The same places for every dog")
+    assert venues_note(profile_with(None), "dog").endswith(
+        "the name and the listing are this animal's."
+    )
     assert venues_note(LocationProfile(location_id="x"), "dog") is None
 
 
@@ -261,3 +263,101 @@ def test_a_filtered_probe_that_falls_back_leaves_no_note():
     profile = build_profile(FakeQloo(script, twins=False), LOCATION.model_copy(), SEEDS)
     assert profile.venue_categories is False and profile.venues[0].compared
     assert not any("returned no venues" in n for n in profile.notes)
+
+
+def test_national_chains_are_named_by_the_start_of_their_name():
+    from app.profile import chain_name, fast_food_mention
+
+    for name in (
+        "McDonald's",
+        "McDonald\u2019s",
+        "Starbucks Coffee Company",
+        "Wendy\u2019s",
+        "Dunkin'",
+        "Joe & The Juice",
+        "Mc Donald's",
+    ):
+        assert chain_name(name) == "a national chain", name
+    # Independent places, pet-shop chains (they hold adoption events), everyday words, and
+    # a chain's name inside another name pass.
+    for name in ("BrownStone Bagels", "Petco", "PetSmart", "Target Practice Range",
+                 "Subway Inn", "Joe's Starbucks Lane", "The Shake Shack Bakery Co"):  # fmt: skip
+        assert chain_name(name) is None, name
+    # Fast food is told to the AI, unless the description says the place is not.
+    assert fast_food_mention("A fast-food burger counter.")
+    assert fast_food_mention("Burgers at the drive-through.")
+    for text in ("An alternative to fast food.", "A cafe with no drive-thru.", None):
+        assert not fast_food_mention(text), text
+
+
+def test_a_chain_pick_is_sent_back_and_the_tool_marks_it():
+    from pydantic_ai import ModelRetry
+
+    from app.agent.profile_agent import ProfilePlan, check_plan
+
+    chain = venue(40, "McDonald's", "A fast-food restaurant.", {DOG_SHOW: 1.0})
+    d = deps(answered([chain, *CAFES], True))
+    out = find_venues(SimpleNamespace(deps=d), [DOG_SHOW])
+    marked = {v["name"]: (v["chain"], v["fast_food"]) for v in out["venues"]}
+    assert marked["McDonald's"] == ("a national chain", True)
+    assert marked["Example Cafe 0"] == (None, False)
+    plan = ProfilePlan(
+        titles=[{"entity_id": DOG_SHOW, "why": "dogs"}],
+        venues=[{"entity_id": chain["entity_id"], "reason": "It has room for a stand."}],
+    )
+    try:
+        check_plan(SimpleNamespace(deps=d), plan)
+        problems = ""
+    except ModelRetry as retry:
+        problems = str(retry)
+    assert "McDonald's is a national chain" in problems
+
+
+def test_the_note_says_what_the_chain_rule_enforces_on_every_profile():
+    for categories in (True, False, None):
+        note = venues_note(profile_with(categories), "dog")
+        assert "National chains Namesake knows by name are left out" in note, categories
+
+
+def test_a_chain_is_never_suggested_even_by_the_fixed_lookup():
+    # Reviewers, PR #36: the fallback profile suggested a chain under the note.
+    from app.views.build import venue_order, why
+
+    profile = profile_with(True)
+    profile.venues[0].name = "McDonald's"
+    assert "McDonald's" not in [v.name for v in venue_order(profile)]
+    _, reading = why(LOCATION, profile)
+    assert any(i.title == "Left out as national chains" and "McDonald's" in i.detail
+               for i in reading)  # fmt: skip
+
+
+def test_the_fast_food_sentence_shows_only_where_the_ai_picked():
+    seeds = profile_with(True)
+    assert "fast food" not in venues_note(seeds, "dog")
+    seeds.made_by = "agent"
+    assert "Namesake's AI is asked to pass over fast food." in venues_note(seeds, "dog")
+
+
+def test_an_area_of_only_chains_says_so(roster):
+    from app.views.build import build_result_view
+
+    profile = profile_with(True)
+    for v in profile.venues:
+        v.name, v.unsuitable = "Starbucks", None
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile)
+    assert view.venues == [] and view.venues_empty.startswith("Every suitable place Qloo listed")
+
+
+def test_a_mixed_list_with_no_pick_never_claims_every_place_is_a_chain():
+    # Reviewers, PR #36: one chain made the page say every place was one.
+    from app.views.build import empty_venues
+
+    profile = profile_with(True)
+    profile.made_by = "agent"
+    for v in profile.venues:
+        v.unsuitable, v.chosen_reason = None, None
+    profile.venues[0].name = "Starbucks"
+    assert empty_venues(profile).startswith("Namesake's AI found no place")
+    for v in profile.venues:
+        v.unsuitable = "a hookah lounge"
+    assert empty_venues(profile).startswith("Every place Qloo listed here was screened out")
