@@ -145,7 +145,7 @@ def test_the_note_says_which_kinds_are_in_and_out_and_that_the_places_are_the_ar
         assert f"{name} ({why})" in note
     assert "The same places for every dog at this shelter" in note
     assert venues_note(profile_with(False), "cat").startswith(
-        f"Qloo had fewer than {MIN_CATEGORY_VENUES} cafes, shops or community places"
+        f"Qloo had fewer than {MIN_CATEGORY_VENUES} places of the usual kinds"
     )
     assert venues_note(profile_with(None), "dog").startswith("The same places for every dog")
     assert venues_note(LocationProfile(location_id="x"), "dog") is None
@@ -155,4 +155,79 @@ def test_the_why_panel_reads_the_kinds_as_namesakes_choice():
     reading = kinds_reading(profile_with(True))
     assert reading.startswith("Namesake asked Qloo for these kinds only")
     assert "Namesake's AI judge each" in reading
-    assert "every place it ranks was used" in kinds_reading(profile_with(False))
+    assert "asked for places of any kind" in kinds_reading(profile_with(False))
+
+
+def plain_script(base_filtered, pet_filtered=None) -> dict:
+    """The standard profile with its own answers to the filtered questions (None: a miss)."""
+    script = standard_script()
+    for signals, answer in (
+        ([BASELINE, BASELINE_2], base_filtered),
+        ([DOG_SHOW, CAT_SHOW], pet_filtered),
+        ([CAT_SHOW, DOG_SHOW], pet_filtered),
+    ):
+        if answer is not None:
+            script[key("recommend", venue_input(signals, LOCATION, True))] = answer
+    return script
+
+
+def test_an_empty_full_answer_falls_back_and_the_area_still_gets_places():
+    # Reviewers, PR #32: an empty answer was read as a failure, leaving no venues at all.
+    qloo = FakeQloo(plain_script(envelope("recommend", "empty", results=[])), twins=False)
+    profile = build_profile(qloo, LOCATION.model_copy(), SEEDS)
+    assert profile.venue_categories is False
+    assert [v.name for v in profile.venues] == [v["name"] for v in PET_VENUES]
+
+
+def test_a_failed_or_partial_comparison_decides_nothing():
+    # The pet titles' full answer decides instead: here enough such places.
+    for failed in (None, envelope("recommend", "partial", results=CAFES[:2])):
+        qloo = FakeQloo(plain_script(failed, envelope("recommend", results=CAFES)), twins=False)
+        profile = build_profile(qloo, LOCATION.model_copy(), SEEDS)
+        assert profile.venue_categories is True
+        assert [v.name for v in profile.venues][:1] == ["Example Cafe 0"]
+        assert not any(v.compared for v in profile.venues)  # no comparison to claim
+
+
+def test_a_failed_pet_question_never_flips_the_decision_or_asks_again():
+    # No comparison, and the filtered pet question fails: no claim the area is thin.
+    qloo = FakeQloo(plain_script(None), twins=False)
+    profile = build_profile(qloo, LOCATION.model_copy(), SEEDS)
+    assert profile.venue_categories is True and profile.venues == []
+    pet_asks = [i for op, i in qloo.calls if op == "recommend" and DOG_SHOW in i.get("signals", [])]
+    assert len(pet_asks) == 1 and "include_tags" in pet_asks[0]
+
+
+def test_find_venues_is_not_flipped_by_an_ambiguous_or_partial_answer():
+    for answer in (
+        envelope("recommend", "needs_input", results=[]),
+        envelope("recommend", "partial", results=CAFES[:2]),
+    ):
+        script = {key("recommend", venue_input([DOG_SHOW], LOCATION, True)): answer}
+        d = deps(script)
+        d.qloo = FakeQloo(script, twins=False)
+        find_venues(SimpleNamespace(deps=d), [DOG_SHOW])
+        assert d.venue_filter is None and len(d.qloo.calls) == 1
+
+
+def test_find_venues_keeps_the_categories_a_comparison_chose():
+    d = deps(answered(CAFES, True), venue_filter=True)
+    d.qloo = FakeQloo(answered(CAFES, True), twins=False)
+    out = find_venues(SimpleNamespace(deps=d), [DOG_SHOW])
+    assert len(out["venues"]) == len(CAFES) and d.venue_filter is True
+
+
+def test_a_place_only_the_pet_list_has_still_stands_out_within_the_kinds():
+    base = CAFES[1:] + [venue(30, "Example Library", "A public library.", {BASELINE: 1.0})]
+    qloo = FakeQloo(filtered_script(base), twins=False)
+    profile = build_profile(qloo, LOCATION.model_copy(), SEEDS)
+    out = {v.name: v.distinctive for v in profile.venues}
+    assert out["Example Cafe 0"] is True and out["Example Cafe 1"] is False
+
+
+def test_finishing_a_categorised_profile_keeps_the_categories():
+    old = build_profile(FakeQloo(filtered_script(CAFES)), LOCATION.model_copy(), SEEDS)
+    assert old.venue_categories is True
+    qloo = FakeQloo(filtered_script(CAFES[:2]), twins=False)  # now thin, but kept as asked
+    new = finish_profile(old, LOCATION.model_copy(), qloo, SEEDS)
+    assert new is not None and new.venue_categories is True

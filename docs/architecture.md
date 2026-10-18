@@ -250,7 +250,7 @@ The start, result and working screens' view models are also served as JSON, so a
 | `GET /api/places/at?lat=&lon=` | the areas a picked spot lies in |
 | `GET /health` | `{"status": "ok"}` |
 
-The HTML routes render the same view models through the chosen UI: `/`, `/result`, `POST /runs`, `/runs/{id}`, `POST /refine` and `/refine/reset`, `POST /approve`, `POST /locations`, `/animals/new` and `POST /animals`, and `/photos/{animal_id}` for a visitor's own photo. `tests/test_ui_contract.py` checks that every UI renders what each screen must show, found by `data-role`: the name, Qloo's part and the AI's, Qloo's answer and Namesake's reading, the map, the photo credit and the Qloo credit. It also checks that a UI's scripts only ever fetch the app's own `/api/`.
+The HTML routes render the same view models through the chosen UI: `/`, `/result`, `POST /runs`, `/runs/{id}`, `POST /refine` and `/refine/reset`, `POST /approve`, `POST /locations`, `/animals/new` and `POST /animals`, and `/photos/{animal_id}` for a visitor's own photo. `tests/test_ui_contract.py` checks that every UI renders what each screen must show, found by `data-role`: the name, Qloo's part and the AI's, Qloo's answer and Namesake's reading, the map, the photo credit and the Qloo credit, and that the note on the kinds of place carries Namesake's label. It also checks that a UI's scripts only ever fetch the app's own `/api/`.
 
 ## Configuration
 

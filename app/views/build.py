@@ -484,12 +484,14 @@ def venues_note(profile: LocationProfile, species: str) -> str | None:
     if profile.venue_categories:
         return (
             f"Qloo was asked only for places that can host an adoption stand or take a flyer: "
-            f"{groups_in()}. Left out: {groups_out()}. {shared}"
+            f"{groups_in()}. Not asked for: {groups_out()}; Qloo's tags are broad, so a few "
+            f"others can appear. {shared}"
         )
     if profile.venue_categories is False:
         return (
-            f"Qloo had fewer than {MIN_CATEGORY_VENUES} cafes, shops or community places for "
-            f"this area, so these are all the places it ranks near the shelter. {shared}"
+            f"Qloo had fewer than {MIN_CATEGORY_VENUES} places of the usual kinds (cafes and "
+            f"breweries, bookshops and pet shops, community places) here, so it was asked for "
+            f"places of any kind. {shared}"
         )
     return shared
 
@@ -497,15 +499,16 @@ def venues_note(profile: LocationProfile, species: str) -> str | None:
 def kinds_reading(profile: LocationProfile) -> str:
     if profile.venue_categories:
         return (
-            f"Namesake asked Qloo for these kinds only: {groups_in()}. Left out: {groups_out()}. "
+            f"Namesake asked Qloo for these kinds only: {groups_in()}. Not asked for: "
+            f"{groups_out()}. "
             "Without them Qloo's list near a spot is mostly what is popular there, such as an "
             "arena, whatever the titles. Qloo tags places broadly, so a few others come "
             "through; the code screen and Namesake's AI judge each."
         )
     return (
         f"Qloo had fewer than {MIN_CATEGORY_VENUES} places of the usual kinds (cafes and "
-        "breweries, bookshops and pet shops, community places) for this area, so every place "
-        "it ranks was used."
+        "breweries, bookshops and pet shops, community places) for this area, so it was "
+        "asked for places of any kind."
     )
 
 

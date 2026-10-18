@@ -17,13 +17,13 @@ from app.agent.steps import StepLog
 from app.classify import JevClassifier, bucket
 from app.locations import Location
 from app.profile import (
-    MIN_CATEGORY_VENUES,
     PET_TAGS,
     Entity,
     FoundIn,
     entity_type,
     rank_band,
     screen,
+    too_few,
     venue_input,
 )
 from app.qloo.envelope import Envelope
@@ -543,16 +543,15 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
     )
     filtered = deps.venue_filter is not False
     env = qloo_call(deps, "recommend", venue_input(ids, deps.location, filtered))
-    if (
-        filtered
-        and deps.venue_filter is None
-        and not isinstance(env, str)
-        and len(env.results) < MIN_CATEGORY_VENUES
-    ):
-        # No comparison decided it: too few such places here, so every place.
-        filtered = False
-        env = qloo_call(deps, "recommend", venue_input(ids, deps.location, False))
-    deps.venue_filter = filtered
+    if filtered and deps.venue_filter is None and not isinstance(env, str):
+        # No comparison decided it: a full answer with too few such places means every
+        # place; a failed, partial or ambiguous one decides nothing.
+        if too_few(env):
+            filtered = False
+            env = qloo_call(deps, "recommend", venue_input(ids, deps.location, False))
+            deps.venue_filter = False
+        elif env.status == "ok":
+            deps.venue_filter = True
     if isinstance(env, str) or not env.has_results:
         if isinstance(env, str):
             status = env

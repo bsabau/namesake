@@ -232,8 +232,10 @@ def with_category_twins(script: dict[tuple[str, str], Envelope]) -> dict:
 
 
 class FakeQloo:
-    def __init__(self, script: dict[tuple[str, str], Envelope]):
-        self.script = with_category_twins(script)
+    def __init__(self, script: dict[tuple[str, str], Envelope], *, twins: bool = True):
+        # Tests written before decision 23 script only the question without the categories;
+        # `twins=False` makes a missing filtered answer a miss, as it would be live.
+        self.script = with_category_twins(script) if twins else script
         self.calls: list[tuple[str, dict]] = []
 
     def run(self, operation: str, input_: dict[str, Any]) -> Envelope:

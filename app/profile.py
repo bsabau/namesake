@@ -69,6 +69,17 @@ def venue_input(signals: list[str], location: Location, filtered: bool) -> dict[
     return request
 
 
+def too_few(env: Envelope | None) -> bool:
+    """A full answer (ok, or empty) with fewer than MIN_CATEGORY_VENUES places: only that
+    shows an area has too few of these kinds. A failed, partial, degraded or ambiguous
+    answer decides nothing."""
+    return (
+        env is not None
+        and env.status in ("ok", "empty")
+        and len(env.results or []) < MIN_CATEGORY_VENUES
+    )
+
+
 HEATMAP_LIMIT = 20
 # Version 2: the map combines the top pet titles, and the baseline is the area's own top
 # shows instead of one seed show (decision 18). Saved version-1 profiles still load and
@@ -488,7 +499,18 @@ class _Builder:
         filtered: bool = False,
     ) -> list[dict] | None:
         """Venue results, or None. With `complete`, a partial or degraded answer counts as none."""
-        env = self.call("recommend", venue_input(signals, location, filtered), purpose)
+        env = self.venue_answer(signals, location, purpose, filtered)
+        return self.venue_results(env, purpose, complete=complete)
+
+    def venue_answer(
+        self, signals: list[str], location: Location, purpose: str, filtered: bool
+    ) -> Envelope | None:
+        """The venue question's answer as Qloo gave it, or None when it failed."""
+        return self.call("recommend", venue_input(signals, location, filtered), purpose)
+
+    def venue_results(
+        self, env: Envelope | None, purpose: str, *, complete: bool = False
+    ) -> list[dict] | None:
         if env is None:
             return None
         if not env.has_results:
@@ -703,14 +725,14 @@ def finish_profile(
     else:
         tastes, baselines, source, notes = baseline_for(qloo, location, seeds, old.pet_entities)
     # The venues are asked as they were, so the AI's picks and reasons still match them;
-    # a profile from before the categories keeps every place.
+    # a profile from before the categories keeps every place, and one whose venues never
+    # arrived decides afresh.
+    if old.venue_categories is None:
+        filtered: bool | None = False
+    else:
+        filtered = old.venue_categories if old.venues else None
     new = profile_from(
-        qloo,
-        location,
-        old.pet_entities,
-        baselines,
-        old.venue_signals or None,
-        filtered=bool(old.venue_categories),
+        qloo, location, old.pet_entities, baselines, old.venue_signals or None, filtered
     )
     if not new.complete:
         return None
@@ -770,22 +792,18 @@ def assemble_profile(
         # Asked first: the comparison decides whether the area's venues are asked within
         # the categories, so both lists are asked the same way.
         filtered, base_venues = area_venues(b, location, p.baselines, filtered)
-    elif filtered is None:
-        filtered = True
-    pet_venues = b.venues(
-        p.venue_signals,
-        location,
-        f"venues near {location.label} for fans of pet-themed titles",
-        filtered=filtered,
-    )
-    if filtered and not p.baselines and len(pet_venues or []) < MIN_CATEGORY_VENUES:
-        # No comparison to keep in step: too few such places here, so every place.
-        filtered = False
-        pet_venues = b.venues(
-            p.venue_signals,
-            location,
-            f"venues near {location.label} for fans of pet-themed titles",
+    purpose = f"venues near {location.label} for fans of pet-themed titles"
+    if filtered is None:
+        # No comparison decided it: the pet titles' own full answer does.
+        env = b.venue_answer(p.venue_signals, location, purpose, True)
+        filtered = not too_few(env)
+        pet_venues = (
+            b.venue_results(env, purpose)
+            if filtered
+            else b.venues(p.venue_signals, location, purpose)
         )
+    else:
+        pet_venues = b.venues(p.venue_signals, location, purpose, filtered=filtered)
     p.venue_categories = filtered
     if base_venues is not None:
         p.baseline_venue_count = len(base_venues)
@@ -889,24 +907,28 @@ def profile_from(
 
 def area_venues(
     b: "_Builder", location: Location, baselines: list[Entity], filtered: bool | None = None
-) -> tuple[bool, list[dict] | None]:
+) -> tuple[bool | None, list[dict] | None]:
     """Whether the area's venues are asked within the categories, and the baseline shows'
     venues asked that way (None without a complete answer). Decided once per area, by the
-    comparison: fewer than MIN_CATEGORY_VENUES such places for fans of the area's top shows
-    and every place is used. An unanswered request decides nothing: the categories stay."""
+    comparison's full answer: fewer than MIN_CATEGORY_VENUES such places (none included)
+    and every place is used. A failed or incomplete answer decides nothing (None), and the
+    pet titles' answer decides instead. `filtered` given keeps it as decided before."""
     purpose = f"venues near {location.label} for fans of the area's top shows"
     signals = [e.id for e in baselines]
     if filtered is not False:
-        results = b.venues(signals, location, purpose, complete=True, filtered=True)
-        if results is None or len(results) >= MIN_CATEGORY_VENUES or filtered:
+        env = b.venue_answer(signals, location, purpose, True)
+        # An incomplete baseline would make missing venues look distinctive.
+        results = b.venue_results(env, purpose, complete=True)
+        if filtered or (results is not None and not too_few(env)):
             return True, results
-    # An incomplete baseline would make missing venues look distinctive.
+        if not too_few(env):
+            return None, None
     return False, b.venues(signals, location, purpose, complete=True)
 
 
 def baseline_venue_ids(
     qloo: QlooClient, location: Location, baselines: list[Entity]
-) -> tuple[bool, list[str] | None]:
+) -> tuple[bool | None, list[str] | None]:
     """Whether the area's venues are asked within the categories, and the baseline shows'
     venues in rank order (None when there is no complete answer)."""
     filtered, results = area_venues(_Builder(qloo, location), location, baselines)

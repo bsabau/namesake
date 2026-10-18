@@ -347,10 +347,10 @@ class ResultView(BaseModel):
     listing: ListingView
     map: MapView
     venues: list[VenueView]
-    # Shown in place of the venue list when it is empty.
     # Our framing of the list: which kinds of place were asked for, and why; that the
-    # places are the area's, the same for every animal there.
+    # places are the area's, the same for every animal of that species there.
     venues_note: str | None = None
+    # Shown in place of the venue list when it is empty.
     venues_empty: str = "No venues for this area yet."
     plan_heading: str
     plan: list[PlanItem]

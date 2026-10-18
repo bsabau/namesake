@@ -51,7 +51,7 @@ The plan is a checklist the volunteer can carry out without an ad budget:
 2. In-person visibility: outings, events, an "Adopt Me" vest.
 3. Timing: Friday, Saturday and early evening.
 4. For New York dogs: rescue partners and foster recruitment.
-5. **Venues (Qloo):** about three places near the shelter that fans of up to three of the pet-themed entities favour, for flyers and events. Code picks those titles by their evidence for the area (Qloo's ranking, else their best place in the area's lists), never an identity-coded one, and the agent picks the venues. Qloo is asked only for kinds of place that can host a stand or take a flyer, in three groups (cafes and breweries, bookshops and pet shops, community places), each in for a stated reason, and the page says which kinds were left out and why, and that the places are the same for every animal at the shelter (decision 23). Each venue shows its evidence, and apart from it the agent's reason: why the place could host an adoption event or show a flyer, from its name and Qloo's description only. For an animal recorded as not good with children, venues whose name or Qloo description mentions children are skipped, and the plan says which (decision 2).
+5. **Venues (Qloo):** about three places near the shelter that fans of up to three of the pet-themed entities favour, for flyers and events. Code picks those titles by their evidence for the area (Qloo's ranking, else their best place in the area's lists), never an identity-coded one, and the agent picks the venues. Qloo is asked only for kinds of place that can host a stand or take a flyer, in three groups (cafes and breweries, bookshops and pet shops, community places), each in for a stated reason, and the page says which kinds were left out and why, and that the places are the same for every animal of that species at the shelter (decision 23). Each venue shows its evidence, and apart from it the agent's reason: why the place could host an adoption event or show a flyer, from its name and Qloo's description only. For an animal recorded as not good with children, venues whose name or Qloo description mentions children are skipped, and the plan says which (decision 2).
 6. **One channel beyond the usual audience.** It comes from that location's `community_channels` entry in `data/locations.json` and is labelled as our suggestion.
 
 The plan's success measure is adoptions and returns; likes and reach are left out.
@@ -78,7 +78,7 @@ The result screen must be legible in a single screenshot. It shows:
 - the photo and chosen name
 - the generic/local toggle, each button showing its version's name
 - the name options with what Qloo returned for each title
-- a map of local lift, its caption counting the cells where pet-show fans stand out (unless the map is thin or has no comparison), with the venues listed beside it and pinned on it by number, each card saying which cell it sits in and how far it is from the shelter (`docs/decisions.md` #4)
+- a map of local lift, its caption counting the cells where pet-show fans stand out (unless the map is thin or has no comparison), with the venues listed beside it under a note on which kinds of place were asked for and why (decision 23), and pinned on it by number, each card saying which cell it sits in and how far it is from the shelter (`docs/decisions.md` #4)
 - the exposure checklist
 - a "Why" drawer with two columns, "Qloo returned" and "How Namesake read it"
 

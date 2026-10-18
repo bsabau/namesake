@@ -87,7 +87,7 @@ def main() -> None:
         print(f"Brand venues: {env.status if env else 'unavailable'}")
         return
     bases = baseline_titles(profile)
-    base_ids = baseline_venue_ids(qloo, location, bases) if bases else None
+    base_ids = baseline_venue_ids(qloo, location, bases)[1] if bases else None
     titles = {v.entity_id: v for v in profile.venues}
     print(f"\nPlaces near {location.label} for fans of {', '.join(b[1] for b in brands)}:")
     shared_titles = shared_base = 0
