@@ -241,4 +241,5 @@ def test_the_venue_line_never_reads_empty():
 
     p = profile()
     p.venue_signals = ["00000000-0000-4000-8000-000000000999"]  # not among the titles
-    assert venue_titles(p) == "Example Dog Show and Example Cat Show"
+    # Codex, PR #17: never name other titles as the ones searched.
+    assert venue_titles(p) == "the pet-themed titles searched"
