@@ -120,7 +120,7 @@ sequenceDiagram
 This happens before any run, when the area is not one of the presets.
 
 - **A typed area** goes to Qloo as typed and is checked once: one heatmap, within it, for the TV show Qloo ranks highest there (the call the profile's local tastes make, so the profile finds it cached); when that list is not a plain answer, or its top show is thin there, for a seed show as well (after a `describe` of it, cached after the first time): the seed's candidates or its failure speak for the place, else the fuller map decides. Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". `needs_input`: Qloo's candidates become buttons (decision 12). Text with digits is refused, which keeps street addresses away from Qloo.
-- **Suggestions and the map pick** (decision 17) go through the app's own `/api/places` to Photon. Suggestions ask for areas only; a picked spot is sent rounded to about 100 m, and only the areas in Photon's answer are kept. The spot becomes an area's name, and stays in the visitor's session as a pin, to about 10 m. Qloo only ever gets the name.
+- **Suggestions, the map search and the map pick** (decision 17) go through the app's own `/api/places` to Photon. The search above the start map (wording from `LocationForm` in the view model) only moves the map: `place-suggest.js` raises a `namesake:fly` event that `location-map.js` follows; it has no field name, so nothing from it is submitted or reaches Qloo. Suggestions ask for areas only; a picked spot is sent rounded to about 100 m, and only the areas in Photon's answer are kept. The spot becomes an area's name, and stays in the visitor's session as a pin, to about 10 m. Qloo only ever gets the name.
 
 ## The area profile
 
@@ -206,7 +206,7 @@ The start, result and working screens' view models are also served as JSON, so a
 | `GET /api/results/{animal}@{location}` | `ResultView`: Qloo's part and the AI's (`qloo_part`), listing versions, names, map, venues, plan, Why panel |
 | `GET /api/runs/{id}` | `WorkingView`: the run's steps so far |
 | `GET /api/runs/{id}/events` | the step log as server-sent events (`step`, then `done`) |
-| `GET /api/places?q=&lat=&lon=` | area names for the typed field, ranked near the map's area |
+| `GET /api/places?q=&lat=&lon=` | area names for the typed field (ranked near the map's area) and the search above the start map (unbiased) |
 | `GET /api/places/at?lat=&lon=` | the areas a picked spot lies in |
 | `GET /health` | `{"status": "ok"}` |
 

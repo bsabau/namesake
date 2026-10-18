@@ -311,6 +311,9 @@ def start_view(
     )
     if form is not None:
         view.location_form = form
+    # The search on the map needs place lookups; without them it would be a dead field.
+    view.location_form.map_search = places().enabled
+    if form is not None:
         # A check that needs the visitor (an alert or Qloo's candidates) opens the panel.
         view.shelter.open = view.shelter.open or bool(form.message or form.candidates)
     return view

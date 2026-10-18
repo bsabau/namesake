@@ -77,6 +77,11 @@ class LocationForm(BaseModel):
     )
     suggestions_url: str = "/api/places"
     pick_url: str = "/api/places/at"
+    # A search on the map that only moves it: no Qloo call, nothing chosen. Shown only
+    # when place lookups are on.
+    map_search: bool = False
+    map_search_label: str = "Find a place on the map"
+    map_search_placeholder: str = "A city or area, such as “Barcelona”"
     # A spot picked on the map, carried through Qloo's candidate buttons.
     pin_lat: str = ""
     pin_lon: str = ""
@@ -365,7 +370,8 @@ class PlaceOption(BaseModel):
 
 
 class PlacesView(BaseModel):
-    """Area names for the location field, or the area around a picked spot."""
+    """Area names for the location field and the map search, or the area around a
+    picked spot."""
 
     places: list[PlaceOption] = []
     message: str | None = None

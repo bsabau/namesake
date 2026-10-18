@@ -74,6 +74,18 @@
     </fieldset>
 
     <figure class="location-map">
+      {% if view.location_form.map_search %}
+      <div class="map-search suggest-wrap">
+        <label for="map-search-text">{{ view.location_form.map_search_label }}</label>
+        {# Its own form, which goes nowhere, so Enter can never submit the animal picker. #}
+        <input id="map-search-text" form="map-search-form" type="text" maxlength="80"
+               placeholder="{{ view.location_form.map_search_placeholder }}"
+               role="combobox" aria-autocomplete="list" aria-expanded="false"
+               aria-controls="map-search-suggestions" autocomplete="off"
+               data-suggest-url="{{ view.location_form.suggestions_url }}">
+        <ul id="map-search-suggestions" class="suggestions" role="listbox" hidden></ul>
+      </div>
+      {% endif %}
       <div id="location-map" data-role="map" role="img"
            aria-label="Map of the area around the shelter"
            data-pick-url="{{ view.location_form.pick_url }}"></div>
@@ -129,4 +141,5 @@
             formmethod="get">{{ view.add_animal_label }}</button>
   </p>
 </form>
+{% if view.location_form.map_search %}<form id="map-search-form" method="dialog" hidden></form>{% endif %}
 {% endblock %}

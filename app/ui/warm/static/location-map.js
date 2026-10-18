@@ -89,6 +89,19 @@
     });
   });
 
+  // The search above the map: move there, so the shelter's spot can be picked.
+  document.addEventListener("namesake:fly", (event) => {
+    const { latitude, longitude } = event.detail || {};
+    if (typeof latitude !== "number" || typeof longitude !== "number") return;
+    // A city-sized view, one step out on a narrow map, as for the presets.
+    const zoom = 12 - (container.clientWidth < 500 ? 1 : 0);
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      map.setView([latitude, longitude], zoom, { animate: false });
+    } else {
+      map.flyTo([latitude, longitude], zoom, { duration: 1.2 });
+    }
+  });
+
   // Picking the shelter's spot.
   const pickUrl = container.dataset.pickUrl;
   const field = document.getElementById("custom-location-text");
