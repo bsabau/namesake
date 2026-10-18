@@ -17,18 +17,17 @@ from app.locations import Location
 from app.places import LookupFailed, Places, Throttled
 from app.profile import LocationProfile, Venue, carry_points
 from app.store import Store
-
-# The venues a page may show: the AI's picks, or the first suitable ones (the page shows
-# five; one more covers a venue an animal's page skips).
-LOCATE_LIMIT = 6
+from app.views.build import VENUES_SHOWN, for_children, venue_order
 
 
 def to_locate(profile: LocationProfile) -> list[Venue]:
-    """Suitable venues not looked up yet, in the order the page shows them: the AI's picks
-    first, then those that stand out for pet-show fans, then by Qloo's rank."""
-    suitable = [v for v in profile.venues if v.unsuitable is None and not v.point_tried]
-    ordered = sorted(suitable, key=lambda v: (v.chosen_reason is None, not v.distinctive, v.rank))
-    return ordered[:LOCATE_LIMIT]
+    """The venues a page may show that are not looked up yet, in the page's order: its
+    first VENUES_SHOWN, and the first VENUES_SHOWN of an animal recorded as not good with
+    children, whose page skips venues that mention children. No other venue is looked up."""
+    every = venue_order(profile)
+    for_any = [v for v in every if not for_children(v.name, v.description)]
+    window = {v.entity_id for v in every[:VENUES_SHOWN] + for_any[:VENUES_SHOWN]}
+    return [v for v in every if v.entity_id in window and not v.point_tried]
 
 
 def locate_venues(

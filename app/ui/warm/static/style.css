@@ -475,6 +475,8 @@ button.animal-card:hover, button.animal-card:focus-visible {
   box-shadow: var(--shadow);
   z-index: 0;
 }
+/* Taller beside the listing, so the key leaves room for the cells and pins. */
+@media (min-width: 861px) { #result-map { height: 420px; } }
 
 .result-map figcaption { margin-top: 8px; color: var(--muted); font-size: 0.85rem; }
 

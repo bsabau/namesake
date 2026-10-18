@@ -67,10 +67,11 @@
   }
 
   // A short key on the map itself (the view model's note); the caption says the rest.
+  let keyBox = null;
   if (view.note) {
     const key = L.control({ position: "bottomleft" });
     key.onAdd = () => {
-      const box = L.DomUtil.create("div", "map-key");
+      const box = (keyBox = L.DomUtil.create("div", "map-key"));
       const heading = L.DomUtil.create("strong", "", box);
       heading.textContent = view.note_heading;
       const text = L.DomUtil.create("p", "", box);
@@ -85,6 +86,12 @@
   if (view.pin) layers.push(L.circleMarker(shelter, { radius: 0, opacity: 0 }));
   if (layers.length) {
     const group = L.featureGroup(layers);
-    map.fitBounds(group.getBounds().pad(0.3), { maxZoom: view.zoom + 1 });
+    // Framed above the key, so no cell or pin sits under it.
+    const below = keyBox ? Math.min(keyBox.offsetHeight + 10, map.getSize().y * 0.4) : 0;
+    map.fitBounds(group.getBounds().pad(0.15), {
+      maxZoom: view.zoom + 1,
+      paddingTopLeft: [10, 10],
+      paddingBottomRight: [10, below],
+    });
   }
 })();
