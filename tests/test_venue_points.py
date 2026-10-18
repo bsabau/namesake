@@ -1,12 +1,22 @@
 """Venue pins (decision 4, revised): points from a fake geocoder only, never Photon, and
 the result view's numbered pins, cell readings and distances."""
 
+from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
 from app.places import Allowance, Places
 from app.profile import Venue
-from app.venue_points import LOCATE_LIMIT, locate_venues, to_locate
-from app.views.build import build_result_view, cell_of, cell_reading, map_view, walk
+from app.venue_points import locate_venues, to_locate
+from app.views.build import (
+    VENUES_SHOWN,
+    build_result_view,
+    cell_of,
+    cell_reading,
+    map_view,
+    venue_order,
+    venues_for_animal,
+    walk,
+)
 from tests.qloo_fakes import LOCATION
 from tests.test_places import FakeGeocoder, feature
 from tests.test_views import profile
@@ -39,13 +49,12 @@ def test_a_far_match_falls_back_to_the_address_and_else_is_dropped():
     assert places.venue_point("Community Hall", "1 Example Street", NEAR) is None
 
 
-def test_locating_takes_the_picks_first_once_and_stops_when_throttled():
+def test_locating_follows_the_page_once_and_stops_when_throttled():
     p = profile()
-    p.venues[2].chosen_reason = "a community arts centre"
     order = [v.name for v in to_locate(p)]
-    assert order[0] == p.venues[2].name and "Hookah Corner" not in order  # unsuitable
-    names = [v.name for v in to_locate(p)]
-    answers = [{"features": [feature(n, 40.67 + k / 1000, -73.98)]} for k, n in enumerate(names)]
+    assert order == [v.name for v in venue_order(p)][: len(order)]
+    assert "Hookah Corner" not in order  # unsuitable
+    answers = [{"features": [feature(n, 40.67 + k / 1000, -73.98)]} for k, n in enumerate(order)]
     places, fake = lookup(*answers, per_minute=2)
     placed = locate_venues(p, NEAR, places)
     assert placed == 2  # the third lookup was throttled
@@ -53,14 +62,36 @@ def test_locating_takes_the_picks_first_once_and_stops_when_throttled():
     assert len(to_locate(p)) == len(order) - 2  # the rest wait for a later save
 
 
-def test_a_second_pass_looks_up_no_venue_past_the_ones_a_page_shows():
+def test_every_venue_a_page_shows_is_looked_up_and_no_other():
     p = profile()
-    p.venues += [Venue(entity_id=f"extra-{k}", name=f"Extra {k}", rank=50 + k) for k in range(8)]
-    shown = to_locate(p)
-    assert len(shown) == LOCATE_LIMIT
-    for venue in shown:
-        venue.point_tried = True
-    assert to_locate(p) == []
+    p.venues = [
+        Venue(entity_id=f"v{k}", name=name, rank=k)
+        for k, name in enumerate(
+            ["Hall", "Kids Gym", "Toddler Corner", "Gallery", "Bar", "Club", "Loft", "Barn"],
+            start=1,
+        )
+    ]
+    every = venue_order(p)
+    no_children = SimpleNamespace(checks=SimpleNamespace(good_with_children="no"))
+    shown = every[:VENUES_SHOWN] + venues_for_animal(no_children, every)[0][:VENUES_SHOWN]
+    names = [v.name for v in to_locate(p)]
+    assert set(names) == {v.name for v in shown}
+    assert "Loft" in names and "Barn" not in names  # Loft is 5th on a page without the two
+    for venue in p.venues:
+        venue.point_tried = venue.name in names
+    assert to_locate(p) == []  # a second pass looks up nothing a page does not show
+
+
+def test_an_agent_profile_is_looked_up_in_its_own_page_order():
+    p = profile()
+    p.made_by = "agent"
+    # Place 7 stands out for pet-show fans, but the page lists the AI's picks by rank.
+    p.venues = [
+        Venue(entity_id=f"v{k}", name=f"Place {k}", rank=k, chosen_reason="a place to ask",
+              compared=True, baseline_rank=None if k == 7 else 1)
+        for k in range(1, 8)
+    ]  # fmt: skip
+    assert [v.name for v in to_locate(p)] == [f"Place {k}" for k in range(1, 6)]
 
 
 def test_a_placed_venue_reads_its_cell_and_its_distance():
