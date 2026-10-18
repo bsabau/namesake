@@ -9,7 +9,7 @@ Probed 3 October and 15 October 2026 with harness 0.1.26, schemas read from `qlo
 | Question | Answer | Consequence |
 |---|---|---|
 | Can a location alone say what people like? | Partly. Results come back, but mostly as national hits with affinity near 1.0. Artists with a location returned nothing. | The agent starts from entities, not from the area alone. |
-| Do pet tags work? | Tags exist, but filtering TV to them leaves 2 shows and films to none. Lifestyle tags (`dog_ownership`) used as a signal are sent but change nothing: every venue scores exactly 0.5. | The agent proposes pet-themed titles itself and checks them; tags are not enough. |
+| Do pet tags work? | Tags exist, but filtering TV to them leaves 2 shows and films to none. Lifestyle tags (`dog_ownership`) used as a signal are sent but change nothing: every venue scores exactly 0.5. | The agent proposes pet-themed titles itself and checks them; tags are not enough as filters. (18 October: as signals with the area they are a source, and the app now starts from them; see the last sections and decision 22.) |
 | Do venue searches near the shelter work? | Yes, with entities as signals. Fans of two pet shows give 15 venues in and around Park Slope, scored 0.70 to 0.73. | Venues are the backbone of the exposure plan. |
 | Are those venues about pets? | Only partly. 9 of the 15 also come back for a show with nothing to do with pets. | Venues are ranked against a baseline; the distinctive ones are shown first. |
 | Does location change a ranking? | Yes, the order changes, but raw scores saturate near 1.0. Rank scores are not comparable across calls. | Use order within a call and lift against a baseline, never raw affinity. |
@@ -111,7 +111,7 @@ Most Qloo work depends on the location and the species, not the individual anima
 
 **Location profile (agent and code, about 8 live calls when proposed; about 12 to 14 since decision 18, cached):**
 
-1. *Agent:* propose about ten pet-themed titles for the species (TV, films, books, brands), since pet tags alone return almost nothing.
+1. *Agent:* propose about ten pet-themed titles for the species (TV, films, books, brands), since pet tags alone return almost nothing. (Superseded on 18 October: Qloo's own pet-themed lists come first, decision 22.)
 2. *Agent:* resolve them. Where Qloo returns candidates, pick one with a stated reason, for example "the 2018 children's series, not the 1976 crime drama", or drop the title.
 3. *Agent and Qloo:* rank them in the location and keep the strongest. If fewer than three survive, propose more once.
 4. *Code:* venues for fans of the survivors and for the baseline (since decision 18, the area's own top two shows; first a fixed show), near the shelter, and the rank difference between the two lists.
@@ -192,9 +192,9 @@ The question: instead of Namesake's AI proposing pet titles and Qloo checking th
 
 `rank` was refused with `QLOO_RATE_LIMIT`, even after its retry, so the titles kept the order Namesake's AI proposed them in. The venues were asked for its first three (PAW Patrol, Bluey, Scooby-Doo), and the map's first title, PAW Patrol, scored one cell within Hoboken. The titles with evidence for the area, *Nature Cat* (9th in Qloo's list of what people around Hoboken who like PAW Patrol also like) and *My Cat from Hell*, went to neither. So code now orders the venue and map titles by evidence (decision 20, revised): Qloo's ranking, else each title's place in the area's lists, then the AI's order.
 
-## Qloo-first pet titles: the area plus the pet tags as signals (18 October, 26 calls)
+## Qloo-first pet titles: the area plus the pet tags as signals (18 October, 12 calls of a 26-call probe run)
 
-`recommend` with the four pet media tags as `signal_tags` (union) plus `signal_location`, limit 20, for TV shows, films and books; 10 seconds apart, no refusals, and `interpretation` showed all four tags sent every time. Kept means Jev's pets ≥ 0.8 and family ≥ 0.6; nothing came back unsure.
+`recommend` with the four pet media tags as `signal_tags` (union) plus `signal_location`, limit 20, for TV shows, films and books (12 calls; the night's other 14 were the follow-up searches, breed tags and podcasts below and in TODO); 10 seconds apart, no refusals, and `interpretation` showed all four tags sent every time. Kept means Jev's pets ≥ 0.8 and family ≥ 0.6; nothing came back unsure.
 
 | Area | TV | Films | Books | Kept |
 |---|---|---|---|---|

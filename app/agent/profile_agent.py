@@ -228,7 +228,7 @@ def find_local_titles(
         else:
             hint = "search with one of your own titles or a kept one"
         return {
-            "status": f"{signal.name} came from a local list without the classifier keeping "
+            "status": f"{signal.name} came from one of Qloo's lists without the classifier keeping "
             f"it; {hint}"
         }
     # Charged before the call, so a failing search cannot be retried without end.
@@ -279,7 +279,13 @@ def pet_lists(deps: ProfileDeps) -> dict[str, Any]:
                 "limit": LOCAL_LIMIT,
             },
         )
-        if status := list_failure(deps, env):
+        status = list_failure(deps, env)
+        sent = (getattr(env, "interpretation", None) or {}).get("signal_tags")
+        if not status and env.interpretation is not None and not sent:
+            # Qloo ignores what it does not understand: without the tags this would be the
+            # area's ordinary top titles, not pet-themed ones.
+            status = "unavailable: Qloo did not take the pet tags"
+        if status:
             deps.log.add("note", f"{what[0].upper()}{what[1:]}: {status}")
             found[kind] = {"status": status}
             continue
@@ -473,7 +479,21 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
         for i in evidence_order(deps, entity_ids)
         if not identity_coded(deps.titles_seen[i].name, deps.titles_seen[i].description)
     ]
-    ids = ([i for i in eligible if has_evidence(deps, i)] or eligible)[:MAX_VENUE_SIGNALS]
+    backed = [i for i in eligible if has_evidence(deps, i)]
+    if not backed:
+        # Titles Qloo backs exist but none was sent: the venues must rest on them.
+        others = [
+            deps.titles_seen[i].name
+            for i in evidence_order(deps, list(deps.titles_seen))
+            if has_evidence(deps, i)
+            and not identity_coded(deps.titles_seen[i].name, deps.titles_seen[i].description)
+        ]
+        if others:
+            return {
+                "status": "none of these titles has Qloo's evidence for this area; send "
+                f"titles Qloo backs, such as {', '.join(others[:3])}"
+            }
+    ids = (backed or eligible)[:MAX_VENUE_SIGNALS]
     if not ids:
         return {"status": "no title here can be a venue signal; send titles you keep"}
     names = [deps.titles_seen[i].name for i in ids]

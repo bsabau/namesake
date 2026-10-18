@@ -361,8 +361,8 @@ def name_badge(
         return f"Has a lookalike in {title}" if title else "Has a lookalike"
     if source == "local":
         return "Watched locally"
-    title = next((e for e in profile.pet_entities if e.id == entity_id), None)
-    found = (title.found_in or title.listed_in) if title else None
+    entity = next((e for e in profile.pet_entities if e.id == entity_id), None)
+    found = (entity.found_in or entity.listed_in) if entity else None
     liked = None
     if found:
         liked = (
@@ -607,10 +607,12 @@ def who_chose(profile: LocationProfile) -> str:
     searched = any(
         f and not f.by_tags for e in profile.pet_entities for f in (e.found_in, e.listed_in)
     )
+    sorted_ = any(e.verdict for e in profile.pet_entities)
     if by_tags:
         text = (
-            "Qloo listed pet-themed titles people here tend to like, and a classifier sorted "
-            "them; Namesake's AI judged the unclear ones, could add its own, settled ambiguous "
+            "Qloo listed pet-themed titles people here tend to like"
+            + (", and a classifier sorted them" if sorted_ else "")
+            + "; Namesake's AI judged the unclear ones, could add its own, settled ambiguous "
             "names and picked the venues. "
         )
     else:

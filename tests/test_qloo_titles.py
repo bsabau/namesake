@@ -170,7 +170,9 @@ def test_the_ai_is_told_qloos_pet_titles_up_front(roster):
                 seen["prompt"] = messages[0].parts[-1].content
             return super().__call__(messages, info)
 
-    run(Recording([PLAN], [DRAFT]), roster, qloo=FakeQloo(refused_rank_script()))
+    plan = {**PLAN, "titles": [{"entity_id": PUPPY_SCHOOL, "why": "a puppy"}, *PLAN["titles"]]}
+    script = Recording([plan], [DRAFT, DRAFT], venue_titles=[PUPPY_SCHOOL, DOG_SHOW, CAT_SHOW])
+    run(script, roster, qloo=FakeQloo(refused_rank_script()))
     assert "Qloo's pet-themed titles for this area" in seen["prompt"]
     assert "Example Puppy School" in seen["prompt"]
 
@@ -205,3 +207,47 @@ def test_an_ais_title_kept_for_its_place_in_a_list_says_so_on_its_badge():
     assert name_badge("pet", CAT_SHOW, profile) == (
         "Pet-themed title, liked here by fans of Example Dog Show"
     )
+
+
+def test_venues_are_never_asked_for_unbacked_titles_while_backed_ones_exist():
+    from app.agent.profile_agent import find_venues
+
+    # Flash, PR #20: the AI sent only its own titles, and the venues and map rested on them.
+    d = deps({pet_key("tv_show"): envelope("recommend", results=PET_LIST[:1])},
+             FakeClassifier(VERDICTS))  # fmt: skip
+    pet_lists(d)
+    d.titles_seen[DOG_SHOW] = Entity(
+        id=DOG_SHOW, name="Example Dog Show", type="urn:entity:tv_show"
+    )
+    out = find_venues(SimpleNamespace(deps=d), [DOG_SHOW])
+    assert "send titles Qloo backs, such as Example Puppy School" in out["status"]
+    assert d.venue_signals is None
+
+
+def test_a_list_qloo_answered_without_the_tags_is_not_a_pet_list():
+    listing = envelope(
+        "recommend", results=PET_LIST, interpretation={"signal_location": LOCATION.query}
+    )
+    d = deps({pet_key("tv_show"): listing}, FakeClassifier(VERDICTS))
+    assert pet_lists(d)["tv_show"]["status"] == "unavailable: Qloo did not take the pet tags"
+    assert PUPPY_SCHOOL not in d.titles_seen
+
+
+def test_the_four_pet_tags_are_the_ones_milestone_1_found():
+    assert PET_TAGS == [
+        "urn:tag:genre:media:dogs",
+        "urn:tag:keyword:media:pet_dogs",
+        "urn:tag:subgenre:qloo:pets",
+        "urn:tag:keyword:qloo:cats",
+    ]
+
+
+def test_who_chose_credits_the_classifier_only_when_it_ran():
+    from app.profile import LocationProfile
+
+    place = FoundIn(signal="Qloo's pet tags", kind="tv_show", position=1, out_of=3, by_tags=True)
+    puppy = Entity(id=PUPPY_SCHOOL, name="Puppy", type="urn:entity:tv_show", found_in=place)
+    profile = LocationProfile(location_id=LOCATION.id, pet_entities=[puppy], made_by="agent")
+    assert "classifier" not in who_chose(profile)
+    profile.pet_entities[0].verdict = VERDICTS[PUPPY_SCHOOL]
+    assert "and a classifier sorted them" in who_chose(profile)
