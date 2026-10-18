@@ -6,7 +6,7 @@ This is the technical tour: the parts, who decides what, how a request flows thr
 
 ```mermaid
 flowchart LR
-    browser["Browser<br/>classic UI: Jinja pages,<br/>a little JavaScript, Leaflet map"]
+    browser["Browser<br/>warm UI (default) or classic:<br/>Jinja pages, a little JavaScript,<br/>Leaflet map"]
     subgraph app["One container: FastAPI app"]
         routes["Routes<br/>app/main.py"]
         views["View models<br/>app/views/"]
@@ -16,6 +16,7 @@ flowchart LR
         checks["Plain-code checks<br/>app/agent/checks.py"]
         qclient["QlooClient<br/>cache, spacing, replay<br/>app/qloo/"]
         places["Place lookups<br/>app/places.py"]
+        classify["Title classifier<br/>app/classify.py"]
         db[("SQLite<br/>var/cache.sqlite")]
         sessions[("Sessions<br/>in memory")]
     end
@@ -23,6 +24,7 @@ flowchart LR
     qloo["Qloo API"]
     model["Model<br/>OpenAI-compatible endpoint<br/>(AGENT_* settings)"]
     photon["Photon geocoder<br/>(OpenStreetMap)"]
+    jev["TypeSafe's Jev<br/>(TYPESAFE_* settings)"]
 
     browser -- "HTML pages, /api/ JSON,<br/>server-sent events" --> routes
     routes --> views
@@ -32,7 +34,10 @@ flowchart LR
     routes --> db
     runs --> agents
     agents --> model
-    agents -- "calls it chooses:<br/>describe, rank, recommend place" --> qclient
+    agents -- "calls it chooses:<br/>describe, rank,<br/>recommend titles and places" --> qclient
+    agents -- "titles found in<br/>the area's lists" --> classify
+    classify --> jev
+    classify --> db
     agents --> checks
     runs -- "fixed calls:<br/>local shows, baseline venues, heatmaps" --> qclient
     typed -- "fixed call: one heatmap" --> qclient
@@ -44,9 +49,10 @@ flowchart LR
 
 - **One long-lived process** serves everything: pages, the JSON API, the live step log, and the background runs. Qloo's harness is a local process with no hosted URL, so serverless was never an option.
 - **Namesake's AI is two agents** (PydanticAI): a **profile agent** per area and species, and a **listing agent** per animal. Their Qloo tools are plain Python functions over `QlooClient`, so every call they make is cached and spaced like any other (decision 5).
+- **A classifier sorts titles the AI finds in the area's lists** (decision 20): TypeSafe's Jev answers yes-or-no questions with a probability (pets central, dogs, cats, family audience, real people). Code keeps the clear pet titles, sets the clear others aside, and leaves the rest to the AI. It receives a title's name, kind and Qloo's description only; its answers are cached; without a key, or after a failure, the AI judges the titles itself.
 - **Plain code checks everything the AI returns** before anything is saved or shown. The checks are PydanticAI output validators (`check_plan`, `check_draft`): a failed check goes back to the model with its reasons, as its one repair round.
 - **Qloo's answer and Namesake's reading stay apart.** View models carry them as separate fields, and the UI contract test checks that both render (`data-role="qloo-returned"` and `"our-reading"`).
-- **The UI is a replaceable skin.** Routes build typed view models (`app/views/`); a UI folder (`app/ui/<name>/`) only renders them, and the same view models are served as JSON under `/api/`. `?ui=<name>` switches UI per request.
+- **The UI is a replaceable skin.** Routes build typed view models (`app/views/`); a UI folder (`app/ui/<name>/`) only renders them, and the same view models are served as JSON under `/api/`. `warm` is the default and `classic` is kept for comparison (decision 21); `?ui=<name>` switches UI per request, and the contract test runs against both.
 
 ## Who decides what
 
@@ -54,11 +60,11 @@ The hackathon asks for an agent, so this is the line that matters: where the mod
 
 | | Namesake's AI decides | Plain code does |
 |---|---|---|
-| **Area profile** | which pet-themed titles to try; which of Qloo's candidates a name means, with a stated reason; the order when Qloo's ranking is unavailable; which titles to send for venues; which venues suit an adoption event | the area's top shows and the baseline; the baseline's venues; the venue comparison; every heatmap and the map |
+| **Area profile** | which pet-themed titles to try; which of Qloo's candidates a name means, with a stated reason; which of its titles to search the area's lists with, and which unclear titles found there are about pets; the order when Qloo's ranking is unavailable; which titles to send for venues; which venues suit an adoption event | the area's top shows and the baseline; the baseline's venues; the venue comparison; every heatmap and the map; which titles found in the area's lists to keep or set aside, from the classifier's answers |
 | **Listing** | which names to offer from the area's titles; which lookalike titles to check, and how to retry one that was refused (with look words quoted from the record); the bio, from the facts | the answers about children, other animals, house-training and bites; the hook line; every check |
 | **Typed area** | nothing | the one heatmap that accepts or refuses it |
 
-The AI reads each answer and adapts: an ambiguous title gets a choice or is dropped, and an unavailable ranking falls back to its own order.
+The AI reads each answer and adapts: an ambiguous title gets a choice or is dropped, a title found in the area's lists that the classifier was unsure of gets the AI's judgement, and an unavailable ranking falls back to its own order.
 
 ## A request, end to end
 
@@ -73,6 +79,7 @@ sequenceDiagram
     participant P as Profile build
     participant A as Listing agent
     participant M as Model
+    participant J as Classifier
     participant Q as QlooClient
     participant S as Store (SQLite)
 
@@ -88,7 +95,8 @@ sequenceDiagram
         T->>P: get or build the area profile
         P->>Q: fixed calls: local shows, baseline venues
         P->>M: profile agent: which titles, which venues
-        M->>Q: describe, rank, recommend place (its choice)
+        M->>Q: describe, recommend titles in the area's lists, rank, recommend place (its choice)
+        P->>J: sort the titles found in the area's lists
         P->>Q: fixed calls: heatmaps for the map
         T->>A: write names and bio from the record
         A->>M: listing agent
@@ -113,7 +121,7 @@ This happens before any run, when the area is not one of the presets.
 
 ## The area profile
 
-Most Qloo work depends on the area and the species, not the animal, so it is done once per area and species and shared by every animal there (decision 1). A new area costs about 12 to 14 Qloo calls; each further animal at most two.
+Most Qloo work depends on the area and the species, not the animal, so it is done once per area and species and shared by every animal there (decision 1). A new area costs about 15 to 17 Qloo calls; each further animal at most two.
 
 ```mermaid
 flowchart TD
@@ -123,7 +131,7 @@ flowchart TD
     usable -- no --> seed["Baseline: one seed show,<br/>with a note saying why"]
     base --> basevenues["Baseline venues<br/>recommend place, baseline as signals"]
     seed --> basevenues
-    basevenues --> ai["Profile agent (Namesake's AI)<br/>look_up_title: describe<br/>rank_titles: rank, once<br/>find_venues: recommend place"]
+    basevenues --> ai["Profile agent (Namesake's AI)<br/>look_up_title: describe<br/>find_local_titles: recommend, up to 3,<br/>sorted by the classifier<br/>rank_titles: rank, once, up to 8 titles<br/>find_venues: recommend place"]
     ai --> check{"check_plan:<br/>every title and venue<br/>came from Qloo this run?"}
     check -- no --> ai
     check -- "still no, or the AI fails" --> fixed["Fixed lookup with the seed titles"]
@@ -136,7 +144,8 @@ flowchart TD
     finish --> save
 ```
 
-- **Budget**: the profile agent may make at most 16 model requests and 14 tool calls. That is a ceiling; the whole profile, fixed calls included, usually comes to 12 to 14 Qloo calls.
+- **Budget**: the profile agent may make at most 20 model requests and 18 tool calls. That is a ceiling; the whole profile, fixed calls included, usually comes to 15 to 17 Qloo calls.
+- **Titles from the area's lists** (decision 20): `find_local_titles` asks what people around the area who like one of the AI's titles (or one the classifier kept) also like, for TV, films or books, 20 at a time, up to three searches. Titles the classifier sets aside never reach the AI's plan. Each found title keeps where it was found ("1st of 20 in Qloo's list of TV shows people around Austin who like PAW Patrol tend to like") and the classifier's answers, and the Why panel shows them in separate columns.
 - **The baseline** is the area's top two shows, leaving out any whose name or description mentions animals; the AI may not use them as pet titles. If the area's shows are unusable, one seed show stands in, with a note. If even that cannot be found, the venues and the map are left uncompared, and the note says so.
 - **The heatmaps** run in this order: the first pet title, the baseline shows, then the second pet title, so a profile cut short still has a comparison.
 - **The map** is lift: in each cell, the pet titles' mean score minus the baseline shows' mean score. Within a neighbourhood, a heatmap's `query.affinity` is a rank spread from 0 to 1 inside the area (`docs/qloo-findings.md`), so ranks can be averaged and subtracted. Raw affinity saturates near 1.0, so it is never shown. Maps of different precision are brought to the coarsest one first.
@@ -158,7 +167,7 @@ flowchart TD
 The listing agent may make at most 6 model requests and 4 tool calls. What code checks:
 - **Bio**: every sentence cites recorded facts and adds no content word they lack; every recorded fact other than the look is used; at most 150 words. When the facts cannot reach 75 words, the bio stays short and the page says so; it is never padded. The answers about children, other animals, house-training and bites are added by code from fixed sentences, never written by the model, and a bite history is never softened.
 - **Names**: one to three syllables, letters only; a blocklist of weapon and aggression words; a list of famous villains and tragic animals; no reference the model marks as a villain or tragic character, or as a real person; short lists of famous real people and of words coded to a religion, race or political identity; for bully-type dogs, only names from the pet-themed or lookalike titles. Lists cannot be complete, so the model is also told to avoid these, and the volunteer chooses (decision 19).
-- **The title behind a name**, as Qloo returned it: one about real people (a talk show, reality show, documentary, biopic, memoir) gives only animals' names; one coded to an identity gives none. Descriptions name the cast, so they are searched only for words that are rarely anyone's name.
+- **The title behind a name**, as Qloo returned it: one about real people (a talk show, reality show, documentary, biopic, memoir, or one the classifier scores as about real people) gives only animals' names; one coded to an identity gives none. Descriptions name the cast, so they are searched only for words that are rarely anyone's name.
 - **No shared names**: no two animals at a shelter share a name. A litter named as a set shares one title, never a name.
 - **Hook**: assembled by code from the name, its role and Qloo's title; it says nothing about temperament.
 - **Lookalikes**: the shared look must be quoted from the record, and the name must be that animal's own (decision 14).
@@ -173,12 +182,13 @@ Saved listings carry the version of the checks they passed. When the checks chan
 | `qloo_meta` | the time of the last live Qloo call, for spacing across processes | server only |
 | `agent_results` | area profiles, listings, typed areas | server only |
 | `approvals` | approved names and versions, for the measurement log | server only |
+| `classifier_answers` | the classifier's answers per title, keyed by the title as described, the questions and the model | server only |
 | `usage` | live runs and new typed areas per day (UTC), for the daily caps | server only |
 | Memory | live runs per visitor in the last hour | server only, reset on restart |
 | `var/qloo-recordings/` | raw Qloo answers, for replay in development | never committed |
 | Session (memory) | added animals, their photos and listings; refined listings; the map pin | one visitor; ends 2 hours after the last visit, on a restart, or when over 500 sessions are open |
 
-No account exists. The session cookie holds a random ID and nothing else. Qloo receives cultural entities and place names only; Photon receives area names and rounded points; neither gets anything about a visitor. `tests/test_no_qloo_data.py` fails if real Qloo data appears in the repository.
+No account exists. The session cookie holds a random ID and nothing else. Qloo receives cultural entities and place names only; Photon receives area names and rounded points; the classifier receives a title's name, kind and Qloo's description; none gets anything about a visitor. `tests/test_no_qloo_data.py` fails if real Qloo data appears in the repository.
 
 ## The API
 
@@ -203,7 +213,7 @@ Everything that differs between machines is an environment variable (`.env` loca
 | Setting | Default | What it does |
 |---|---|---|
 | `QLOO_API_KEY`, `QLOO_BASE_URL`, `QLOO_TRUSTED_BASE_URL` | none | the hackathon key and its base URL, for the harness |
-| `QLOO_MIN_INTERVAL` | 5 s | the shortest gap between live Qloo calls, across processes |
+| `QLOO_MIN_INTERVAL` | 2 s | the shortest gap between live Qloo calls, across processes |
 | `ALLOW_LIVE_QLOO` | true | off: runs use the cache and recordings only |
 | `AGENT_BASE_URL`, `AGENT_API_KEY`, `AGENT_MODEL`, `AGENT_API` | none, `chat` | the model, as configuration, never code |
 | `AGENT_OUTPUT_MODE` | `native` | how the model returns structured output (`native`, `prompted`, `tool`) |
@@ -211,19 +221,21 @@ Everything that differs between machines is an environment variable (`.env` loca
 | `LIVE_RUNS_PER_DAY` | 60 | live runs per day, everyone together |
 | `NEW_LOCATIONS_PER_DAY` | 10 | new typed areas checked per day |
 | `GEOCODER_URL` | Photon's public server | empty turns suggestions and the map pick off |
-| `UI` | `classic` | the default interface |
+| `TYPESAFE_API_KEY`, `TYPESAFE_BASE_URL`, `TYPESAFE_MODEL` | none, TypeSafe's API, `jev-latest` | the title classifier; without a key it is off and the AI judges the titles; an `https://` base URL only |
+| `UI` | `warm` | the default interface (`classic` is kept) |
 
 ## Limits and safety
 
-- **Qloo**: the hackathon key was refused after about 12 calls in 20 minutes, so every live call goes through `QlooClient`: cached in SQLite, spaced at least `QLOO_MIN_INTERVAL` apart across processes, retried once only when Qloo says the error is retryable, with a 90-second timeout. Pages read Qloo from the cache only; runs and the typed-area check call it live, within the caps.
+- **Qloo**: the hackathon key was refused after about 12 calls in 20 minutes on 15 October (30 calls 10 seconds apart passed on 17 October), so every live call goes through `QlooClient`: cached in SQLite, spaced at least `QLOO_MIN_INTERVAL` apart across processes, retried once only when Qloo says the error is retryable, with a 90-second timeout. Pages read Qloo from the cache only; runs and the typed-area check call it live, within the caps.
 - **Visitors**: live runs are capped per visitor per hour and per day; new typed areas per day. Place lookups have their own allowance (30 a minute per visitor, 120 for everyone), and only calls that reach Photon count.
+- **Classifier**: a 10-second timeout per title; any failure of Jev or its cache leaves the title to the AI, and after the first failed call a run uses saved answers only, so a slow classifier costs one timeout.
 - **Model**: the per-run request and tool-call limits above, and one repair round. Then the profile falls back to a fixed lookup with the seed titles, and the listing to a templated one that says why.
 - **Secrets** live in environment variables (`SecretStr`, never logged) and, on the server, in a `.env` with mode 600 that CI never touches.
 
 ## Testing and delivery
 
-- **Tests** (`uv run pytest`, about 350) never reach Qloo, a model or Photon: they use hand-written envelopes with invented IDs (`tests/fixtures/qloo/synthetic/`, `tests/qloo_fakes.py`), PydanticAI's `FunctionModel`, and a fake geocoder.
-- **Reviews**: every change is reviewed by other models before it is merged (`CLAUDE.md`).
+- **Tests** (`uv run pytest`, about 400) never reach Qloo, a model, the classifier or Photon: they use hand-written envelopes with invented IDs (`tests/fixtures/qloo/synthetic/`, `tests/qloo_fakes.py`), PydanticAI's `FunctionModel`, a fake classifier, and a fake geocoder.
+- **Reviews**: every change is reviewed by other models before it is merged (`CLAUDE.md`), and updates the docs it makes stale, this one included (AGENTS.md).
 
 ```mermaid
 flowchart LR
