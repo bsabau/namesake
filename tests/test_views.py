@@ -3,7 +3,7 @@ import re
 import pytest
 
 from app.locations import load_locations
-from app.profile import LocationProfile, build_profile, rank_band
+from app.profile import LocationProfile, Venue, build_profile, rank_band
 from app.views.build import (
     FEATURED,
     RANK_NOTES,
@@ -12,6 +12,7 @@ from app.views.build import (
     for_children,
     result_id,
     sentences,
+    skipped_shown,
 )
 from tests.qloo_fakes import (
     BASELINE,
@@ -252,13 +253,16 @@ def test_the_children_words_match_whole_words_in_the_name_or_description():
     assert for_children(None, "Kid’s birthday parties.") == "kid"
     assert for_children(None, "Toddler classes and a playground.") == "toddler"
     assert for_children(None, "A family-friendly brewery.") == "family-friendly"
-    assert for_children(None, "A soft play centre.") == "play centre"
+    assert for_children(None, "A soft play centre.") == "soft play"
+    assert for_children(None, "Classes for babies and an elementary school club.") == "babies"
     # Other common meanings in venue text are not about children.
     for text in (
         "A plant nursery.",
         "A dog daycare.",
         "A restaurant serving baby back ribs.",
         "A youth hostel.",
+        "A fenced play area for dogs.",
+        "An off-leash play space for dogs.",
         "A bar for kidney-shaped pools.",
         None,
     ):
@@ -291,11 +295,15 @@ def test_an_empty_profile_still_says_no_venues(roster):
 def test_a_skipped_venue_is_named_whenever_a_lower_one_takes_its_slot():
     # Flash, PR #19: a fixed window of the first five missed a skipped venue that a
     # lower one replaced.
-    from app.profile import Venue
-    from app.views.build import skipped_shown
-
     every = [Venue(entity_id=str(n), name=f"Place {n}", rank=n + 1) for n in range(8)]
     skipped = [every[0], every[5]]
     kept = [v for v in every if v not in skipped]
     # Five shown: 1, 2, 3, 4, 6; places 0 and 5 both rank above place 6.
     assert [v.name for v in skipped_shown(every, kept, skipped)] == ["Place 0", "Place 5"]
+
+
+def test_a_skipped_last_pick_of_three_is_still_named():
+    # Codex and Flash, PR #19 re-check: an agent profile has at most three venues, and a
+    # skipped lowest one vanished without a word.
+    every = [Venue(entity_id=str(n), name=f"Place {n}", rank=n + 1) for n in range(3)]
+    assert [v.name for v in skipped_shown(every, every[:2], every[2:])] == ["Place 2"]

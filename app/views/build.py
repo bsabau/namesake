@@ -520,7 +520,7 @@ def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueV
 
 
 def plan(
-    animal: Animal, location: Location, venues: list[Venue], left_out: list[Venue] | None = None
+    animal: Animal, location: Location, venues: list[Venue], skipped: list[Venue] | None = None
 ) -> list[PlanItem]:
     items = [
         PlanItem(
@@ -553,8 +553,8 @@ def plan(
                 basis="Qloo",
             )
         )
-    if left_out:
-        skip = and_list([f"{v.name} (it mentions {mentions(v)})" for v in left_out])
+    if skipped:
+        skip = and_list([f"{v.name} (it mentions {mentions(v)})" for v in skipped])
         items.append(
             PlanItem(
                 text=f"Skip {skip} for this {animal.species}: the record says "
@@ -573,11 +573,12 @@ def plan(
 # the record says the animal is not good with children (decision 2). Whole words, so
 # "kid-friendly", "child care" and "Childrens Museum" count; words with other common
 # meanings in venue text ("nursery" for plants, "daycare" for dogs, "baby back ribs",
-# "youth hostel") are not on the list. A venue with no description is judged by its name.
+# "youth hostel", a dog park's "play area") are not on the list. A venue with no
+# description is judged by its name.
 FOR_CHILDREN = re.compile(
-    r"\b(child|children|childrens|kid|kids|toddlers?|playgrounds?|playgroups?|preschools?"
-    r"|kindergartens?|childcare|family-friendly|families|storytime"
-    r"|play (?:area|centre|center|space)s?)\b"
+    r"\b(child|children|childrens|kid|kids|toddlers?|babies|playgrounds?|playgroups?"
+    r"|preschools?|kindergartens?|elementary school|childcare|family-friendly|families"
+    r"|storytime|soft play)\b"
 )
 
 
@@ -599,16 +600,18 @@ def venues_for_animal(animal: Animal, venues: list[Venue]) -> tuple[list[Venue],
 
 
 def skipped_shown(every: list[Venue], kept: list[Venue], skipped: list[Venue]) -> list[Venue]:
-    """The skipped venues the page would have shown: each ranked above the last venue it
-    does show (or, when none is shown, within the first VENUES_SHOWN)."""
+    """The skipped venues the page would have shown: those among the first VENUES_SHOWN,
+    and any ranked above the last venue it does show (a lower one took their slot)."""
     shown = kept[:VENUES_SHOWN]
-    cut = every.index(shown[-1]) if shown else VENUES_SHOWN - 1
+    cut = max(every.index(shown[-1]) + 1 if shown else 0, VENUES_SHOWN)
     skip = {v.entity_id for v in skipped}
-    return [v for v in every[: cut + 1] if v.entity_id in skip]
+    return [v for v in every[:cut] if v.entity_id in skip]
 
 
 def mentions(v: Venue) -> str:
-    return f"“{for_children(v.name, v.description)}”"
+    word = for_children(v.name, v.description)
+    assert word, f"{v.name} mentions no child word"  # only skipped venues are named
+    return f"“{word}”"
 
 
 KIND_WORDS = {"tv_show": "TV shows", "movie": "films", "book": "books"}
@@ -825,17 +828,17 @@ def build_result_view(
 ) -> ResultView:
     every = venue_order(profile)
     ordered, skipped = venues_for_animal(animal, every)
-    left_out = skipped_shown(every, ordered, skipped)
+    named_skips = skipped_shown(every, ordered, skipped)
     returned, reading = why(location, profile)
-    if left_out:
+    if named_skips:
         # Our reading of Qloo's venues for this animal; Qloo's column stays as it was.
         reading.append(
             WhyItem(
                 title=f"Skipped for this {animal.species}",
                 detail=and_list([f"{v.name}: its name or Qloo description mentions {mentions(v)}"
-                                 for v in left_out])
-                + f". The record says this {animal.species} is not good with children, and "
-                "the next places take their slots.",
+                                 for v in named_skips])
+                + f". The record says this {animal.species} is not good with children"
+                + (", and the next places take their slots." if ordered else "."),
             )
         )  # fmt: skip
     look_returned, look_reading = lookalike_why(animal, listing)
@@ -860,7 +863,7 @@ def build_result_view(
             else "No venues for this area yet."
         ),
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
-        plan=plan(animal, location, ordered, left_out),
+        plan=plan(animal, location, ordered, named_skips),
         qloo_returned=returned,
         our_reading=reading,
         notes=profile.notes,

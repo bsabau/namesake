@@ -91,6 +91,7 @@ Check these first. Each one can sink the entry or leak something.
 - A name path that skips the screen, or the stricter screen for bully-breed dogs.
 - README, Devpost or UI copy that claims faster adoption, saved lives or money, or matching.
 - UI that blends what Qloo returned with the app's reading of it.
+- A per-animal venue filter that drops a venue without naming it, or reads anything but the animal's record and the venue's own name and description.
 - A UI folder that calls Qloo, the agent or the cache, or computes data that belongs in a view model.
 - An envelope status left unhandled (`ok`, `empty`, `needs_input`, `partial`, `degraded`, `error`), a retry when `retryable` is false, or a `needs_input` forced through as a match.
 - A model name, endpoint or key written into code instead of read from the four `AGENT_*` variables.
