@@ -24,6 +24,7 @@ The review found no study showing that names or wording speed adoption. Being se
 **The bio:**
 - Third person, behaviour toward people first, plain wording, 75 to 150 words.
 - Every sentence traces to a fact. Code checks this after the model writes.
+- A fact about what the animal needs from an adopter gets its own sentence, never joined to a fact about what the animal does, so the animal's behaviour is never read as the adopter's.
 - Difficult behaviour is stated plainly with a management suggestion.
 
 **Generic and local versions** share the same bio. The generic version takes a common pet name from a fixed list; the local version takes the chosen name from Qloo's titles and adds one hook line. The toggle therefore shows exactly what Qloo contributed (`docs/decisions.md` #8).
@@ -38,9 +39,9 @@ Name options come from three sources. Each option carries a badge with what Qloo
 |---|---|
 | Pet-themed, strong here | Pet-themed titles with Qloo's evidence for the area (decision 22): ranked here by Qloo ("ranked 1st of 8 here by Qloo"), or placed in one of the area's lists, asked with Qloo's pet tags or for fans of another pet title ("in Qloo's list for this area asked with its pet tags", "liked here by fans of Bluey") |
 | Loved here generally | The area's top tastes by type (step E). Screened harder, because these lists lean on national hits and identity-coded titles. |
-| Title found, or Offered as a candidate (a lookalike) | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Qloo's line says only that it found the title, or offered it among candidates when it asked which was meant; the match ("A lookalike, matched on this animal's recorded look (brindle).", after the reference that names the character) is on the AI's line. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
+| Title found, or Offered as a candidate (a lookalike) | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Qloo's line says only that it found the title, or offered it among candidates when it asked which was meant; the match ("A lookalike, matched on this animal's recorded look (brindle coat).", after the reference that names the character) is on the AI's line. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
 
-Each option shows the Qloo title, its kind and Qloo's evidence for the area (its rank here, or its place in one of the area's lists); a lookalike has no area evidence, only the title. Our reading of why it suits the animal is shown separately. The volunteer picks one. Ranking uses both affinity and popularity, so a recognisable reference beats a niche one.
+Each option shows the Qloo title, its kind and Qloo's evidence for the area (its rank here, or its place in one of the area's lists); a lookalike has no area evidence, only the title. Our reading, how the name fits the animal's recorded look, is shown separately; it never mentions temperament, so the reference cannot imply how the animal behaves. Each option comes from a different title while another of the area's open titles is unused (lookalike titles never count), except a litter named as a set. The volunteer picks one. Ranking uses both affinity and popularity, so a recognisable reference beats a niche one.
 
 ## Output 3: the exposure plan
 
@@ -50,7 +51,7 @@ The plan is a checklist the volunteer can carry out without an ad budget:
 2. In-person visibility: outings, events, an "Adopt Me" vest.
 3. Timing: Friday, Saturday and early evening.
 4. For New York dogs: rescue partners and foster recruitment.
-5. **Venues (Qloo):** about three places near the shelter that fans of up to three of the pet-themed entities favour, for flyers and events. Code picks those titles by their evidence for the area (Qloo's ranking, else their best place in the area's lists), never an identity-coded one, and the agent picks the venues. Each venue shows its evidence. For an animal recorded as not good with children, venues whose name or Qloo description mentions children are skipped, and the plan says which (decision 2).
+5. **Venues (Qloo):** about three places near the shelter that fans of up to three of the pet-themed entities favour, for flyers and events. Code picks those titles by their evidence for the area (Qloo's ranking, else their best place in the area's lists), never an identity-coded one, and the agent picks the venues. Each venue shows its evidence, and apart from it the agent's reason: why the place could host an adoption event or show a flyer, from its name and Qloo's description only. For an animal recorded as not good with children, venues whose name or Qloo description mentions children are skipped, and the plan says which (decision 2).
 6. **One channel beyond the usual audience.** It comes from that location's `community_channels` entry in `data/locations.json` and is labelled as our suggestion.
 
 The plan's success measure is adoptions and returns; likes and reach are left out.

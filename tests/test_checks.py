@@ -377,10 +377,25 @@ def test_a_restatement_passes_and_an_invention_fails():
     assert any("says things its facts do not" in p for p in problems)
 
 
-def test_a_reason_may_only_restate_the_facts():
-    assert check_why(animal(), "It suits a dog who knows basic commands.", "Bingo") == []
+def test_a_reason_may_only_draw_on_the_look():
+    # Decided 18 October: a reference must not imply temperament, in the reason either.
+    assert check_why(animal(), "It suits her short brindle coat.", "Bingo") == []
+    assert check_why(animal(), "A short name, easy to say.", "Bingo") == []
+    for near in ("Short and easy to say.", "It is short and easy to say.", "Short, easy to say."):
+        assert check_why(animal(), near, "Bingo") == []
+    assert "A short name, easy to say." in check_why(animal(), "It suits a calm dog.", "B")[0]
+    # "short" is allowed only in that fixed reason: a short coat it lacks is refused.
+    problems = check_why(animal(look="yellow coat, grey muzzle"), "It suits a short coat.", "B")
+    assert any("'short'" in p for p in problems)
+    problems = check_why(animal(), "It suits a dog who knows basic commands.", "Bingo")
+    assert any("recorded look does not" in p and "'command'" in p for p in problems)
     problems = check_why(animal(), "She adores toddlers.", "Bingo")
     assert any("toddlers" in p for p in problems)
+
+
+def test_a_reason_naming_temperament_is_refused():
+    problems = check_why(animal(), "It suits a gentle dog.", "Bingo")
+    assert any("'gentle'" in p and "never temperament" in p for p in problems)
 
 
 def test_a_weapon_in_the_reference_fails_even_for_an_object_name():

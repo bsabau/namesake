@@ -68,7 +68,11 @@ class TitleChoice(BaseModel):
 
 class VenuePick(BaseModel):
     entity_id: str = Field(description="The Qloo ID from find_venues.")
-    reason: str = Field(description="One sentence about the place itself.")
+    reason: str = Field(
+        description="One sentence. For a pick: why this place could host an adoption "
+        "event or show a flyer, from its name and Qloo's description only. For a "
+        "rejection: why it is unsuitable."
+    )
 
 
 class ProfilePlan(BaseModel):
@@ -117,6 +121,10 @@ The shelter is in {place}. You use Qloo, a taste-data service, through four tool
    when no higher one is suitable, and then say so in its reason.
 
 Write about places and titles, never about individual people. Keep reasons to one sentence.
+A picked venue's reason says why it suits an adoption event or a flyer, using only what
+its name and Qloo's description say: for example, that the description says it hosts
+events or classes, or that it is a shop, cafe or community centre. Qloo's description is
+shown beside it, so do not repeat it, and claim no feature it does not mention.
 """
 
 
