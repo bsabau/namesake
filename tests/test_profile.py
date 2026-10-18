@@ -107,3 +107,16 @@ def test_nothing_resolved_means_no_lookups():
     p = build_profile(qloo, LOCATION, SEEDS)
     assert p.pet_entities == [] and p.venues == []
     assert all(op == "describe" for op, _ in qloo.calls)
+
+
+def test_a_generic_qloo_type_takes_the_kind_asked_for():
+    from app.profile import entity_type, local_tastes
+
+    # Qloo's recommend lists give "urn:entity"; the kind asked for stands in.
+    assert entity_type("urn:entity", "movie") == "urn:entity:movie"
+    assert entity_type(None, "book") == "urn:entity:book"
+    assert entity_type("urn:entity:tv_show", "movie") == "urn:entity:tv_show"
+    # The area's top shows, which the Why panel names as the comparison.
+    assert {e.type for e in local_tastes(FakeQloo(standard_script()), LOCATION)} == {
+        "urn:entity:tv_show"
+    }

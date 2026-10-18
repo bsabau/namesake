@@ -45,7 +45,7 @@ Namesake's AI (two agents, one per area and one per animal) and some plain code 
 | A map of where pet-show fans stand out | `where_popular` within the neighbourhood, for the two pet titles the venues were asked for first (by evidence) and the top two baseline shows; a first pet title with fewer than five cells there gives way once to the next, when that makes a better map (more cells with a comparison) | Code | Raw affinity saturates near 1.0, so the map shows **lift**: the pet titles' cell score minus the baseline shows', each averaged over the maps that scored the cell. A key on the map says what the colours mean. |
 | What the area tends to watch | `recommend` TV and films with `signal_location` | Code | A second, labelled source of name options. |
 | Titles with an animal that looks like this one | `describe` | **Namesake's AI**, per animal, at most two | A personal name option, badged "Has a lookalike in …". The shared look must be quoted from the animal's record. |
-| A volunteer types their own area, or right-clicks the shelter's spot on the map | `where_popular` for one widely watched probe show within the area's name | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here", instead of a weak listing. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
+| A volunteer types their own area, or right-clicks the shelter's spot on the map | `recommend` for the area's own top TV show, then `where_popular` for that show within the area's name (a widely watched seed show as well when the list is not a plain answer or its show is thin there) | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". Passing says Qloo has data for the area; when its pet titles still map thinly, the result page says so. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
 
 The decisions behind each row, with their evidence, are in [`docs/decisions.md`](docs/decisions.md) and [`docs/qloo-findings.md`](docs/qloo-findings.md).
 
@@ -67,7 +67,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
    - a **Why** drawer with two columns, "Qloo returned" and "How Namesake read it" (Namesake's AI and its code)
 4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software.
 
-The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 15 to 17 Qloo calls (fewer when titles are already cached; one or two more to check a typed area first), and each further animal at most two.
+The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 15 to 17 Qloo calls (fewer when titles are already cached; two or three more to check a typed area first), and each further animal at most two.
 
 ## Measuring whether it works
 

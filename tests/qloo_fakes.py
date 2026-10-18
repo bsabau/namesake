@@ -124,7 +124,8 @@ def show(entity_id: str, name: str, description: str) -> dict:
     return {
         "entity_id": entity_id,
         "name": name,
-        "type": "urn:entity:tv_show",
+        # As Qloo's recommend lists give it: the generic type, without the kind.
+        "type": "urn:entity",
         "properties": {"short_description": description},
     }
 
