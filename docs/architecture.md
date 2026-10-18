@@ -50,7 +50,7 @@ flowchart LR
 - **One long-lived process** serves everything: pages, the JSON API, the live step log, and the background runs. Qloo's harness is a local process with no hosted URL, so serverless was never an option.
 - **Namesake's AI is two agents** (PydanticAI): a **profile agent** per area and species, and a **listing agent** per animal. Their Qloo tools are plain Python functions over `QlooClient`, so every call they make is cached and spaced like any other (decision 5).
 - **A classifier sorts titles the AI finds in the area's lists** (decision 20): TypeSafe's Jev answers yes-or-no questions with a probability (pets central, dogs, cats, family audience, real people). Code keeps the clear pet titles, sets the clear others aside, and leaves the rest to the AI. It receives a title's name, kind and Qloo's description only; its answers are cached; without a key, or after a failure, the AI judges the titles itself.
-- **Plain code checks everything the AI returns** before anything is saved or shown. The checks are PydanticAI output validators (`check_plan`, `check_draft`): a failed check goes back to the model with its reasons, as its one repair round.
+- **Plain code checks everything the AI returns** before anything is saved or shown. The checks are PydanticAI output validators (`check_plan`, `check_draft`): a failed check goes back to the model with its reasons, as its one repair round. `check_plan` asks that every title and venue came from Qloo in this run, that no title is identity-coded, and that the plan keeps each title the venues were asked for.
 - **Qloo's answer and Namesake's reading stay apart.** View models carry them as separate fields, and the UI contract test checks that both render (`data-role="qloo-returned"` and `"our-reading"`).
 - **The UI is a replaceable skin.** Routes build typed view models (`app/views/`); a UI folder (`app/ui/<name>/`) only renders them, and the same view models are served as JSON under `/api/`. `warm` is the default and `classic` is kept for comparison (decision 21); `?ui=<name>` switches UI per request, and the contract test runs against both.
 
@@ -134,7 +134,7 @@ flowchart TD
     base --> basevenues["Baseline venues<br/>recommend place, baseline as signals"]
     seed --> basevenues
     basevenues --> ai["Profile agent (Namesake's AI)<br/>look_up_title: describe<br/>find_local_titles: recommend, up to 3,<br/>sorted by the classifier<br/>rank_titles: rank, once, up to 8 titles<br/>find_venues: recommend place"]
-    ai --> check{"check_plan:<br/>every title and venue<br/>came from Qloo this run?"}
+    ai --> check{"check_plan:<br/>every title and venue came from Qloo this run,<br/>passes the screens, keeps the venues' titles?"}
     check -- no --> ai
     check -- "still no, or the AI fails" --> fixed["Fixed lookup with the seed titles"]
     check -- yes --> assemble

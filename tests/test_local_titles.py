@@ -22,6 +22,7 @@ from tests.qloo_fakes import (
     CAT_SHOW,
     DOG_SHOW,
     LOCATION,
+    PET_VENUES,
     FakeQloo,
     envelope,
     key,
@@ -534,50 +535,89 @@ def test_find_venues_asks_for_the_top_three_by_evidence():
     find_local_titles(ctx(d), DOG_SHOW, "tv_show")
     for n, name in ((CAT_SHOW, "Example Cat Show"), (SPACE_OPERA, "Example Other")):
         d.titles_seen[n] = Entity(id=n, name=name, type="urn:entity:tv_show")
-    order = [PUPPY_SCHOOL, CAT_CAFE, SPACE_OPERA]
+    order = [PUPPY_SCHOOL, CAT_CAFE, DOG_SHOW]
     d.qloo = FakeQloo(
         {
             key(
                 "recommend",
                 {"target_type": "place", "signals": order,
                  "filter_location": LOCATION.query, "limit": 15},
-            ): envelope("recommend", results=[])
+            ): envelope("recommend", results=PET_VENUES)
         }
     )  # fmt: skip
-    find_venues(ctx(d), [DOG_SHOW, CAT_SHOW, SPACE_OPERA, CAT_CAFE, PUPPY_SCHOOL])
-    asked = [s.text for s in d.log.steps if s.text.startswith("Finding places")]
-    # Qloo's list holds Example Other 4th (the AI's own title here) and Example Dog Show
-    # 5th; Example Cat Show, in no list, is left for last.
-    assert asked == [
-        "Finding places near Example Slope for fans of Example Puppy School, Example Cat Cafe, "
-        "Example Other"
-    ]
+    out = find_venues(ctx(d), [DOG_SHOW, CAT_SHOW, SPACE_OPERA, CAT_CAFE, PUPPY_SCHOOL])
+    # Found titles by their place, then the AI's own order. Example Other was set aside
+    # by the classifier in that list, so looking it up later earns it no place there.
+    assert d.qloo.calls[-1][1]["signals"] == order and d.venue_signals == order
+    assert out["asked_for"] == ["Example Puppy School", "Example Cat Cafe", "Example Dog Show"]
 
 
-def test_an_ais_title_found_in_the_areas_list_counts_its_place_there():
+def test_an_ais_title_in_the_areas_list_keeps_its_place_there(roster):
     from app.agent.profile_agent import evidence_order
+    from app.views.build import why
 
-    d = deps(FakeClassifier(VERDICTS))
+    listed = [
+        show(SPACE_OPERA, "Example Space Opera", "A made-up adventure among the stars."),
+        show(CAT_SHOW, "Example Cat Show", "Proposed by the AI too."),
+        show(DOG_SHOW, "Example Dog Show", "The search's own signal."),
+    ]
+    d = deps(None, envelope("recommend", results=listed))
     d.titles_seen[CAT_SHOW] = Entity(
         id=CAT_SHOW, name="Example Cat Show", type="urn:entity:tv_show"
     )
     find_local_titles(ctx(d), DOG_SHOW, "tv_show")
-    # The AI proposed Example Dog Show and Qloo's list holds it too, 5th of 5.
-    assert d.local_places[DOG_SHOW] == 1.0 and CAT_SHOW not in d.local_places
-    assert BASELINE not in d.local_places  # a comparison show is never evidence
-    assert evidence_order(d, [CAT_SHOW, DOG_SHOW]) == [DOG_SHOW, CAT_SHOW]
+    cat = d.titles_seen[CAT_SHOW]
+    assert cat.found_in is None and (cat.listed_in.position, cat.listed_in.out_of) == (2, 3)
+    # The search's own signal earns no place in its own list.
+    assert d.titles_seen[DOG_SHOW].listed_in is None
+    assert evidence_order(d, [DOG_SHOW, CAT_SHOW]) == [CAT_SHOW, DOG_SHOW]
+    # The page shows the place the choice rests on, in Qloo's column.
+    profile = LocationProfile(location_id=LOCATION.id, pet_entities=[cat])
+    returned, _ = why(LOCATION, profile)
+    assert returned[0].detail.startswith(
+        "Also 2nd of 3 in Qloo's list of TV shows people around Example Slope who like "
+        "Example Dog Show tend to like."
+    )
 
 
 def test_places_in_lists_of_different_lengths_compare_as_shares():
     from app.agent.profile_agent import evidence_order
 
     d = deps(None)
-    for n in (CAT_SHOW, CAT_CAFE):
-        d.titles_seen[n] = Entity(id=n, name=n, type="urn:entity:tv_show")
-    d.local_places = {CAT_SHOW: 9 / 20, CAT_CAFE: 3 / 5}
+    for n, position, out_of in ((CAT_SHOW, 9, 20), (CAT_CAFE, 3, 5)):
+        d.titles_seen[n] = Entity(
+            id=n,
+            name=n,
+            type="urn:entity:tv_show",
+            listed_in=FoundIn(signal="x", kind="tv_show", position=position, out_of=out_of),
+        )
     assert evidence_order(d, [CAT_CAFE, CAT_SHOW]) == [CAT_SHOW, CAT_CAFE]
     # A title never looked up is left out rather than failing.
     assert evidence_order(d, [CAT_CAFE, "unknown", CAT_SHOW]) == [CAT_SHOW, CAT_CAFE]
+
+
+def test_an_identity_coded_title_is_never_a_venue_signal():
+    from app.agent.profile_agent import find_venues
+
+    # Flash, PR #12: check_plan refuses it, so venues resting on it would cost the run.
+    d = deps(None)
+    d.titles_seen[CAT_SHOW] = Entity(
+        id=CAT_SHOW,
+        name="Example Rally",
+        type="urn:entity:tv_show",
+        description="A made-up satire about communists and their dogs.",
+    )
+    d.rank_order = [CAT_SHOW, DOG_SHOW]
+    d.qloo = FakeQloo(
+        {
+            key(
+                "recommend",
+                {"target_type": "place", "signals": [DOG_SHOW],
+                 "filter_location": LOCATION.query, "limit": 15},
+            ): envelope("recommend", results=PET_VENUES)
+        }
+    )  # fmt: skip
+    assert find_venues(ctx(d), [CAT_SHOW, DOG_SHOW])["asked_for"] == ["Example Dog Show"]
 
 
 def test_the_plan_keeps_every_title_the_venues_were_asked_for():
@@ -590,7 +630,9 @@ def test_the_plan_keeps_every_title_the_venues_were_asked_for():
     try:
         check_plan(ctx(d), plan)
     except Exception as exc:  # ModelRetry
-        assert "venues were asked for Example Cat Show" in str(exc)
+        assert "venues were asked for Example Cat Show, which your titles leave out; keep" in (
+            str(exc)
+        )
     else:
         raise AssertionError("check_plan accepted venues for a title the plan leaves out")
 
