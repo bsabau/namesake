@@ -18,11 +18,11 @@ from typing import Literal
 from pydantic import BaseModel
 
 from app.locations import Location
-from app.profile import HEATMAP_LIMIT, Seeds, resolve_baseline
+from app.profile import HEATMAP_LIMIT, THIN_MAP, Seeds, resolve_baseline
 from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
 
 PREFIX = "custom-"
-MIN_CELLS = 5
+MIN_CELLS = THIN_MAP  # the bar a profile's first map title must pass too
 MAX_LENGTH = 80
 # Place names only: letters, spaces and light punctuation. Digits are refused, which
 # keeps street addresses (and anything personal they carry) away from Qloo.

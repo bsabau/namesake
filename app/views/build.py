@@ -435,6 +435,14 @@ def map_view(
                 label=label,
             )
         )
+    swap = ""
+    if profile.thin_map and titles:
+        t = profile.thin_map
+        swap = (
+            f"Qloo returned {t.cells} map cell{'s' if t.cells != 1 else ''} for "
+            f"{t.title.name} within {location.label}, so the map uses {titles[0].name} in its "
+            "place; the places to ask are still for fans of the titles named with them. "
+        )
     return MapView(
         latitude=location.latitude,
         longitude=location.longitude,
@@ -442,7 +450,8 @@ def map_view(
         shelter_radius_m=shelter_radius(location),
         pin=Pin(latitude=pin[0], longitude=pin[1]) if pin else None,
         cells=cells,
-        legend=(
+        legend=swap
+        + (
             (
                 f"Warm cells: {pets} rank this part of {location.label} higher than {base} do. "
                 "Cool cells: lower. Grey: only the pet shows have a score there. Where several "
