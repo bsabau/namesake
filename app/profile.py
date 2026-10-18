@@ -415,6 +415,12 @@ class _Builder:
         )
         if env is None:
             return None
+        if env.status == "needs_input":
+            # Qloo could not tell which place is meant: no map came back.
+            self.profile.notes.append(
+                f"Qloo could not tell which place {location.query!r} means for {entity.name}'s map."
+            )
+            return None
         if not env.has_results:
             # Answered with no cells: the map arrived, empty (a refusal is None).
             self.profile.notes.append(f"Qloo returned no map cells for {entity.name}.")
@@ -581,9 +587,9 @@ def finish_profile(
     Qloo still could not complete it."""
     if not old.pet_entities:
         return None
-    if old.version >= PROFILE_VERSION and old.baselines and not stale_baseline(old):
-        # Finishing: the baseline the AI's choices were made against stays as it was;
-        # one that fails today's screen is chosen again below.
+    if old.baselines and not stale_baseline(old):
+        # Finishing or upgrading from version 2: the baseline the AI's choices were made
+        # against stays as it was; one that fails today's screen is chosen again below.
         tastes, baselines, source = old.local_tastes, old.baselines, old.baseline_source
         notes = [n for n in old.notes if n.startswith(BASELINE_NOTE)]
     else:
@@ -693,14 +699,20 @@ def assemble_profile(
     if first and first[0] is not None and len(first[0]) < THIN_MAP and spare is not None:
         # One extra call, only when the first map is thin: the next pet title may be
         # watched more here. Kept only if the map comes out better.
-        notes = len(p.notes)
+        notes, calls = len(p.notes), len(p.calls)
         alt = b.heatmap(spare, location)
         if alt and better_map(alt, first[0], [m for m in rest if m], base_maps):
+            empty = f"Qloo returned no map cells for {p.map_titles[0].name}."
+            p.notes = [n for n in p.notes if n != empty]  # the map's caption says it
             p.thin_map = ThinMap(title=p.map_titles[0], cells=len(first[0]))
             p.map_titles[0] = spare
             first = [alt]
-        else:
-            del p.notes[notes:]  # the spare's own gaps say nothing about this map
+        elif len(p.calls) > calls:
+            # Qloo answered, and the spare's map was no better: say so in the call list,
+            # and drop its own gaps, which say nothing about the map shown. A failure to
+            # reach Qloo records no call, so its note stays.
+            p.calls[-1].purpose += " (tried for a thin map, not used)"
+            del p.notes[notes:]
     pet_maps = [m for m in first + rest if m is not None]
     p.maps_missing = len(p.map_titles) + len(p.baselines) - len(pet_maps) - len(base_maps)
     pet_maps, base_maps = [m for m in pet_maps if m], [m for m in base_maps if m]

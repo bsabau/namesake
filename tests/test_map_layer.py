@@ -1,5 +1,6 @@
-"""Profile version 2: the map combines the top pet titles, and the baseline is the area's
-own top shows, leaving out pet-themed ones (decision 18). Fake Qloo, invented data only."""
+"""Profile versions 2 and 3: the map combines the top pet titles, a thin first one gives way
+to the next, and the baseline is the area's own top shows, leaving out pet-themed ones
+(decision 18). Fake Qloo, invented data only."""
 
 from types import SimpleNamespace
 
@@ -554,8 +555,11 @@ def test_a_thin_first_map_title_is_swapped_last_for_a_better_one(roster):
     legend = map_view(LOCATION, p).legend
     assert legend.startswith(
         "Qloo returned 2 map cells for Example Dog Show within Example Slope, so the map uses "
-        "Example Kitten Show in its place; the places to ask are still for fans of the titles "
-        "named with them. "
+        "Example Kitten Show in its place. The places to ask were found for fans of Example Dog "
+        "Show and Example Cat Show. "
+    )
+    assert map_view(LOCATION, p).note.startswith(
+        "Map of Example Kitten Show in place of Example Dog Show. "
     )
 
 
@@ -579,10 +583,37 @@ def test_a_spare_with_more_cells_but_no_comparison_does_not_replace_the_one_that
     assert any(c.lift is not None for c in p.cells)
 
 
-def test_a_refused_spare_leaves_the_map_and_its_notes_as_they_were():
-    _, p = adaptive(standard_script())  # the spare's heatmap is not scripted: refused
+def test_a_refused_spare_leaves_the_map_as_it_was_and_says_why():
+    _, p = adaptive(standard_script())  # the spare's heatmap is not cached: no answer
     assert [e.id for e in p.map_titles] == [DOG_SHOW, CAT_SHOW] and p.thin_map is None
-    assert p.complete and p.maps_missing == 0 and p.notes == []
+    assert p.complete and p.maps_missing == 0
+    # A call that never reached Qloo leaves no call row, so its note is the only trace.
+    assert p.notes == ["Not precomputed yet: where fans of Example Kitten Show are, within "
+                       "Example Slope."]  # fmt: skip
+
+
+def test_a_spare_that_answered_but_was_no_better_is_marked_in_the_calls():
+    script = standard_script()
+    script[heat_key(EXTRA.id)] = envelope("where_popular", "empty")
+    _, p = adaptive(script)
+    assert p.thin_map is None and p.notes == []
+    assert p.calls[-1].purpose.endswith("(tried for a thin map, not used)")
+
+
+def test_a_map_qloo_could_not_place_is_missing_not_empty():
+    # Codex, PR #14 re-check: needs_input is no map at all, so the profile stays unfinished.
+    script = standard_script()
+    script[heat_key(BASELINE)] = envelope("where_popular", "needs_input")
+    _, p = adaptive(script)
+    assert p.maps_missing == 1 and not p.complete
+
+
+def test_an_upgrade_from_version_2_keeps_the_saved_comparison():
+    _, p = adaptive(standard_script())
+    old = p.model_copy(update={"version": 2, "baseline_source": "kept-for-test"})
+    new = finish_profile(old, LOCATION, FakeQloo(standard_script()), SEEDS)
+    assert new.version == PROFILE_VERSION and new.baseline_source == "kept-for-test"
+    assert [e.id for e in new.baselines] == [BASELINE, BASELINE_2]
 
 
 def test_an_empty_first_map_is_thin_too_and_the_profile_can_finish():
@@ -593,7 +624,8 @@ def test_an_empty_first_map_is_thin_too_and_the_profile_can_finish():
     script[heat_key(EXTRA.id)] = envelope("where_popular", results=spread(6))
     _, p = adaptive(script)
     assert [e.id for e in p.map_titles] == [EXTRA.id, CAT_SHOW] and p.thin_map.cells == 0
-    assert p.complete and "Qloo returned no map cells for Example Dog Show." in p.notes
+    # The caption says it once; the gaps list does not repeat it.
+    assert p.complete and "Qloo returned no map cells for Example Dog Show." not in p.notes
     assert "Qloo returned 0 map cells for" in map_view(LOCATION, p).legend
 
 

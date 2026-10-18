@@ -438,11 +438,25 @@ def map_view(
     swap = ""
     if profile.thin_map and titles:
         t = profile.thin_map
+        by_id = {e.id: e for e in profile.pet_entities}
+        asked = [by_id[i] for i in profile.venue_signals if i in by_id] or profile.pet_entities
         swap = (
             f"Qloo returned {t.cells} map cell{'s' if t.cells != 1 else ''} for "
             f"{t.title.name} within {location.label}, so the map uses {titles[0].name} in its "
-            "place; the places to ask are still for fans of the titles named with them. "
+            f"place. The places to ask were found for fans of {and_list([e.name for e in asked])}. "
         )
+    key = (
+        f"Warm: pet-show fans stand out here more than {base}. Cool: less. Grey: no comparison."
+        if any(c.lift is not None for c in cells)
+        else "Grey: no cell was scored for both, so there is no comparison here."
+        if cells
+        else None
+    )
+    swapped = (
+        f"Map of {titles[0].name} in place of {profile.thin_map.title.name}. "
+        if profile.thin_map and titles
+        else ""
+    )
     return MapView(
         latitude=location.latitude,
         longitude=location.longitude,
@@ -462,13 +476,7 @@ def map_view(
             else f"Cells: where {pets} rank high within {location.label}. No cell was also "
             f"scored for {base}, so the map shows no comparison here."
         ),
-        note=(
-            f"Warm: pet-show fans stand out here more than {base}. Cool: less. Grey: no comparison."
-            if any(c.lift is not None for c in cells)
-            else "Grey: no cell was scored for both, so there is no comparison here."
-            if cells
-            else None
-        ),
+        note=(swapped + key) if key else None,
         empty_message=None if cells else "No map data for this area yet.",
     )
 
