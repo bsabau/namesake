@@ -213,20 +213,24 @@ def test_the_why_panels_venue_line_names_only_the_titles_searched(roster):
     assert "Example Dog Show" not in line.detail
 
 
-def test_a_generic_qloo_type_reads_as_the_kind_asked_for():
-    from app.profile import Entity, FoundIn, entity_type, kind_label
+def test_the_page_names_a_kind_even_for_qloos_generic_type():
+    from app.profile import Entity, FoundIn
+    from app.views.build import kind_word
 
-    # Qloo's recommend lists give "urn:entity"; the kind asked for stands in.
-    assert entity_type("urn:entity", "movie") == "urn:entity:movie"
-    assert entity_type(None, "book") == "urn:entity:book"
-    assert entity_type("urn:entity:tv_show", "movie") == "urn:entity:tv_show"
-    # Profiles saved before that: where the title was found, else a TV show.
+    # Profiles saved before entity_type: where the title was found, else a TV show.
     found = FoundIn(signal="Example Dog Show", kind="movie", position=3, out_of=20)
-    assert kind_label(Entity(id="x", name="x", type="urn:entity", found_in=found)) == "movie"
-    assert kind_label(Entity(id="x", name="x", type="urn:entity")) == "tv show"
+    assert kind_word(Entity(id="x", name="x", type="urn:entity", found_in=found)) == "film"
+    assert kind_word(Entity(id="x", name="x", type="urn:entity")) == "TV show"
+    assert kind_word(Entity(id="x", name="x", type="urn:entity"), default=None) == "title"
+    assert kind_word(Entity(id="x", name="x", type="movie")) == "film"  # a bare kind
+    assert kind_word(Entity(id="x", name="x", type="urn:entity:book")) == "book"
 
 
-def test_a_bare_kind_from_a_seed_reads_as_itself():
-    from app.profile import Entity, kind_label
+def test_the_venue_line_falls_back_to_every_title_only_for_old_profiles():
+    from app.views.build import venue_titles
 
-    assert kind_label(Entity(id="x", name="x", type="movie")) == "movie"
+    p = profile()
+    p.venue_signals = []
+    assert venue_titles(p) == "Example Dog Show and Example Cat Show"
+    p.venue_signals = [p.pet_entities[1].id]
+    assert venue_titles(p) == "Example Cat Show"

@@ -15,7 +15,6 @@ from app.profile import (
     LocationProfile,
     Venue,
     baseline_titles,
-    kind_label,
     layer_titles,
     rank_band,
 )
@@ -486,11 +485,12 @@ def venue_order(profile: LocationProfile) -> list[Venue]:
 
 
 def venue_titles(profile: LocationProfile) -> str:
-    """The titles the venues were asked for, in that order; every pet title for a profile
-    saved before `venue_signals` was kept."""
+    """The titles the venues were asked for, in that order; every pet title only for a
+    profile saved before `venue_signals` was kept."""
+    if not profile.venue_signals:
+        return and_list([e.name for e in profile.pet_entities])
     by_id = {e.id: e for e in profile.pet_entities}
-    asked = [by_id[i] for i in profile.venue_signals if i in by_id] or profile.pet_entities
-    return and_list([e.name for e in asked])
+    return and_list([by_id[i].name for i in profile.venue_signals if i in by_id])
 
 
 def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueView:
@@ -565,6 +565,23 @@ def plan(animal: Animal, location: Location, venues: list[Venue]) -> list[PlanIt
 
 
 KIND_WORDS = {"tv_show": "TV shows", "movie": "films", "book": "books"}
+KIND_WORD = {"tv_show": "TV show", "movie": "film", "book": "book"}
+
+
+def kind_word(e: Entity, default: str | None = "tv_show") -> str:
+    """A title's kind for the page: "TV show", "film", "book". Profiles saved before
+    `entity_type` may hold Qloo's generic type: then the kind comes from where the title
+    was found, else `default` (the area's top shows and comparison shows are all TV; a
+    lookalike may be anything, so it reads as a "title")."""
+    if e.type.startswith("urn:entity:"):
+        kind = e.type.removeprefix("urn:entity:")
+    elif ":" not in e.type:
+        kind = e.type  # a bare kind
+    else:
+        kind = e.found_in.kind if e.found_in else default
+    if kind is None:
+        return "title"
+    return KIND_WORD.get(kind, kind.replace("_", " "))
 
 
 def sorted_by(e: Entity) -> str:
@@ -584,7 +601,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
     # the next run chooses the comparison again.
     hidden = {e.id for e in baseline_titles(profile) if mentions_identity(e.name, e.description)}
     for e in profile.pet_entities + [b for b in baseline_titles(profile) if b.id not in hidden]:
-        kind = kind_label(e)
+        kind = kind_word(e)
         if e.resolution == "chosen":
             returned.append(
                 WhyItem(
@@ -720,7 +737,7 @@ def lookalike_why(
     reasons = {o.entity_id: o.choice_reason for o in result.draft.names}
     for look in result.lookalikes:
         e = look.entity
-        kind = kind_label(e)
+        kind = kind_word(e, default=None)
         found = "Found in Qloo. "
         if look.chosen:
             several = f"{look.candidates} candidates" if look.candidates > 1 else "one candidate"
