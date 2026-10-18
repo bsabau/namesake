@@ -24,11 +24,12 @@ LOCATE_LIMIT = 6
 
 
 def to_locate(profile: LocationProfile) -> list[Venue]:
-    """Suitable venues not looked up yet, in the order the page shows them: the AI's picks
-    first, then those that stand out for pet-show fans, then by Qloo's rank."""
-    suitable = [v for v in profile.venues if v.unsuitable is None and not v.point_tried]
+    """The venues a page may show that are not looked up yet, in the order the page shows
+    them: the AI's picks first, then those that stand out for pet-show fans, then by Qloo's
+    rank. Venues past the first LOCATE_LIMIT are never looked up."""
+    suitable = [v for v in profile.venues if v.unsuitable is None]
     ordered = sorted(suitable, key=lambda v: (v.chosen_reason is None, not v.distinctive, v.rank))
-    return ordered[:LOCATE_LIMIT]
+    return [v for v in ordered[:LOCATE_LIMIT] if not v.point_tried]
 
 
 def locate_venues(

@@ -5,7 +5,7 @@ from urllib.parse import parse_qs, urlparse
 
 from app.places import Allowance, Places
 from app.profile import Venue
-from app.venue_points import locate_venues, to_locate
+from app.venue_points import LOCATE_LIMIT, locate_venues, to_locate
 from app.views.build import build_result_view, cell_of, cell_reading, map_view, walk
 from tests.qloo_fakes import LOCATION
 from tests.test_places import FakeGeocoder, feature
@@ -51,6 +51,16 @@ def test_locating_takes_the_picks_first_once_and_stops_when_throttled():
     assert placed == 2  # the third lookup was throttled
     assert sum(v.point_tried for v in p.venues) == 2
     assert len(to_locate(p)) == len(order) - 2  # the rest wait for a later save
+
+
+def test_a_second_pass_looks_up_no_venue_past_the_ones_a_page_shows():
+    p = profile()
+    p.venues += [Venue(entity_id=f"extra-{k}", name=f"Extra {k}", rank=50 + k) for k in range(8)]
+    shown = to_locate(p)
+    assert len(shown) == LOCATE_LIMIT
+    for venue in shown:
+        venue.point_tried = True
+    assert to_locate(p) == []
 
 
 def test_a_placed_venue_reads_its_cell_and_its_distance():
