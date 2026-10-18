@@ -428,7 +428,7 @@ def check_bio(
 
 def check_why(animal: Animal, why: str, name: str) -> list[str]:
     """A name's reason may only draw on the animal's recorded look (plus "suits", "fits",
-    the name), or be "A short name, easy to say.": a cultural reference must not imply
+    the name), or be "A short name, easy to say." or a near form: a reference must not imply
     temperament, so the hook's rule holds for the reasons too (decided 18 October)."""
     label = f"the reason for {name!r}"
     if EASY_TO_SAY.match(why):
