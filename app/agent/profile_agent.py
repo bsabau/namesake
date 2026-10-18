@@ -154,7 +154,7 @@ def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> d
             entity = Entity(
                 id=c.id,
                 name=c.name,
-                type=c.type,
+                type=entity_type(c.type, kind),
                 description=c.description,
                 resolution="chosen",
                 alternatives=len(env.candidates) - 1,

@@ -101,6 +101,8 @@ def kind_label(e: "Entity") -> str:
     else a TV show (the area's top shows and comparison shows are all TV)."""
     if e.type.startswith("urn:entity:"):
         kind = e.type.removeprefix("urn:entity:")
+    elif e.type != "urn:entity" and ":" not in e.type:
+        kind = e.type  # a bare kind
     else:
         kind = e.found_in.kind if e.found_in else "tv_show"
     return kind.replace("_", " ")
@@ -354,7 +356,7 @@ class _Builder:
             return Entity(
                 id=c.id,
                 name=c.name,
-                type=c.type,
+                type=entity_type(c.type, seed.type),
                 description=c.description,
                 why=seed.why,
                 resolution="chosen",
@@ -368,7 +370,7 @@ class _Builder:
         return Entity(
             id=r["entity_id"],
             name=r["name"],
-            type=r.get("type", seed.type),
+            type=entity_type(r.get("type"), seed.type),
             description=props.get("short_description") or props.get("description"),
             why=seed.why,
         )

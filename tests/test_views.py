@@ -224,3 +224,9 @@ def test_a_generic_qloo_type_reads_as_the_kind_asked_for():
     found = FoundIn(signal="Example Dog Show", kind="movie", position=3, out_of=20)
     assert kind_label(Entity(id="x", name="x", type="urn:entity", found_in=found)) == "movie"
     assert kind_label(Entity(id="x", name="x", type="urn:entity")) == "tv show"
+
+
+def test_a_bare_kind_from_a_seed_reads_as_itself():
+    from app.profile import Entity, kind_label
+
+    assert kind_label(Entity(id="x", name="x", type="movie")) == "movie"

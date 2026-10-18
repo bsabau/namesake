@@ -259,7 +259,13 @@ def _look_up(deps: ListingDeps, title: str, kind: str) -> tuple[dict[str, Any], 
     if env.status == "needs_input":
         n = len(env.candidates)
         found = [
-            (Entity(id=c.id, name=c.name, type=c.type, description=c.description), n, True)
+            (
+                Entity(
+                    id=c.id, name=c.name, type=entity_type(c.type, kind), description=c.description
+                ),
+                n,
+                True,
+            )
             for c in env.candidates
         ]
         deps.log.add("qloo", f"“{title}” is ambiguous: {n} candidates")
