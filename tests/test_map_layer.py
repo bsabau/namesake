@@ -646,3 +646,22 @@ def test_a_version_2_profile_is_upgraded_for_the_thin_map_check():
     _, p = adaptive(standard_script())
     assert not needs_finishing(p)
     assert needs_finishing(p.model_copy(update={"version": 2}))
+
+
+def test_a_first_map_qloo_could_not_place_tries_no_spare_and_stays_unfinished():
+    script = standard_script()
+    script[heat_key(DOG_SHOW)] = envelope("where_popular", "needs_input")
+    script[heat_key(EXTRA.id)] = envelope("where_popular", results=spread(6))
+    qloo, p = adaptive(script)
+    # Thinness is unknown, so the spare is not asked; a later run finishes it.
+    assert p.thin_map is None and p.maps_missing == 1 and not p.complete
+    assert all(i["entity"] != EXTRA.id for op, i in qloo.calls if op == "where_popular")
+
+
+def test_a_spare_qloo_could_not_place_is_marked_as_not_used():
+    script = standard_script()
+    script[heat_key(EXTRA.id)] = envelope("where_popular", "needs_input")
+    _, p = adaptive(script)
+    assert p.thin_map is None and p.complete
+    assert p.calls[-1].status == "needs_input"
+    assert p.calls[-1].purpose.endswith("(tried for a thin map, not used)")
