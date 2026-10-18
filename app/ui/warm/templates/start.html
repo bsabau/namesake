@@ -141,5 +141,5 @@
             formmethod="get">{{ view.add_animal_label }}</button>
   </p>
 </form>
-<form id="map-search-form" method="dialog" hidden></form>
+{% if view.location_form.map_search %}<form id="map-search-form" method="dialog" hidden></form>{% endif %}
 {% endblock %}

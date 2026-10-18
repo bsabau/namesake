@@ -1,5 +1,6 @@
 // Suggestions for a place field: area names from the view model's suggestions_url
-// (/api/places), ranked near the area selected on the map, in a list under the field.
+// (/api/places), in a list under the field; the typed-area field ranks them near the area
+// selected on the map, the map search does not.
 // Arrow keys move, Enter picks, Escape closes. If the lookup fails, typing works as
 // before. Two fields use it: the typed shelter area (picking fills the field) and the
 // search on the map (picking moves the map there, with a "namesake:fly" event).
