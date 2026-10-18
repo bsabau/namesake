@@ -7,7 +7,7 @@ from app.agent.checks import mentions_identity
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
 from app.classify import bucket
-from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, templated_listing
+from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, pronouns, templated_listing
 from app.locations import Location
 from app.places import MAX_PIN_KM
 from app.profile import (
@@ -52,7 +52,6 @@ FEATURED = "dog-02"
 VENUES_SHOWN = 5
 VENUES_IN_PLAN = 3
 OBJECT_PRONOUN = {"female": "her", "male": "him"}
-SUBJECT_PRONOUN = {"female": "she", "male": "he"}
 CHECK_LABELS = {
     "good_with_children": "children",
     "good_with_dogs": "dogs",
@@ -558,7 +557,8 @@ def plan(
         items.append(
             PlanItem(
                 text=f"Skip {skip} for this {animal.species}: the record says "
-                f"{SUBJECT_PRONOUN.get(animal.sex or '', 'it')} is not good with children.",
+                f"{pronouns(animal.sex)['they']} {pronouns(animal.sex)['is']} not good with "
+                "children.",
                 basis="Our suggestion",
             )
         )
@@ -577,8 +577,8 @@ def plan(
 # description is judged by its name.
 FOR_CHILDREN = re.compile(
     r"\b(child|children|childrens|kid|kids|toddlers?|babies|playgrounds?|playgroups?"
-    r"|preschools?|kindergartens?|elementary school|childcare|family-friendly|families"
-    r"|storytime|soft play)\b"
+    r"|preschools?|kindergartens?|elementary[- ]schools?|childcare|family[- ]friendly"
+    r"|families|storytime|soft[- ]play)\b"
 )
 
 
@@ -609,9 +609,9 @@ def skipped_shown(every: list[Venue], kept: list[Venue], skipped: list[Venue]) -
 
 
 def mentions(v: Venue) -> str:
+    """The child word a skipped venue mentions, quoted (only skipped venues are named)."""
     word = for_children(v.name, v.description)
-    assert word, f"{v.name} mentions no child word"  # only skipped venues are named
-    return f"“{word}”"
+    return f"“{word}”" if word else "children"
 
 
 KIND_WORDS = {"tv_show": "TV shows", "movie": "films", "book": "books"}
@@ -829,18 +829,24 @@ def build_result_view(
     every = venue_order(profile)
     ordered, skipped = venues_for_animal(animal, every)
     named_skips = skipped_shown(every, ordered, skipped)
+    # Whether a venue the page would not have shown now takes a slot.
+    moved_up = any(v not in every[:VENUES_SHOWN] for v in ordered[:VENUES_SHOWN])
     returned, reading = why(location, profile)
     if named_skips:
         # Our reading of Qloo's venues for this animal; Qloo's column stays as it was.
         reading.append(
             WhyItem(
                 title=f"Skipped for this {animal.species}",
-                detail=and_list([f"{v.name}: its name or Qloo description mentions {mentions(v)}"
-                                 for v in named_skips])
+                detail=and_list(
+                    [
+                        f"{v.name}: its name or Qloo description mentions {mentions(v)}"
+                        for v in named_skips
+                    ]
+                )
                 + f". The record says this {animal.species} is not good with children"
-                + (", and the next places take their slots." if ordered else "."),
+                + (", and the next places take their slots." if moved_up else "."),
             )
-        )  # fmt: skip
+        )
     look_returned, look_reading = lookalike_why(animal, listing)
     returned, reading = look_returned + returned, look_reading + reading
     named = [m for m in litter or [] if m.name]

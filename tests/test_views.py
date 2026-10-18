@@ -307,3 +307,11 @@ def test_a_skipped_last_pick_of_three_is_still_named():
     # skipped lowest one vanished without a word.
     every = [Venue(entity_id=str(n), name=f"Place {n}", rank=n + 1) for n in range(3)]
     assert [v.name for v in skipped_shown(every, every[:2], every[2:])] == ["Place 2"]
+
+
+def test_the_why_item_says_slots_were_taken_only_when_a_lower_place_moved_up(roster):
+    # Codex, PR #19: skipping the last of three moves nothing up.
+    p = kids_profile()
+    view = build_result_view(with_children(roster, "no"), LOCATION, p)
+    reading = {i.title: i.detail for i in view.our_reading}
+    assert reading["Skipped for this dog"].endswith("is not good with children.")
