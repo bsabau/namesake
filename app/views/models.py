@@ -170,10 +170,12 @@ class NameOptionView(BaseModel):
     # that Qloo found the title or offered it among candidates).
     badge: str
     title: str
-    # Where the name came from, as an approval records it.
+    # Beside the Qloo pill under the name when this option is picked, and where the name
+    # came from as an approval records it.
+    header_source: str
     approved_source: str
     # Our reading: the reference code built from the agent's pick, and the agent's reason
-    # (for a lookalike, after the match code checked against the record).
+    # (for a lookalike, after the match, which code checked against the record).
     reference: str
     why: str
     # The local version as it reads when this name is chosen.

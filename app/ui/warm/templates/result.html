@@ -74,7 +74,7 @@
           {% for option in view.name.options %}
           <li class="name-option">
             <label><input type="radio" name="local_name" value="{{ option.name }}"
-                          data-hook="{{ option.hook }}" data-badge="{{ option.badge }}"
+                          data-hook="{{ option.hook }}" data-badge="{{ option.header_source }}"
                           data-copy="{{ option.copy_text }}" {% if option.name == view.chosen_name %}checked{% endif %}>
               <strong>{{ option.name }}</strong></label>
             <p class="evidence"><span>Qloo:</span> {{ option.title }}. {{ option.badge }}.</p>

@@ -147,6 +147,7 @@ def test_a_lookalike_name_is_offered_with_its_own_badge_and_why(roster):
     view = build_result_view(roster.get("dog-02"), LOCATION, profile, result)
     rex = next(o for o in view.name.options if o.name == "Rex")
     assert rex.badge == "Title found"  # the look is the AI's reading, not Qloo's
+    assert rex.header_source == "Title found: Example Dog Film"
     assert rex.why.startswith("A lookalike: Rex shares this animal's recorded look (brindle). ")
     assert rex.approved_source == (
         "a lookalike title, Example Dog Film: Qloo found the title, "
@@ -296,7 +297,16 @@ def test_a_single_needs_input_candidate_is_a_choice_not_a_confirmation(roster):
     assert "Qloo confirmed" not in why and why.endswith("Why this one: the 1989 film.")
     rex = next(o for o in view.name.options if o.name == "Rex")
     assert rex.badge == "Offered as a candidate"
-    assert "Qloo offered the title among candidates" in rex.approved_source
+    assert "Qloo offered the title as its one candidate" in rex.approved_source
+
+    # A saved lookalike with no recorded match reads plainly on both sides of the Why panel.
+    result.lookalikes[0].shared_look = []
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile, result)
+    reading = {i.title: i.detail for i in view.our_reading}
+    assert reading["Why Example Dog Film"].startswith(
+        "Rex in it is offered as a lookalike for this dog. That match is the reading"
+    )
+    assert next(o for o in view.name.options if o.name == "Rex").why.startswith("A lookalike. ")
 
 
 def test_lookalikes_come_only_from_stories():

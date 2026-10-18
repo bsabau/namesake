@@ -406,11 +406,13 @@ def look_line(option: NameOption, look: Lookalike | None) -> str:
 def approved_source(option: NameOption, badge: str, title: str, look: Lookalike | None) -> str:
     """Where an approved name came from, as the approval records it."""
     if option.source == "lookalike":
-        qloo = (
-            "Qloo offered the title among candidates"
-            if look and look.chosen
-            else "Qloo found the title"
-        )
+        qloo = "Qloo found the title"
+        if look and look.chosen:
+            qloo = (
+                "Qloo offered the title among candidates"
+                if look.candidates > 1
+                else "Qloo offered the title as its one candidate"
+            )
         return f"a lookalike title, {title}: {qloo}, and the match is the reading of Namesake's AI"
     return f"Qloo, {badge[:1].lower()}{badge[1:]}: {title}"
 
@@ -435,6 +437,8 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
                 name=o.name,
                 badge=badge,
                 title=title,
+                # Under the name, a lookalike's fragment needs its title beside it.
+                header_source=f"{badge}: {title}" if o.source == "lookalike" else badge,
                 approved_source=approved_source(o, badge, title, look),
                 reference=reference,
                 why=look_line(o, look) + o.why,
@@ -1045,8 +1049,7 @@ def lookalike_why(
             f"{look.animal} in it shares this {animal.species}'s recorded look: "
             f"{and_list(look.shared_look)}."
             if look.shared_look
-            else f"{look.animal} in it is the lookalike Namesake's AI chose for this "
-            f"{animal.species}."
+            else f"{look.animal} in it is offered as a lookalike for this {animal.species}."
         )
         detail = (
             f"{match} That match is the reading of Namesake's AI; "
