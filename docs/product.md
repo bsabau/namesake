@@ -32,15 +32,15 @@ The review found no study showing that names or wording speed adoption. Being se
 
 ## Output 2: name options
 
-Name options come from three sources. Each option carries a badge naming its source:
+Name options come from three sources. Each option carries a badge with what Qloo returned for its title:
 
 | Source | Where it comes from |
 |---|---|
 | Pet-themed, strong here | Pet-themed titles with Qloo's evidence for the area (decision 22): ranked here by Qloo ("ranked 1st of 8 here by Qloo"), or placed in one of the area's lists, asked with Qloo's pet tags or for fans of another pet title ("in Qloo's list for this area asked with its pet tags", "liked here by fans of Bluey") |
 | Loved here generally | The area's top tastes by type (step E). Screened harder, because these lists lean on national hits and identity-coded titles. |
-| Has a lookalike in … | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
+| Title found, or Offered as a candidate (a lookalike) | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Qloo's line says only that it found the title, or offered it among candidates when it asked which was meant; the match ("A lookalike: Rex shares this animal's recorded look (brindle)") is on the AI's line. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
 
-Each option shows the Qloo title, its kind and Qloo's evidence for the area (its rank here, or its place in one of the area's lists). Our reading of why it suits the animal is shown separately. The volunteer picks one. Ranking uses both affinity and popularity, so a recognisable reference beats a niche one.
+Each option shows the Qloo title, its kind and Qloo's evidence for the area (its rank here, or its place in one of the area's lists); a lookalike has no area evidence, only the title. Our reading of why it suits the animal is shown separately. The volunteer picks one. Ranking uses both affinity and popularity, so a recognisable reference beats a niche one.
 
 ## Output 3: the exposure plan
 
@@ -76,7 +76,7 @@ The result screen must be legible in a single screenshot. It shows:
 - at the top, Qloo's part and Namesake's AI's part, apart: what Qloo returned for this result and what the AI did with it
 - the photo and chosen name
 - the generic/local toggle
-- the name options with their source badges
+- the name options with what Qloo returned for each title
 - a map of local lift, with the venues listed beside it and pinned on it by number, each card saying which cell it sits in and how far it is from the shelter (`docs/decisions.md` #4)
 - the exposure checklist
 - a "Why" drawer with two columns, "Qloo returned" and "How Namesake read it"
