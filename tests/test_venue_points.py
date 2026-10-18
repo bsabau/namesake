@@ -147,9 +147,10 @@ def test_an_odd_answer_is_no_match_and_does_not_hold_up_the_rest():
     # Flash, PR #25: a venue whose answer is unusable must not block the others for good.
     p = profile()
     first, second = to_locate(p)[:2]
+    odd = {"features": [{"properties": {"name": first.name}}]}  # no geometry
     places, _ = lookup(
-        ValueError("odd"),  # the first venue's name and address
-        ValueError("odd"),  # and its address alone
+        odd,  # the first venue's name and address
+        odd,  # and its address alone
         {"features": [feature(second.name, NEAR[0] + 0.001, NEAR[1])]},
     )
     assert locate_venues(p, NEAR, places) == 1
@@ -163,3 +164,10 @@ def test_a_name_match_needs_the_distinctive_words():
     assert not same_name("Bell House", "Bell Rock Tavern")
     assert not same_name("Littlefield Hall", "Littlefield Deli")
     assert same_name("Ola", "Ola Bar") and not same_name("Ola", "Bolanos")
+
+
+def test_a_point_that_is_not_a_number_is_no_point():
+    nan = {"features": [{"geometry": {"coordinates": ["nan", "nan"]},
+                         "properties": {"name": "Community Hall"}}]}  # fmt: skip
+    places, _ = lookup(nan, nan)
+    assert places.venue_point("Community Hall", "1 Example Street", NEAR) is None

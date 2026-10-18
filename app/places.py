@@ -141,8 +141,10 @@ def distance_km(a: tuple[float, float], b: tuple[float, float]) -> float:
 
 
 def _point(feature: dict) -> Found:
-    lon, lat = feature["geometry"]["coordinates"][:2]
-    return [(feature.get("properties", {}).get("name") or "", float(lat), float(lon))]
+    lon, lat = (float(x) for x in feature["geometry"]["coordinates"][:2])
+    if not (math.isfinite(lat) and math.isfinite(lon)):
+        return []  # an odd answer: no point
+    return [(feature.get("properties", {}).get("name") or "", lat, lon)]
 
 
 def fetch_json(url: str) -> dict:
@@ -275,8 +277,9 @@ class Places:
                 self._pace()  # right before the request, so queued lookups keep apart
             try:
                 data = self.fetch(url)
-            except (OSError, http.client.HTTPException) as exc:
-                # Down, slow or refusing (a 429): a service failure, not an answer.
+            except (OSError, http.client.HTTPException, ValueError) as exc:
+                # Down, slow, refusing (a 429) or cut off mid-answer: a service failure,
+                # not an answer.
                 if strict:
                     raise LookupFailed(type(exc).__name__) from None
                 raise

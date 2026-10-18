@@ -11,7 +11,6 @@ stays in the list without a pin.
 
 import argparse
 import threading
-from collections import defaultdict
 
 from app.agent.steps import StepLog
 from app.locations import Location
@@ -56,12 +55,18 @@ def locate_venues(
 
 # One writer of a profile's points at a time: the placer, and a run finishing the profile
 # (save_keeping_points), which merge onto the profile as saved under the same lock.
-_locks: defaultdict[tuple[str, str], threading.Lock] = defaultdict(threading.Lock)
+_locks: dict[tuple[str, str], threading.Lock] = {}
+_locks_guard = threading.Lock()
+
+
+def _lock(location_id: str, species: str) -> threading.Lock:
+    with _locks_guard:  # the first two writers of a profile get the same lock
+        return _locks.setdefault((location_id, species), threading.Lock())
 
 
 def save_keeping_points(store: Store, profile: LocationProfile, location_id: str) -> None:
     """Save a finished profile, carrying the points the placer saved meanwhile."""
-    with _locks[(location_id, profile.species)]:
+    with _lock(location_id, profile.species):
         latest = store.get_profile(location_id, profile.species)
         if latest is not None:
             carry_points(latest, profile)
@@ -78,7 +83,7 @@ def locate_saved(
     """Place a saved profile's venues, once, and save the points. One placer per profile at
     a time; the points are written onto the profile as saved at the end, so a profile
     finished meanwhile keeps its other changes. Free when done before."""
-    with _locks[(location.id, species)]:
+    with _lock(location.id, species):
         profile = store.get_profile(location.id, species)
         if profile is None or not places.enabled or not to_locate(profile):
             return 0
