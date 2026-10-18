@@ -521,3 +521,10 @@ def test_runs_pass_the_configured_classifier_to_both_pipelines(
 
     asyncio.run(go())
     assert seen == {"run_pipeline": sentinel, "run_litter": sentinel}
+
+
+def test_a_found_title_with_qloos_generic_type_gets_the_kind_asked_for():
+    generic = [{**r, "type": "urn:entity"} for r in LOCAL_LIST]
+    d = deps(FakeClassifier(VERDICTS), envelope("recommend", results=generic))
+    find_local_titles(ctx(d), DOG_SHOW, "tv_show")
+    assert d.titles_seen[PUPPY_SCHOOL].type == "urn:entity:tv_show"

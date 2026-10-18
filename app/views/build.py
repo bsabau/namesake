@@ -15,6 +15,7 @@ from app.profile import (
     LocationProfile,
     Venue,
     baseline_titles,
+    kind_label,
     layer_titles,
     rank_band,
 )
@@ -484,10 +485,16 @@ def venue_order(profile: LocationProfile) -> list[Venue]:
     return sorted(suitable, key=lambda v: (not v.distinctive, v.rank))
 
 
+def venue_titles(profile: LocationProfile) -> str:
+    """The titles the venues were asked for, in that order; every pet title for a profile
+    saved before `venue_signals` was kept."""
+    by_id = {e.id: e for e in profile.pet_entities}
+    asked = [by_id[i] for i in profile.venue_signals if i in by_id] or profile.pet_entities
+    return and_list([e.name for e in asked])
+
+
 def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueView:
-    # Name only the titles the venues were asked for.
-    asked = set(profile.venue_signals) or {e.id for e in profile.pet_entities}
-    pets = and_list([e.name for e in profile.pet_entities if e.id in asked])
+    pets = venue_titles(profile)
     base = compared_with(profile)
     total = len(profile.venues)
     evidence = (
@@ -577,7 +584,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
     # the next run chooses the comparison again.
     hidden = {e.id for e in baseline_titles(profile) if mentions_identity(e.name, e.description)}
     for e in profile.pet_entities + [b for b in baseline_titles(profile) if b.id not in hidden]:
-        kind = e.type.removeprefix("urn:entity:").replace("_", " ")
+        kind = kind_label(e)
         if e.resolution == "chosen":
             returned.append(
                 WhyItem(
@@ -660,7 +667,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
             )
         )
     if profile.venues:
-        pets = and_list([e.name for e in profile.pet_entities])
+        pets = venue_titles(profile)
         shared = sum(1 for v in profile.venues if v.compared and not v.distinctive)
         returned.append(
             WhyItem(
@@ -713,7 +720,7 @@ def lookalike_why(
     reasons = {o.entity_id: o.choice_reason for o in result.draft.names}
     for look in result.lookalikes:
         e = look.entity
-        kind = e.type.removeprefix("urn:entity:").replace("_", " ")
+        kind = kind_label(e)
         found = "Found in Qloo. "
         if look.chosen:
             several = f"{look.candidates} candidates" if look.candidates > 1 else "one candidate"

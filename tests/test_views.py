@@ -11,6 +11,7 @@ from app.views.build import (
     build_start_view,
     result_id,
     sentences,
+    why,
 )
 from tests.qloo_fakes import (
     BASELINE,
@@ -202,3 +203,24 @@ def test_venue_rank_is_stated_plainly(roster):
     for v in view.venues:
         assert re.fullmatch(rf"\d+(st|nd|rd|th) of {total}", v.rank)
         assert v.rank_note == RANK_NOTES[v.rank_band]
+
+
+def test_the_why_panels_venue_line_names_only_the_titles_searched(roster):
+    # Hoboken, 18 October: the line named seven pet titles; the venues were asked for three.
+    returned, _ = why(LOCATION, agent_profile())
+    line = next(i for i in returned if i.title.endswith(f"places near {LOCATION.label}"))
+    assert line.detail.startswith("Ranked for people who like Example Cat Show")
+    assert "Example Dog Show" not in line.detail
+
+
+def test_a_generic_qloo_type_reads_as_the_kind_asked_for():
+    from app.profile import Entity, FoundIn, entity_type, kind_label
+
+    # Qloo's recommend lists give "urn:entity"; the kind asked for stands in.
+    assert entity_type("urn:entity", "movie") == "urn:entity:movie"
+    assert entity_type(None, "book") == "urn:entity:book"
+    assert entity_type("urn:entity:tv_show", "movie") == "urn:entity:tv_show"
+    # Profiles saved before that: where the title was found, else a TV show.
+    found = FoundIn(signal="Example Dog Show", kind="movie", position=3, out_of=20)
+    assert kind_label(Entity(id="x", name="x", type="urn:entity", found_in=found)) == "movie"
+    assert kind_label(Entity(id="x", name="x", type="urn:entity")) == "tv show"

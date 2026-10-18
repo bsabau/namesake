@@ -89,6 +89,23 @@ class PetVerdict(BaseModel):
     model: str = ""
 
 
+def entity_type(raw: str | None, kind: str) -> str:
+    """Qloo's type for a result, or the kind that was asked for when the answer gives only
+    the generic "urn:entity" (its `recommend` lists do)."""
+    return raw if raw and raw.startswith("urn:entity:") else f"urn:entity:{kind}"
+
+
+def kind_label(e: "Entity") -> str:
+    """The title's kind for the page: "tv show", "movie", "book". Profiles saved before
+    `entity_type` may hold the generic type, so fall back to where the title was found,
+    else a TV show (the area's top shows and comparison shows are all TV)."""
+    if e.type.startswith("urn:entity:"):
+        kind = e.type.removeprefix("urn:entity:")
+    else:
+        kind = e.found_in.kind if e.found_in else "tv_show"
+    return kind.replace("_", " ")
+
+
 class FoundIn(BaseModel):
     """Where Qloo listed a title the AI did not propose itself: among the titles people
     around the area who like `signal` also like (decision 20)."""
@@ -422,7 +439,7 @@ class _Builder:
             Entity(
                 id=r["entity_id"],
                 name=r["name"],
-                type=r.get("type", "urn:entity:tv_show"),
+                type=entity_type(r.get("type"), "tv_show"),
                 description=(r.get("properties") or {}).get("short_description")
                 or (r.get("properties") or {}).get("description"),
             )

@@ -20,7 +20,7 @@ from app.agent.steps import StepLog
 from app.animals import Animal
 from app.classify import REAL_PEOPLE
 from app.listing import check_sentences, look_text, pronouns
-from app.profile import Entity
+from app.profile import Entity, entity_type
 from app.qloo.exec import QlooClient
 
 Source = Literal["pet", "local", "lookalike"]
@@ -276,7 +276,7 @@ def _look_up(deps: ListingDeps, title: str, kind: str) -> tuple[dict[str, Any], 
     entity = Entity(
         id=r["entity_id"],
         name=r["name"],
-        type=r.get("type", f"urn:entity:{kind}"),
+        type=entity_type(r.get("type"), kind),
         description=props.get("short_description") or props.get("description"),
     )
     deps.log.add("qloo", f"Found “{entity.name}”")
