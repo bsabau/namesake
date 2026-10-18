@@ -506,6 +506,25 @@ def test_one_compared_cell_among_grey_ones_reads_in_the_singular():
     assert "in the one cell with a comparison. " in legend
 
 
+def test_one_compared_cell_that_is_cool_says_so():
+    legend = map_view(
+        LOCATION, map_with([(0.5, 0.5), (0.8, None), (0.7, None), (0.6, None), (0.5, None)])
+    ).legend
+    assert "do not stand out against fans of this area's top shows in the one cell with" in legend
+
+
+def test_every_cell_warm_says_all_these():
+    legend = map_view(
+        LOCATION, map_with([(0.9, 0.5), (0.8, 0.4), (0.7, 0.3), (0.6, 0.2), (0.5, 0.1)])
+    ).legend
+    assert "in all 5 cells. " in legend
+
+
+def test_an_all_grey_map_gets_no_count():
+    legend = map_view(LOCATION, map_with([(0.9, None)] * 5)).legend
+    assert "stand out against" not in legend and "no comparison here" in legend
+
+
 def test_every_compared_cell_warm_says_all():
     legend = map_view(
         LOCATION, map_with([(0.9, 0.5), (0.8, 0.4), (0.7, 0.3), (0.6, 0.2), (0.5, None)])

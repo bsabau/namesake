@@ -216,4 +216,4 @@ def test_the_map_colours_cells_as_the_caption_counts_them(ui):
     # cool, and a compared cell never draws paler than a grey one.
     script = (main.UI_ROOT / ui / "static" / "result-map.js").read_text(encoding="utf-8")
     assert "cell.lift > 0 ? warm : cool" in script
-    assert "0.3 + 0.5 * Math.min(1, Math.abs(cell.lift))" in script
+    assert "cell.lift === null ? 0.25 : 0.3 + 0.5 * Math.min(1, Math.abs(cell.lift))" in script
