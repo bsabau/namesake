@@ -13,7 +13,7 @@
   // The grid can settle after the map is created; re-measure so no tiles are missing.
   new ResizeObserver(() => map.invalidateSize()).observe(container);
 
-  // OpenStreetMap's standard tiles, quieted in style.css (CARTO's styles need a key).
+  // OpenStreetMap's standard tiles, quieted by a filter in style.css (CARTO's need a key).
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',

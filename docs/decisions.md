@@ -318,4 +318,4 @@ The refusal keeps the edit and names the missing words.
 
 **Preview:** [Warm before](img/story-before.jpg) · [Story after](img/story-after.jpg), both at 1440×900 with the same cached result. The 390 px layout was also checked in light and dark styles. No live Qloo or agent calls were made for the design work.
 
-**External dependency found during verification (18 October):** the CARTO URLs in the brief currently return tiles watermarked “API key required”. [CARTO’s key page](https://carto.com/basemaps/apikey/) now requires a key parameter. A keyed provider would put a key in the browser, so the story skin uses OpenStreetMap's tiles with the warm skin's filter instead (the same day).
+**External dependency found during verification (18 October):** the CARTO URLs in the brief currently return tiles watermarked “API key required”. [CARTO’s key page](https://carto.com/basemaps/apikey/) now requires a key parameter. A keyed provider would put a key in the browser, so the story skin uses OpenStreetMap's tiles with a quieting CSS filter instead (the same day; the warm skin takes the same filter in PR #21).

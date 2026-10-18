@@ -116,7 +116,7 @@ These flags cannot be combined with a custom prompt, which is why the guidelines
 | --- | --- |
 | Language and tooling | Python 3.12, uv, ruff, pytest |
 | Web | FastAPI, Jinja templates, HTMX, server-sent events for the agent's live log |
-| Map | Leaflet: OpenStreetMap tiles in warm/classic, CARTO in story (keep each attribution) |
+| Map | Leaflet with OpenStreetMap tiles (keep the attribution); warm and story quiet them with a CSS filter |
 | Agent | PydanticAI 2.x with structured output |
 | Qloo, agent-chosen calls | PydanticAI function tools over `QlooClient` (`qloo exec`), so every call is cached and spaced; see `docs/decisions.md` #5 |
 | Qloo, fixed calls | `QlooClient` (`qloo exec` as a subprocess returning JSON) |
