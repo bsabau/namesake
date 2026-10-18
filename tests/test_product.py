@@ -570,7 +570,9 @@ def test_the_seed_shows_candidates_or_failure_are_not_lost_to_a_thin_top_show():
     )  # fmt: skip
     checked = check_location(FakeQloo(with_top_show(script, text, 2)), text, SEEDS)
     assert checked.status == "needs_input" and checked.candidates == ["Example Heights, Ohio"]
-    text, script = location_script("error", error={"code": "X", "retryable": False})
+    text, script = location_script(
+        "error", error={"code": "X", "layer": "api", "retryable": False, "recovery": "none"}
+    )
     checked = check_location(FakeQloo(with_top_show(script, text, 2)), text, SEEDS)
     assert checked.status == "unavailable"
 
