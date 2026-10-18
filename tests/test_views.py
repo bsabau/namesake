@@ -251,7 +251,9 @@ def test_story_name_summary_keeps_qloo_and_interpretation_apart(roster):
         assert option.reference in choice.selected and option.why in choice.selected
         assert option.why not in choice.returned
     assert "Qloo has 2 entries" in view.story.names[0].returned
-    assert view.story.names[1].returned.strip() == "Example Cat Show. Pet-themed title."
+    assert (
+        view.story.names[1].returned == "Example Cat Show (tv show). No description was returned."
+    )
 
 
 def test_story_keeps_same_named_titles_evidence_with_their_own_entity(roster):
@@ -270,3 +272,18 @@ def test_story_keeps_same_named_titles_evidence_with_their_own_entity(roster):
     assert "second invented title" in second.returned
     assert "first interpretation" not in second.selected
     assert "second interpretation" in second.selected
+
+
+def test_story_local_taste_names_show_the_actual_qloo_title(roster):
+    from tests.test_product import saved_listing
+
+    p = profile()
+    result = saved_listing()
+    title = p.pet_entities.pop(0)
+    title.description = "An invented local show."
+    p.local_tastes.append(title)
+    result.draft.names[0].source = "local"
+    view = build_result_view(roster.get("dog-02"), LOCATION, p, result)
+    evidence = view.story.names[0].returned
+    assert title.name in evidence and title.description in evidence
+    assert "Watched locally" not in evidence and "Pet-themed" not in evidence

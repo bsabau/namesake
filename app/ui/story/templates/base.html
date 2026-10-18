@@ -14,7 +14,7 @@
     <a class="brand" href="/{% if ui_query %}?{{ ui_query[1:] }}{% endif %}">{% include "_paw.html" %}<span>Namesake</span></a>
     <span class="tagline">Accurate adoption listings, and a plan to get every animal seen</span>
   </header>
-  <main id="main-content">
+  <main id="main-content" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
   <footer class="site-footer">

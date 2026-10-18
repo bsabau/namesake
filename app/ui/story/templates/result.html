@@ -9,6 +9,7 @@
 {% block content %}
 <div class="story-topline"><a href="/?location={{ view.location.id }}{{ ui_query }}">← Meet another animal</a><span>{{ view.location.label }}, {{ view.location.region }}</span></div>
 
+<h1 class="sr-only">{{ view.listing.heading }}</h1>
 <form id="listing-form" class="listing-form story-layout" method="post" action="{{ view.approve_url }}" data-role="listing">
   <input type="hidden" name="animal" value="{{ view.animal.id }}">
   <input type="hidden" name="location" value="{{ view.location.id }}">
@@ -19,14 +20,14 @@
     <figure class="portrait"><img src="{{ view.animal.image_url }}" alt="{{ view.animal.alt }}" width="480" height="480"><figcaption>{{ view.credits.photos }}</figcaption></figure>
     {% for version in view.listing.versions %}
     <div class="version version-{{ version.variant }}">
-      <h2 data-role="name" class="{{ 'name' if version.name else 'name name-empty' }}">{{ version.name or view.name.placeholder }}</h2>
+      <p data-role="name" class="{{ 'name' if version.name else 'name name-empty' }}">{{ version.name or view.name.placeholder }}</p>
       {% if version.name_source %}<p class="name-source">{% if version.variant == 'local' %}<span class="from-qloo">Qloo</span> {% endif %}<span class="name-source-text">{{ version.name_source }}</span></p>{% endif %}
       {% if version.note %}<p class="version-note">{{ version.note }}</p>{% endif %}
     </div>
     {% endfor %}
     <p class="animal-meta">{{ view.animal.meta }} {% for badge in view.animal.badges %}<span class="badge">{{ badge }}</span>{% endfor %}</p>
     <p class="animal-look">{{ view.animal.look }}</p>
-    <h3 class="ruled-heading">What we know</h3>
+    <h2 class="ruled-heading">What we know</h2>
     <ul class="fact-row">{% for fact in view.story.facts %}<li><span class="fact-mark" aria-hidden="true">✧</span>{{ fact }}</li>{% endfor %}</ul>
     {% if view.story.still_to_learn %}<p class="still-learning">{{ view.story.still_to_learn }}</p>{% endif %}
     {% if view.litter_note %}<p class="litter-mates">{{ view.litter_note }} {% for mate in view.litter %}{% if mate.name %}{% if mate.current %}<strong>{{ mate.name }}</strong>{% else %}<a href="{{ mate.url }}{{ ui_query }}">{{ mate.name }}</a>{% endif %}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}</p>{% endif %}
@@ -34,10 +35,10 @@
 
   <section class="story-editor" aria-labelledby="story-heading">
     <p class="eyebrow">A name. An introduction. A little local context.</p>
-    <h1 id="story-heading">{{ view.story.heading }}</h1>
+    <h2 id="story-heading" class="story-headline">{{ view.story.heading }}</h2>
     <p class="story-deck">A local name. A factual introduction. A plan to get seen.</p>
     <section class="name-step local-only">
-      <h2 class="numbered"><span>01</span> Choose a name</h2>
+      <h3 class="numbered"><span>01</span> Choose a name</h3>
       {% if view.name.options %}
       <ul class="name-options" data-role="name-options">
         {% for option in view.name.options %}
@@ -60,7 +61,7 @@
 
     <section class="introduction" aria-labelledby="intro-heading">
       <div class="intro-toolbar">
-        <h2 id="intro-heading" class="numbered"><span>02</span> {{ view.story.introduction_heading }}</h2>
+        <h3 id="intro-heading" class="numbered"><span>02</span> {{ view.story.introduction_heading }}</h3>
         <fieldset class="version-toggle" data-role="version-toggle"><legend>Version</legend>
           {% for version in view.listing.versions %}<label class="version-choice"><input type="radio" name="variant" value="{{ version.variant }}" {% if version.selected %}checked{% endif %}{% if not version.available %} disabled{% endif %}>{{ version.label }}</label>{% endfor %}
         </fieldset>

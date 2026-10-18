@@ -246,3 +246,35 @@ def test_approval_screen_meets_the_contract(client, ui):
     if ui == "story":
         # The POST has no query string; navigation still stays in the opt-in skin.
         assert 'href="/?ui=story"' in response.text
+
+
+def test_story_name_controls_have_their_own_provenance_pair(client):
+    from html.parser import HTMLParser
+
+    from tests.test_product import save, saved_listing
+
+    class NameControls(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.options = {}
+            self.details = {}
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if tag == "input" and attrs.get("name") == "local_name":
+                self.options[attrs["value"]] = "checked" in attrs
+            if "data-name-detail" in attrs:
+                self.details.setdefault(attrs["data-name-detail"], []).append("hidden" in attrs)
+
+    save(saved_listing())
+    html = client.get(
+        "/result", params={"animal": "dog-02", "location": "park-slope", "ui": "story"}
+    ).text
+    controls = NameControls()
+    controls.feed(html)
+    assert controls.options and set(controls.options) == set(controls.details)
+    for name, checked in controls.options.items():
+        # One near the choice, one in Behind this story; both follow the same option.
+        assert controls.details[name] == [not checked, not checked]
+    assert '<main id="main-content" tabindex="-1">' in html
+    assert html.index("<h1") < html.index('class="story-animal"')

@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.config import get_settings
 from app.locations import load_locations
-from app.main import app
+from app.main import UIS, app
 
 client = TestClient(app)
 
@@ -45,7 +45,7 @@ def test_map_gets_every_preset_point():
 
 
 def test_map_scripts_are_served_and_credit_openstreetmap():
-    for ui in ["classic", "warm"]:
+    for ui in UIS:
         for name in ["location-map.js", "result-map.js"]:
             js = client.get(f"/ui/{ui}/static/{name}")
             assert js.status_code == 200
@@ -87,5 +87,5 @@ def test_with_no_area_chosen_the_bar_asks_for_one():
 
 def test_the_shelter_bar_script_is_served():
     # Flash: without it, a closed panel with no area chosen strands the visitor again.
-    for ui in ["classic", "warm"]:
+    for ui in UIS:
         assert client.get(f"/ui/{ui}/static/shelter-bar.js").status_code == 200

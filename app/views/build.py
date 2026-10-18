@@ -748,6 +748,19 @@ def lookalike_why(
     return returned, reading
 
 
+def story_name_evidence(
+    option: NameOptionView, entities: dict[str, Entity], returned: list[WhyItem]
+) -> str:
+    """Qloo's title and description only; source badges are the app's interpretation."""
+    entity = entities.get(option.entity_id)
+    if entity is None:
+        return "No Qloo title evidence is available for this option."
+    kind = entity.type.removeprefix("urn:entity:").replace("_", " ")
+    detail = next((item.detail for item in returned if item.entity_id == entity.id), "")
+    detail = detail or sentences(entity.description) or "No description was returned."
+    return f"{entity.name} ({kind}). {detail}"
+
+
 def build_result_view(
     animal: Animal,
     location: Location,
@@ -767,6 +780,9 @@ def build_result_view(
     named = [m for m in litter or [] if m.name]
     listing_ = listing_view(animal, listing, profile, generic, refined)
     names = name_view(listing, profile, listing_.text)
+    entities = {e.id: e for e in profile.pet_entities + profile.local_tastes}
+    if listing:
+        entities.update({look.entity.id: look.entity for look in listing.lookalikes})
     possessive = {"female": "her", "male": "his"}.get(animal.sex, "their")
     unknown = [
         CHECK_LABELS[field]
@@ -790,11 +806,7 @@ def build_result_view(
             names=[
                 StoryNameView(
                     name=option.name,
-                    returned=f"{option.title}. {option.badge}. "
-                    + next(
-                        (item.detail for item in returned if item.entity_id == option.entity_id),
-                        "",
-                    ),
+                    returned=story_name_evidence(option, entities, returned),
                     selected=" ".join(
                         [
                             f"{option.reference}. {option.why}",
