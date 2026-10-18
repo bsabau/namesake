@@ -202,7 +202,7 @@ The start, result and working screens' view models are also served as JSON, so a
 | `GET /api/results/{animal}@{location}` | `ResultView`: listing versions, names, map, venues, plan, Why panel |
 | `GET /api/runs/{id}` | `WorkingView`: the run's steps so far |
 | `GET /api/runs/{id}/events` | the step log as server-sent events (`step`, then `done`) |
-| `GET /api/places?q=&lat=&lon=` | area names for the typed field and the search above the start map, ranked near the map's area |
+| `GET /api/places?q=&lat=&lon=` | area names for the typed field (ranked near the map's area) and the search above the start map (unbiased) |
 | `GET /api/places/at?lat=&lon=` | the areas a picked spot lies in |
 | `GET /health` | `{"status": "ok"}` |
 
