@@ -113,15 +113,19 @@ def check_location(qloo: QlooClient, typed: str, seeds: Seeds) -> LocationCheck:
     try:
         probe_id = local_top_show(qloo, text)
         env, cells = heatmap_cells(qloo, probe_id, text) if probe_id else (None, [])
-        if env is None or (env.status != "needs_input" and len(cells) < MIN_CELLS):
+        failed = env is None or env.status == "error"
+        if failed or (env.status != "needs_input" and len(cells) < MIN_CELLS):
             # No plain top list, or its top show is thin here: the seed show as well,
-            # and the fuller of the two maps decides.
+            # and the fuller of the two maps decides. A seed show that cannot be looked
+            # up (not cached, live calls off) leaves the check to be tried live later.
             baseline = resolve_baseline(qloo, probe, seeds.baseline)
-            if baseline is None and env is None:
+            if baseline is None:
                 return unavailable
-            if baseline is not None and baseline.id != probe_id:
+            if baseline.id != probe_id:
                 seed_env, seed_cells = heatmap_cells(qloo, baseline.id, text)
-                if env is None or len(seed_cells) > len(cells):
+                # Its candidates or its failure speak for the place too; else more cells win.
+                speaks = seed_env.status in ("needs_input", "error")
+                if failed or speaks or len(seed_cells) > len(cells):
                     env, cells = seed_env, seed_cells
     except (ReplayMiss, QlooExecError):
         return unavailable

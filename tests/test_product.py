@@ -553,6 +553,28 @@ def test_an_uncached_top_list_is_unavailable_not_thin():
     assert check_location(FakeQloo(script), text, SEEDS).status == "unavailable"
 
 
+def test_a_thin_top_show_and_an_unresolvable_seed_show_is_unavailable_not_thin():
+    # Codex, PR #13 re-check: the seed show's lookup missing from the cache must not
+    # leave the area refused as thin; "unavailable" lets /locations try it live.
+    text, script = location_script(results=cells(6))
+    with_top_show(script, text, 2)
+    del script[key("describe", {"entity": "Example Drama", "type": "tv_show"})]
+    assert check_location(FakeQloo(script), text, SEEDS).status == "unavailable"
+
+
+def test_the_seed_shows_candidates_or_failure_are_not_lost_to_a_thin_top_show():
+    text, script = location_script(
+        "needs_input",
+        resolution={"issues": [{"input": "Example Heights", "kind": "ambiguous", "candidates": [
+            {"id": CAT_SHOW, "name": "Example Heights, Ohio", "type": "urn:x"}]}]},
+    )  # fmt: skip
+    checked = check_location(FakeQloo(with_top_show(script, text, 2)), text, SEEDS)
+    assert checked.status == "needs_input" and checked.candidates == ["Example Heights, Ohio"]
+    text, script = location_script("error", error={"code": "X", "retryable": False})
+    checked = check_location(FakeQloo(with_top_show(script, text, 2)), text, SEEDS)
+    assert checked.status == "unavailable"
+
+
 def test_the_checks_top_list_is_the_profiles_local_tastes_call():
     from app.profile import local_tastes
 
