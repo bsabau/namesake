@@ -51,7 +51,7 @@ flowchart LR
 - **Namesake's AI is two agents** (PydanticAI): a **profile agent** per area and species, and a **listing agent** per animal. Their Qloo tools are plain Python functions over `QlooClient`, so every call they make is cached and spaced like any other (decision 5).
 - **A classifier sorts titles the AI finds in the area's lists** (decision 20): TypeSafe's Jev answers yes-or-no questions with a probability (pets central, dogs, cats, family audience, real people). Code keeps the clear pet titles, sets the clear others aside, and leaves the rest to the AI. It receives a title's name, kind and Qloo's description only; its answers are cached; without a key, or after a failure, the AI judges the titles itself.
 - **Plain code checks everything the AI returns** before anything is saved or shown. The checks are PydanticAI output validators (`check_plan`, `check_draft`): a failed check goes back to the model with its reasons, as its one repair round. `check_plan` asks that every title and venue came from Qloo in this run, that no title is identity-coded, and that the plan keeps each title the venues were asked for.
-- **Qloo's answer and Namesake's reading stay apart.** View models carry them as separate fields, and the UI contract test checks that both render (`data-role="qloo-returned"` and `"our-reading"`).
+- **Qloo's answer and Namesake's reading stay apart.** View models carry them as separate fields, and the UI contract test checks that both render, along with the summary of each party's part at the top of the result (`data-role="qloo-part"`) (`data-role="qloo-returned"` and `"our-reading"`).
 - **The UI is a replaceable skin.** Routes build typed view models (`app/views/`); a UI folder (`app/ui/<name>/`) only renders them, and the same view models are served as JSON under `/api/`. `warm` is the default and `classic` is kept for comparison (decision 21); `?ui=<name>` switches UI per request, and the contract test runs against both.
 
 ## Who decides what
@@ -142,6 +142,7 @@ sequenceDiagram
         M->>Q: up to 2 lookalike lookups (its choice)
         A-->>T: draft, sent back once if a check fails
         T->>S: save the listing
+        T->>S: pin the suggested places once, from OpenStreetMap (Photon), and save the points
         T-->>V: each step as it happens, then "done"
         V->>R: GET /result?animal=…&location=…
         R-->>V: result page built from the view model
@@ -156,7 +157,8 @@ sequenceDiagram
 This happens before any run, when the area is not one of the presets.
 
 - **A typed area** goes to Qloo as typed and is checked once: one heatmap, within it, for the TV show Qloo ranks highest there (the call the profile's local tastes make, so the profile finds it cached); when that list is not a plain answer, or its top show is thin there, for a seed show as well (after a `describe` of it, cached after the first time): the seed's candidates or its failure speak for the place, else the fuller map decides. Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". `needs_input`: Qloo's candidates become buttons (decision 12). Text with digits is refused, which keeps street addresses away from Qloo.
-- **Suggestions and the map pick** (decision 17) go through the app's own `/api/places` to Photon. Suggestions ask for areas only; a picked spot is sent rounded to about 100 m, and only the areas in Photon's answer are kept. The spot becomes an area's name, and stays in the visitor's session as a pin, to about 10 m. Qloo only ever gets the name.
+- **Venue pins** (decision 4, revised): after a run saves its profile, `app/venue_points.py` looks up the suggested venues not yet tried in Photon, by name and address near the shelter (accepted only when the match carries the venue's name; else the address alone; within 12 km), paced a second apart across runs, and keeps the points on the profile, under one lock per profile shared with a run that finishes it. An outage stops the batch and counts nothing against the venues. The result map numbers the places it can frame (in a cell, or within 3 km of the shelter) as the list does; each card says which cell its place sits in, or that it is beyond the map's view, and its distance from the shelter. Never from the browser; `python -m app.venue_points` places profiles saved before.
+- **Suggestions, the map search and the map pick** (decision 17) go through the app's own `/api/places` to Photon. The search above the start map (wording from `LocationForm` in the view model) only moves the map: `place-suggest.js` raises a `namesake:fly` event that `location-map.js` follows; it has no field name, so nothing from it is submitted or reaches Qloo. Suggestions ask for areas only; a picked spot is sent rounded to about 100 m, and only the areas in Photon's answer are kept. The spot becomes an area's name, and stays in the visitor's session as a pin, to about 10 m. Qloo only ever gets the name.
 
 ## The area profile
 
@@ -230,7 +232,7 @@ Saved listings carry the version of the checks they passed. When the checks chan
 | `var/qloo-recordings/` | raw Qloo answers, for replay in development | never committed |
 | Session (memory) | added animals, their photos and listings; refined listings; the map pin | one visitor; ends 2 hours after the last visit, on a restart, or when over 500 sessions are open |
 
-No account exists. The session cookie holds a random ID and nothing else. Qloo receives cultural entities and place names only; Photon receives area names and rounded points; the classifier receives a title's name, kind and Qloo's description; none gets anything about a visitor. `tests/test_no_qloo_data.py` fails if real Qloo data appears in the repository.
+No account exists. The session cookie holds a random ID and nothing else. Qloo receives cultural entities and place names only; Photon receives area names, rounded points, and the names and public street addresses of venues Qloo returned (to pin them, once per saved profile); the classifier receives a title's name, kind and Qloo's description; none gets anything about a visitor. `tests/test_no_qloo_data.py` fails if real Qloo data appears in the repository.
 
 ## The API
 
@@ -239,14 +241,14 @@ The start, result and working screens' view models are also served as JSON, so a
 | Method and path | Returns |
 |---|---|
 | `GET /api/start?location=` | `StartView`: animals, areas, the shelter bar, examples |
-| `GET /api/results/{animal}@{location}` | `ResultView`: listing versions, names, map, venues, plan, Why panel |
+| `GET /api/results/{animal}@{location}` | `ResultView`: Qloo's part and the AI's (`qloo_part`), listing versions, names, map, venues, plan, Why panel |
 | `GET /api/runs/{id}` | `WorkingView`: the run's steps so far |
 | `GET /api/runs/{id}/events` | the step log as server-sent events (`step`, then `done`) |
-| `GET /api/places?q=&lat=&lon=` | area names for the typed field, ranked near the map's area |
+| `GET /api/places?q=&lat=&lon=` | area names for the typed field (ranked near the map's area) and the search above the start map (unbiased) |
 | `GET /api/places/at?lat=&lon=` | the areas a picked spot lies in |
 | `GET /health` | `{"status": "ok"}` |
 
-The HTML routes render the same view models through the chosen UI: `/`, `/result`, `POST /runs`, `/runs/{id}`, `POST /refine` and `/refine/reset`, `POST /approve`, `POST /locations`, `/animals/new` and `POST /animals`, and `/photos/{animal_id}` for a visitor's own photo. `tests/test_ui_contract.py` checks that every UI renders what each screen must show, found by `data-role`: the name, Qloo's answer and Namesake's reading, the map, the photo credit and the Qloo credit. It also checks that a UI's scripts only ever fetch the app's own `/api/`.
+The HTML routes render the same view models through the chosen UI: `/`, `/result`, `POST /runs`, `/runs/{id}`, `POST /refine` and `/refine/reset`, `POST /approve`, `POST /locations`, `/animals/new` and `POST /animals`, and `/photos/{animal_id}` for a visitor's own photo. `tests/test_ui_contract.py` checks that every UI renders what each screen must show, found by `data-role`: the name, Qloo's part and the AI's, Qloo's answer and Namesake's reading, the map, the photo credit and the Qloo credit. It also checks that a UI's scripts only ever fetch the app's own `/api/`.
 
 ## Configuration
 
@@ -262,7 +264,7 @@ Everything that differs between machines is an environment variable (`.env` loca
 | `LIVE_RUNS_PER_VISITOR_PER_HOUR` | 6 | live runs per visitor per hour |
 | `LIVE_RUNS_PER_DAY` | 60 | live runs per day, everyone together |
 | `NEW_LOCATIONS_PER_DAY` | 10 | new typed areas checked per day |
-| `GEOCODER_URL` | Photon's public server | empty turns suggestions and the map pick off |
+| `GEOCODER_URL` | Photon's public server | empty turns suggestions, the map pick and the venue pins off |
 | `TYPESAFE_API_KEY`, `TYPESAFE_BASE_URL`, `TYPESAFE_MODEL` | none, TypeSafe's API, `jev-latest` | the title classifier; without a key it is off and the AI judges the titles; an `https://` base URL only |
 | `UI` | `warm` | the default interface (`classic` is kept) |
 

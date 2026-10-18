@@ -83,7 +83,7 @@ Colours: **Qloo** answers (terracotta), **the classifier**, TypeSafe's Jev (viol
 | A map of where pet-show fans stand out | `where_popular` within the neighbourhood, for the two pet titles the venues were asked for first (by evidence) and the top two baseline shows; a first pet title with fewer than five cells there gives way once to the next, when that makes a better map (more cells with a comparison) | Code | Raw affinity saturates near 1.0, so the map shows **lift**: the pet titles' cell score minus the baseline shows', each averaged over the maps that scored the cell. A key on the map says what the colours mean. |
 | What the area tends to watch | `recommend` TV shows with `signal_location` | Code | A second, labelled source of name options. |
 | Titles with an animal that looks like this one | `describe` | **Namesake's AI**, per animal, at most two | A personal name option, badged "Has a lookalike in …". The shared look must be quoted from the animal's record. |
-| A volunteer types their own area, or right-clicks the shelter's spot on the map | `recommend` for the area's own top TV show, then `where_popular` for that show within the area's name (a widely watched seed show as well when the list is not a plain answer or its show is thin there) | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". Passing says Qloo has data for the area; when its pet titles still map thinly, the result page says so. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
+| A volunteer types their own area, or right-clicks the shelter's spot on the map (in the warm skin, a search above the map moves it to any city first) | `recommend` for the area's own top TV show, then `where_popular` for that show within the area's name (a widely watched seed show as well when the list is not a plain answer or its show is thin there) | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". Passing says Qloo has data for the area; when its pet titles still map thinly, the result page says so. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
 
 The decisions behind each row, with their evidence, are in [`docs/decisions.md`](docs/decisions.md) and [`docs/qloo-findings.md`](docs/qloo-findings.md).
 
@@ -98,9 +98,10 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
 1. **Start.** Pick one of twelve fictional animals, or the litter of four kittens, or add your own animal for this visit only. Pick a shelter area: Park Slope or Astoria in New York, Austin, or type one.
 2. **Working.** A live log streams each step: Qloo's pet-themed lists for the area, titles proposed, each one looked up in Qloo, which were ambiguous and how they were settled, the venues found and how many stand out against the baseline, and the checks on the answer from Namesake's AI.
 3. **Result**, legible as one screen:
+   - at the top, **Qloo's part and the AI's**, apart: what Qloo returned for this result (titles with Qloo's evidence for the area, the places near the shelter, the heatmaps' map cells) and what Namesake's AI did with it (titles it proposed or judged, places it picked, the names and bio)
    - the listing, with a **Generic / Local, with Qloo** toggle; both share the same bio, and the local one adds a name from Qloo's titles and one line saying where it comes from
    - the **name options**, each with its source badge, Qloo's title and the reason Namesake's AI gives, kept apart
-   - a **map** of where pet-show fans stand out within the area, and the **places to ask**, each with Qloo's rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline
+   - a **map** of where pet-show fans stand out within the area, and the **places to ask**, each with Qloo's rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline, numbered on the map, with the cell it sits in and its distance from the shelter (points from OpenStreetMap)
    - the **exposure checklist**, each item labelled Research, Qloo or Our suggestion; for an animal recorded as not good with children, places whose name or Qloo description mentions children are skipped, and the checklist says so
    - a **Why** drawer with two columns, "Qloo returned" and "How Namesake read it" (Namesake's AI and its code)
 4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software.
@@ -165,7 +166,7 @@ The image holds Python, Node and the pinned harness. The demo runs this image on
 - **Coverage is uneven.** The demo uses New York and Austin, where US coverage is deepest. Thin areas are refused with a message instead of answered weakly.
 - **Affinity scores saturate.** Raw scores sit near 1.0 for broad entities, so Namesake uses order within a call and lift against the area's own top shows, never raw affinity. The baseline is the area's own top two shows, so "stands out" means "more than this area's usual tastes", not more than everyone's.
 - **Ranking is often unavailable.** Qloo's `rank` is the most rate-limited workflow and twice returned nothing; the order Namesake's AI chose is then kept and labelled.
-- **Venues have no coordinates.** Qloo returns an address and a neighbourhood, so venues are listed beside the map, not pinned on it.
+- **Venues have no coordinates in Qloo.** Qloo returns an address and a neighbourhood, so the app looks each suggested venue up in OpenStreetMap (Photon) once; a venue with no close match stays in the list without a pin, and a pin outside the mapped cells says so.
 - **Area data says nothing about individuals.** Results read "people in this area tend to like X". A shelter's adopters are not its neighbours, and tastes can stand in for demographics, which is one reason names are screened for identity-coded references.
 - **The demo model is a free one.** It sometimes needs its one repair round, and it judges lookalikes from its own knowledge, which Qloo cannot check; the page labels that match as the reading of Namesake's AI.
 
@@ -187,7 +188,7 @@ Qloo's terms forbid publishing its response data, so real responses live only in
 
 Taste data from the Qloo API. This project is not affiliated with or endorsed by Qloo.
 
-The animals and the shelter are fictional, and the photos are AI-generated. Map tiles and place names © OpenStreetMap contributors; place lookups by Photon (komoot). Pet-themed titles are sorted with [TypeSafe](https://typesafe.ai)'s Jev classifier, which receives only a title's name, kind and Qloo's description; Namesake is not affiliated with TypeSafe. The typeface is Nunito, served from the app itself under the SIL Open Font License (`app/ui/warm/static/fonts/OFL.txt`).
+The animals and the shelter are fictional, and the photos are AI-generated. Map tiles and place names © OpenStreetMap contributors; place lookups and venue pins by Photon (komoot). Pet-themed titles are sorted with [TypeSafe](https://typesafe.ai)'s Jev classifier, which receives only a title's name, kind and Qloo's description; Namesake is not affiliated with TypeSafe. The typeface is Nunito, served from the app itself under the SIL Open Font License (`app/ui/warm/static/fonts/OFL.txt`).
 
 ## Licence
 

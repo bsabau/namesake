@@ -10,7 +10,7 @@ from app.classify import bucket
 from app.custom_location import MIN_CELLS
 from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, pronouns, templated_listing
 from app.locations import Location
-from app.places import MAX_PIN_KM
+from app.places import MAX_PIN_KM, distance_km
 from app.profile import (
     Entity,
     FoundIn,
@@ -39,11 +39,13 @@ from app.views.models import (
     NameView,
     Pin,
     PlanItem,
+    QlooPart,
     Question,
     ResultView,
     ShelterBar,
     StartView,
     StepView,
+    VenuePin,
     VenueView,
     WhyItem,
     WorkingView,
@@ -53,6 +55,8 @@ from app.views.models import (
 FEATURED = "dog-02"
 VENUES_SHOWN = 5
 VENUES_IN_PLAN = 3
+# Within this, a place gets a walking estimate and the map frames its pin.
+WALKABLE_KM = 3
 OBJECT_PRONOUN = {"female": "her", "male": "him"}
 CHECK_LABELS = {
     "good_with_children": "children",
@@ -419,7 +423,10 @@ def shows(n: int) -> str:
 
 
 def map_view(
-    location: Location, profile: LocationProfile, pin: tuple[float, float] | None = None
+    location: Location,
+    profile: LocationProfile,
+    pin: tuple[float, float] | None = None,
+    venues: list[Venue] | None = None,
 ) -> MapView:
     titles = layer_titles(profile)
     pets = f"fans of {and_list([e.name for e in titles])}" if titles else "pet-show fans"
@@ -480,6 +487,18 @@ def map_view(
             f"Only {len(cells)} map cell{'s' if len(cells) != 1 else ''} here: Qloo's data for "
             f"pet-show fans around {location.label} is thin, so the map says little. "
         )
+    placed = [
+        v
+        for v in venues or []
+        if v.latitude is not None
+        and in_view(v, profile, pin or (location.latitude, location.longitude))
+    ]
+    numbers = (
+        " Numbers: the places to ask plotted here, as numbered in the list (points from "
+        "OpenStreetMap)."
+        if placed
+        else ""
+    )
     return MapView(
         latitude=location.latitude,
         longitude=location.longitude,
@@ -487,6 +506,20 @@ def map_view(
         shelter_radius_m=shelter_radius(location),
         pin=Pin(latitude=pin[0], longitude=pin[1]) if pin else None,
         cells=cells,
+        venues=[
+            VenuePin(
+                number=n,
+                name=v.name,
+                latitude=v.latitude,
+                longitude=v.longitude,
+                in_view=in_view(v, profile, pin or (location.latitude, location.longitude)),
+            )
+            for n, v in enumerate(venues or [], start=1)
+            if v.latitude is not None
+            and v.longitude is not None
+            # A pin the map does not frame would be off screen: the card says so instead.
+            and in_view(v, profile, pin or (location.latitude, location.longitude))
+        ],
         legend=swap
         + thin
         + (
@@ -500,7 +533,7 @@ def map_view(
             else f"Cells: where {pets} rank high within {location.label}. No cell was also "
             f"scored for {base}, so the map shows no comparison here."
         ),
-        note=(key + swapped) if key else None,
+        note=((key + swapped + numbers) if key else None),
         empty_message=None if cells else "No map data for this area yet.",
     )
 
@@ -538,7 +571,67 @@ def venue_titles(profile: LocationProfile) -> str:
     return and_list(asked) if asked else "the pet-themed titles searched"
 
 
-def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueView:
+def cell_of(v: Venue, profile: LocationProfile):
+    """The lift cell a placed venue falls in, or None."""
+    if v.latitude is None or v.longitude is None:
+        return None
+    for c in profile.cells:
+        south, west, north, east = bounds(c.geohash)
+        if south <= v.latitude <= north and west <= v.longitude <= east:
+            return c
+    return None
+
+
+def cell_reading(
+    v: Venue,
+    location: Location,
+    profile: LocationProfile,
+    shelter: tuple[float, float] | None = None,
+) -> str | None:
+    """Where OpenStreetMap places a venue on the lift map, read in the map's own terms:
+    ranks within the area, for pet-show fans as a group against the comparison shows."""
+    if v.latitude is None or v.longitude is None:
+        return None
+    c = cell_of(v, profile)
+    if c is None and not in_view(v, profile, shelter or (location.latitude, location.longitude)):
+        return "OpenStreetMap places it beyond the map's view."
+    if c is None:
+        return "OpenStreetMap places it outside the mapped cells."
+    if c.lift is None:
+        return "OpenStreetMap places it in a cell with no comparison."
+    base = compared_with(profile) or "the comparison shows"
+    how = "higher than" if c.lift > 0 else "lower than" if c.lift < 0 else "as high as"
+    return (
+        f"OpenStreetMap places it where pet-show fans rank this part of {location.label} "
+        f"{how} {base} do ({c.lift:+.2f})."
+    )
+
+
+def walk(v: Venue, shelter: tuple[float, float]) -> str | None:
+    """Straight-line distance from the shelter; a walking estimate (5 km/h) when near."""
+    if v.latitude is None or v.longitude is None:
+        return None
+    km = distance_km(shelter, (v.latitude, v.longitude))
+    text = f"{km:.1f} km from the shelter in a straight line"
+    if km <= WALKABLE_KM:
+        text += f", about {max(1, round(km / 5 * 60))} min on foot"
+    return text + "."
+
+
+def in_view(v: Venue, profile: LocationProfile, shelter: tuple[float, float]) -> bool:
+    """Whether the map should frame this pin: in a cell, or close to the shelter."""
+    return cell_of(v, profile) is not None or (
+        distance_km(shelter, (v.latitude, v.longitude)) <= WALKABLE_KM
+    )
+
+
+def venue_view(
+    v: Venue,
+    location: Location,
+    profile: LocationProfile,
+    number: int = 0,
+    shelter: tuple[float, float] | None = None,
+) -> VenueView:
     pets = venue_titles(profile)
     base = compared_with(profile)
     total = len(profile.venues)
@@ -567,6 +660,9 @@ def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueV
         evidence=evidence,
         chosen=v.chosen_reason is not None,
         reason=v.chosen_reason,
+        number=number,
+        where=cell_reading(v, location, profile, shelter),
+        distance=walk(v, shelter or (location.latitude, location.longitude)),
     )
 
 
@@ -920,6 +1016,74 @@ def lookalike_why(
     return returned, reading
 
 
+def plural(n: int, word: str) -> str:
+    return f"{n} {word}" + ("" if n == 1 else "s")
+
+
+def qloo_part(
+    location: Location, profile: LocationProfile, listing: ListingResult | None
+) -> QlooPart:
+    """Qloo's part of this result and the AI's, counted from what the profile holds: no
+    calls, nothing invented. Each part says only what that party did: Qloo returned the
+    lists, rankings, places and maps; the AI judged, picked and wrote."""
+    pets = profile.pet_entities
+    ranked = [e for e in pets if e.id in profile.ranked]
+    listed = [e for e in pets if e.found_in or e.listed_in]
+    backed = [e for e in pets if e in ranked or e in listed]
+    qloo = []
+    if backed:
+        # Each title counted once: ranked, else only in Qloo's lists for the area.
+        only_listed = [e for e in listed if e not in ranked]
+        how = and_list(
+            ([f"{len(ranked)} ranked here"] if ranked else [])
+            + ([f"{len(only_listed)} only in its lists for the area"] if only_listed else [])
+        )
+        qloo.append(
+            f"{plural(len(backed), 'title')} with Qloo's evidence for {location.label} ({how})"
+        )
+    elif pets:
+        qloo.append(f"{plural(len(pets), 'title')} looked up")
+    if profile.venues:
+        qloo.append(
+            f"{plural(len(profile.venues), 'place')} near the shelter, ranked for fans of "
+            f"{venue_titles(profile)}"
+        )
+    if profile.cells:
+        qloo.append(f"{plural(len(profile.cells), 'map cell')} from its heatmaps")
+    qloo_text = cap("; ".join(qloo)) + "." if qloo else f"Nothing for {location.label} yet."
+
+    ai = []
+    agent = profile.made_by == "agent"
+    if agent:
+        own = [e for e in pets if not e.found_in]
+        judged = [e for e in pets if e.found_in and bucket(e.verdict) != "kept"]
+        picked = [v for v in profile.venues if v.chosen_reason]
+        if own:
+            ai.append(f"proposed {plural(len(own), 'title')} for Qloo to check")
+        if judged:
+            ai.append(f"judged {plural(len(judged), 'unclear title')}")
+        if picked:
+            ai.append(f"picked {len(picked)} of the places to ask")
+        if len(pets) > 1 and profile.order_source != "qloo_rank":
+            ai.append("set the order, as Qloo's ranking was unavailable")
+    draft = listing.draft if listing else None
+    if draft is not None:
+        ai.append("chose the names and wrote the bio from the shelter's records")
+    if ai:
+        ai_text = cap("; ".join(ai)) + "."
+        if draft is None:
+            ai_text += " The names and bio are the fixed template."
+        if not agent:
+            ai_text += " The titles are a fixed lookup."
+    elif agent:
+        ai_text = "Kept the titles above; the names and bio are the fixed template."
+    else:
+        ai_text = (
+            "Not used here: the titles are a fixed lookup, and the names and bio a fixed template."
+        )
+    return QlooPart(qloo=qloo_text, ai=ai_text)
+
+
 def build_result_view(
     animal: Animal,
     location: Location,
@@ -935,6 +1099,7 @@ def build_result_view(
     every = venue_order(profile)
     ordered, skipped = venues_for_animal(animal, every)
     named_skips = skipped_shown(every, ordered, skipped)
+    shown = ordered[:VENUES_SHOWN]
     # Whether a venue the page would not have shown now takes a slot.
     first = {v.entity_id for v in every[:VENUES_SHOWN]}
     moved_up = any(v.entity_id not in first for v in ordered[:VENUES_SHOWN])
@@ -954,6 +1119,16 @@ def build_result_view(
                 + (", and the next places take their slots." if moved_up else "."),
             )
         )
+    if any(v.latitude is not None for v in shown):
+        reading.append(
+            WhyItem(
+                title="The places on the map",
+                detail="Qloo gives each place an address but no point on the map, so Namesake "
+                "looked the suggested places up once in OpenStreetMap (Photon), by name and "
+                "address. Where a pin falls among the cells, and its distance from the "
+                "shelter, are Namesake's reading.",
+            )
+        )
     look_returned, look_reading = lookalike_why(animal, listing)
     returned, reading = look_returned + returned, look_reading + reading
     named = [m for m in litter or [] if m.name]
@@ -964,11 +1139,12 @@ def build_result_view(
         location=location_option(location, True),
         litter=litter or [],
         litter_note=("Named as a set with the rest of the litter:" if len(named) > 1 else None),
+        qloo_part=qloo_part(location, profile, listing),
         name=name_view(listing, profile, listing_.text),
         listing=listing_,
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
-        map=map_view(location, profile, pin),
-        venues=[venue_view(v, location, profile) for v in ordered[:VENUES_SHOWN]],
+        map=map_view(location, profile, pin, shown),
+        venues=[venue_view(v, location, profile, n, pin) for n, v in enumerate(shown, start=1)],
         venues_empty=(
             f"Every place Namesake would suggest here mentions children, so none is suggested "
             f"for this {animal.species}."

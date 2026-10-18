@@ -42,7 +42,7 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 
 **Follows:** a profile records whether its order came from Qloo or from the agent. The Why panel shows which.
 
-## 4. Venues stay a list, not pins on the map
+## 4. Venues are a list, pinned on the map since 18 October
 
 **Decided:** venues are listed with their neighbourhood and address. The map shows the lift cells and the shelter's area only.
 
@@ -53,6 +53,8 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 - The result screenshot already has a map.
 
 **Follows:** revisit in milestone 4 only if time allows. If done, geocode at profile-build time with a cached, rate-respecting service, never from the browser.
+
+**Revised 18 October, pins after all** (the author: "the list is ok, but i believe it should put the pin to on the map in the proper hex if is the case"): the list stays, and each suggested venue is also a numbered pin on the lift map. Qloo still gives no coordinates, so when a run saves its profile the suggested venues (in the page's order, up to six) are looked up once in Photon, on the server: by name and address near the shelter, accepted only when the match carries the venue's distinctive words, else by the address alone; a match more than 12 km away is dropped, and a venue with no match stays in the list without a pin. Lookups from every run are at least a second apart, paced right before each request. When Photon is down or refusing, the batch stops and nothing counts against the venues: a later save tries again. An unusable answer counts as no match. Points are kept on the profile (finishing a profile keeps them), never fetched from the browser, as the condition above asked; `python -m app.venue_points` places profiles saved before, and the examples script places its own. The map frames the cells and the pins inside them or within 3 km of the shelter (the visitor's picked spot, when there is one); any other place gets no pin, and its card says it is beyond the map's view. Each card says, under "Namesake:", where OpenStreetMap places it in the map's own terms ("where pet-show fans rank this part of Park Slope higher than fans of this area's top shows do (+0.30)", or outside the mapped cells) and its straight-line distance, with a walking estimate within 3 km; the map's key explains the numbers, and the Why panel says where the points come from. Probed the same day: name and address placed 7 of 8 Park Slope venues, and only 2 of them fell inside the map's cells. A walking route was left out.
 
 ## 5. Agent-chosen Qloo calls go through our client, not `qloo mcp`
 
@@ -249,6 +251,8 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** Photon's public server promises no uptime; swapping it is one setting (`geocoder_url`) and one module (`app/places.py`). Its terms ask for fair use, which the cache and the per-visitor allowance keep to.
 
+**Revised 18 October, a search on the map:** a field above the start map, "Find a place on the map", takes the same area suggestions as the typed-area field (`/api/places`, the same allowance and rules) and only moves the map to the chosen place, so a visitor far from the presets (Barcelona, say) need not pan there by hand before right-clicking the shelter's spot. It belongs to its own empty form (`method="dialog"`), so Enter can never submit the animal picker around it, has no name, and nothing from it goes to Qloo. It is shown only when place lookups are on, and asks without the selected area's bias, since its purpose is to go elsewhere; a chosen place opens at a city-sized zoom.
+
 ## 18. The map combines the top pet titles; the baseline is the area's own top shows
 
 **Decided** (the author, 17 October: "lets go with combined layer", and for the baseline "Local top shows instead"; profile version 2):
@@ -307,6 +311,8 @@ The refusal keeps the edit and names the missing words.
 **Why:** design is a quarter of the score and judges may see one screenshot. The classic look, flat and grey-bordered, read as a prototype for an office tool; a shelter volunteer's tool should look like somewhere an animal lives. The seam built in milestone 2 made this a second folder rather than a rewrite, and keeping classic lets the two be compared on the same data.
 
 **Revised 18 October, the map tiles:** the warm skin keeps OpenStreetMap's standard tiles, quieted by a CSS filter on the tile pane only (lower saturation, a slight warm tint; inverted and dimmed in dark mode), so the lift cells and the shelter's circle read first. CARTO's quieter Voyager and Positron styles, chosen first, now answer every tile with "API KEY REQUIRED", and a keyed provider would put a key in the browser, which AGENTS.md forbids. Classic keeps the plain tiles.
+
+**Revised 18 October, Qloo's part:** the result opens with two parts, "Qloo:" and "Namesake's AI:", in the provenance colours (side by side in warm, stacked on phones and in classic). Qloo's part says what Qloo returned: titles with its evidence for the area (how many ranked here, how many only in its lists), the places near the shelter for fans of the titles they were asked for, and the heatmaps' map cells. The AI's part says what it did, as separate clauses: titles it proposed for Qloo to check, unclear ones it judged, the places it picked, the order when Qloo's ranking was unavailable, the names and bio. A fixed lookup or a template listing says so. Counted by code from the saved profile and listing (`qloo_part` in `app/views/build.py`), no calls. The contract test requires `data-role="qloo-part"` in every skin, so classic renders it too, an exception to "classic gets no new features". Judges may score from one screenshot, and Qloo's role was spread across the Why panel.
 
 **Follows:** UI work that was waiting on this (the "Qloo's part" strip, the venue lift line, the per-run graph) will be built into `warm`, not classic. The README screenshot still shows classic until it is retaken at the end, once the examples are rebuilt on the final code. Classic gets no new features; it is deleted when it is no longer useful for comparison.
 

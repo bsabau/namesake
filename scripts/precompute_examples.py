@@ -22,9 +22,11 @@ from app.animals import load_roster  # noqa: E402
 from app.classify import classifier_from  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.locations import load_locations  # noqa: E402
+from app.places import places_for  # noqa: E402
 from app.profile import load_seeds  # noqa: E402
 from app.runs import model_factory, qloo_client  # noqa: E402
 from app.store import Store  # noqa: E402
+from app.venue_points import locate_saved  # noqa: E402
 
 LOCATIONS = ("park-slope", "astoria")
 DOG = "dog-02"
@@ -85,6 +87,11 @@ async def main() -> None:
             for result in await run_litter(kittens, location, log=log, force=args.force, **common):
                 show(result)
             log.finish()
+        # The example pages show the places as pins too (decision 4, revised).
+        for species in ("dog", "cat"):
+            placed = locate_saved(store, location, species, places_for(settings.geocoder_url))
+            if placed:
+                print(f"{location.label} {species}s: {placed} places pinned")
     print(f"live Qloo calls: {qloo.live_calls}")
 
 

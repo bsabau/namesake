@@ -73,10 +73,11 @@ Steps A to E run once per location and every animal reuses them, so quota cost g
 ## The result screen
 
 The result screen must be legible in a single screenshot. It shows:
+- at the top, Qloo's part and Namesake's AI's part, apart: what Qloo returned for this result and what the AI did with it
 - the photo and chosen name
 - the generic/local toggle
 - the name options with their source badges
-- a map of local lift, with the venues listed beside it (`docs/decisions.md` #4)
+- a map of local lift, with the venues listed beside it and pinned on it by number, each card saying which cell it sits in and how far it is from the shelter (`docs/decisions.md` #4)
 - the exposure checklist
 - a "Why" drawer with two columns, "Qloo returned" and "How Namesake read it"
 

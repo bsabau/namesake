@@ -24,6 +24,17 @@ class Pin(BaseModel):
     longitude: float
 
 
+class VenuePin(BaseModel):
+    """A suggested venue on the map, numbered as in the list beside it."""
+
+    number: int
+    name: str
+    latitude: float
+    longitude: float
+    # Framed by the map (in a cell or near the shelter); a far pin is drawn, not framed.
+    in_view: bool = True
+
+
 class LocationOption(BaseModel):
     id: str
     label: str
@@ -77,6 +88,11 @@ class LocationForm(BaseModel):
     )
     suggestions_url: str = "/api/places"
     pick_url: str = "/api/places/at"
+    # A search on the map that only moves it: no Qloo call, nothing chosen. Shown only
+    # when place lookups are on.
+    map_search: bool = False
+    map_search_label: str = "Find a place on the map"
+    map_search_placeholder: str = "A city or area, such as “Barcelona”"
     # A spot picked on the map, carried through Qloo's candidate buttons.
     pin_lat: str = ""
     pin_lon: str = ""
@@ -223,6 +239,7 @@ class MapView(BaseModel):
     shelter_radius_m: float
     pin: Pin | None = None
     cells: list[MapCell]
+    venues: list[VenuePin] = []
     legend: str
     # A short key drawn on the map itself; the legend under it says the rest.
     note_heading: str = "What the colours mean"
@@ -244,6 +261,11 @@ class VenueView(BaseModel):
     # The agent's reason for suggesting it: our reading, shown apart from the evidence.
     chosen: bool = False
     reason: str | None = None
+    # Its number on the map, and where it sits: the cell's reading and the distance from
+    # the shelter (None when OpenStreetMap had no match for it).
+    number: int = 0
+    where: str | None = None
+    distance: str | None = None
 
 
 class PlanItem(BaseModel):
@@ -286,6 +308,15 @@ class WorkingView(BaseModel):
     credits: Credits = Credits()
 
 
+class QlooPart(BaseModel):
+    """One line each, near the top of the result: what Qloo returned for this result, and
+    what Namesake's AI did with it, kept apart (provenance). The UI labels them "Qloo:"
+    and "Namesake's AI:"."""
+
+    qloo: str
+    ai: str
+
+
 class ResultView(BaseModel):
     id: str
     animal: AnimalCard
@@ -301,6 +332,8 @@ class ResultView(BaseModel):
     edited_text: str | None = None
     # The local name option picked; the first option unless the volunteer chose another.
     chosen_name: str | None = None
+    # What Qloo returned and what the AI did, legible in one screenshot.
+    qloo_part: QlooPart | None = None
     name: NameView
     listing: ListingView
     map: MapView
@@ -354,7 +387,8 @@ class PlaceOption(BaseModel):
 
 
 class PlacesView(BaseModel):
-    """Area names for the location field, or the area around a picked spot."""
+    """Area names for the location field and the map search, or the area around a
+    picked spot."""
 
     places: list[PlaceOption] = []
     message: str | None = None

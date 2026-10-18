@@ -61,6 +61,14 @@ ssh deploy@host 'cd /opt/namesake && docker compose exec -T app python -m app.up
 
 It prints each profile it upgraded or left as it was; run it again later without `--only` for the rest, including Austin and the areas visitors typed.
 
+## Placing saved profiles' venues on the map
+
+Each new run places its profile's suggested venues once, from OpenStreetMap (Photon), after the profile is saved (decision 4, revised). Profiles saved before that are placed on the host, about a second a lookup, with no Qloo call:
+
+```sh
+ssh deploy@host 'cd /opt/namesake && docker compose exec -T app python -m app.venue_points'
+```
+
 ## Settings worth knowing
 
 - **`PROXY_NETWORK`**: the Caddy container's Docker network, which the app joins as `namesake`. It has no published port, so only the proxy reaches it.
