@@ -892,7 +892,7 @@ def assemble_profile(
     p.cells = combine_cells(pet_maps, base_maps)
     if p.cells and p.baselines and not any(c.lift is not None for c in p.cells):
         p.notes.append(
-            "No map cell was scored for both the pet shows and the shows they are compared "
+            "No map cell was scored for both the pet-themed titles and the shows they are compared "
             "with, so the map shows no comparison."
         )
     return p

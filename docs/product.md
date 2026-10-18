@@ -37,7 +37,7 @@ Name options come from three sources. Each option carries a badge with what Qloo
 
 | Source | Where it comes from |
 |---|---|
-| Pet-themed, strong here | Pet-themed titles with Qloo's evidence for the area (decision 22): ranked here by Qloo ("ranked 1st of 8 here by Qloo"), or placed in one of the area's lists, asked with Qloo's pet tags or for fans of another pet title ("in Qloo's list for this area asked with its pet tags", "liked here by fans of Bluey") |
+| Pet-themed, strong here | Pet-themed titles with Qloo's evidence for the area (decision 22): ranked here by Qloo ("ranked 1st of 8 here by Qloo"), or placed in one of the area's lists, asked with Qloo's pet tags or for fans of another pet title ("in Qloo's list for this area, asked with its pet tags", "liked here by fans of Bluey") |
 | Loved here generally | The area's top tastes by type (step E). Screened harder, because these lists lean on national hits and identity-coded titles. |
 | Title found, or Offered as a candidate (a lookalike) | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Qloo's line says only that it found the title, or offered it among candidates when it asked which was meant; the match ("A lookalike, matched on this animal's recorded look (brindle coat).", after the reference that names the character) is on the AI's line. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
 

@@ -653,7 +653,7 @@ def map_view(
         + (
             (
                 f"Warm cells: {pets} rank this part of {location.label} higher than {base} do. "
-                "Cool cells: lower, or level. Grey: only the pet shows have a score there. "
+                "Cool cells: lower, or level. Grey: only the pet-themed titles have a score there. "
                 "Where several "
                 "shows scored a cell, their scores are averaged. Scores are ranks within the "
                 "area, so they compare places here, not with other cities."
@@ -732,7 +732,7 @@ def cell_reading(
     how = "higher than" if c.lift > 0 else "lower than" if c.lift < 0 else "as high as"
     return (
         f"OpenStreetMap places it where fans of pet-themed titles rank this part of "
-        f"{location.label} {how} {base} do (lift {c.lift:+.2f} on Qloo's maps)."
+        f"{location.label} {how} {base} do ({c.lift:+.2f}, worked out from Qloo's maps)."
     )
 
 
@@ -1093,7 +1093,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         reading.append(
             WhyItem(
                 title="Lift on the map",
-                detail="The pet shows' score minus the score for "
+                detail="The pet-themed titles' score minus the score for "
                 f"{compared_with(profile) or 'the baseline'} in the same cell, each averaged over "
                 "the shows that scored it. It is relative: "
                 "where in this area fans of pet-themed titles stand out, not how many there are.",

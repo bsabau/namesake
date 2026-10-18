@@ -551,3 +551,9 @@ def test_each_version_button_shows_its_name(roster):
 def test_the_left_out_note_says_the_backstory_stays_out(roster):
     view = build_result_view(roster.get("dog-02"), LOCATION, profile())
     assert "Backstory and time in the shelter stay out of the listing." in view.listing.left_out
+
+
+def test_a_venue_that_stands_out_says_so_in_plain_words(roster):
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    standing = [v for v in view.venues if v.stands_out]
+    assert standing and all(v.badge == "Stands out for fans of pet-themed titles" for v in standing)
