@@ -40,7 +40,7 @@ Name options come from three sources. Each option carries a badge naming its sou
 | Loved here generally | The area's top tastes by type (step E). Screened harder, because these lists lean on national hits and identity-coded titles. |
 | Has a lookalike in … | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
 
-Each option shows the Qloo entity, its type and the evidence (affinity, popularity, lift). Our reading of why it suits the animal is shown separately. The volunteer picks one. Ranking uses both affinity and popularity, so a recognisable reference beats a niche one.
+Each option shows the Qloo title, its kind and Qloo's evidence for the area (its rank here, or its place in one of the area's lists). Our reading of why it suits the animal is shown separately. The volunteer picks one. Ranking uses both affinity and popularity, so a recognisable reference beats a niche one.
 
 ## Output 3: the exposure plan
 

@@ -298,3 +298,24 @@ def test_an_unsure_listed_title_never_blocks_the_ais_own_venue_search():
     )  # fmt: skip
     out = find_venues(SimpleNamespace(deps=d), [DOG_SHOW])
     assert out["status"] == "found" and d.venue_signals == [DOG_SHOW]
+
+
+def test_an_unchosen_candidate_is_never_pressed_on_the_venues():
+    from app.agent.profile_agent import strong_titles
+
+    # Codex, PR #20 re-check: a rejected alternative of an ambiguous lookup, later in a list.
+    d = deps({})
+    place = FoundIn(signal="x", kind="tv_show", position=1, out_of=20)
+    d.titles_seen = {
+        CAT_SHOW: Entity(id=CAT_SHOW, name="Example Crime Drama", type="urn:entity:tv_show",
+                         listed_in=place),
+    }  # fmt: skip
+    d.ambiguous = {CAT_SHOW: 2}
+    assert strong_titles(d) == []
+
+
+def test_a_list_with_the_tags_and_place_echoed_is_used():
+    echo = {"signal_tags": PET_TAGS, "signal_location": LOCATION.query}
+    listing = envelope("recommend", results=PET_LIST, interpretation=echo)
+    d = deps({pet_key("tv_show"): listing}, FakeClassifier(VERDICTS))
+    assert pet_lists(d)["tv_show"]["status"] == "found" and PUPPY_SCHOOL in d.titles_seen

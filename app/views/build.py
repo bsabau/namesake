@@ -357,7 +357,8 @@ def title_names(profile: LocationProfile, result: ListingResult | None) -> dict[
 def name_badge(
     source: str, entity_id: str, profile: LocationProfile, title: str | None = None
 ) -> str:
-    """Claim local strength only where Qloo's ranking for this area says so."""
+    """Claim local strength only where Qloo's evidence for this area says so: its ranking
+    here, or the title's place in one of the area's lists."""
     if source == "lookalike":
         return f"Has a lookalike in {title}" if title else "Has a lookalike"
     if source == "local":

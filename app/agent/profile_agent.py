@@ -86,8 +86,8 @@ INSTRUCTIONS = """\
 You help a volunteer at a fictional animal shelter plan where to promote a {species}.
 The shelter is in {place}. You use Qloo, a taste-data service, through four tools.
 
-1. The prompt lists the pet-themed titles Qloo itself found for people around {place}
-   (each kind, best first). A classifier has marked the clearly pet-themed ones "kept";
+1. The prompt lists the titles Qloo returned for people around {place}, asked with its pet
+   tags (each kind, best first). A classifier has marked the clearly pet-themed ones "kept";
    judge the "unsure" ones from their description and keep only titles clearly about
    {species}s or pets. These are your main titles: your answer must keep at least one
    title Qloo backs when there is one.
@@ -312,7 +312,9 @@ def strong_titles(deps: ProfileDeps) -> list[str]:
         and (
             i in (deps.rank_order or [])
             or bucket(deps.titles_seen[i].verdict) == "kept"
-            or deps.titles_seen[i].found_in is None  # the AI's own, listed or ranked
+            # The AI's own, listed or ranked; never an unchosen candidate of an ambiguous
+            # lookup, which the AI may have rejected.
+            or (deps.titles_seen[i].found_in is None and i not in deps.ambiguous)
         )
         and not identity_coded(deps.titles_seen[i].name, deps.titles_seen[i].description)
     ]

@@ -68,7 +68,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
    - a **Why** drawer with two columns, "Qloo returned" and "How Namesake read it" (Namesake's AI and its code)
 4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software.
 
-The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 18 to 20 Qloo calls (fewer when titles are already cached; two or three more to check a typed area first), and each further animal at most two.
+The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 18 to 20 Qloo calls (one more when the venues must be asked again) (fewer when titles are already cached; two or three more to check a typed area first), and each further animal at most two.
 
 ## Measuring whether it works
 
