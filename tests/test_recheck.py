@@ -157,7 +157,8 @@ DOG_01_BIO = [{"text": "He is calm and gentle; a slow-walk companion.", "facts":
 
 
 def test_the_recheck_floors():
-    # Drafts older than a floor are rerun: a recheck cannot cover what changed before it.
+    # recheckable() reads only the names' sources: drafts older than a floor are rerun, since
+    # a recheck cannot cover what changed before it.
     from app.agent.recheck import recheckable
     from app.agent.results import LOOKALIKE_LISTINGS_FROM, PLAIN_LISTINGS_FROM
 
