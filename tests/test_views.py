@@ -3,15 +3,17 @@ import re
 import pytest
 
 from app.locations import load_locations
-from app.profile import LocationProfile, build_profile, rank_band
+from app.profile import LocationProfile, Venue, build_profile, rank_band
 from app.views.build import (
     FEATURED,
     RANK_NOTES,
     build_result_view,
     build_start_view,
+    for_children,
     map_view,
     result_id,
     sentences,
+    skipped_shown,
     why,
 )
 from tests.qloo_fakes import (
@@ -204,6 +206,117 @@ def test_venue_rank_is_stated_plainly(roster):
     for v in view.venues:
         assert re.fullmatch(rf"\d+(st|nd|rd|th) of {total}", v.rank)
         assert v.rank_note == RANK_NOTES[v.rank_band]
+
+
+def kids_profile() -> LocationProfile:
+    p = profile()
+    for v in p.venues:
+        if v.name == "Garden Cafe":
+            v.description = "A cafe with a garden and a kids' playground."
+    return p
+
+
+def with_children(roster, answer):
+    animal = roster.get("dog-02")
+    return animal.model_copy(
+        update={"checks": animal.checks.model_copy(update={"good_with_children": answer})}
+    )
+
+
+def test_an_animal_not_good_with_children_skips_places_that_mention_them(roster):
+    view = build_result_view(with_children(roster, "no"), LOCATION, kids_profile())
+    assert "Garden Cafe" not in [v.name for v in view.venues]
+    skip = [i for i in view.plan if i.text.startswith("Skip")]
+    assert [i.text for i in skip] == [
+        "Skip Garden Cafe (it mentions “kids”) for this dog: the record says she is not "
+        "good with children."
+    ]
+    assert skip[0].basis == "Our suggestion"
+    asks = next(i.text for i in view.plan if i.text.startswith("Ask"))
+    assert "Garden Cafe" not in asks
+    # Our reading says why; Qloo's column is untouched.
+    reading = {i.title: i.detail for i in view.our_reading}
+    assert reading["Skipped for this dog"].startswith(
+        "Garden Cafe: its name or Qloo description mentions “kids”."
+    )
+
+
+def test_unknown_or_yes_keeps_every_venue(roster):
+    for answer in ("unknown", "yes"):
+        view = build_result_view(with_children(roster, answer), LOCATION, kids_profile())
+        assert "Garden Cafe" in [v.name for v in view.venues]
+        assert not any(i.text.startswith("Skip") for i in view.plan)
+
+
+def test_the_children_words_match_whole_words_in_the_name_or_description():
+    assert for_children(None, "A children's museum.") == "children"
+    assert for_children("Childrens Museum of the Arts") == "childrens"
+    assert for_children(None, "A child-friendly play cafe.") == "child"
+    assert for_children(None, "Kid’s birthday parties.") == "kid"
+    assert for_children(None, "Toddler classes and a playground.") == "toddler"
+    assert for_children(None, "A family-friendly brewery.") == "family-friendly"
+    assert for_children(None, "A soft play centre.") == "soft play"
+    assert for_children(None, "Classes for babies and an elementary school club.") == "babies"
+    # Other common meanings in venue text are not about children.
+    for text in (
+        "A plant nursery.",
+        "A dog daycare.",
+        "A restaurant serving baby back ribs.",
+        "A youth hostel.",
+        "A fenced play area for dogs.",
+        "An off-leash play space for dogs.",
+        "A bar for kidney-shaped pools.",
+        None,
+    ):
+        assert for_children(None, text) is None, text
+
+
+def test_when_every_venue_mentions_children_the_page_says_so(roster):
+    p = kids_profile()
+    for v in p.venues:
+        v.description = "A cafe for kids."
+    view = build_result_view(with_children(roster, "no"), LOCATION, p)
+    assert view.venues == []
+    assert view.venues_empty == (
+        "Every place Namesake would suggest here mentions children, so none is suggested "
+        "for this dog."
+    )
+    skip = next(i.text for i in view.plan if i.text.startswith("Skip"))
+    assert skip.count("(it mentions “kids”)") == 3
+    reading = {i.title: i.detail for i in view.our_reading}
+    assert reading["Skipped for this dog"].count("mentions “kids”") == 3
+
+
+def test_an_empty_profile_still_says_no_venues(roster):
+    p = profile()
+    p.venues = []
+    view = build_result_view(with_children(roster, "no"), LOCATION, p)
+    assert view.venues_empty == "No venues for this area yet."
+
+
+def test_a_skipped_venue_is_named_whenever_a_lower_one_takes_its_slot():
+    # Flash, PR #19: a fixed window of the first five missed a skipped venue that a
+    # lower one replaced.
+    every = [Venue(entity_id=str(n), name=f"Place {n}", rank=n + 1) for n in range(8)]
+    skipped = [every[0], every[5]]
+    kept = [v for v in every if v not in skipped]
+    # Five shown: 1, 2, 3, 4, 6; places 0 and 5 both rank above place 6.
+    assert [v.name for v in skipped_shown(every, kept, skipped)] == ["Place 0", "Place 5"]
+
+
+def test_a_skipped_last_pick_of_three_is_still_named():
+    # Codex and Flash, PR #19 re-check: an agent profile has at most three venues, and a
+    # skipped lowest one vanished without a word.
+    every = [Venue(entity_id=str(n), name=f"Place {n}", rank=n + 1) for n in range(3)]
+    assert [v.name for v in skipped_shown(every, every[:2], every[2:])] == ["Place 2"]
+
+
+def test_the_why_item_says_slots_were_taken_only_when_a_lower_place_moved_up(roster):
+    # Codex, PR #19: skipping the last of three moves nothing up.
+    p = kids_profile()
+    view = build_result_view(with_children(roster, "no"), LOCATION, p)
+    reading = {i.title: i.detail for i in view.our_reading}
+    assert reading["Skipped for this dog"].endswith("is not good with children.")
 
 
 def test_the_why_panels_venue_line_names_only_the_titles_searched(roster):
