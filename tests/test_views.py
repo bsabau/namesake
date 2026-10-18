@@ -367,3 +367,86 @@ def test_a_thin_map_says_so_on_the_page():
     assert map_view(LOCATION, p).legend.startswith(
         f"Only 2 map cells here: Qloo's data for pet-show fans around {LOCATION.label} is thin"
     )
+
+
+def test_the_qloo_part_counts_what_qloo_returned_apart_from_the_ais_part(roster):
+    p = agent_profile()  # ranked by Qloo; venues asked for the cat show; one picked
+    p.order_source = "qloo_rank"
+    part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
+    assert part.qloo == (
+        f"2 titles with Qloo's evidence for {LOCATION.label} (2 ranked here); "
+        f"{len(p.venues)} places near the shelter, ranked for fans of Example Cat Show; "
+        f"{len(p.cells)} map cell{'s' if len(p.cells) != 1 else ''} from its heatmaps."
+    )
+    # Semicolons keep the AI's acts apart from what Qloo did.
+    assert part.ai == (
+        "Proposed 2 titles for Qloo to check; picked 1 of the places to ask. "
+        "The names and bio are the fixed template."
+    )
+
+
+def test_the_qloo_part_names_the_ais_order_and_titles_found_in_lists(roster):
+    from app.profile import FoundIn
+
+    p = agent_profile()
+    p.order_source, p.ranked = "agent", []
+    p.pet_entities[0].found_in = FoundIn(signal="x", kind="tv_show", position=2, out_of=20)
+    part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
+    assert part.qloo.startswith(
+        f"1 title with Qloo's evidence for {LOCATION.label} (1 only in its lists"
+    )
+    assert part.ai == (
+        "Proposed 1 title for Qloo to check; judged 1 unclear title; picked 1 of the places "
+        "to ask; set the order, as Qloo's ranking was unavailable. The names and bio are the "
+        "fixed template."
+    )
+
+
+def test_the_qloo_part_for_a_fixed_lookup_says_the_ai_was_not_used(roster):
+    part = build_result_view(roster.get("dog-02"), LOCATION, profile()).qloo_part
+    assert part.ai == (
+        "Not used here: the titles are a fixed lookup, and the names and bio a fixed template."
+    )
+
+
+def test_the_qloo_part_says_plainly_when_nothing_came_back(roster):
+    p = LocationProfile(location_id=LOCATION.id)
+    part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
+    assert part.qloo == f"Nothing for {LOCATION.label} yet."
+    assert part.ai.startswith("Not used here")
+
+
+def test_an_agent_profile_with_nothing_else_to_say_still_credits_the_ai(roster):
+    from app.profile import FoundIn, PetVerdict
+
+    p = agent_profile()
+    p.order_source = "qloo_rank"
+    kept = PetVerdict(pets=0.97, dogs=0.9, cats=0.1, family=0.9, real_people=0.05)
+    for e in p.pet_entities:
+        e.found_in = FoundIn(signal="x", kind="tv_show", position=1, out_of=20)
+        e.verdict = kept
+    for v in p.venues:
+        v.chosen_reason = None
+    part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
+    assert part.ai == "Kept the titles above; the names and bio are the fixed template."
+
+
+def test_a_title_both_ranked_and_listed_is_counted_once(roster):
+    from app.profile import FoundIn
+
+    p = agent_profile()  # both ranked
+    p.pet_entities[0].found_in = FoundIn(signal="x", kind="tv_show", position=2, out_of=20)
+    part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
+    assert part.qloo.startswith(
+        f"2 titles with Qloo's evidence for {LOCATION.label} (2 ranked here);"
+    )
+
+
+def test_a_fixed_lookup_with_a_saved_listing_says_both(roster):
+    from tests.test_product import saved_listing
+
+    part = build_result_view(roster.get("dog-02"), LOCATION, profile(), saved_listing()).qloo_part
+    assert part.ai == (
+        "Chose the names and wrote the bio from the shelter's records. The titles are a fixed "
+        "lookup."
+    )

@@ -291,6 +291,15 @@ class WorkingView(BaseModel):
     credits: Credits = Credits()
 
 
+class QlooPart(BaseModel):
+    """One line each, near the top of the result: what Qloo returned for this result, and
+    what Namesake's AI did with it, kept apart (provenance). The UI labels them "Qloo:"
+    and "Namesake's AI:"."""
+
+    qloo: str
+    ai: str
+
+
 class ResultView(BaseModel):
     id: str
     animal: AnimalCard
@@ -306,6 +315,8 @@ class ResultView(BaseModel):
     edited_text: str | None = None
     # The local name option picked; the first option unless the volunteer chose another.
     chosen_name: str | None = None
+    # What Qloo returned and what the AI did, legible in one screenshot.
+    qloo_part: QlooPart | None = None
     name: NameView
     listing: ListingView
     map: MapView

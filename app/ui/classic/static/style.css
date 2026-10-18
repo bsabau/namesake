@@ -587,3 +587,5 @@ button[type="submit"]:not(.animal-card):not(.link-button), .candidates button {
   border-radius: 6px; box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
 }
 .map-key p { margin: 2px 0 0; }
+
+.qloo-part { margin: 0 0 16px; padding: 8px 12px; border: 1px solid var(--border, #ddd); border-radius: 6px; }
