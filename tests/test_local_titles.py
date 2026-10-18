@@ -647,3 +647,35 @@ def test_the_map_follows_the_titles_the_venues_were_asked_for():
     p = profile_from(FakeQloo(standard_script()), LOCATION, pets, [], [CAT_SHOW, DOG_SHOW])
     assert p.venue_signals == [CAT_SHOW, DOG_SHOW]
     assert [e.id for e in p.map_titles] == [CAT_SHOW, DOG_SHOW]
+
+
+def test_a_found_title_keeps_its_best_place_across_searches():
+    from app.agent.profile_agent import evidence_order
+
+    # Flash, PR #12 re-check: the order must not depend on which search listed it first.
+    other = show(SPACE_OPERA, "Example Space Opera", "Stars.")
+    first = [other, show(CAT_CAFE, "Example Cat Cafe", "Cats."), show(PUPPY_SCHOOL, "Puppy", "")]
+    second = [show(PUPPY_SCHOOL, "Puppy", ""), other, show(BASELINE, "Example Drama", "")]
+    d = deps(FakeClassifier({**VERDICTS, CAT_CAFE: verdict(0.97)}))
+    d.qloo = FakeQloo(
+        {
+            local_key(): envelope("recommend", results=first),
+            local_key(CAT_CAFE): envelope("recommend", results=second),
+        }
+    )
+    find_local_titles(ctx(d), DOG_SHOW, "tv_show")
+    assert evidence_order(d, [CAT_CAFE, PUPPY_SCHOOL]) == [CAT_CAFE, PUPPY_SCHOOL]
+    find_local_titles(ctx(d), CAT_CAFE, "tv_show")
+    # Puppy School was 3rd of 3, then 1st of 3, ahead of Cat Cafe's 2nd of 3.
+    assert d.titles_seen[PUPPY_SCHOOL].listed_in.position == 1
+    assert evidence_order(d, [CAT_CAFE, PUPPY_SCHOOL]) == [PUPPY_SCHOOL, CAT_CAFE]
+
+
+def test_no_eligible_title_means_no_venue_call():
+    from app.agent.profile_agent import find_venues
+
+    d = deps(None)
+    d.titles_seen[DOG_SHOW].description = "A made-up satire about communists and their dogs."
+    d.qloo = FakeQloo({})
+    out = find_venues(ctx(d), [DOG_SHOW])
+    assert "no title here can be a venue signal" in out["status"] and d.qloo.calls == []

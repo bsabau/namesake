@@ -607,6 +607,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                     title=f"{e.name} ({kind})",
                     detail=f"{ordinal(f.position)} of {f.out_of} in Qloo's list of {what} "
                     f"people around {location.label} who like {f.signal} tend to like. "
+                    + listed(e, location)
                     + sentences(e.description),
                 )
             )

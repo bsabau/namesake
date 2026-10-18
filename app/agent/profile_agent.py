@@ -264,10 +264,9 @@ def find_local_titles(
         if r["entity_id"] in deps.titles_seen:
             seen = deps.titles_seen[r["entity_id"]]
             place = FoundIn(signal=signal.name, kind=kind, position=position, out_of=total)
-            if seen.found_in is None and (
-                seen.listed_in is None or share(place) < share(seen.listed_in)
-            ):
-                seen.listed_in = place  # the AI's own title, in the area's list too
+            best = best_place(seen)
+            if best is None or share(place) < share(best):
+                seen.listed_in = place  # in another of the area's lists, placed better
             continue
         props = r.get("properties") or {}
         entity = Entity(
@@ -365,6 +364,13 @@ def share(place: FoundIn) -> float:
     return place.position / place.out_of
 
 
+def best_place(e: Entity) -> FoundIn | None:
+    """A title's best place in the area's lists: where it was found, or a better place in
+    a later search (`listed_in`), which is also where an AI title's place is kept."""
+    places = [p for p in (e.found_in, e.listed_in) if p is not None]
+    return min(places, key=share) if places else None
+
+
 def evidence_order(deps: ProfileDeps, entity_ids: list[str]) -> list[str]:
     """Titles by their evidence for this area: Qloo's ranking for the area first, then
     titles in the area's lists by their place there, then the AI's own order. The venues
@@ -378,8 +384,7 @@ def evidence_order(deps: ProfileDeps, entity_ids: list[str]) -> list[str]:
     ranked = [i for i in deps.rank_order or [] if i in ids]
 
     def place(i: str) -> FoundIn | None:
-        e = deps.titles_seen[i]
-        return e.found_in or e.listed_in
+        return best_place(deps.titles_seen[i])
 
     found = sorted((i for i in ids if i not in ranked and place(i)), key=lambda i: share(place(i)))
     rest = [i for i in ids if i not in ranked and i not in found]
@@ -401,6 +406,8 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
         for i in evidence_order(deps, entity_ids)
         if not identity_coded(deps.titles_seen[i].name, deps.titles_seen[i].description)
     ][:MAX_VENUE_SIGNALS]
+    if not ids:
+        return {"status": "no title here can be a venue signal; send titles you keep"}
     names = [deps.titles_seen[i].name for i in ids]
     deps.log.add(
         "qloo", f"Finding places near {deps.location.label} for fans of {', '.join(names)}"
