@@ -578,6 +578,21 @@ def test_a_seed_show_qloo_answered_but_could_not_single_out_leaves_the_thin_answ
     assert checked.status == "thin" and "2 map cells" in checked.message
 
 
+def test_a_failed_lookup_is_never_a_verdict_on_the_place():
+    # Flash, PR #13 third re-check: an error envelope is a failure, not "too little data".
+    error = {"code": "QLOO_RATE_LIMIT", "layer": "api", "retryable": True, "recovery": "wait"}
+    seed = key("describe", {"entity": "Example Drama", "type": "tv_show"})
+    text, script = location_script(results=cells(6))
+    with_top_show(script, text, 2)
+    script[seed] = envelope("describe", "error", error=error)
+    assert check_location(FakeQloo(script), text, SEEDS).status == "unavailable"
+    # The area's top list errs and the seed show is answered but unresolvable.
+    text, script = location_script(results=cells(6))
+    script[top_list_key(text)] = envelope("recommend", "error", error=error)
+    script[seed] = describe_needs_input()
+    assert check_location(FakeQloo(script), text, SEEDS).status == "unavailable"
+
+
 def test_the_seed_shows_candidates_or_failure_are_not_lost_to_a_thin_top_show():
     text, script = location_script(
         "needs_input",

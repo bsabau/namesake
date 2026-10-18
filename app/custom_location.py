@@ -65,22 +65,23 @@ def zoom_for(lat_span: float, lon_span: float, latitude: float) -> int:
     return max(9, min(15, int(math.log2(360 / span)) + 1))
 
 
-def local_top_show(qloo: QlooClient, text: str) -> str | None:
-    """The TV show Qloo ranks highest for people around the typed place, or None when the
-    answer is not a plain list. The input matches the profile's local-tastes call. A cache
-    miss (live calls off) raises ReplayMiss for `check_location` to report as unavailable."""
+def local_top_show(qloo: QlooClient, text: str) -> tuple[str | None, bool]:
+    """The TV show Qloo ranks highest for people around the typed place (None when the
+    answer is not a plain list), and whether the call failed (unreachable, or an error).
+    The input matches the profile's local-tastes call. A cache miss (live calls off)
+    raises ReplayMiss for `check_location` to report as unavailable."""
     try:
         env = qloo.run(
             "recommend", {"target_type": "tv_show", "signal_location": text, "limit": 10}
         )
     except QlooExecError:
-        return None
+        return None, True
     if env.status != "ok" or not env.has_results:
-        return None
+        return None, env.status == "error"
     try:
-        return env.entities()[0].entity_id
+        return env.entities()[0].entity_id, False
     except ValidationError:
-        return None
+        return None, False
 
 
 def heatmap_cells(
@@ -115,7 +116,7 @@ def check_location(qloo: QlooClient, typed: str, seeds: Seeds) -> LocationCheck:
         "before. Try again later, or pick one of the preset areas.",
     )
     try:
-        probe_id = local_top_show(qloo, text)
+        probe_id, top_failed = local_top_show(qloo, text)
         env, cells = heatmap_cells(qloo, probe_id, text) if probe_id else (None, [])
         failed = env is None or env.status == "error"
         if failed or (env.status != "needs_input" and len(cells) < MIN_CELLS):
@@ -123,6 +124,8 @@ def check_location(qloo: QlooClient, typed: str, seeds: Seeds) -> LocationCheck:
             # candidates or its failure speak for the place; else the fuller map decides.
             # A seed lookup not cached (live calls off) raises: tried live later.
             baseline = resolve_baseline(qloo, probe, seeds.baseline)
+            if baseline is None and failed and (top_failed or env is not None):
+                return unavailable  # a failure, not a verdict on the place: try again
             if baseline is None and failed:
                 return LocationCheck(
                     status="thin",
