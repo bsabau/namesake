@@ -117,3 +117,40 @@ def test_a_saved_listing_without_its_profile_runs_again(roster, tmp_path):
         )
     )
     assert recheck(store, roster) == (0, 1)
+
+
+def test_an_older_draft_whose_reasons_cite_temperament_runs_again(roster, tmp_path):
+    # Decided 18 October: a name's reason draws only on the recorded look.
+    store = Store(tmp_path / "store.sqlite")
+    names = [{**n, "why": "It suits a gentle dog."} for n in DRAFT["names"]]
+    save(store, "dog-02", {**DRAFT, "names": names}, CHECKS_VERSION - 1)
+    assert recheck(store, roster) == (0, 1)
+
+
+def test_an_older_draft_with_two_names_from_one_title_runs_again_when_another_is_unused(
+    roster, tmp_path
+):
+    # dog-01 is not bully-type: a local title is usable, so two names from one title rerun.
+    store = Store(tmp_path / "store.sqlite")
+    local = Entity(
+        id="00000000-0000-4000-8000-0000000000aa",
+        name="Example Puppy Club",
+        type="urn:entity:tv_show",
+        description="A made-up puppy training series.",
+    )
+    save_profile(store)
+    profile = store.get_profile("x", "dog")
+    store.put_profile(profile.model_copy(update={"local_tastes": [local]}))
+    names = [{**n, "why": "It suits his yellow coat."} for n in DRAFT["names"]]
+    save(store, "dog-01", {**DRAFT, "names": names, "bio": DOG_01_BIO}, CHECKS_VERSION - 1)
+    assert recheck(store, roster) == (0, 1)
+
+
+def test_a_bully_type_dog_may_repeat_a_title_once_its_pet_titles_are_used(roster, tmp_path):
+    # dog-02 names only from pet titles; DRAFT uses both, so its repeat is allowed.
+    store = Store(tmp_path / "store.sqlite")
+    save(store, "dog-02", DRAFT, CHECKS_VERSION - 1)
+    assert recheck(store, roster) == (1, 0)
+
+
+DOG_01_BIO = [{"text": "He is calm and gentle; a slow-walk companion.", "facts": ["temperament"]}]

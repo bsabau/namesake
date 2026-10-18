@@ -46,12 +46,12 @@ These shape most decisions below, so keep them in mind when making trade-offs. C
   - A bite history or guarding is stated plainly, every time.
   - Write in the third person, with behaviour toward people first, in plain words, at 75 to 150 words. When the recorded facts cannot fill 75 words, the listing stays short and says so; it is never padded.
   - Describe the animal as it is now. Leave out backstories, pity and urgency.
-  - The cultural reference appears only in the name and one hook line, and the hook says nothing about temperament.
+  - The cultural reference appears only in the name and one hook line, and neither the hook nor a name's reason says anything about temperament.
 - **Names are screened.**
   - Names are short and easy to say, at one to three syllables.
   - Every option passes a screen for villains, violent or tragic characters, weapon and aggression words, living celebrities, and references coded to a race, religion or political identity.
   - Dogs of bully-breed type get the strictest screen, because research found a measured penalty for names perceived as Black on pit-bull-type dogs.
-  - Two animals in one shelter never share a reference, except a litter named as a set.
+  - Two animals in one shelter never share a reference, except a litter named as a set. One animal's options come from different titles while others are available.
 - **Docs stay current.** A change updates, in the same PR, every document it makes stale or incomplete: `docs/architecture.md` (the technical tour and its diagrams), the README, `docs/decisions.md` (a new entry, or a dated line in the one it revises), `docs/qloo-findings.md` for anything learned from live calls, `docs/product.md` for the design, and this file. A reviewer treats a PR that changes behaviour without updating those documents as unfinished.
 - **Claims stay within the evidence.** The README, Devpost text and UI may say the tool:
   - drafts accurate listings, name options and an exposure plan quickly

@@ -8,8 +8,11 @@ from app.agent.steps import Step
 # Raised whenever the listing checks change. A saved result from an older version is
 # never shown as it is: app/agent/recheck.py holds it to today's record checks (the bio
 # and the names' reasons) and name screen, and anything it cannot recheck is rerun.
-CHECKS_VERSION = 10
+CHECKS_VERSION = 11
 # What changed since, so which saved drafts a recheck of the record is enough for:
+# - 11 kept the names' reasons to the recorded look, with no temperament, and allowed one
+#   name per title while other titles are unused (both rechecked); a lookalike's quoted
+#   look must be whole phrases, which only the lookup checks, so lookalike drafts rerun;
 # - 10 also counts a title as about real people when the classifier says so (decision
 #   20). Titles saved before were never classified, so the rule has nothing to add for
 #   them and the recheck holds them to the description check as before;
@@ -19,7 +22,7 @@ CHECKS_VERSION = 10
 # - 6 and 7 changed only the checks on lookalike names (decision 14).
 # Raise these floors when a change touches any other check.
 PLAIN_LISTINGS_FROM = 5
-LOOKALIKE_LISTINGS_FROM = 7
+LOOKALIKE_LISTINGS_FROM = 11
 
 
 class ListingResult(BaseModel):

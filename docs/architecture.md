@@ -213,8 +213,9 @@ The listing agent may make at most 6 model requests and 4 tool calls. What code 
 - **Names**: one to three syllables, letters only; a blocklist of weapon and aggression words; a list of famous villains and tragic animals; no reference the model marks as a villain or tragic character, or as a real person; short lists of famous real people and of words coded to a religion, race or political identity; for bully-type dogs, only names from the pet-themed or lookalike titles. Lists cannot be complete, so the model is also told to avoid these, and the volunteer chooses (decision 19).
 - **The title behind a name**, as Qloo returned it: one about real people (a talk show, reality show, documentary, biopic, memoir, or one the classifier scores as about real people) gives only animals' names; one coded to an identity gives none. Descriptions name the cast, so they are searched only for words that are rarely anyone's name.
 - **No shared names**: no two animals at a shelter share a name. A litter named as a set shares one title, never a name.
-- **Hook**: assembled by code from the name, its role and Qloo's title; it says nothing about temperament.
-- **Lookalikes**: the shared look must be quoted from the record, and the name must be that animal's own (decision 14).
+- **One name per title**: an animal's options come from different titles while another title it may name from is unused (for a bully-type dog, only the pet-themed and lookalike titles count). A litter named as a set is the exception.
+- **Hook and the names' reasons**: the hook is assembled by code from the name, its role and Qloo's title; it says nothing about temperament. A name's reason may draw only on the recorded look (or say the name is short and easy to say), so a cultural reference never implies how the animal behaves.
+- **Lookalikes**: the shared look must be quoted from the record as whole phrases, each ending where a part of the look ends ("brindle coat", not "short"), and the name must be that animal's own (decision 14).
 
 Saved listings carry the version of the checks they passed. When the checks change, every deploy rechecks the saved ones it can with today's rules (`app/agent/recheck.py`); one that fails, or one older than a change the recheck cannot cover, runs again when next opened (decision 16).
 

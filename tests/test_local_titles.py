@@ -280,7 +280,10 @@ def test_a_kept_local_title_joins_the_ranking_and_shows_its_evidence(roster, mon
         return await real_run(*args, **kwargs, classifier=FakeClassifier(VERDICTS))
 
     monkeypatch.setattr("tests.test_agents.run_pipeline", with_classifier)
-    _, store, log = run(LocalScript([plan], [DRAFT]), roster, qloo=FakeQloo(script))
+    # The puppy school is a pet title here, so the third name comes from it (one per title).
+    third = {**DRAFT["names"][2], "entity_id": PUPPY_SCHOOL}
+    draft = {**DRAFT, "names": [*DRAFT["names"][:2], third]}
+    _, store, log = run(LocalScript([plan], [draft]), roster, qloo=FakeQloo(script))
     profile = store.get_profile(LOCATION.id, "dog")
     assert [e.id for e in profile.pet_entities] == [PUPPY_SCHOOL, CAT_SHOW, DOG_SHOW]
     puppy = profile.pet_entities[0]

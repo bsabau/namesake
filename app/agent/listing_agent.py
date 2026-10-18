@@ -95,7 +95,7 @@ class NameOption(BaseModel):
     reference_role: Literal["hero", "friend", "neutral", "villain", "tragic"] = Field(
         description="The character's role in the story; villains and tragic figures are refused."
     )
-    why: str = Field(description="One sentence on why it suits this animal's look or facts.")
+    why: str = Field(description="One sentence on how it fits this animal's recorded look.")
     choice_reason: str | None = Field(
         default=None,
         description="For a lookalike title where Qloo returned candidates: why this one.",
@@ -122,14 +122,21 @@ Rules:
   other animals, house-training or bites: confirmed answers are added separately.
 - Third person, plain words, behaviour toward people first, up to 150 words. If the facts
   are few, the bio is short; never pad it.
+- Keep what the animal does and what it needs from an adopter in separate sentences, so
+  no sentence can be read as being about the adopter ("She knows basic commands. She
+  needs an owner comfortable with a big dog.").
 - Offer 3 to 5 name options. Each comes from one of the titles below (a character, the
   title, or an object in it), with that title's entity_id and source, the character's own
   name as it appears in the story, and its role from the list. Short and easy to
   say: one to three syllables. No villains, violent or tragic characters, weapons, real
   people, or names coded to a race, religion or political identity. From a title about
   real people (a talk show, reality show, documentary or biopic), only an animal's name.
-- Each name's reason only restates the animal's facts ("It suits a dog who knows basic
-  commands"). Never repeat a name already used at this shelter: {taken}.
+- At most one name per title, while other titles are offered: each option shows a
+  different title. A litter named as a set is the exception.
+- Each name's reason says how the name fits the animal's recorded look ("It suits her
+  brindle coat"), or that it is short and easy to say. Never its temperament or behaviour:
+  a cultural reference must not imply how the animal behaves. Never repeat a name already
+  used at this shelter: {taken}.
 {lookalike}{strict}{litter}{request}
 The animal ({they}):
 {facts}
@@ -191,6 +198,40 @@ def look_names(text: str) -> list[str]:
     return re.findall(r"[a-z]+", text.lower())
 
 
+def phrase_words(text: str) -> list[str]:
+    """Words with their hyphens kept, so "yellow-green" stays one word."""
+    return re.findall(r"[a-z]+(?:-[a-z]+)*", text.lower())
+
+
+def look_phrases(look: str) -> list[list[str]]:
+    """The recorded look's parts, as words: "large mixed breed, short brindle coat" gives
+    [["large", "mixed", "breed"], ["short", "brindle", "coat"]]. Asides in brackets are
+    left out, so a part ends on the thing it describes."""
+    plain = re.sub(r"\([^)]*\)", "", look)
+    return [phrase_words(part) for part in re.split(r"[,;]", plain) if phrase_words(part)]
+
+
+def look_examples(look: str) -> str:
+    """Parts the refusal can suggest: those that say more than size or kind."""
+    parts = [" ".join(part) for part in look_phrases(look)]
+    return ", ".join(f'"{p}"' for p in parts if set(look_names(p)) - GENERIC_LOOK)
+
+
+def whole_phrase(quote: str, look: str) -> bool:
+    """A quote is the end of one part of the look, two words or more unless the part is
+    one word: "brindle coat" or "short brindle coat", never "short" or "head" alone, which
+    would describe nothing."""
+    words = phrase_words(quote)
+    return (
+        any(
+            len(words) >= min(2, len(part)) and part[-len(words) :] == words
+            for part in look_phrases(look)
+        )
+        if words
+        else False
+    )
+
+
 def look_up_lookalike(
     ctx: RunContext[ListingDeps],
     title: str,
@@ -200,8 +241,9 @@ def look_up_lookalike(
 ) -> dict[str, Any]:
     """Look up a title with an animal that looks like this one.
 
-    animal_in_it: that animal's own name in the story. shared_look: words quoted from
-    this animal's recorded look that the two share, such as "brindle". Two lookups per run.
+    animal_in_it: that animal's own name in the story. shared_look: phrases quoted from
+    this animal's recorded look that the two share, each ending where a part of the look
+    ends, such as "brindle coat". Two lookups per run.
     """
     deps = ctx.deps
     if deps.qloo is None or deps.litter_title or deps.first_of_litter:
@@ -209,11 +251,19 @@ def look_up_lookalike(
     record = look_words(deps.animal.look)
     quoted = [w.strip() for w in shared_look if w.strip()]
     missing = [w for w in quoted if not look_words(w) or not look_words(w) <= record]
+    loose = [w for w in quoted if w not in missing and not whole_phrase(w, deps.animal.look)]
     distinctive = set().union(*(look_words(w) for w in quoted)) - GENERIC_LOOK if quoted else set()
-    if missing or not distinctive:
+    if missing or loose or not distinctive:
         return {
             "status": "refused: shared_look must quote distinctive words from the recorded "
-            f"look ({deps.animal.look!r})" + (f"; not in it: {missing}" if missing else "")
+            f"look ({deps.animal.look!r})"
+            + (f"; not in it: {missing}" if missing else "")
+            + (
+                f"; quote whole phrases that end where a part of the look ends, such as "
+                f"{look_examples(deps.animal.look)}, not {loose}"
+                if loose
+                else ""
+            )
         }
     # Qloo's answer depends only on the request; the animal is recorded on every ask, so
     # asking again about another animal (or back) records the one asked about last.
@@ -354,6 +404,8 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
     picked = [o.entity_id for o in draft.names if o.source == "lookalike"]
     if len(picked) != len(set(picked)):
         problems.append("a lookalike title gives one name only")
+    if not (deps.litter_title or deps.first_of_litter):
+        problems += repeated_titles(draft.names, deps.titles, deps.strict)
     if deps.first_of_litter and len({o.entity_id for o in draft.names}) > 1:
         problems.append("a litter named as a set takes all its names from one title")
     problems += record_problems(deps.animal, draft)
@@ -365,6 +417,22 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
         raise ModelRetry("Fix these and answer again: " + "; ".join(problems))
     deps.log.add("check", "Listing checked: built from the recorded facts, names pass the screen")
     return draft
+
+
+def repeated_titles(
+    names: list[NameOption], offered: dict[str, tuple[Entity, str]], strict: bool
+) -> list[str]:
+    """A title that gives two names while another usable title gives none: each option
+    should show a different title (decided 18 October). Repeats are allowed only once
+    every usable title is used, since a draft needs three names; the strictest screen
+    names only from pet-themed and lookalike titles."""
+    usable = {k for k, (_, source) in offered.items() if not strict or source != "local"}
+    used = [o.entity_id for o in names]
+    unused = usable - set(used)
+    twice = sorted({o.name for o in names if used.count(o.entity_id) > 1})
+    if twice and unused:
+        return [f"names {twice} come from one title; take one of them from another title"]
+    return []
 
 
 def shown_bio(animal: Animal, draft: ListingDraft) -> list[BioSentence]:

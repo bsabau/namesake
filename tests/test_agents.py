@@ -18,6 +18,7 @@ from tests.qloo_fakes import (
     BASELINE,
     CAT_SHOW,
     DOG_SHOW,
+    LOCAL_PET_SHOW,
     LOCATION,
     PET_VENUES,
     SEEDS,
@@ -77,7 +78,7 @@ DRAFT = {
             "character": "Bingo",
             "role": "dog",
             "reference_role": "friend",
-            "why": "It suits a dog who knows basic commands.",
+            "why": "A short name, easy to say.",
         },
         {
             "name": "Biscuit",
@@ -95,7 +96,7 @@ DRAFT = {
             "character": "Scout",
             "role": "puppy",
             "reference_role": "friend",
-            "why": "It suits a big dog.",
+            "why": "It suits her broad head.",
         },
     ],
     "bio": [
@@ -229,8 +230,11 @@ def test_the_confirmed_checks_are_added_by_code(roster):
         "bio": [
             {"text": "He is calm and gentle; a slow-walk companion.", "facts": ["temperament"]},
         ],
-        "names": [{**n, "why": "It suits a calm dog."} for n in DRAFT["names"]],
-    }
+        # dog-01 is not bully-type, so the area's other titles are usable: one name each.
+        "names": [{**n, "why": "It suits his yellow coat."} for n in DRAFT["names"][:2]]
+        + [{**DRAFT["names"][2], "source": "local", "entity_id": LOCAL_PET_SHOW,
+            "why": "It suits his yellow coat."}],
+    }  # fmt: skip
     result, _, _ = run(Script([PLAN], [draft]), roster, animal="dog-01")
     texts = [s.text for s in result.bio]
     assert texts[-2:] == ["He is good with children.", "He is house-trained."]
@@ -582,3 +586,28 @@ def test_find_venues_tells_the_agent_where_each_place_ranks():
     assert venues[0]["position"] == "top" and venues[-1]["position"] != "top"
     # The instructions name the field the agent should weigh.
     assert 'position "top"' in INSTRUCTIONS
+
+
+def test_two_names_from_one_title_are_sent_back_while_another_is_usable(roster):
+    # Decided 18 October: dog-01 may name from the area's other titles, so a repeat is
+    # sent back; the fix takes the third name from another title.
+    names = [{**n, "why": "It suits his yellow coat."} for n in DRAFT["names"]]
+    bio = [{"text": "He is calm and gentle; a slow-walk companion.", "facts": ["temperament"]}]
+    repeat = {**DRAFT, "names": names, "bio": bio}
+    fixed = {**repeat, "names": [*names[:2], {**names[2], "source": "local",
+                                             "entity_id": LOCAL_PET_SHOW}]}  # fmt: skip
+    result, _, log = run(Script([PLAN], [repeat, fixed]), roster, animal="dog-01")
+    assert result.draft is not None
+    assert any("come from one title" in s.text for s in log.steps)
+    assert len({o.entity_id for o in result.draft.names}) == 3
+
+
+def test_the_instructions_ask_for_separate_sentences_and_look_only_reasons():
+    from app.agent.listing_agent import INSTRUCTIONS
+    from app.agent.profile_agent import INSTRUCTIONS as PROFILE
+
+    assert "what it needs from an adopter in separate sentences" in INSTRUCTIONS
+    assert "Never its temperament or behaviour" in INSTRUCTIONS
+    assert "At most one name per title" in INSTRUCTIONS
+    assert "why it suits an adoption event or a flyer" in PROFILE
+    assert "do not add features it does not mention" in PROFILE

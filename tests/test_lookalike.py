@@ -87,7 +87,7 @@ def film_script(ambiguous: bool = False, single: bool = False):
 class LookalikeScript(Script):
     """The listing agent looks one title up before answering."""
 
-    def __init__(self, profile_answers, listing_answers, shared_look=("brindle",)):
+    def __init__(self, profile_answers, listing_answers, shared_look=("brindle coat",)):
         super().__init__(profile_answers, listing_answers)
         self.shared_look = list(shared_look)
 
@@ -138,17 +138,17 @@ def test_a_lookalike_name_is_offered_with_its_own_badge_and_why(roster):
     assert result.draft is not None and result.draft.names[-1].name == "Rex"
     assert result.references[-1] == "Rex, a dog in Example Dog Film"
     [look] = result.lookalikes
-    assert look.entity.id == DOG_FILM and look.shared_look == ["brindle"]
+    assert look.entity.id == DOG_FILM and look.shared_look == ["brindle coat"]
     # The local version keeps a name from the area's titles.
     assert result.hook == "Named after Bingo, a dog in Example Dog Show."
-    assert any("Rex shares this dog's look (brindle)" in s.text for s in log.steps)
+    assert any("Rex shares this dog's look (brindle coat)" in s.text for s in log.steps)
 
     profile = store.get_profile(LOCATION.id, "dog")
     view = build_result_view(roster.get("dog-02"), LOCATION, profile, result)
     rex = next(o for o in view.name.options if o.name == "Rex")
     assert rex.badge == "Title found"  # the look is the AI's reading, not Qloo's
     assert rex.header_source == "Title found: Example Dog Film"
-    assert rex.why.startswith("A lookalike, matched on this animal's recorded look (brindle). ")
+    assert rex.why.startswith("A lookalike, matched on this animal's recorded look (brindle coat). ")
     assert rex.approved_source == (
         "a lookalike title, Example Dog Film: Qloo found the title, "
         "and the match is the reading of Namesake's AI"
@@ -157,7 +157,7 @@ def test_a_lookalike_name_is_offered_with_its_own_badge_and_why(roster):
     returned = {i.title: i.detail for i in view.qloo_returned}
     reading = {i.title: i.detail for i in view.our_reading}
     assert returned["Example Dog Film (film)"].startswith("Found in Qloo.")
-    assert "recorded look: brindle" in reading["Why Example Dog Film"]
+    assert "recorded look: brindle coat" in reading["Why Example Dog Film"]
     assert "Qloo confirmed the title, not how its animals look" in reading["Why Example Dog Film"]
 
 
@@ -183,16 +183,39 @@ def test_shared_look_must_quote_the_record(roster):
     assert d.qloo.calls == [] and d.lookups == 0
 
 
+def test_shared_look_must_quote_whole_phrases(roster):
+    # Decided 18 October: "short" alone is a piece of "short brindle coat".
+    d = deps(roster)
+    ctx = SimpleNamespace(deps=d)
+    for loose in (["short", "broad head"], ["brindle"], ["head"]):
+        out = look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", loose)
+        assert out["status"].startswith("refused") and "whole phrases" in out["status"]
+        assert '"short brindle coat", "broad head"' in out["status"]
+    assert d.qloo.calls == []
+    out = look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["Brindle coat", "broad head"])
+    assert out["status"] == "found"
+
+
+def test_whole_phrases_end_where_a_part_of_the_look_ends():
+    from app.agent.listing_agent import whole_phrase
+
+    look = "tortoiseshell, one eye (left eye removed and healed)"
+    assert whole_phrase("tortoiseshell", look) and whole_phrase("one eye", look)
+    assert not whole_phrase("left eye", look)  # the aside is not quoted
+    eyes = "black domestic shorthair, yellow-green eyes"
+    assert whole_phrase("yellow-green eyes", eyes) and not whole_phrase("green eyes", eyes)
+
+
 def test_lookups_are_capped_and_never_for_a_litter(roster):
     d = deps(roster)
     ctx = SimpleNamespace(deps=d)
-    first = look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"])
+    first = look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle coat"])
     # Asking again, as after a repair, gives the same answer without another lookup.
-    again = look_up_lookalike(ctx, "example dog film ", "movie", "Rex", ["brindle"])
+    again = look_up_lookalike(ctx, "example dog film ", "movie", "Rex", ["brindle coat"])
     assert first["status"] == "found" and again == first
     assert d.lookups == 1 and len(d.qloo.calls) == 1
     d.lookups = 2
-    third = look_up_lookalike(ctx, "Another Dog Film", "movie", "Max", ["brindle"])
+    third = look_up_lookalike(ctx, "Another Dog Film", "movie", "Max", ["brindle coat"])
     assert third["status"].startswith("unavailable") and len(d.qloo.calls) == 1
 
     kitten = deps(roster, animal="kitten-01", first_of_litter=True)
@@ -206,14 +229,14 @@ def test_a_profile_title_keeps_its_own_source(roster):
     d = deps(roster)
     shown = Entity(id=DOG_FILM, name="Example Dog Film", type="urn:entity:movie")
     d.titles[DOG_FILM] = (shown, "pet")
-    look_up_lookalike(SimpleNamespace(deps=d), "Example Dog Film", "movie", "Rex", ["brindle"])
+    look_up_lookalike(SimpleNamespace(deps=d), "Example Dog Film", "movie", "Rex", ["brindle coat"])
     assert d.titles[DOG_FILM][1] == "pet" and d.lookalikes == {}
 
 
 def test_an_ambiguous_lookalike_needs_a_reason_and_the_named_animal(roster):
     d = deps(roster, ambiguous=True)
     out = look_up_lookalike(
-        SimpleNamespace(deps=d), "Example Dog Film", "movie", "Rex", ["brindle"]
+        SimpleNamespace(deps=d), "Example Dog Film", "movie", "Rex", ["brindle coat"]
     )
     assert out["status"] == "ambiguous" and len(out["candidates"]) == 2
     look = d.lookalikes[DOG_FILM]
@@ -238,7 +261,7 @@ def test_the_lookalike_record_round_trips():
     look = Lookalike(
         entity=Entity(id=DOG_FILM, name="Example Dog Film", type="urn:entity:movie"),
         animal="Rex",
-        shared_look=["brindle"],
+        shared_look=["brindle coat"],
     )
     assert Lookalike.model_validate_json(look.model_dump_json()) == look
 
@@ -247,7 +270,7 @@ def test_a_longer_form_of_the_lookalikes_name_is_the_same_animal(roster):
     look = Lookalike(
         entity=Entity(id=DOG_FILM, name="Example Dog Film", type="urn:entity:movie"),
         animal="Rex",
-        shared_look=["brindle"],
+        shared_look=["brindle coat"],
     )
     longer = NameOption(**{**REX, "character": "Rex-Max"})
     assert check_lookalike(longer, look) == []
@@ -258,7 +281,7 @@ def test_a_longer_form_of_the_lookalikes_name_is_the_same_animal(roster):
 LOOK = Lookalike(
     entity=Entity(id=DOG_FILM, name="Example Dog Film", type="urn:entity:movie"),
     animal="Rex",
-    shared_look=["brindle"],
+    shared_look=["brindle coat"],
 )
 
 
@@ -273,7 +296,7 @@ def test_the_offered_name_must_be_the_lookalikes_own():
 def test_a_single_needs_input_candidate_is_a_choice_not_a_confirmation(roster):
     # Codex: one candidate passed without a reason and showed as "Found in Qloo".
     d = deps(roster, ambiguous=True, single=True)
-    look_up_lookalike(SimpleNamespace(deps=d), "Example Dog Film", "movie", "Rex", ["brindle"])
+    look_up_lookalike(SimpleNamespace(deps=d), "Example Dog Film", "movie", "Rex", ["brindle coat"])
     look = d.lookalikes[DOG_FILM]
     assert look.chosen and look.candidates == 1
     assert any("give choice_reason" in p for p in check_lookalike(NameOption(**REX), look))
@@ -360,10 +383,10 @@ def test_a_failed_lookup_is_not_sent_again(roster):
     d = deps(roster)
     d.qloo.script = {}
     ctx = SimpleNamespace(deps=d)
-    first = look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"])
+    first = look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle coat"])
     assert first["status"].startswith("unavailable")
     d.qloo.script = film_script()
-    assert look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"]) == first
+    assert look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle coat"]) == first
     assert len(d.qloo.calls) == 1
 
 
@@ -420,14 +443,14 @@ def test_asking_again_about_another_animal_records_that_animal(roster):
     # muse: a re-ask with a different animal returned the old record, naming the old animal.
     d = deps(roster)
     ctx = SimpleNamespace(deps=d)
-    look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"])
-    look_up_lookalike(ctx, "Example Dog Film", "movie", "Max", ["brindle"])
+    look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle coat"])
+    look_up_lookalike(ctx, "Example Dog Film", "movie", "Max", ["brindle coat"])
     # One request to Qloo; the record names the animal asked about last.
     assert d.lookalikes[DOG_FILM].animal == "Max" and d.lookups == 1 and len(d.qloo.calls) == 1
     max_ = NameOption(**{**REX, "name": "Max", "character": "Max"})
     assert check_lookalike(max_, d.lookalikes[DOG_FILM]) == []
     # Codex: Rex, then Max, then Rex again must leave Rex recorded.
-    look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"])
+    look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle coat"])
     assert d.lookalikes[DOG_FILM].animal == "Rex"
     assert check_lookalike(NameOption(**REX), d.lookalikes[DOG_FILM]) == []
 
@@ -437,7 +460,7 @@ def test_a_failed_request_is_not_sent_again_for_another_animal(roster):
     d = deps(roster)
     d.qloo.script = {}
     ctx = SimpleNamespace(deps=d)
-    look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle"])
+    look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["brindle coat"])
     d.qloo.script = film_script()
-    again = look_up_lookalike(ctx, "Example Dog Film", "movie", "Max", ["brindle"])
+    again = look_up_lookalike(ctx, "Example Dog Film", "movie", "Max", ["brindle coat"])
     assert again["status"].startswith("unavailable") and len(d.qloo.calls) == 1
