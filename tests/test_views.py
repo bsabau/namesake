@@ -298,3 +298,26 @@ def test_name_cards_carry_their_compact_lines(roster):
         assert o.evidence_line.endswith(o.badge)
         assert o.source_line is None or o.source_line == f"from {o.title}"
         assert o.source_line != f"from {o.name}"
+
+
+def test_the_compact_lines_cover_each_case():
+    from app.agent.listing_agent import NameOption
+    from app.views.build import name_view
+
+    p = profile()
+    dog = p.pet_entities[0]
+
+    def option(name, entity_id, source="pet"):
+        return NameOption(name=name, source=source, entity_id=entity_id, character=name,
+                          role="dog", reference_role="friend", why="It suits her.")  # fmt: skip
+
+    class Draft:
+        names = [option(dog.name.lower(), dog.id), option("Rex", dog.id), option("Ace", "unknown")]
+
+    result = type("R", (), {"draft": Draft(), "references": [], "lookalikes": []})()
+    options = {o.name: o for o in name_view(result, p, "text").options}
+    assert options[dog.name.lower()].source_line is None  # the name is the title
+    assert options["Rex"].source_line == f"from {dog.name}"
+    assert options["Rex"].evidence_line == f"{dog.name} · {options['Rex'].badge}"
+    assert options["Ace"].source_line is None  # Qloo's title unknown: never a character
+    assert options["Ace"].evidence_line == options["Ace"].badge

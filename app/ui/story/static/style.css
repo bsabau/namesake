@@ -1091,3 +1091,7 @@ main, .site-header, .site-footer { max-width: 1320px; padding-left: 32px; paddin
   /* One name per row on a phone, so each reads at full size. */
   .name-options { grid-template-columns: 1fr; }
 }
+
+/* The Edit and approve button opens a panel: a chevron says so, turned when open. */
+.story-actions .approve > summary::after { content: " ▾"; }
+.story-actions .approve[open] > summary::after { content: " ▴"; }

@@ -157,7 +157,7 @@ class NameOptionView(BaseModel):
     # Compact forms for a card: "from <title>" (None when the name is the title or the
     # title is unknown), and the badge with the title unless the badge names it already.
     source_line: str | None = None
-    evidence_line: str = ""
+    evidence_line: str | None = None
     # Our reading: the reference code built from the agent's pick, and the agent's reason.
     reference: str
     why: str
