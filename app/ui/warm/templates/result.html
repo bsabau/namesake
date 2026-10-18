@@ -34,7 +34,7 @@
         <label class="version-choice">
           <input type="radio" name="variant" value="{{ version.variant }}"
                  {% if version.selected %}checked{% endif %}{% if not version.available %} disabled{% endif %}>
-          {{ version.label }}
+          {{ version.choice }}
         </label>
         {% endfor %}
       </fieldset>

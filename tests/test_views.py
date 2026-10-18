@@ -450,3 +450,32 @@ def test_a_fixed_lookup_with_a_saved_listing_says_both(roster):
         "Chose the names and wrote the bio from the shelter's records. The titles are a fixed "
         "lookup."
     )
+
+
+def test_the_map_caption_counts_the_warm_cells():
+    # Decided 18 October: a mostly cool map says how many cells are warm, as coloured.
+    view = map_view(LOCATION, profile())
+    compared = [c.lift for c in view.cells if c.lift is not None]
+    warm = sum(lift >= 0 for lift in compared)
+    assert len(compared) == 1 and warm == 1
+    assert "stand out in the one cell with a comparison. " in view.legend
+
+
+def test_the_count_reads_n_of_m_when_several_cells_compare():
+    many = profile().model_copy(deep=True)
+    many.cells = [many.cells[0].model_copy(update={"geohash": g}) for g in ["dr5rs", "dr5rt"]]
+    many.cells[1].baseline_score = 1.0  # cooler than the pet shows there
+    legend = map_view(LOCATION, many).legend
+    assert "stand out in 1 of these 2 cells. " in legend
+
+
+def test_each_version_button_shows_its_name(roster):
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    generic, local = view.listing.versions
+    assert generic.choice == f"Generic · {generic.name}"
+    assert local.choice == "Local, with Qloo"  # no draft, so no local name
+
+
+def test_the_left_out_note_says_the_backstory_stays_out(roster):
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    assert "Backstory and time in the shelter stay out of the listing." in view.listing.left_out

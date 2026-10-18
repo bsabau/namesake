@@ -199,6 +199,8 @@ class ListingVersion(BaseModel):
 
     variant: Literal["generic", "local"]
     label: str
+    # The toggle's text: the label and the version's name, so both names show at a glance.
+    choice: str
     available: bool
     name: str | None
     name_source: str

@@ -282,7 +282,7 @@ def listing_view(
     if unknown:
         left_out.append(f"Not yet known, so not mentioned: {and_list(unknown)}.")
     if animal.history:
-        left_out.append("Backstory and time in the shelter are kept for staff, not printed.")
+        left_out.append("Backstory and time in the shelter stay out of the listing.")
 
     local_name = draft.names[0].name if draft else None
     local_hook = result.hook if draft else None
@@ -290,6 +290,7 @@ def listing_view(
         ListingVersion(
             variant="generic",
             label="Generic",
+            choice=f"Generic · {generic}" if generic else "Generic",
             available=generic is not None,
             name=generic,
             name_source="A common pet name from a fixed list, not from Qloo.",
@@ -302,6 +303,7 @@ def listing_view(
         ListingVersion(
             variant="local",
             label="Local, with Qloo",
+            choice=f"Local, with Qloo · {local_name}" if local_name else "Local, with Qloo",
             available=draft is not None,
             name=local_name,
             name_source=(
@@ -400,7 +402,8 @@ def look_line(option: NameOption, look: Lookalike | None) -> str:
     if look is None or not look.shared_look:
         return "A lookalike. "
     shared = and_list(look.shared_look)
-    return f"A lookalike: {look.animal} shares this animal's recorded look ({shared}). "
+    # The AI's reason that follows introduces the character, so this part does not.
+    return f"A lookalike by its recorded look ({shared}). "
 
 
 def approved_source(option: NameOption, badge: str, title: str, look: Lookalike | None) -> str:
@@ -533,6 +536,18 @@ def map_view(
         if v.latitude is not None
         and in_view(v, profile, pin or (location.latitude, location.longitude))
     ]
+    compared = [c.lift for c in cells if c.lift is not None]
+    # Counted as the map colours them, so a reader counting warm cells gets this number.
+    warm = sum(lift >= 0 for lift in compared)
+    which = "" if len(compared) == len(cells) else " with a comparison"
+    if not compared:
+        count = ""
+    elif len(compared) == 1:
+        verb = "stand out" if warm else "do not stand out"
+        count = f"{cap(pets)} {verb} in the one cell{which}. "
+    else:
+        some = "these" if len(compared) == len(cells) else "the"
+        count = f"{cap(pets)} stand out in {warm} of {some} {len(compared)} cells{which}. "
     numbers = (
         " Numbers: the places to ask plotted here, as numbered in the list (points from "
         "OpenStreetMap)."
@@ -562,6 +577,7 @@ def map_view(
         ],
         legend=swap
         + thin
+        + count
         + (
             (
                 f"Warm cells: {pets} rank this part of {location.label} higher than {base} do. "
