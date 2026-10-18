@@ -333,9 +333,9 @@ def test_a_chain_is_never_suggested_even_by_the_fixed_lookup():
 
 def test_the_fast_food_sentence_shows_only_where_the_ai_picked():
     seeds = profile_with(True)
-    assert "passes over fast food" not in venues_note(seeds, "dog")
+    assert "fast food" not in venues_note(seeds, "dog")
     seeds.made_by = "agent"
-    assert "Namesake's AI passes over fast food." in venues_note(seeds, "dog")
+    assert "Namesake's AI is asked to pass over fast food." in venues_note(seeds, "dog")
 
 
 def test_an_area_of_only_chains_says_so(roster):
@@ -345,4 +345,19 @@ def test_an_area_of_only_chains_says_so(roster):
     for v in profile.venues:
         v.name, v.unsuitable = "Starbucks", None
     view = build_result_view(roster.get("dog-02"), LOCATION, profile)
-    assert view.venues == [] and view.venues_empty.startswith("Every place Qloo listed here")
+    assert view.venues == [] and view.venues_empty.startswith("Every suitable place Qloo listed")
+
+
+def test_a_mixed_list_with_no_pick_never_claims_every_place_is_a_chain():
+    # Reviewers, PR #36: one chain made the page say every place was one.
+    from app.views.build import empty_venues
+
+    profile = profile_with(True)
+    profile.made_by = "agent"
+    for v in profile.venues:
+        v.unsuitable, v.chosen_reason = None, None
+    profile.venues[0].name = "Starbucks"
+    assert empty_venues(profile).startswith("Namesake's AI found no place")
+    for v in profile.venues:
+        v.unsuitable = "a hookah lounge"
+    assert empty_venues(profile).startswith("Every place Qloo listed here was screened out")

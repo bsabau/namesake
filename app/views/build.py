@@ -468,11 +468,26 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
 # What decision 23's chain rule enforces: listed chains are never suggested; fast food is
 # the AI's judgement from a place's description, so said only where the AI picked.
 CHAINS_NOTE = "National chains Namesake knows by name are left out."
-FAST_FOOD_NOTE = "Namesake's AI passes over fast food."
+FAST_FOOD_NOTE = "Namesake's AI is asked to pass over fast food."
 
 
 def chains_note(profile: LocationProfile) -> str:
     return CHAINS_NOTE + (f" {FAST_FOOD_NOTE}" if profile.made_by == "agent" else "")
+
+
+def empty_venues(profile: LocationProfile) -> str:
+    """Why no place is suggested, as far as the profile shows it."""
+    suitable = [v for v in profile.venues if v.unsuitable is None]
+    if suitable and all(chain_name(v.name) for v in suitable):
+        return (
+            "Every suitable place Qloo listed here is a national chain Namesake leaves out; "
+            "the Why panel names them."
+        )
+    if profile.venues and not suitable:
+        return "Every place Qloo listed here was screened out; the Why panel names them."
+    if profile.venues and profile.made_by == "agent":
+        return "Namesake's AI found no place in Qloo's list to suggest for a stand or a flyer."
+    return "No venues for this area yet."
 
 
 def groups_in() -> str:
@@ -1203,8 +1218,8 @@ def qloo_part(
     if agent:
         own = [e for e in pets if not e.found_in]
         judged = [e for e in pets if e.found_in and bucket(e.verdict) != "kept"]
-        # As the cards show them: a pick that is a listed chain is left out (decision 23).
-        picked = [v for v in profile.venues if v.chosen_reason and not chain_name(v.name)]
+        # As the cards show them: a screened pick or a listed chain is left out (decision 23).
+        picked = venue_order(profile)
         if own:
             ai.append(f"proposed {plural(len(own), 'title')} for Qloo to check")
         if judged:
@@ -1297,10 +1312,7 @@ def build_result_view(
             f"Every place Namesake would suggest here mentions children, so none is suggested "
             f"for this {animal.species}."
             if every and not ordered
-            else "Every place Qloo listed here is a national chain Namesake leaves out; the Why "
-            "panel names them."
-            if any(chain_name(v.name) for v in profile.venues)
-            else "No venues for this area yet."
+            else empty_venues(profile)
         ),
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
         plan=plan(animal, location, ordered, named_skips),
