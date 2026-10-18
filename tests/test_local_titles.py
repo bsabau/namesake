@@ -488,3 +488,36 @@ def test_a_ranked_found_title_shows_both_badges():
     assert name_badge("pet", PUPPY_SCHOOL, profile) == (
         "Pet-themed title, ranked 1st of 1 here by Qloo; liked here by fans of Example Dog Show"
     )
+
+
+# The classifier reaches the pipeline (Flash, PR #7 re-check)
+
+
+def test_runs_pass_the_configured_classifier_to_both_pipelines(
+    roster, isolated_settings, monkeypatch
+):
+    import asyncio
+
+    import app.runs as runs
+
+    sentinel = FakeClassifier({})
+    seen: dict[str, object] = {}
+
+    async def fake_pipeline(*args, **kwargs):
+        seen["run_pipeline"] = kwargs.get("classifier")
+
+    async def fake_litter(*args, **kwargs):
+        seen["run_litter"] = kwargs.get("classifier")
+
+    monkeypatch.setattr(runs, "classifier_from", lambda settings: sentinel)
+    monkeypatch.setattr(runs, "run_pipeline", fake_pipeline)
+    monkeypatch.setattr(runs, "run_litter", fake_litter)
+
+    async def go():
+        run = await runs.start_run(roster.get("dog-02"), LOCATION, isolated_settings)
+        await run.task
+        litter = await runs.start_litter_run(roster.litters[0], LOCATION, isolated_settings)
+        await litter.task
+
+    asyncio.run(go())
+    assert seen == {"run_pipeline": sentinel, "run_litter": sentinel}
