@@ -57,11 +57,13 @@
       iconSize: [24, 24],
       iconAnchor: [12, 12],
     });
-    layers.push(
-      L.marker([venue.latitude, venue.longitude], { icon, keyboard: false, title: venue.name })
-        .bindTooltip(`${venue.number}. ${venue.name}`)
-        .addTo(map),
-    );
+    const label = document.createElement("span");
+    label.textContent = `${venue.number}. ${venue.name}`; // text, never markup
+    const marker = L.marker([venue.latitude, venue.longitude], { icon, keyboard: false })
+      .bindTooltip(label)
+      .addTo(map);
+    // The map frames the cells and the near pins; a far pin is drawn but not framed.
+    if (venue.in_view) layers.push(marker);
   }
 
   // A short key on the map itself (the view model's note); the caption says the rest.

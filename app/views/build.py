@@ -54,8 +54,8 @@ from app.views.models import (
 FEATURED = "dog-02"
 VENUES_SHOWN = 5
 VENUES_IN_PLAN = 3
-# A lift this close to zero reads as about even (the map shades it faintly).
-LIFT_EVEN = 0.05
+# Within this, a place gets a walking estimate and the map frames its pin.
+WALKABLE_KM = 3
 OBJECT_PRONOUN = {"female": "her", "male": "him"}
 CHECK_LABELS = {
     "good_with_children": "children",
@@ -486,6 +486,12 @@ def map_view(
             f"Only {len(cells)} map cell{'s' if len(cells) != 1 else ''} here: Qloo's data for "
             f"pet-show fans around {location.label} is thin, so the map says little. "
         )
+    placed = [v for v in venues or [] if v.latitude is not None]
+    numbers = (
+        " Numbers: the places to ask, as listed beside the map (points from OpenStreetMap)."
+        if placed
+        else ""
+    )
     return MapView(
         latitude=location.latitude,
         longitude=location.longitude,
@@ -494,7 +500,13 @@ def map_view(
         pin=Pin(latitude=pin[0], longitude=pin[1]) if pin else None,
         cells=cells,
         venues=[
-            VenuePin(number=n, name=v.name, latitude=v.latitude, longitude=v.longitude)
+            VenuePin(
+                number=n,
+                name=v.name,
+                latitude=v.latitude,
+                longitude=v.longitude,
+                in_view=in_view(v, profile, pin or (location.latitude, location.longitude)),
+            )
             for n, v in enumerate(venues or [], start=1)
             if v.latitude is not None and v.longitude is not None
         ],
@@ -511,7 +523,7 @@ def map_view(
             else f"Cells: where {pets} rank high within {location.label}. No cell was also "
             f"scored for {base}, so the map shows no comparison here."
         ),
-        note=(key + swapped) if key else None,
+        note=((key + swapped + numbers) if key else None),
         empty_message=None if cells else "No map data for this area yet.",
     )
 
@@ -549,30 +561,51 @@ def venue_titles(profile: LocationProfile) -> str:
     return and_list(asked) if asked else "the pet-themed titles searched"
 
 
-def cell_reading(v: Venue, profile: LocationProfile) -> str | None:
-    """Where a placed venue sits on the lift map, worded for pet-show fans as a group."""
+def cell_of(v: Venue, profile: LocationProfile):
+    """The lift cell a placed venue falls in, or None."""
     if v.latitude is None or v.longitude is None:
         return None
     for c in profile.cells:
         south, west, north, east = bounds(c.geohash)
         if south <= v.latitude <= north and west <= v.longitude <= east:
-            if c.lift is None:
-                return "On the map, in a cell with no comparison."
-            if c.lift > LIFT_EVEN:
-                return f"On the map, where pet-show fans stand out ({c.lift:+.2f})."
-            if c.lift < -LIFT_EVEN:
-                return f"On the map, where pet-show fans do not stand out ({c.lift:+.2f})."
-            return f"On the map, where pet-show fans are about as common as others ({c.lift:+.2f})."
-    return "Outside the mapped cells."
+            return c
+    return None
+
+
+def cell_reading(v: Venue, location: Location, profile: LocationProfile) -> str | None:
+    """Where OpenStreetMap places a venue on the lift map, read in the map's own terms:
+    ranks within the area, for pet-show fans as a group against the comparison shows."""
+    if v.latitude is None or v.longitude is None:
+        return None
+    c = cell_of(v, profile)
+    if c is None:
+        return "OpenStreetMap places it outside the mapped cells."
+    if c.lift is None:
+        return "OpenStreetMap places it in a cell with no comparison."
+    base = compared_with(profile) or "the comparison shows"
+    how = "higher than" if c.lift > 0 else "lower than" if c.lift < 0 else "as high as"
+    return (
+        f"OpenStreetMap places it where pet-show fans rank this part of {location.label} "
+        f"{how} {base} do ({c.lift:+.2f})."
+    )
 
 
 def walk(v: Venue, shelter: tuple[float, float]) -> str | None:
-    """Straight-line distance from the shelter, with a walking estimate at 5 km/h."""
+    """Straight-line distance from the shelter; a walking estimate (5 km/h) when near."""
     if v.latitude is None or v.longitude is None:
         return None
     km = distance_km(shelter, (v.latitude, v.longitude))
-    minutes = max(1, round(km / 5 * 60))
-    return f"{km:.1f} km from the shelter, about {minutes} min on foot in a straight line."
+    text = f"{km:.1f} km from the shelter in a straight line"
+    if km <= WALKABLE_KM:
+        text += f", about {max(1, round(km / 5 * 60))} min on foot"
+    return text + "."
+
+
+def in_view(v: Venue, profile: LocationProfile, shelter: tuple[float, float]) -> bool:
+    """Whether the map should frame this pin: in a cell, or close to the shelter."""
+    return cell_of(v, profile) is not None or (
+        distance_km(shelter, (v.latitude, v.longitude)) <= WALKABLE_KM
+    )
 
 
 def venue_view(
@@ -611,7 +644,7 @@ def venue_view(
         chosen=v.chosen_reason is not None,
         reason=v.chosen_reason,
         number=number,
-        where=cell_reading(v, profile),
+        where=cell_reading(v, location, profile),
         distance=walk(v, shelter or (location.latitude, location.longitude)),
     )
 
@@ -999,6 +1032,16 @@ def build_result_view(
                 )
                 + f". The record says this {animal.species} is not good with children"
                 + (", and the next places take their slots." if moved_up else "."),
+            )
+        )
+    if any(v.latitude is not None for v in shown):
+        reading.append(
+            WhyItem(
+                title="The places on the map",
+                detail="Qloo gives each place an address but no point on the map, so Namesake "
+                "looked the suggested places up once in OpenStreetMap (Photon), by name and "
+                "address. Where a pin falls among the cells, and its distance from the "
+                "shelter, are Namesake's reading.",
             )
         )
     look_returned, look_reading = lookalike_why(animal, listing)

@@ -106,6 +106,7 @@ sequenceDiagram
         M->>Q: up to 2 lookalike lookups (its choice)
         A-->>T: draft, sent back once if a check fails
         T->>S: save the listing
+        T->>S: pin the suggested places once, from OpenStreetMap (Photon), and save the points
         T-->>V: each step as it happens, then "done"
         V->>R: GET /result?animal=…&location=…
         R-->>V: result page built from the view model

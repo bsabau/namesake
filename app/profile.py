@@ -648,8 +648,13 @@ def finish_profile(
     if not new.complete:
         return None
     reasons = {v.entity_id: (v.chosen_reason, v.rejected_reason) for v in old.venues}
+    points = {v.entity_id: v for v in old.venues if v.point_tried}
     for venue in new.venues:
         venue.chosen_reason, venue.rejected_reason = reasons.get(venue.entity_id, (None, None))
+        if venue.entity_id in points:  # placed before: no second lookup
+            done = points[venue.entity_id]
+            venue.latitude, venue.longitude = done.latitude, done.longitude
+            venue.point_tried = True
     new.species, new.made_by = old.species, old.made_by
     new.left_out_titles, new.titles_confirmed = old.left_out_titles, old.titles_confirmed
     new.order_source, new.ranked = old.order_source, old.ranked

@@ -16,7 +16,9 @@ NEAR = (LOCATION.latitude, LOCATION.longitude)
 
 def lookup(*answers, per_minute=30):
     fake = FakeGeocoder(*answers)
-    return Places("https://geocoder.example", fake, per_visitor=Allowance(per_minute)), fake
+    places = Places("https://geocoder.example", fake, per_visitor=Allowance(per_minute))
+    places.pause = 0
+    return places, fake
 
 
 def test_a_venue_is_found_by_name_and_address_near_the_shelter():
@@ -42,7 +44,8 @@ def test_locating_takes_the_picks_first_once_and_stops_when_throttled():
     p.venues[2].chosen_reason = "a community arts centre"
     order = [v.name for v in to_locate(p)]
     assert order[0] == p.venues[2].name and "Hookah Corner" not in order  # unsuitable
-    answers = [{"features": [feature("x", 40.67 + n / 1000, -73.98)]} for n in range(10)]
+    names = [v.name for v in to_locate(p)]
+    answers = [{"features": [feature(n, 40.67 + k / 1000, -73.98)]} for k, n in enumerate(names)]
     places, fake = lookup(*answers, per_minute=2)
     pauses = []
     placed = locate_venues(p, NEAR, places, sleep=pauses.append)
@@ -60,10 +63,14 @@ def test_a_placed_venue_reads_its_cell_and_its_distance():
     inside = Venue(entity_id="v", name="Inside", rank=1,
                    latitude=(south + north) / 2, longitude=(west + east) / 2)  # fmt: skip
     outside = Venue(entity_id="w", name="Outside", rank=2, latitude=40.9, longitude=-73.5)
-    assert cell_reading(inside, p).startswith("On the map, ")
-    assert cell_reading(outside, p) == "Outside the mapped cells."
-    assert cell_reading(Venue(entity_id="u", name="Unplaced", rank=3), p) is None
-    assert walk(outside, NEAR).endswith("min on foot in a straight line.")
+    assert cell_reading(inside, LOCATION, p).startswith(
+        "OpenStreetMap places it where pet-show fans rank this part of Example Slope"
+    )
+    assert cell_reading(outside, LOCATION, p) == "OpenStreetMap places it outside the mapped cells."
+    assert cell_reading(Venue(entity_id="u", name="Unplaced", rank=3), LOCATION, p) is None
+    # Far away: no walking estimate.
+    assert walk(outside, NEAR).endswith("km from the shelter in a straight line.")
+    assert "min on foot" in walk(inside, NEAR)
 
 
 def test_the_map_numbers_only_the_placed_venues_as_the_list_does(roster):
@@ -76,3 +83,31 @@ def test_the_map_numbers_only_the_placed_venues_as_the_list_does(roster):
     assert [(x.number, x.name) for x in pins] == [(numbered[shown[0].name], shown[0].name)]
     assert all(v.where is None for v in view.venues if v.name != shown[0].name)
     assert map_view(LOCATION, p).venues == []  # no venues passed, no pins
+
+
+def test_a_failed_lookup_is_tried_again_later():
+    # Codex, muse and Flash, PR #25: a Photon outage must not leave a venue unpinned for good.
+    p = profile()
+    places, _ = lookup(OSError("down"))
+    assert locate_venues(p, NEAR, places, sleep=lambda s: None) == 0
+    assert not any(v.point_tried for v in p.venues)
+
+
+def test_a_match_without_the_venues_name_falls_back_to_its_address():
+    neighbour = {"features": [feature("Corner Laundromat", 40.675, -73.975)]}
+    address = {"features": [feature("", 40.6751, -73.9751)]}
+    places, fake = lookup(neighbour, address)
+    point = places.venue_point("Community Hall", "1 Example Street", NEAR)
+    assert point.latitude == 40.6751 and len(fake.urls) == 2
+
+
+def test_finishing_a_profile_keeps_its_points():
+    from app.profile import finish_profile
+    from tests.qloo_fakes import SEEDS, FakeQloo, standard_script
+
+    p = profile()
+    p.venues[0].latitude, p.venues[0].longitude, p.venues[0].point_tried = 40.675, -73.975, True
+    p.maps_missing = 1  # unfinished
+    new = finish_profile(p, LOCATION, FakeQloo(standard_script()), SEEDS)
+    kept = next(v for v in new.venues if v.entity_id == p.venues[0].entity_id)
+    assert (kept.latitude, kept.point_tried) == (40.675, True)

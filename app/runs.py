@@ -151,7 +151,12 @@ def _launch(run: Run, work, then=None) -> None:
         try:
             await work
             if then is not None:
-                await asyncio.to_thread(then)
+                try:
+                    await asyncio.to_thread(then)
+                except Exception as exc:  # noqa: BLE001 - the result is saved; only pins wait
+                    run.log.add(
+                        "note", f"The places could not be pinned yet ({type(exc).__name__})"
+                    )
         except Exception as exc:  # noqa: BLE001 - shown on the Working page, never swallowed
             run.error = type(exc).__name__
             run.log.add("error", f"The run stopped: {type(exc).__name__}")

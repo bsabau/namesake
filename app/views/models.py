@@ -31,6 +31,8 @@ class VenuePin(BaseModel):
     name: str
     latitude: float
     longitude: float
+    # Framed by the map (in a cell or near the shelter); a far pin is drawn, not framed.
+    in_view: bool = True
 
 
 class LocationOption(BaseModel):

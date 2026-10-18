@@ -10,25 +10,29 @@ stays in the list without a pin.
 """
 
 import argparse
+import threading
 import time
+from collections import defaultdict
 from collections.abc import Callable
 
 from app.agent.steps import StepLog
 from app.locations import Location
-from app.places import Places, Throttled
+from app.places import LookupFailed, Places, Throttled
 from app.profile import LocationProfile, Venue
 from app.store import Store
 
-# The venues a page may show: the AI's picks, or the first suitable ones.
-LOCATE_LIMIT = 8
+# The venues a page may show: the AI's picks, or the first suitable ones (the page shows
+# five; one more covers a venue an animal's page skips).
+LOCATE_LIMIT = 6
 # Photon's fair use: about one request a second from one client.
 PAUSE = 1.0
 
 
 def to_locate(profile: LocationProfile) -> list[Venue]:
-    """Suitable venues not looked up yet, the AI's picks first, then by Qloo's rank."""
+    """Suitable venues not looked up yet, in the order the page shows them: the AI's picks
+    first, then those that stand out for pet-show fans, then by Qloo's rank."""
     suitable = [v for v in profile.venues if v.unsuitable is None and not v.point_tried]
-    ordered = sorted(suitable, key=lambda v: (v.chosen_reason is None, v.rank))
+    ordered = sorted(suitable, key=lambda v: (v.chosen_reason is None, not v.distinctive, v.rank))
     return ordered[:LOCATE_LIMIT]
 
 
@@ -46,13 +50,16 @@ def locate_venues(
             sleep(PAUSE)
         try:
             point = places.venue_point(venue.name, venue.address, near)
-        except Throttled:
-            break
+        except (Throttled, LookupFailed):
+            break  # not marked as tried: a later save tries again
         venue.point_tried = True
         if point is not None:
             venue.latitude, venue.longitude = point.latitude, point.longitude
             placed += 1
     return placed
+
+
+_locks: defaultdict[tuple[str, str], threading.Lock] = defaultdict(threading.Lock)
 
 
 def locate_saved(
@@ -62,15 +69,25 @@ def locate_saved(
     places: Places,
     log: StepLog | None = None,
 ) -> int:
-    """Place a saved profile's venues, once, and save it again. Free when done before."""
-    profile = store.get_profile(location.id, species)
-    if profile is None or not places.enabled or not to_locate(profile):
-        return 0
-    if log is not None:
-        log.add("note", "Finding the suggested places on OpenStreetMap, for the map")
-    placed = locate_venues(profile, (location.latitude, location.longitude), places)
-    store.put_profile(profile)
-    return placed
+    """Place a saved profile's venues, once, and save the points. One placer per profile at
+    a time; the points are written onto the profile as saved at the end, so a profile
+    finished meanwhile keeps its other changes. Free when done before."""
+    with _locks[(location.id, species)]:
+        profile = store.get_profile(location.id, species)
+        if profile is None or not places.enabled or not to_locate(profile):
+            return 0
+        if log is not None:
+            log.add("note", "Finding the suggested places on OpenStreetMap, for the map")
+        placed = locate_venues(profile, (location.latitude, location.longitude), places)
+        points = {v.entity_id: v for v in profile.venues if v.point_tried}
+        latest = store.get_profile(location.id, species) or profile
+        for venue in latest.venues:
+            if venue.entity_id in points and not venue.point_tried:
+                done = points[venue.entity_id]
+                venue.latitude, venue.longitude = done.latitude, done.longitude
+                venue.point_tried = True
+        store.put_profile(latest)
+        return placed
 
 
 def main() -> None:
