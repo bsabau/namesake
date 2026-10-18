@@ -854,6 +854,13 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
 
 /* Leaflet's own chrome, brought onto the palette. The tiles stay as OpenStreetMap draws them. */
 .leaflet-container { font-family: inherit; }
+/* OpenStreetMap's standard tiles, quieted so the lift cells and pins read first: lower
+   saturation and a slight warm tint. Only the tile pane is filtered; cells, pins and
+   labels keep their colours. CARTO's quieter styles now need a key in the browser. */
+.leaflet-tile-pane { filter: saturate(0.45) sepia(0.18) brightness(1.04) contrast(0.92); }
+@media (prefers-color-scheme: dark) {
+  .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) saturate(0.35) brightness(0.82) contrast(0.9); }
+}
 .leaflet-bar { border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); overflow: hidden; }
 .leaflet-touch .leaflet-bar { border: 1px solid var(--border); }
 .leaflet-bar a { background: var(--surface); color: var(--text); border-bottom-color: var(--border); }

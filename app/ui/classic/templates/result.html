@@ -165,7 +165,7 @@
         {% if venue.reason %}<p class="reading"><span>Namesake's AI:</span> {{ venue.reason }}</p>{% endif %}
       </li>
       {% else %}
-      <li>No venues for this area yet.</li>
+      <li>{{ view.venues_empty }}</li>
       {% endfor %}
     </ul>
   </section>

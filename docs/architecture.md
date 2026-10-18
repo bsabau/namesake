@@ -61,7 +61,7 @@ The hackathon asks for an agent, so this is the line that matters: where the mod
 | | Namesake's AI decides | Plain code does |
 |---|---|---|
 | **Area profile** | which pet-themed titles to try; which of Qloo's candidates a name means, with a stated reason; which of its titles to search the area's lists with, and which unclear titles found there are about pets; the order when Qloo's ranking is unavailable; which titles to keep; which venues suit an adoption event | which three titles the venues and the map are asked for, by evidence (Qloo's ranking, else their best place in the area's lists, then the AI's order), never an identity-coded one, telling the AI which in `asked_for`; the area's top shows and the baseline; the baseline's venues; the venue comparison; every heatmap and the map; which titles found in the area's lists to keep or set aside, from the classifier's answers |
-| **Listing** | which names to offer from the area's titles; which lookalike titles to check, and how to retry one that was refused (with look words quoted from the record); the bio, from the facts | the answers about children, other animals, house-training and bites; the hook line; every check |
+| **Listing** | which names to offer from the area's titles; which lookalike titles to check, and how to retry one that was refused (with look words quoted from the record); the bio, from the facts | the answers about children, other animals, house-training and bites; the hook line; every check; per animal, skipping venues whose name or Qloo description mentions children when the record says the animal is not good with them (no Qloo call) |
 | **Typed area** | nothing | the area's own top TV show (or a seed show) and the one heatmap that accepts or refuses it |
 
 The AI reads each answer and adapts: an ambiguous title gets a choice or is dropped, a title found in the area's lists that the classifier was unsure of gets the AI's judgement, and an unavailable ranking falls back to its own order.
@@ -138,7 +138,7 @@ flowchart TD
     check -- no --> ai
     check -- "still no, or the AI fails" --> fixed["Fixed lookup with the seed titles"]
     check -- yes --> assemble
-    fixed --> assemble["Assemble: venue comparison,<br/>heatmaps for two pet titles and two baseline shows"]
+    fixed --> assemble["Assemble: venue comparison,<br/>heatmaps for two pet titles and two baseline shows,<br/>a third when the first is thin"]
     assemble --> lift["Map cells: mean rank of the pet titles<br/>minus mean rank of the baseline shows"]
     lift --> save[("Saved, even if unfinished")]
     save --> later{"Needs finishing?<br/>(a map or comparison missing,<br/>or a comparison today's screen rejects)"}
@@ -146,10 +146,10 @@ flowchart TD
     finish --> save
 ```
 
-- **Budget**: the profile agent may make at most 20 model requests and 18 tool calls. That is a ceiling; the whole profile, fixed calls included, usually comes to 15 to 17 Qloo calls.
+- **Budget**: the profile agent may make at most 20 model requests and 18 tool calls. That is a ceiling; the whole profile, fixed calls included, usually comes to 15 to 17 Qloo calls, one more when the first map title is thin.
 - **Titles from the area's lists** (decision 20): `find_local_titles` asks what people around the area who like one of the AI's titles (or one the classifier kept) also like, for TV, films or books, 20 at a time, up to three searches. Titles the classifier sets aside never reach the AI's plan. Each found title keeps where it was found ("1st of 20 in Qloo's list of TV shows people around Austin who like PAW Patrol tend to like") and the classifier's answers, and the Why panel shows them in separate columns. A title listed again, or one the AI proposed that a list also holds, keeps its best place (`listed_in`), shown in Qloo's column too: that place is what orders the venue and map titles when Qloo's ranking is refused.
 - **The baseline** is the area's top two shows, leaving out any whose name or description mentions animals, a religion, race or politics (decision 18: the page names them as what people here tend to watch, which must not read as a claim about who they are); the AI may not use them as pet titles. If the area's shows are unusable, one seed show stands in, with a note. If even that cannot be found, the venues and the map are left uncompared, and the note says so.
-- **The heatmaps** run in this order: the first pet title, the baseline shows, then the second pet title, so a profile cut short still has a comparison.
+- **The heatmaps** run in this order: the first pet title, the baseline shows, then the second pet title, so a profile cut short still has a comparison. A refusal leaves a map missing, so the profile is finished on a later run; an answer with no cells, or a `needs_input` (cached and final), counts as an empty map. A first pet title with fewer than five cells within the area gives way to the next pet title when that makes a better map: more cells with a comparison, then more cells. Its heatmap is asked last (one extra call, only then), so a refusal costs only the spare; the map's caption and key say so, and that the venues are still for the titles they were asked for. Profiles saved before this (version 2) are brought up by `app.upgrade_profiles`.
 - **The map** is lift: in each cell, the pet titles' mean score minus the baseline shows' mean score. Within a neighbourhood, a heatmap's `query.affinity` is a rank spread from 0 to 1 inside the area (`docs/qloo-findings.md`), so ranks can be averaged and subtracted. Raw affinity saturates near 1.0, so it is never shown. Maps of different precision are brought to the coarsest one first.
 - **Saving**: a profile is saved even if a map or the comparison is missing, and finished on a later run. Only a profile with no pet title at all is not saved; the next run tries again. A saved comparison that today's screen would not choose is finished the same way (`needs_finishing`), and until then the page does not name the show.
 - **Versions**: profiles carry a version. An older one still renders as it was, except that a comparison show today's screen rejects is never named; `python -m app.upgrade_profiles` upgrades saved ones without rerunning the AI, so titles, names and listings stay valid.
@@ -184,7 +184,7 @@ Saved listings carry the version of the checks they passed. When the checks chan
 | `qloo_meta` | the time of the last live Qloo call, for spacing across processes | server only |
 | `agent_results` | area profiles, listings, typed areas | server only |
 | `approvals` | approved names and versions, for the measurement log | server only |
-| `classifier_answers` | the classifier's answers per title, keyed by the title as described, the questions and the model | server only |
+| `classifier_answers` | the classifier's answers per title, keyed by the title as described (name, kind and description), the questions and the model | server only |
 | `usage` | live runs and new typed areas per day (UTC), for the daily caps | server only |
 | Memory | live runs per visitor in the last hour | server only, reset on restart |
 | `var/qloo-recordings/` | raw Qloo answers, for replay in development | never committed |

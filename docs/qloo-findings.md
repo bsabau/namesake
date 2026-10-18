@@ -78,6 +78,8 @@ Eight cells appear in both. The difference in score is the lift for the pet show
 
 That is a usable map layer: where in the neighbourhood the pet show's fans stand out against the baseline. Eight cells is a small sample, and the reading is relative, so the map labels it as such.
 
+**Hoboken, 18 October (one live run):** PAW Patrol, the first map title then, scored 1 cell within Hoboken while Bluey scored 9, so a widely known title can still map thinly in one place. The map now lets a thin first title give way to the next (decision 18, revised).
+
 ## Rate limit
 
 About 12 calls went through in roughly 20 minutes before Qloo answered `QLOO_RATE_LIMIT`. The harness marks it retryable; a retry after 5 seconds failed too, and so did later attempts over several minutes. The window is not published. The wrapper retries once, as the harness's recovery text says, and never caches an error; since 18 October it waits 20 seconds after a rate limit, and gives `rank` a second retry after 40 (decision 20).
@@ -181,6 +183,8 @@ The question: instead of Namesake's AI proposing pet titles and Qloo checking th
 - None of these is among the five titles Namesake's AI proposed for Park Slope, so the source does add candidates, mostly for cats. Each would still need `rank` or the lift to show it is strong here.
 - Jev's scores were decisive: of 60 titles, 59 scored above 0.85 or below 0.25 for "pets central", and it separated pets from animals in general (*Frog and Toad*, *My Little Pony*, *Sonic*) and caught a guinea pig the keyword list misses.
 
+**Result types:** in every `recommend` answer recorded so far, each result has the generic type `urn:entity`, without the kind (TV show, film, book) that was asked for, while `describe` gives the full type (`urn:entity:tv_show`). Code takes the kind that was asked for (decision 20); the Why panel had printed "Nature Cat (urn:entity)".
+
 **Park Slope as a Qloo locality**: `describe` with type `locality` for "Park Slope, Brooklyn" answers `needs_input`, with Park Slope first among Brooklyn Park, Sunset Park, Sunset Park West and Marine Park. The `signal_location` text is resolved by Qloo's API, and `interpretation` echoes only the text sent, so which place it matched cannot be seen from the answer.
 
 **Barcelona, old against new** (4 calls): the five TV titles Namesake's AI proposed for Park Slope (Bluey, PAW Patrol, Clifford, Lassie, Scooby-Doo), against "people around Barcelona who like Bluey also like…" (TV, films, books, 20 each, sorted by Jev), then one `rank` for "Barcelona, Spain" over both.
@@ -215,3 +219,7 @@ Cells from `where_popular` within each area (limit 20, geohash 7 in every case):
 | Astoria, Queens | 14 | 8 | 20 (*Pose*) |
 
 All three own top shows came back at the 20-cell limit, so their counts are a floor, and Kreuzberg's 19 against 20 says nothing. Gràcia is the case that matters: 2 against at least 20. So the check now probes with the area's own top show, with the seed show as well when the list fails or its show is thin, the fuller map deciding (decision 12 has the details). A globally known show is no better than the seed: Bluey came back weaker everywhere. Passing the check does not make the lift map rich: in Gràcia the pet titles themselves are weak (Bluey 2 cells).
+
+## Children's against adult pet titles as venue signals (18 October, 8 calls)
+
+A one-off probe (a scratchpad script through `QlooClient`, its answers in the local cache, nothing in the repo): the author asked why the app avoids age demographics yet uses children's shows. A one-off Jev question, "Is this title made mainly for children?" (not one the app asks), split 20 pet titles cleanly: children's at 0.85 or more (PAW Patrol 0.98, Clifford 0.98, Bluey 0.97, The Aristocats 0.94, Scooby-Doo 0.92, Bunnicula 0.90), family films between 0.6 and 0.85, and adult-audience titles under 0.1 (Rin Tin Tin, Arthur the King, It's Me or the Dog, My Cat from Hell). But venues for fans of the children's set (Bluey, PAW Patrol, Dogs in Space) and of the adult set shared 10, 11, 7 and 11 of 15 in Park Slope, Astoria, Austin and Hoboken; the children's lists already held an archery range, an arena, a biergarten and a nightclub, and the adult set mostly added bars, breweries and a hookah lounge. So a second venue set per animal was not built. What follows from the animal's record instead: for one not good with children, venues that mention children are skipped (decision 2, revised).
