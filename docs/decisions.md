@@ -300,4 +300,6 @@ The refusal keeps the edit and names the missing words.
 
 **Why:** design is a quarter of the score and judges may see one screenshot. The classic look, flat and grey-bordered, read as a prototype for an office tool; a shelter volunteer's tool should look like somewhere an animal lives. The seam built in milestone 2 made this a second folder rather than a rewrite, and keeping classic lets the two be compared on the same data.
 
+**Revised 18 October, the map tiles:** the warm skin keeps OpenStreetMap's standard tiles, quieted by a CSS filter on the tile pane only (lower saturation, a slight warm tint; inverted and dimmed in dark mode), so the lift cells and the shelter's circle read first. CARTO's quieter Voyager and Positron styles, chosen first, now answer every tile with "API KEY REQUIRED", and a keyed provider would put a key in the browser, which AGENTS.md forbids. Classic keeps the plain tiles.
+
 **Follows:** UI work that was waiting on this (the "Qloo's part" strip, the venue lift line, the per-run graph) will be built into `warm`, not classic. The README screenshot still shows classic until it is retaken at the end, once the examples are rebuilt on the final code. Classic gets no new features; it is deleted when it is no longer useful for comparison.
