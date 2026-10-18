@@ -367,7 +367,7 @@ def name_badge(
     liked = None
     if found:
         liked = (
-            "in Qloo's pet-themed list for this area"
+            "in Qloo's list for this area asked with its pet tags"
             if found.by_tags
             else f"liked here by fans of {found.signal}"
         )
@@ -622,8 +622,8 @@ def place_in_list(f: FoundIn, location: Location) -> str:
     what = KIND_WORDS.get(f.kind, "titles")
     if f.by_tags:
         return (
-            f"{ordinal(f.position)} of {f.out_of} in Qloo's list of pet-themed {what} people "
-            f"around {location.label} tend to like."
+            f"{ordinal(f.position)} of {f.out_of} in Qloo's list of {what} people around "
+            f"{location.label} tend to like, asked with Qloo's pet tags."
         )
     return (
         f"{ordinal(f.position)} of {f.out_of} in Qloo's list of {what} people around "

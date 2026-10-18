@@ -142,10 +142,11 @@ def test_the_ais_own_titles_stay_only_with_qloos_evidence(roster):
     )
     returned, _ = why(LOCATION, profile)
     assert returned[0].detail.startswith(
-        "1st of 1 in Qloo's list of pet-themed TV shows people around Example Slope tend to like."
+        "1st of 1 in Qloo's list of TV shows people around Example Slope tend to like, asked "
+        "with Qloo's pet tags."
     )
     assert name_badge("pet", PUPPY_SCHOOL, profile) == (
-        "Pet-themed title, in Qloo's pet-themed list for this area"
+        "Pet-themed title, in Qloo's list for this area asked with its pet tags"
     )
 
 
@@ -251,3 +252,25 @@ def test_who_chose_credits_the_classifier_only_when_it_ran():
     assert "classifier" not in who_chose(profile)
     profile.pet_entities[0].verdict = VERDICTS[PUPPY_SCHOOL]
     assert "and a classifier sorted them" in who_chose(profile)
+
+
+def test_venues_asked_before_the_evidence_arrived_are_asked_again():
+    from app.agent.profile_agent import ProfilePlan, check_plan
+
+    # Codex, PR #20: unbacked venue signals, then a backed title in the plan.
+    d = deps({})
+    d.titles_seen = {
+        DOG_SHOW: Entity(id=DOG_SHOW, name="Example Dog Show", type="urn:entity:tv_show"),
+        CAT_SHOW: Entity(id=CAT_SHOW, name="Example Cat Show", type="urn:entity:tv_show"),
+    }
+    d.venue_signals, d.rank_order = [DOG_SHOW], [CAT_SHOW]  # ranked after the venue search
+    plan = ProfilePlan(
+        titles=[{"entity_id": CAT_SHOW, "why": "cats"}, {"entity_id": DOG_SHOW, "why": "dogs"}],
+        venues=[],
+    )
+    try:
+        check_plan(SimpleNamespace(deps=d), plan)
+    except Exception as exc:  # ModelRetry
+        assert "venues were asked for Example Dog Show, which Qloo does not back" in str(exc)
+    else:
+        raise AssertionError("check_plan accepted venues resting on an unbacked title")

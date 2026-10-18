@@ -601,6 +601,15 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
             f"none of your titles has Qloo's evidence for this area; keep the ones Qloo "
             f"backs, such as {names}"
         )
+    unbacked = [i for i in deps.venue_signals or [] if not has_evidence(deps, i)]
+    if unbacked and any(has_evidence(deps, t.entity_id) for t in plan.titles):
+        # Evidence can arrive after the venue search (a ranking, a later list): the venues
+        # and the map must still rest on titles Qloo backs.
+        names = ", ".join(deps.titles_seen[i].name for i in unbacked)
+        problems.append(
+            f"the venues were asked for {names}, which Qloo does not back for this area; "
+            "call find_venues again with the titles Qloo backs"
+        )
     kept = {t.entity_id for t in plan.titles}
     if plan.titles and (dropped := [i for i in deps.venue_signals or [] if i not in kept]):
         # The venues and the map are built from these titles, so each must be in the plan.
