@@ -49,6 +49,21 @@
     ).bindTooltip(cell.label).addTo(map);
   });
 
+  // The suggested places, numbered as in the list beside the map (decision 4, revised).
+  for (const venue of view.venues || []) {
+    const icon = L.divIcon({
+      className: "venue-pin",
+      html: `<span>${venue.number}</span>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    });
+    layers.push(
+      L.marker([venue.latitude, venue.longitude], { icon, keyboard: false, title: venue.name })
+        .bindTooltip(`${venue.number}. ${venue.name}`)
+        .addTo(map),
+    );
+  }
+
   // A short key on the map itself (the view model's note); the caption says the rest.
   if (view.note) {
     const key = L.control({ position: "bottomleft" });

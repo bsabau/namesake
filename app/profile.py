@@ -147,6 +147,11 @@ class Venue(BaseModel):
     # Score each pet entity contributed, by entity name (Qloo's explainability).
     contributions: dict[str, float] = Field(default_factory=dict)
     unsuitable: str | None = None
+    # Where the venue is, from OpenStreetMap (Photon) by its name and address: Qloo gives
+    # no coordinates (decision 4, revised). `point_tried` stops a second lookup.
+    latitude: float | None = None
+    longitude: float | None = None
+    point_tried: bool = False
     # The agent's judgement, when an agent built the profile.
     chosen_reason: str | None = None
     rejected_reason: str | None = None

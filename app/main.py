@@ -31,7 +31,7 @@ from app.custom_location import check_location, clean, location_id
 from app.limits import LimitReached
 from app.listing import generic_name, missing_cautions, stage_for
 from app.locations import Location, load_locations
-from app.places import MAX_PIN_KM, PIN_DECIMALS, Places, Throttled, distance_km
+from app.places import MAX_PIN_KM, PIN_DECIMALS, Places, Throttled, distance_km, places_for
 from app.profile import LocationProfile, build_profile, load_seeds
 from app.qloo.cache import Cache
 from app.qloo.exec import QlooClient
@@ -109,11 +109,6 @@ def templates_for(ui: str) -> Jinja2Templates:
     templates = Jinja2Templates(directory=UI_ROOT / ui / "templates")
     templates.env.filters["plain"] = plain
     return templates
-
-
-@cache
-def places_for(url: str) -> Places:
-    return Places(url)
 
 
 def places() -> Places:

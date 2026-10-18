@@ -10,7 +10,7 @@ from app.classify import bucket
 from app.custom_location import MIN_CELLS
 from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, pronouns, templated_listing
 from app.locations import Location
-from app.places import MAX_PIN_KM
+from app.places import MAX_PIN_KM, distance_km
 from app.profile import (
     Entity,
     LocationProfile,
@@ -43,6 +43,7 @@ from app.views.models import (
     ShelterBar,
     StartView,
     StepView,
+    VenuePin,
     VenueView,
     WhyItem,
     WorkingView,
@@ -52,6 +53,8 @@ from app.views.models import (
 FEATURED = "dog-02"
 VENUES_SHOWN = 5
 VENUES_IN_PLAN = 3
+# A lift this close to zero reads as about even (the map shades it faintly).
+LIFT_EVEN = 0.05
 OBJECT_PRONOUN = {"female": "her", "male": "him"}
 CHECK_LABELS = {
     "good_with_children": "children",
@@ -410,7 +413,10 @@ def shows(n: int) -> str:
 
 
 def map_view(
-    location: Location, profile: LocationProfile, pin: tuple[float, float] | None = None
+    location: Location,
+    profile: LocationProfile,
+    pin: tuple[float, float] | None = None,
+    venues: list[Venue] | None = None,
 ) -> MapView:
     titles = layer_titles(profile)
     pets = f"fans of {and_list([e.name for e in titles])}" if titles else "pet-show fans"
@@ -478,6 +484,11 @@ def map_view(
         shelter_radius_m=shelter_radius(location),
         pin=Pin(latitude=pin[0], longitude=pin[1]) if pin else None,
         cells=cells,
+        venues=[
+            VenuePin(number=n, name=v.name, latitude=v.latitude, longitude=v.longitude)
+            for n, v in enumerate(venues or [], start=1)
+            if v.latitude is not None and v.longitude is not None
+        ],
         legend=swap
         + thin
         + (
@@ -529,7 +540,39 @@ def venue_titles(profile: LocationProfile) -> str:
     return and_list(asked) if asked else "the pet-themed titles searched"
 
 
-def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueView:
+def cell_reading(v: Venue, profile: LocationProfile) -> str | None:
+    """Where a placed venue sits on the lift map, worded for pet-show fans as a group."""
+    if v.latitude is None or v.longitude is None:
+        return None
+    for c in profile.cells:
+        south, west, north, east = bounds(c.geohash)
+        if south <= v.latitude <= north and west <= v.longitude <= east:
+            if c.lift is None:
+                return "On the map, in a cell with no comparison."
+            if c.lift > LIFT_EVEN:
+                return f"On the map, where pet-show fans stand out ({c.lift:+.2f})."
+            if c.lift < -LIFT_EVEN:
+                return f"On the map, where pet-show fans do not stand out ({c.lift:+.2f})."
+            return f"On the map, where pet-show fans are about as common as others ({c.lift:+.2f})."
+    return "Outside the mapped cells."
+
+
+def walk(v: Venue, shelter: tuple[float, float]) -> str | None:
+    """Straight-line distance from the shelter, with a walking estimate at 5 km/h."""
+    if v.latitude is None or v.longitude is None:
+        return None
+    km = distance_km(shelter, (v.latitude, v.longitude))
+    minutes = max(1, round(km / 5 * 60))
+    return f"{km:.1f} km from the shelter, about {minutes} min on foot in a straight line."
+
+
+def venue_view(
+    v: Venue,
+    location: Location,
+    profile: LocationProfile,
+    number: int = 0,
+    shelter: tuple[float, float] | None = None,
+) -> VenueView:
     pets = venue_titles(profile)
     base = compared_with(profile)
     total = len(profile.venues)
@@ -558,6 +601,9 @@ def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueV
         evidence=evidence,
         chosen=v.chosen_reason is not None,
         reason=v.chosen_reason,
+        number=number,
+        where=cell_reading(v, profile),
+        distance=walk(v, shelter or (location.latitude, location.longitude)),
     )
 
 
@@ -889,6 +935,7 @@ def build_result_view(
     every = venue_order(profile)
     ordered, skipped = venues_for_animal(animal, every)
     named_skips = skipped_shown(every, ordered, skipped)
+    shown = ordered[:VENUES_SHOWN]
     # Whether a venue the page would not have shown now takes a slot.
     first = {v.entity_id for v in every[:VENUES_SHOWN]}
     moved_up = any(v.entity_id not in first for v in ordered[:VENUES_SHOWN])
@@ -921,8 +968,8 @@ def build_result_view(
         name=name_view(listing, profile, listing_.text),
         listing=listing_,
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
-        map=map_view(location, profile, pin),
-        venues=[venue_view(v, location, profile) for v in ordered[:VENUES_SHOWN]],
+        map=map_view(location, profile, pin, shown),
+        venues=[venue_view(v, location, profile, n, pin) for n, v in enumerate(shown, start=1)],
         venues_empty=(
             f"Every place Namesake would suggest here mentions children, so none is suggested "
             f"for this {animal.species}."

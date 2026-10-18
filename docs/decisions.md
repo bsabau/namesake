@@ -54,6 +54,8 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 
 **Follows:** revisit in milestone 4 only if time allows. If done, geocode at profile-build time with a cached, rate-respecting service, never from the browser.
 
+**Revised 18 October, pins after all** (the author: "the list is ok, but i believe it should put the pin to on the map in the proper hex if is the case"): the list stays, and each suggested venue is also a numbered pin on the lift map. Qloo still gives no coordinates, so when a run saves its profile the suggested venues (the AI's picks first, then the first suitable ones, up to eight) are looked up once in Photon, by name and address near the shelter, else by the address alone; a match more than 12 km from the shelter is dropped, and a venue with no match stays in the list without a pin. Looked up on the server, about a second apart, kept on the profile, never from the browser, as the condition above asked. Each card says which cell it sits in ("where pet-show fans stand out (+0.30)", or outside the mapped cells) and its straight-line distance from the shelter with a walking estimate. Probed the same day: name and address placed 7 of 8 Park Slope venues, and only 2 of them fell inside the map's cells, so most pins sit outside the cells and say so. A walking route was left out.
+
 ## 5. Agent-chosen Qloo calls go through our client, not `qloo mcp`
 
 **Decided:**

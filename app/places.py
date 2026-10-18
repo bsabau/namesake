@@ -25,6 +25,7 @@ import urllib.parse
 import urllib.request
 from collections import OrderedDict, deque
 from collections.abc import Callable
+from functools import cache
 
 from pydantic import BaseModel
 
@@ -47,6 +48,14 @@ ALL_PER_MINUTE = 120
 CONCURRENT = 4
 # A pin further than this from the centre of Qloo's cells is not the same area.
 MAX_PIN_KM = 15
+# A venue match further than this from the shelter is some other place of that name.
+VENUE_KM = 12
+
+
+@cache
+def places_for(url: str) -> "Places":
+    """One lookup client per geocoder URL, shared by the routes and the runs."""
+    return Places(url)
 
 
 class Throttled(Exception):
@@ -105,6 +114,11 @@ def distance_km(a: tuple[float, float], b: tuple[float, float]) -> float:
     return 2 * 6371 * math.asin(math.sqrt(h))
 
 
+def _point(feature: dict) -> Found:
+    lon, lat = feature["geometry"]["coordinates"][:2]
+    return [(feature.get("properties", {}).get("name") or "", float(lat), float(lon))]
+
+
 def fetch_json(url: str) -> dict:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310 - https only
@@ -158,6 +172,32 @@ class Places:
         return self._cached(
             url, lambda f: [(a, lat, lon) for a in areas_around(f.get("properties", {}))], visitor
         )
+
+    def venue_point(
+        self,
+        name: str,
+        address: str | None,
+        near: tuple[float, float],
+        visitor: str = "profile-build",
+    ) -> Place | None:
+        """Where a venue Qloo returned is: OpenStreetMap's best match for its name and
+        address, else for the address alone, near the shelter. These are public business
+        addresses from Qloo, looked up on the server when a profile is saved, never typed
+        by a visitor. None when nothing close enough matches. Raises Throttled."""
+        if not self.enabled:
+            return None
+        queries = [f"{name}, {address}", address] if address else [name]
+        for query in queries:
+            params = {
+                "q": " ".join(query.split())[:200],
+                "limit": 1,
+                "lat": round(near[0], NEAR_DECIMALS + 1),
+                "lon": round(near[1], NEAR_DECIMALS + 1),
+            }
+            found = self._cached(self._url("api", params, areas_only=False), _point, visitor)
+            if found and distance_km(near, (found[0].latitude, found[0].longitude)) <= VENUE_KM:
+                return found[0]
+        return None
 
     def _url(self, path: str, params: dict, areas_only: bool = True) -> str:
         layers = [("layer", x) for x in LAYERS] if areas_only else []
