@@ -150,7 +150,7 @@ def test_a_lookalike_name_is_offered_with_its_own_badge_and_why(roster):
     assert rex.title == "Example Dog Film"
     returned = {i.title: i.detail for i in view.qloo_returned}
     reading = {i.title: i.detail for i in view.our_reading}
-    assert returned["Example Dog Film (movie)"].startswith("Found in Qloo.")
+    assert returned["Example Dog Film (film)"].startswith("Found in Qloo.")
     assert "recorded look: brindle" in reading["Why Example Dog Film"]
     assert "Qloo confirmed the title, not how its animals look" in reading["Why Example Dog Film"]
 
@@ -282,10 +282,10 @@ def test_a_single_needs_input_candidate_is_a_choice_not_a_confirmation(roster):
     view = build_result_view(roster.get("dog-02"), LOCATION, profile, result)
     returned = {i.title: i.detail for i in view.qloo_returned}
     reading = {i.title: i.detail for i in view.our_reading}
-    assert returned["Example Dog Film (movie)"].startswith(
+    assert returned["Example Dog Film (film)"].startswith(
         "Qloo asked which title was meant and offered one candidate."
     )
-    assert "Found in Qloo" not in returned["Example Dog Film (movie)"]
+    assert "Found in Qloo" not in returned["Example Dog Film (film)"]
     why = reading["Why Example Dog Film"]
     assert "Namesake's AI chose this title among Qloo's candidates" in why
     assert "Qloo confirmed" not in why and why.endswith("Why this one: the 1989 film.")

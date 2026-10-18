@@ -78,6 +78,8 @@ Eight cells appear in both. The difference in score is the lift for the pet show
 
 That is a usable map layer: where in the neighbourhood the pet show's fans stand out against the baseline. Eight cells is a small sample, and the reading is relative, so the map labels it as such.
 
+**Hoboken, 18 October (one live run):** PAW Patrol, the first map title then, scored 1 cell within Hoboken while Bluey scored 9, so a widely known title can still map thinly in one place. The map now lets a thin first title give way to the next (decision 18, revised).
+
 ## Rate limit
 
 About 12 calls went through in roughly 20 minutes before Qloo answered `QLOO_RATE_LIMIT`. The harness marks it retryable; a retry after 5 seconds failed too, and so did later attempts over several minutes. The window is not published. The wrapper retries once, as the harness's recovery text says, and never caches an error; since 18 October it waits 20 seconds after a rate limit, and gives `rank` a second retry after 40 (decision 20).
@@ -181,6 +183,8 @@ The question: instead of Namesake's AI proposing pet titles and Qloo checking th
 - None of these is among the five titles Namesake's AI proposed for Park Slope, so the source does add candidates, mostly for cats. Each would still need `rank` or the lift to show it is strong here.
 - Jev's scores were decisive: of 60 titles, 59 scored above 0.85 or below 0.25 for "pets central", and it separated pets from animals in general (*Frog and Toad*, *My Little Pony*, *Sonic*) and caught a guinea pig the keyword list misses.
 
+**Result types:** in every `recommend` answer recorded so far, each result has the generic type `urn:entity`, without the kind (TV show, film, book) that was asked for, while `describe` gives the full type (`urn:entity:tv_show`). Code takes the kind that was asked for (decision 20); the Why panel had printed "Nature Cat (urn:entity)".
+
 **Park Slope as a Qloo locality**: `describe` with type `locality` for "Park Slope, Brooklyn" answers `needs_input`, with Park Slope first among Brooklyn Park, Sunset Park, Sunset Park West and Marine Park. The `signal_location` text is resolved by Qloo's API, and `interpretation` echoes only the text sent, so which place it matched cannot be seen from the answer.
 
 **Barcelona, old against new** (4 calls): the five TV titles Namesake's AI proposed for Park Slope (Bluey, PAW Patrol, Clifford, Lassie, Scooby-Doo), against "people around Barcelona who like Bluey also like…" (TV, films, books, 20 each, sorted by Jev), then one `rank` for "Barcelona, Spain" over both.
@@ -201,6 +205,20 @@ Top 20 TV shows, films and books for Astoria and Barcelona, for everyone and wit
 - Rate limit: 30 calls about 10 seconds apart, in about 8 minutes, with no refusal. On 15 October the key was refused after about 12 calls in 20 minutes, so the limit has risen or was a burst limit; `QLOO_MIN_INTERVAL` could be lowered after a check on the server.
 
 **The feature, one live run** (`scripts/run_agent.py dog-03 austin --fresh`, 17 October, 12 live Qloo calls, the rest cached): Namesake's AI proposed PAW Patrol, Scooby-Doo, Lady and the Tramp, 101 Dalmatians and Clifford, then searched TV for PAW Patrol's fans, films for 101 Dalmatians' and books for Clifford's. Of 60 titles, Jev kept 4 and left 4 to the AI. The AI sent four TV titles to `rank`; Qloo ranked two for Austin, Bluey (1st in the PAW Patrol list) and Nature Cat (3rd), both found in the area's lists, and returned nothing for the AI's own TV titles. One run, one area: it shows the mechanism works, not how often it changes the result.
+
+## The probe show for a typed area (18 October, 16 calls)
+
+The area check (decision 12) heatmapped the seed show *Yellowstone* within a typed area and accepted it at 5 or more cells. Gràcia, Barcelona was refused with 2 cells, though Qloo's top TV list and the "people here who like Bluey also like" search both answered well there; Girona and Ithaca passed as they were.
+
+Cells from `where_popular` within each area (limit 20, geohash 7 in every case):
+
+| Area | Yellowstone | Bluey | The area's own #1 TV show |
+|---|---|---|---|
+| Gràcia, Barcelona | 2 | 2 | 20 (*Late Motiv*) |
+| Kreuzberg, Berlin | 19 | 9 | 20 (*Neo Magazin*) |
+| Astoria, Queens | 14 | 8 | 20 (*Pose*) |
+
+All three own top shows came back at the 20-cell limit, so their counts are a floor, and Kreuzberg's 19 against 20 says nothing. Gràcia is the case that matters: 2 against at least 20. So the check now probes with the area's own top show, with the seed show as well when the list fails or its show is thin, the fuller map deciding (decision 12 has the details). A globally known show is no better than the seed: Bluey came back weaker everywhere. Passing the check does not make the lift map rich: in Gràcia the pet titles themselves are weak (Bluey 2 cells).
 
 ## Children's against adult pet titles as venue signals (18 October, 8 calls)
 

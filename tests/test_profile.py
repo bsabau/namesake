@@ -1,4 +1,4 @@
-from app.profile import build_profile, screen
+from app.profile import PROFILE_VERSION, build_profile, screen
 from tests.qloo_fakes import (
     BASELINE,
     BASELINE_2,
@@ -19,7 +19,7 @@ def test_complete_profile():
     assert p.complete and p.notes == []
     assert [e.id for e in p.pet_entities] == [DOG_SHOW, CAT_SHOW]
     assert [e.id for e in p.baselines] == [BASELINE, BASELINE_2] and p.baseline is None
-    assert [e.id for e in p.map_titles] == [DOG_SHOW, CAT_SHOW] and p.version == 2
+    assert [e.id for e in p.map_titles] == [DOG_SHOW, CAT_SHOW] and p.version == PROFILE_VERSION
 
 
 def test_ambiguous_seed_is_settled_by_its_rule_and_says_so():
@@ -107,3 +107,16 @@ def test_nothing_resolved_means_no_lookups():
     p = build_profile(qloo, LOCATION, SEEDS)
     assert p.pet_entities == [] and p.venues == []
     assert all(op == "describe" for op, _ in qloo.calls)
+
+
+def test_a_generic_qloo_type_takes_the_kind_asked_for():
+    from app.profile import entity_type, local_tastes
+
+    # Qloo's recommend lists give "urn:entity"; the kind asked for stands in.
+    assert entity_type("urn:entity", "movie") == "urn:entity:movie"
+    assert entity_type(None, "book") == "urn:entity:book"
+    assert entity_type("urn:entity:tv_show", "movie") == "urn:entity:tv_show"
+    # The area's top shows, which the Why panel names as the comparison.
+    assert {e.type for e in local_tastes(FakeQloo(standard_script()), LOCATION)} == {
+        "urn:entity:tv_show"
+    }

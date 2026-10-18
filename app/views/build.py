@@ -7,6 +7,7 @@ from app.agent.checks import mentions_identity
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
 from app.classify import bucket
+from app.custom_location import MIN_CELLS
 from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, pronouns, templated_listing
 from app.locations import Location
 from app.places import MAX_PIN_KM
@@ -435,6 +436,41 @@ def map_view(
                 label=label,
             )
         )
+    swap = ""
+    if profile.thin_map and titles:
+        t = profile.thin_map
+        by_id = {e.id: e for e in profile.pet_entities}
+        asked = [by_id[i] for i in profile.venue_signals if i in by_id] or profile.pet_entities
+        what = (
+            f"Qloo could not place {t.title.name}'s map within {location.label}"
+            if t.unplaced
+            else f"Qloo returned {t.cells} map cell{'s' if t.cells != 1 else ''} for "
+            f"{t.title.name} within {location.label}"
+        )
+        swap = (
+            f"{what}, so the map uses {titles[0].name} in its "
+            f"place. The places to ask are for fans of {and_list([e.name for e in asked])}. "
+        )
+    key = (
+        f"Warm: pet-show fans stand out here more than {base}. Cool: less. Grey: no comparison."
+        if any(c.lift is not None for c in cells)
+        else "Grey: no cell was scored for both, so there is no comparison here."
+        if cells
+        else None
+    )
+    swapped = (
+        f" Mapped: {titles[0].name}, in place of {profile.thin_map.title.name}."
+        if profile.thin_map and titles
+        else ""
+    )
+    thin = ""
+    if 0 < len(cells) < MIN_CELLS:
+        # A typed area passes its check on the area's own top show; its pet titles may
+        # still map thinly (decision 12), and the page says so.
+        thin = (
+            f"Only {len(cells)} map cell{'s' if len(cells) != 1 else ''} here: Qloo's data for "
+            f"pet-show fans around {location.label} is thin, so the map says little. "
+        )
     return MapView(
         latitude=location.latitude,
         longitude=location.longitude,
@@ -442,7 +478,9 @@ def map_view(
         shelter_radius_m=shelter_radius(location),
         pin=Pin(latitude=pin[0], longitude=pin[1]) if pin else None,
         cells=cells,
-        legend=(
+        legend=swap
+        + thin
+        + (
             (
                 f"Warm cells: {pets} rank this part of {location.label} higher than {base} do. "
                 "Cool cells: lower. Grey: only the pet shows have a score there. Where several "
@@ -453,13 +491,7 @@ def map_view(
             else f"Cells: where {pets} rank high within {location.label}. No cell was also "
             f"scored for {base}, so the map shows no comparison here."
         ),
-        note=(
-            f"Warm: pet-show fans stand out here more than {base}. Cool: less. Grey: no comparison."
-            if any(c.lift is not None for c in cells)
-            else "Grey: no cell was scored for both, so there is no comparison here."
-            if cells
-            else None
-        ),
+        note=(key + swapped) if key else None,
         empty_message=None if cells else "No map data for this area yet.",
     )
 
@@ -484,10 +516,21 @@ def venue_order(profile: LocationProfile) -> list[Venue]:
     return sorted(suitable, key=lambda v: (not v.distinctive, v.rank))
 
 
+def venue_titles(profile: LocationProfile) -> str:
+    """The titles the venues were asked for, in that order: every pet title for a profile
+    saved before `venue_signals` was kept. The plan keeps those titles since decision 20's
+    revision; an older profile that dropped them gets a plain description instead."""
+    if not profile.venue_signals:
+        return and_list([e.name for e in profile.pet_entities])
+    by_id = {e.id: e for e in profile.pet_entities}
+    asked = [by_id[i].name for i in profile.venue_signals if i in by_id]
+    # An older profile may have searched with titles it no longer keeps; never name
+    # others in their place.
+    return and_list(asked) if asked else "the pet-themed titles searched"
+
+
 def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueView:
-    # Name only the titles the venues were asked for.
-    asked = set(profile.venue_signals) or {e.id for e in profile.pet_entities}
-    pets = and_list([e.name for e in profile.pet_entities if e.id in asked])
+    pets = venue_titles(profile)
     base = compared_with(profile)
     total = len(profile.venues)
     evidence = (
@@ -615,6 +658,23 @@ def mentions(v: Venue) -> str:
 
 
 KIND_WORDS = {"tv_show": "TV shows", "movie": "films", "book": "books"}
+KIND_SINGULAR = {"tv_show": "TV show", "movie": "film", "book": "book"}
+
+
+def kind_word(e: Entity, default: str | None = "tv_show") -> str:
+    """A title's kind for the page: "TV show", "film", "book". Profiles saved before
+    `entity_type` may hold Qloo's generic type: then the kind comes from where the title
+    was found, else `default` (the area's top shows and comparison shows are all TV; a
+    lookalike may be anything, so it reads as a "title")."""
+    if e.type.startswith("urn:entity:"):
+        kind = e.type.removeprefix("urn:entity:")
+    elif ":" not in e.type:
+        kind = e.type  # a bare kind
+    else:
+        kind = e.found_in.kind if e.found_in else default
+    if not kind:
+        return "title"
+    return KIND_SINGULAR.get(kind, kind.replace("_", " "))
 
 
 def sorted_by(e: Entity) -> str:
@@ -646,7 +706,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
     # the next run chooses the comparison again.
     hidden = {e.id for e in baseline_titles(profile) if mentions_identity(e.name, e.description)}
     for e in profile.pet_entities + [b for b in baseline_titles(profile) if b.id not in hidden]:
-        kind = e.type.removeprefix("urn:entity:").replace("_", " ")
+        kind = kind_word(e)
         if e.resolution == "chosen":
             returned.append(
                 WhyItem(
@@ -737,7 +797,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
             )
         )
     if profile.venues:
-        pets = and_list([e.name for e in profile.pet_entities])
+        pets = venue_titles(profile)
         shared = sum(1 for v in profile.venues if v.compared and not v.distinctive)
         returned.append(
             WhyItem(
@@ -790,7 +850,7 @@ def lookalike_why(
     reasons = {o.entity_id: o.choice_reason for o in result.draft.names}
     for look in result.lookalikes:
         e = look.entity
-        kind = e.type.removeprefix("urn:entity:").replace("_", " ")
+        kind = kind_word(e, default=None)
         found = "Found in Qloo. "
         if look.chosen:
             several = f"{look.candidates} candidates" if look.candidates > 1 else "one candidate"

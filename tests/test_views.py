@@ -10,9 +10,11 @@ from app.views.build import (
     build_result_view,
     build_start_view,
     for_children,
+    map_view,
     result_id,
     sentences,
     skipped_shown,
+    why,
 )
 from tests.qloo_fakes import (
     BASELINE,
@@ -315,3 +317,53 @@ def test_the_why_item_says_slots_were_taken_only_when_a_lower_place_moved_up(ros
     view = build_result_view(with_children(roster, "no"), LOCATION, p)
     reading = {i.title: i.detail for i in view.our_reading}
     assert reading["Skipped for this dog"].endswith("is not good with children.")
+
+
+def test_the_why_panels_venue_line_names_only_the_titles_searched(roster):
+    # Hoboken, 18 October: the line named seven pet titles; the venues were asked for three.
+    returned, _ = why(LOCATION, agent_profile())
+    line = next(i for i in returned if i.title.endswith(f"places near {LOCATION.label}"))
+    assert line.detail.startswith("Ranked for people who like Example Cat Show")
+    assert "Example Dog Show" not in line.detail
+
+
+def test_the_page_names_a_kind_even_for_qloos_generic_type():
+    from app.profile import Entity, FoundIn
+    from app.views.build import kind_word
+
+    # Profiles saved before entity_type: where the title was found, else a TV show.
+    found = FoundIn(signal="Example Dog Show", kind="movie", position=3, out_of=20)
+    assert kind_word(Entity(id="x", name="x", type="urn:entity", found_in=found)) == "film"
+    assert kind_word(Entity(id="x", name="x", type="urn:entity")) == "TV show"
+    assert kind_word(Entity(id="x", name="x", type="urn:entity"), default=None) == "title"
+    assert kind_word(Entity(id="x", name="x", type="movie")) == "film"  # a bare kind
+    assert kind_word(Entity(id="x", name="x", type="urn:entity:book")) == "book"
+
+
+def test_the_venue_line_falls_back_to_every_title_only_for_old_profiles():
+    from app.views.build import venue_titles
+
+    p = profile()
+    p.venue_signals = []
+    assert venue_titles(p) == "Example Dog Show and Example Cat Show"
+    p.venue_signals = [p.pet_entities[1].id]
+    assert venue_titles(p) == "Example Cat Show"
+
+
+def test_the_venue_line_never_reads_empty():
+    from app.views.build import venue_titles
+
+    p = profile()
+    p.venue_signals = ["00000000-0000-4000-8000-000000000999"]  # not among the titles
+    # Codex, PR #17: never name other titles as the ones searched.
+    assert venue_titles(p) == "the pet-themed titles searched"
+
+
+def test_a_thin_map_says_so_on_the_page():
+    # Flash, PR #13: a typed area passes on its own top show; its pet titles may still map
+    # thinly, and the page must say so, not only when there are no cells.
+    p = profile()
+    p.cells = p.cells[:2]
+    assert map_view(LOCATION, p).legend.startswith(
+        f"Only 2 map cells here: Qloo's data for pet-show fans around {LOCATION.label} is thin"
+    )
