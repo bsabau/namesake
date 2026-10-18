@@ -55,6 +55,9 @@ class ProfileDeps:
     # Sorts the titles find_local_titles returns; None leaves them all to the AI.
     classifier: JevClassifier | None = None
     local_searches: int = 0
+    # Each title's best place in the area's lists (position / list length), the AI's own
+    # titles included: the evidence venues and the map are ordered by.
+    local_places: dict[str, float] = field(default_factory=dict)
 
 
 class TitleChoice(BaseModel):
@@ -99,9 +102,9 @@ The shelter is in {place}. You use Qloo, a taste-data service, through four tool
 4. Call rank_titles once, with up to 8 found titles of the same kind, your own and the
    local ones together, to order them for this area. If it is unavailable, keep your own
    order.
-5. Call find_venues with the titles you keep. Code asks Qloo for venues for the three with
-   the strongest evidence for this area (Qloo's ranking, else their place in the area's
-   lists). From the venues it returns, and only those,
+5. Call find_venues with the titles you keep; your answer must keep each of them. Code
+   asks Qloo for venues for the three with the strongest evidence for this area (Qloo's
+   ranking, else their place in the area's lists). From the venues it returns, and only those,
    choose up to 3 that could host an adoption event or display a flyer: public,
    family-friendly, community places such as cafes, parks, arts centres, bookshops, pet
    shops or breweries with event space. Reject private homes and residences, gyms,
@@ -256,7 +259,11 @@ def find_local_titles(
     total = len(env.results)
     kept, unsure, dropped, unanswered = [], [], 0, 0
     for position, r in enumerate(env.results, start=1):
-        if r["entity_id"] in deps.titles_seen or r["entity_id"] in deps.baseline_titles:
+        if r["entity_id"] in deps.baseline_titles:
+            continue
+        place = position / total
+        deps.local_places[r["entity_id"]] = min(place, deps.local_places.get(r["entity_id"], 1))
+        if r["entity_id"] in deps.titles_seen:
             continue
         props = r.get("properties") or {}
         entity = Entity(
@@ -352,16 +359,17 @@ def rank_titles(
 
 def evidence_order(deps: ProfileDeps, entity_ids: list[str]) -> list[str]:
     """Titles by their evidence for this area: Qloo's ranking for the area first, then
-    titles found in the area's lists by their place there, then the AI's own order. The
-    venues and the map use the top of this order, so they rest on Qloo, not on the AI's
-    say-so."""
-    ranked = [i for i in deps.rank_order or [] if i in entity_ids]
+    titles found in the area's lists by their place there (as a share of the list, so
+    lists of different lengths compare), then the AI's own order. The venues and the map
+    use the top of this order, so they rest on Qloo, not on the AI's say-so."""
+    ids = [i for i in dict.fromkeys(entity_ids) if i in deps.titles_seen]
+    ranked = [i for i in deps.rank_order or [] if i in ids]
     found = sorted(
-        (i for i in entity_ids if i not in ranked and deps.titles_seen[i].found_in),
-        key=lambda i: deps.titles_seen[i].found_in.position,
+        (i for i in ids if i not in ranked and i in deps.local_places),
+        key=lambda i: deps.local_places[i],
     )
-    rest = [i for i in entity_ids if i not in ranked and i not in found]
-    return list(dict.fromkeys(ranked + found + rest))
+    rest = [i for i in ids if i not in ranked and i not in found]
+    return ranked + found + rest
 
 
 def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str, Any]:
@@ -459,6 +467,14 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
             problems.append(f"venue {info['name']} is {info['excluded']}")
     if deps.titles_seen and deps.venue_signals is None and not plan.venues:
         problems.append("call find_venues before answering")
+    kept = {t.entity_id for t in plan.titles}
+    if plan.titles and (dropped := [i for i in deps.venue_signals or [] if i not in kept]):
+        # The venues and the map are built from these titles, so each must be in the plan.
+        names = ", ".join(deps.titles_seen[i].name for i in dropped)
+        problems.append(
+            f"the venues were asked for {names}, which your titles leave out; call "
+            "find_venues again with the titles you keep"
+        )
     if problems:
         deps.log.add("check", "Sent back for a fix: " + "; ".join(problems))
         raise ModelRetry("Fix these and answer again: " + "; ".join(problems))

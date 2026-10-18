@@ -97,7 +97,7 @@ sequenceDiagram
         P->>M: profile agent: which titles, which venues
         M->>Q: describe, then recommend titles in the area's lists (its choice)
         M->>J: inside that search, the classifier sorts what Qloo returned, before the AI sees it
-        M->>Q: rank, recommend place (its choice)
+        M->>Q: rank (its choice), recommend place (code picks the titles by evidence)
         P->>Q: fixed calls: heatmaps for the map
         P->>S: save the profile
         T->>A: write names and bio from the record
