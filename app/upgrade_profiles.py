@@ -5,10 +5,11 @@ Namesake's AI chose: the titles, their order, the venues and its reasons for the
 
 Only the parts that changed are asked of Qloo again (`finish_profile`): the area's top
 shows (usually cached), the baseline shows' venues, and the heatmaps for the map layer,
-about 5 calls a profile. Listings and names stay valid, since the titles do not change. A
-profile is saved only when the new version is complete; one Qloo could not finish (the
-key is rate-limited) stays as it was, and a later run picks it up, as it does any current
-profile that is not complete.
+about 5 calls a profile, one more where the first map title is thin (decision 18).
+Listings and names stay valid, since the titles do not change. A profile is saved only
+when the new version is complete; one Qloo could not finish (the key is rate-limited)
+stays as it was, and a later run picks it up, as it does any current profile that is not
+complete.
 
 The key was refused after about 12 calls in 20 minutes on 15 October, but took 30 calls
 10 seconds apart on 17 October, so calls are spaced at least --min-interval seconds (10

@@ -310,6 +310,8 @@ class ResultView(BaseModel):
     listing: ListingView
     map: MapView
     venues: list[VenueView]
+    # Shown in place of the venue list when it is empty.
+    venues_empty: str = "No venues for this area yet."
     plan_heading: str
     plan: list[PlanItem]
     qloo_returned: list[WhyItem]

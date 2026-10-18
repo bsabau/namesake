@@ -8,11 +8,12 @@ from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
 from app.classify import bucket
 from app.custom_location import MIN_CELLS
-from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, templated_listing
+from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, pronouns, templated_listing
 from app.locations import Location
 from app.places import MAX_PIN_KM
 from app.profile import (
     Entity,
+    FoundIn,
     LocationProfile,
     Venue,
     baseline_titles,
@@ -356,13 +357,21 @@ def title_names(profile: LocationProfile, result: ListingResult | None) -> dict[
 def name_badge(
     source: str, entity_id: str, profile: LocationProfile, title: str | None = None
 ) -> str:
-    """Claim local strength only where Qloo's ranking for this area says so."""
+    """Claim local strength only where Qloo's evidence for this area says so: its ranking
+    here, or the title's place in one of the area's lists."""
     if source == "lookalike":
         return f"Has a lookalike in {title}" if title else "Has a lookalike"
     if source == "local":
         return "Watched locally"
-    found = next((e.found_in for e in profile.pet_entities if e.id == entity_id), None)
-    liked = f"liked here by fans of {found.signal}" if found else None
+    entity = next((e for e in profile.pet_entities if e.id == entity_id), None)
+    found = (entity.found_in or entity.listed_in) if entity else None
+    liked = None
+    if found:
+        liked = (
+            "in Qloo's list for this area asked with its pet tags"
+            if found.by_tags
+            else f"liked here by fans of {found.signal}"
+        )
     if entity_id in profile.ranked:
         place = profile.ranked.index(entity_id) + 1
         ranked = f"ranked {ordinal(place)} of {len(profile.ranked)} here by Qloo"
@@ -436,6 +445,33 @@ def map_view(
                 label=label,
             )
         )
+    swap = ""
+    if profile.thin_map and titles:
+        t = profile.thin_map
+        by_id = {e.id: e for e in profile.pet_entities}
+        asked = [by_id[i] for i in profile.venue_signals if i in by_id] or profile.pet_entities
+        what = (
+            f"Qloo could not place {t.title.name}'s map within {location.label}"
+            if t.unplaced
+            else f"Qloo returned {t.cells} map cell{'s' if t.cells != 1 else ''} for "
+            f"{t.title.name} within {location.label}"
+        )
+        swap = (
+            f"{what}, so the map uses {titles[0].name} in its "
+            f"place. The places to ask are for fans of {and_list([e.name for e in asked])}. "
+        )
+    key = (
+        f"Warm: pet-show fans stand out here more than {base}. Cool: less. Grey: no comparison."
+        if any(c.lift is not None for c in cells)
+        else "Grey: no cell was scored for both, so there is no comparison here."
+        if cells
+        else None
+    )
+    swapped = (
+        f" Mapped: {titles[0].name}, in place of {profile.thin_map.title.name}."
+        if profile.thin_map and titles
+        else ""
+    )
     thin = ""
     if 0 < len(cells) < MIN_CELLS:
         # A typed area passes its check on the area's own top show; its pet titles may
@@ -451,7 +487,8 @@ def map_view(
         shelter_radius_m=shelter_radius(location),
         pin=Pin(latitude=pin[0], longitude=pin[1]) if pin else None,
         cells=cells,
-        legend=thin
+        legend=swap
+        + thin
         + (
             (
                 f"Warm cells: {pets} rank this part of {location.label} higher than {base} do. "
@@ -463,13 +500,7 @@ def map_view(
             else f"Cells: where {pets} rank high within {location.label}. No cell was also "
             f"scored for {base}, so the map shows no comparison here."
         ),
-        note=(
-            f"Warm: pet-show fans stand out here more than {base}. Cool: less. Grey: no comparison."
-            if any(c.lift is not None for c in cells)
-            else "Grey: no cell was scored for both, so there is no comparison here."
-            if cells
-            else None
-        ),
+        note=(key + swapped) if key else None,
         empty_message=None if cells else "No map data for this area yet.",
     )
 
@@ -539,7 +570,9 @@ def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueV
     )
 
 
-def plan(animal: Animal, location: Location, venues: list[Venue]) -> list[PlanItem]:
+def plan(
+    animal: Animal, location: Location, venues: list[Venue], skipped: list[Venue] | None = None
+) -> list[PlanItem]:
     items = [
         PlanItem(
             text="Share the listing through the personal networks of foster carers and volunteers.",
@@ -571,11 +604,66 @@ def plan(animal: Animal, location: Location, venues: list[Venue]) -> list[PlanIt
                 basis="Qloo",
             )
         )
+    if skipped:
+        skip = and_list([f"{v.name} (it mentions {mentions(v)})" for v in skipped])
+        items.append(
+            PlanItem(
+                text=f"Skip {skip} for this {animal.species}: the record says "
+                f"{pronouns(animal.sex)['they']} {pronouns(animal.sex)['is']} not good with "
+                "children.",
+                basis="Our suggestion",
+            )
+        )
     if location.community_channel:
         items.append(
             PlanItem(text=f"Also reach {location.community_channel}.", basis="Our suggestion")
         )
     return items
+
+
+# Venues whose name or own Qloo description mentions children: skipped, per animal, when
+# the record says the animal is not good with children (decision 2). Whole words, so
+# "kid-friendly", "child care" and "Childrens Museum" count; words with other common
+# meanings in venue text ("nursery" for plants, "daycare" for dogs, "baby back ribs",
+# "youth hostel", a dog park's "play area") are not on the list. A venue with no
+# description is judged by its name.
+FOR_CHILDREN = re.compile(
+    r"\b(child|children|childrens|kid|kids|toddlers?|babies|playgrounds?|playgroups?"
+    r"|preschools?|kindergartens?|elementary[- ]schools?|childcare|family[- ]friendly"
+    r"|families|storytime|soft[- ]play)\b"
+)
+
+
+def for_children(name: str | None, description: str | None = None) -> str | None:
+    """The word in a venue's name or description that is about children, or None."""
+    match = FOR_CHILDREN.search(f"{name or ''} {description or ''}".lower())
+    return match.group(1) if match else None
+
+
+def venues_for_animal(animal: Animal, venues: list[Venue]) -> tuple[list[Venue], list[Venue]]:
+    """The venues to suggest, in order, and those skipped: for an animal recorded as not
+    good with children, a venue whose name or Qloo description mentions children. Unknown
+    and yes keep them all; the record alone decides, never a guess about the area."""
+    if animal.checks.good_with_children != "no":
+        return venues, []
+    skipped = [v for v in venues if for_children(v.name, v.description)]
+    skip = {v.entity_id for v in skipped}
+    return [v for v in venues if v.entity_id not in skip], skipped
+
+
+def skipped_shown(every: list[Venue], kept: list[Venue], skipped: list[Venue]) -> list[Venue]:
+    """The skipped venues the page would have shown: those among the first VENUES_SHOWN,
+    and any ranked above the last venue it does show (a lower one took their slot)."""
+    shown = kept[:VENUES_SHOWN]
+    cut = max(every.index(shown[-1]) + 1 if shown else 0, VENUES_SHOWN)
+    skip = {v.entity_id for v in skipped}
+    return [v for v in every[:cut] if v.entity_id in skip]
+
+
+def mentions(v: Venue) -> str:
+    """The child word a skipped venue mentions, quoted (only skipped venues are named)."""
+    word = for_children(v.name, v.description)
+    return f"“{word or 'children'}”"
 
 
 KIND_WORDS = {"tv_show": "TV shows", "movie": "films", "book": "books"}
@@ -609,15 +697,68 @@ def sorted_by(e: Entity) -> str:
     )
 
 
-def listed(e: Entity, location: Location) -> str:
-    """Where a title Namesake's AI proposed also sits in one of the area's lists."""
-    f = e.listed_in
-    if f is None:
-        return ""
+def place_in_list(f: FoundIn, location: Location) -> str:
+    """Where a title sits in one of the area's lists, as Qloo returned it."""
+    what = KIND_WORDS.get(f.kind, "titles")
+    if f.by_tags:
+        return (
+            f"{ordinal(f.position)} of {f.out_of} in Qloo's list of {what} people around "
+            f"{location.label} tend to like, asked with Qloo's pet tags."
+        )
     return (
-        f"Also {ordinal(f.position)} of {f.out_of} in Qloo's list of "
-        f"{KIND_WORDS.get(f.kind, 'titles')} people around {location.label} who like "
-        f"{f.signal} tend to like. "
+        f"{ordinal(f.position)} of {f.out_of} in Qloo's list of {what} people around "
+        f"{location.label} who like {f.signal} tend to like."
+    )
+
+
+def listed(e: Entity, location: Location, also: bool = True) -> str:
+    """A better place in another of the area's lists, or where a title Namesake's AI
+    proposed also sits in one of them."""
+    if not e.listed_in:
+        return ""
+    return ("Also " if also else "") + place_in_list(e.listed_in, location) + " "
+
+
+def who_chose(profile: LocationProfile) -> str:
+    """Who decided the area's titles, venues and order: Qloo's part apart from the AI's."""
+    by_tags = any(e.found_in and e.found_in.by_tags for e in profile.pet_entities)
+    searched = any(
+        f and not f.by_tags for e in profile.pet_entities for f in (e.found_in, e.listed_in)
+    )
+    sorted_ = any(e.verdict for e in profile.pet_entities)
+    if by_tags:
+        text = (
+            "Qloo listed titles people here tend to like, asked with its pet tags"
+            + (", and a classifier sorted them" if sorted_ else "")
+            + "; Namesake's AI judged the unclear ones, could add its own, settled ambiguous "
+            "names and picked the venues. "
+        )
+    else:
+        text = "Namesake's AI proposed the titles, settled ambiguous names and picked the venues. "
+    if searched:
+        text += (
+            "It also searched Qloo's lists for what people here who like its titles tend to "
+            "like, and kept the pet-themed ones. "
+        )
+    if profile.left_out_titles:
+        text += (
+            f"Code left out {and_list(profile.left_out_titles)}: Qloo neither ranks "
+            f"{'them' if len(profile.left_out_titles) > 1 else 'it'} here nor lists "
+            f"{'them' if len(profile.left_out_titles) > 1 else 'it'} for this area. "
+        )
+    elif not profile.titles_confirmed and profile.made_by == "agent":
+        text += (
+            "None of the titles kept has Qloo's ranking or a place in the area's lists, so "
+            "they are Namesake's AI's own. "
+        )
+    text += (
+        "Code chose which titles the venues were asked for, by Qloo's evidence, and checked "
+        "that each came from Qloo. "
+    )
+    return text + (
+        "The order of the titles is Qloo's ranking for this area."
+        if profile.order_source == "qloo_rank"
+        else "Qloo's ranking was unavailable, so the order is the one Namesake's AI chose."
     )
 
 
@@ -638,13 +779,11 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                 )
             )
         elif e.found_in:
-            f = e.found_in
-            what = KIND_WORDS.get(f.kind, "titles")
             returned.append(
                 WhyItem(
                     title=f"{e.name} ({kind})",
-                    detail=f"{ordinal(f.position)} of {f.out_of} in Qloo's list of {what} "
-                    f"people around {location.label} who like {f.signal} tend to like. "
+                    detail=place_in_list(e.found_in, location)
+                    + " "
                     + listed(e, location)
                     + sentences(e.description),
                 )
@@ -653,7 +792,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
             returned.append(
                 WhyItem(
                     title=f"{e.name} ({kind})",
-                    detail=listed(e, location) + sentences(e.description),
+                    detail=listed(e, location, also=False) + sentences(e.description),
                 )
             )
     for e in profile.pet_entities:
@@ -667,21 +806,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         reading.append(
             WhyItem(
                 title="Who chose",
-                detail="Namesake's AI proposed the titles, settled ambiguous names and picked "
-                "the venues; code chose which titles the venues were asked for, by Qloo's "
-                "evidence, and checked that each came from Qloo. "
-                + (
-                    "It also searched Qloo's lists for what people here who like its titles "
-                    "tend to like, and kept the pet-themed ones. "
-                    if any(e.found_in for e in profile.pet_entities)
-                    else ""
-                )
-                + (
-                    "The order of the titles is Qloo's ranking for this area."
-                    if profile.order_source == "qloo_rank"
-                    else "Qloo's ranking was unavailable, so the order is the one Namesake's AI "
-                    "chose."
-                ),
+                detail=who_chose(profile),
             )
         )
     if profile.baselines and profile.baseline_source == "area":
@@ -807,8 +932,28 @@ def build_result_view(
     image_url: str | None = None,
     pin: tuple[float, float] | None = None,
 ) -> ResultView:
-    ordered = venue_order(profile)
+    every = venue_order(profile)
+    ordered, skipped = venues_for_animal(animal, every)
+    named_skips = skipped_shown(every, ordered, skipped)
+    # Whether a venue the page would not have shown now takes a slot.
+    first = {v.entity_id for v in every[:VENUES_SHOWN]}
+    moved_up = any(v.entity_id not in first for v in ordered[:VENUES_SHOWN])
     returned, reading = why(location, profile)
+    if named_skips:
+        # Our reading of Qloo's venues for this animal; Qloo's column stays as it was.
+        reading.append(
+            WhyItem(
+                title=f"Skipped for this {animal.species}",
+                detail=and_list(
+                    [
+                        f"{v.name}: its name or Qloo description mentions {mentions(v)}"
+                        for v in named_skips
+                    ]
+                )
+                + f". The record says this {animal.species} is not good with children"
+                + (", and the next places take their slots." if moved_up else "."),
+            )
+        )
     look_returned, look_reading = lookalike_why(animal, listing)
     returned, reading = look_returned + returned, look_reading + reading
     named = [m for m in litter or [] if m.name]
@@ -824,8 +969,14 @@ def build_result_view(
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
         map=map_view(location, profile, pin),
         venues=[venue_view(v, location, profile) for v in ordered[:VENUES_SHOWN]],
+        venues_empty=(
+            f"Every place Namesake would suggest here mentions children, so none is suggested "
+            f"for this {animal.species}."
+            if every and not ordered
+            else "No venues for this area yet."
+        ),
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
-        plan=plan(animal, location, ordered),
+        plan=plan(animal, location, ordered, named_skips),
         qloo_returned=returned,
         our_reading=reading,
         notes=profile.notes,

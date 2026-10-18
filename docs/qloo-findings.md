@@ -9,7 +9,7 @@ Probed 3 October and 15 October 2026 with harness 0.1.26, schemas read from `qlo
 | Question | Answer | Consequence |
 |---|---|---|
 | Can a location alone say what people like? | Partly. Results come back, but mostly as national hits with affinity near 1.0. Artists with a location returned nothing. | The agent starts from entities, not from the area alone. |
-| Do pet tags work? | Tags exist, but filtering TV to them leaves 2 shows and films to none. Lifestyle tags (`dog_ownership`) used as a signal are sent but change nothing: every venue scores exactly 0.5. | The agent proposes pet-themed titles itself and checks them; tags are not enough. |
+| Do pet tags work? | Tags exist, but filtering TV to them leaves 2 shows and films to none. Lifestyle tags (`dog_ownership`) used as a signal are sent but change nothing: every venue scores exactly 0.5. | The agent proposes pet-themed titles itself and checks them; tags are not enough as filters. (18 October: as signals with the area they are a source, and the app now starts from them; see the last sections and decision 22.) |
 | Do venue searches near the shelter work? | Yes, with entities as signals. Fans of two pet shows give 15 venues in and around Park Slope, scored 0.70 to 0.73. | Venues are the backbone of the exposure plan. |
 | Are those venues about pets? | Only partly. 9 of the 15 also come back for a show with nothing to do with pets. | Venues are ranked against a baseline; the distinctive ones are shown first. |
 | Does location change a ranking? | Yes, the order changes, but raw scores saturate near 1.0. Rank scores are not comparable across calls. | Use order within a call and lift against a baseline, never raw affinity. |
@@ -78,6 +78,8 @@ Eight cells appear in both. The difference in score is the lift for the pet show
 
 That is a usable map layer: where in the neighbourhood the pet show's fans stand out against the baseline. Eight cells is a small sample, and the reading is relative, so the map labels it as such.
 
+**Hoboken, 18 October (one live run):** PAW Patrol, the first map title then, scored 1 cell within Hoboken while Bluey scored 9, so a widely known title can still map thinly in one place. The map now lets a thin first title give way to the next (decision 18, revised).
+
 ## Rate limit
 
 About 12 calls went through in roughly 20 minutes before Qloo answered `QLOO_RATE_LIMIT`. The harness marks it retryable; a retry after 5 seconds failed too, and so did later attempts over several minutes. The window is not published. The wrapper retries once, as the harness's recovery text says, and never caches an error; since 18 October it waits 20 seconds after a rate limit, and gives `rank` a second retry after 40 (decision 20).
@@ -111,7 +113,7 @@ Most Qloo work depends on the location and the species, not the individual anima
 
 **Location profile (agent and code, about 8 live calls when proposed; about 12 to 14 since decision 18, cached):**
 
-1. *Agent:* propose about ten pet-themed titles for the species (TV, films, books, brands), since pet tags alone return almost nothing.
+1. *Agent:* propose about ten pet-themed titles for the species (TV, films, books, brands), since pet tags alone return almost nothing. (Superseded on 18 October: Qloo's own pet-themed lists come first, decision 22.)
 2. *Agent:* resolve them. Where Qloo returns candidates, pick one with a stated reason, for example "the 2018 children's series, not the 1976 crime drama", or drop the title.
 3. *Agent and Qloo:* rank them in the location and keep the strongest. If fewer than three survive, propose more once.
 4. *Code:* venues for fans of the survivors and for the baseline (since decision 18, the area's own top two shows; first a fixed show), near the shelter, and the rank difference between the two lists.
@@ -194,6 +196,22 @@ The question: instead of Namesake's AI proposing pet titles and Qloo checking th
 
 `rank` was refused with `QLOO_RATE_LIMIT`, even after its retry, so the titles kept the order Namesake's AI proposed them in. The venues were asked for its first three (PAW Patrol, Bluey, Scooby-Doo), and the map's first title, PAW Patrol, scored one cell within Hoboken. The titles with evidence for the area, *Nature Cat* (9th in Qloo's list of what people around Hoboken who like PAW Patrol also like) and *My Cat from Hell*, went to neither. So code now orders the venue and map titles by evidence (decision 20, revised): Qloo's ranking, else each title's place in the area's lists, then the AI's order.
 
+## Qloo-first pet titles: the area plus the pet tags as signals (18 October, 12 calls of a 26-call probe run)
+
+`recommend` with the four pet media tags as `signal_tags` (union) plus `signal_location`, limit 20, for TV shows, films and books (12 calls; the night's other 14 were the follow-up searches below and two probes that gave nothing usable, breed tags as filters and podcasts, which are not recorded here); 10 seconds apart, no refusals, and `interpretation` showed all four tags sent every time. Kept means Jev's pets ≥ 0.8 and family ≥ 0.6; nothing came back unsure.
+
+| Area | TV | Films | Books | Kept |
+|---|---|---|---|---|
+| Park Slope | *My Cat from Hell* 1st, *Dogs in Space* 9th | none | *Rin Tin Tin: The Life and the Legend* 2nd | 3 |
+| Astoria | *My Cat from Hell* 1st, *Dogs in Space* 8th | *A Dog's Way Home* 7th | *Rin Tin Tin* 2nd, *The Aristocats* 7th | 5 |
+| Austin | *My Cat from Hell* 1st, *Dogs in Space* 8th, *It's Me or the Dog* 16th, *Bunnicula* 19th | *A Dog's Way Home* 4th, *A Dog's Journey* 11th | *Rin Tin Tin* 8th, *The Aristocats* 19th | 8 |
+| Hoboken | *My Cat from Hell* 1st, *Dogs in Space* 6th | *A Dog's Way Home* 7th, *Arthur the King* 18th | *Rin Tin Tin* 5th | 5 |
+
+- Every area gave at least three pet titles, where the tags as filters gave two TV shows and no films (milestone 1). So the lists are a source, and the app now starts from them (decision 22).
+- The lists barely differ by area: the tags dominate, and the area shifts positions and adds a few. Bluey, PAW Patrol and Clifford never appear, and many kept titles are about real people (names then come only from the animals).
+- One more search from each area's best kept title (*My Cat from Hell*, TV, with the area) added almost nothing: Bluey in Austin (11th), *Cesar Millan* in Hoboken (9th).
+- So Qloo's lists come first and the AI may add titles, but only Qloo's evidence for the area (its ranking, or a place in the area's lists) keeps one.
+
 ## A pet index per audience, and the rate limit (17 October, 30 calls)
 
 Top 20 TV shows, films and books for Astoria and Barcelona, for everyone and with `demographic` added (women, men, "millennials", "adults 55-64"); Jev marked the pet titles, and each list was scored as the sum of `p_pets / log2(position + 1)`.
@@ -217,3 +235,7 @@ Cells from `where_popular` within each area (limit 20, geohash 7 in every case):
 | Astoria, Queens | 14 | 8 | 20 (*Pose*) |
 
 All three own top shows came back at the 20-cell limit, so their counts are a floor, and Kreuzberg's 19 against 20 says nothing. Gràcia is the case that matters: 2 against at least 20. So the check now probes with the area's own top show, with the seed show as well when the list fails or its show is thin, the fuller map deciding (decision 12 has the details). A globally known show is no better than the seed: Bluey came back weaker everywhere. Passing the check does not make the lift map rich: in Gràcia the pet titles themselves are weak (Bluey 2 cells).
+
+## Children's against adult pet titles as venue signals (18 October, 8 calls)
+
+A one-off probe (a scratchpad script through `QlooClient`, its answers in the local cache, nothing in the repo): the author asked why the app avoids age demographics yet uses children's shows. A one-off Jev question, "Is this title made mainly for children?" (not one the app asks), split 20 pet titles cleanly: children's at 0.85 or more (PAW Patrol 0.98, Clifford 0.98, Bluey 0.97, The Aristocats 0.94, Scooby-Doo 0.92, Bunnicula 0.90), family films between 0.6 and 0.85, and adult-audience titles under 0.1 (Rin Tin Tin, Arthur the King, It's Me or the Dog, My Cat from Hell). But venues for fans of the children's set (Bluey, PAW Patrol, Dogs in Space) and of the adult set shared 10, 11, 7 and 11 of 15 in Park Slope, Astoria, Austin and Hoboken; the children's lists already held an archery range, an arena, a biergarten and a nightclub, and the adult set mostly added bars, breweries and a hookah lounge. So a second venue set per animal was not built. What follows from the animal's record instead: for one not good with children, venues that mention children are skipped (decision 2, revised).

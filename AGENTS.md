@@ -91,6 +91,7 @@ Check these first. Each one can sink the entry or leak something.
 - A name path that skips the screen, or the stricter screen for bully-breed dogs.
 - README, Devpost or UI copy that claims faster adoption, saved lives or money, or matching.
 - UI that blends what Qloo returned with the app's reading of it.
+- A per-animal venue filter that drops a venue without naming it, or reads anything but the animal's record and the venue's own name and description.
 - A UI folder that calls Qloo, the agent or the cache, or computes data that belongs in a view model.
 - An envelope status left unhandled (`ok`, `empty`, `needs_input`, `partial`, `degraded`, `error`), a retry when `retryable` is false, or a `needs_input` forced through as a match.
 - A model name, endpoint or key written into code instead of read from the four `AGENT_*` variables.
@@ -183,9 +184,9 @@ Qloo silently ignores parameters it does not recognise and then returns empty re
 
 `docs/qloo-findings.md` has the milestone 1 answers and the proposal for the agent, and `docs/decisions.md` what was decided from it; read both before building anything that calls Qloo. In short:
 
-- Pet tags exist but filter TV and films down to almost nothing, and lifestyle tags change nothing as a signal. The agent proposes pet-themed titles itself, and searches what people around the area who like them also like; a classifier sorts those results (decision 20).
+- Pet tags exist but filter TV and films down to almost nothing, and lifestyle tags change nothing as a signal. As signals with the area they give each area its own list of pet-themed titles, which the agent starts from (decision 22); it may add its own, kept only with Qloo's evidence, and searches what people around the area who like them also like; a classifier sorts every list (decision 20).
 - Pet-themed titles as signals give venues near the shelter. Most are just popular nearby, so venues are compared with those of the area's own top shows (decision 18) and screened for event suitability.
-- Citywide heatmaps rarely reach the shelter. Heatmaps within the neighbourhood work, and the map layer is the lift of the top two pet titles over the area's top two shows.
+- Citywide heatmaps rarely reach the shelter. Heatmaps within the neighbourhood work, and the map layer is the lift of the top two pet titles over the area's top two shows; a title that maps thinly there gives way to the next.
 - Names are often ambiguous; resolving them with a stated reason is an agent step.
 - Raw affinity saturates; use order within a call and lift against a baseline.
 - The key is rate-limited, `rank` most of all.
@@ -245,7 +246,7 @@ The shelter is fictional too. Do not use real shelter names, logos or photos.
 
 1. **Start:** a grid of the animals, a choice of three preset locations, a custom location field, and a "try an example" button that loads a precomputed result instantly. There is no tone setting: the listing rules fix the voice, and the refine line takes follow-ups (`docs/decisions.md` #15).
 2. **Working:** a live log of the agent's steps, streamed as they happen: entities proposed, each one checked against Qloo, which were kept and which dropped.
-3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges; a map of local lift; the venues as a list with their evidence, not as pins (`docs/decisions.md` #4); the exposure checklist.
+3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges; a map of local lift; the venues as a list with their evidence, not as pins (`docs/decisions.md` #4), skipping those that mention children for an animal recorded as not good with them (`docs/decisions.md` #2); the exposure checklist.
 4. **Why:** for each choice, the Qloo result behind it, separate from the app's reading of it.
 5. **Refine:** one text line for follow-ups such as "less childish". When Qloo returns `needs_input`, show the candidates here as buttons.
 
