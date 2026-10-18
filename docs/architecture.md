@@ -72,7 +72,7 @@ flowchart TD
     sort2["Sort the results the same way"]:::jev --> rank
     rank["Order the titles for the area, as the AI asks: rank"]:::qloo --> evidence
     evidence["Keep only titles Qloo ranks or lists here,<br/>when any has that (else the AI's own, said so);<br/>pick the venue and map titles by that evidence"]:::code --> venues
-    venues["Places near the shelter for their fans:<br/>recommend place"]:::qloo --> compare
+    venues["Places near the shelter for their fans,<br/>in kinds that can host a stand:<br/>recommend place"]:::qloo --> compare
     compare["Compare with the places for the area's top shows<br/>(recommend place, as code asks it)"]:::code --> choose
     choose["Pick up to three places for an event or a flyer"]:::ai --> check
     check{"Every title and place from Qloo,<br/>screens passed, evidence kept?"}:::code -- "no, once" --> judge
@@ -170,7 +170,7 @@ flowchart TD
     tastes --> usable{"Plain ok answer<br/>with shows left after dropping<br/>those that mention animals,<br/>a religion, race or politics?"}
     usable -- yes --> base["Baseline: the top two"]
     usable -- no --> seed["Baseline: one seed show,<br/>with a note saying why"]
-    base --> basevenues["Baseline venues<br/>recommend place, baseline as signals"]
+    base --> basevenues["Baseline venues<br/>recommend place, baseline as signals;<br/>decides whether the kinds of place apply"]
     seed --> basevenues
     basevenues --> petlists["Qloo's pet-themed lists for the area<br/>recommend tv_show, movie, book<br/>with the pet tags and signal_location,<br/>sorted by the classifier"]
     petlists --> ai["Profile agent (Namesake's AI), starting from them<br/>look_up_title: describe<br/>find_local_titles: recommend, up to 3,<br/>sorted by the classifier<br/>rank_titles: rank, once, up to 8 titles<br/>find_venues: recommend place"]
@@ -188,6 +188,7 @@ flowchart TD
 ```
 
 - **Budget**: the profile agent may make at most 20 model requests and 18 tool calls. That is a ceiling; the whole profile, fixed calls included, usually comes to 18 to 20 Qloo calls, the three pet-themed lists included, one more when the first map title is thin.
+- **The kinds of place** (decision 23): both venue questions, the pet titles' and the baseline's, ask Qloo only for cafes and breweries, bookshops and pet shops, and community places (`VENUE_GROUPS` in `app/profile.py`, ten category tags), through one request builder (`venue_input`) so the agent's tool and the assembly share a cache key. The baseline's answer decides once per area (`area_venues`): fewer than five such places and both lists use every place; without a baseline the pet titles' answer decides. The profile records it (`venue_categories`), and the page says which kinds were asked for, which were left out and why.
 - **Qloo's pet-themed lists** (decision 22): before the AI runs, code asks `recommend` for TV shows, films and books with Qloo's four pet tags as signals plus the area, 20 each, and the classifier sorts them. The AI starts from those; it may add up to four titles of its own, and code keeps a title only if Qloo ranks it here or lists it in one of the area's lists, whenever any title has that evidence (else the AI's own stay, and the page says so). The venues are asked for backed titles only, `find_venues` refuses a search with none of the established backed titles (ranked here, kept by the classifier, or the AI's own placed in a list), and `check_plan` sends back a plan with none of them, or with venues resting on unbacked titles while it holds a backed one.
 - **Titles from the area's lists** (decision 20): `find_local_titles` asks what people around the area who like one of the AI's titles (or one the classifier kept) also like, for TV, films or books, 20 at a time, up to three searches. Titles the classifier sets aside never reach the AI's plan. Each found title keeps where it was found ("1st of 20 in Qloo's list of TV shows people around Austin who like PAW Patrol tend to like") and the classifier's answers, and the Why panel shows them in separate columns. A title listed again, or one the AI proposed that a list also holds, keeps its best place (`listed_in`), shown in Qloo's column too: that place is what orders the venue and map titles when Qloo's ranking is refused.
 - **The baseline** is the area's top two shows, leaving out any whose name or description mentions animals, a religion, race or politics (decision 18: the page names them as what people here tend to watch, which must not read as a claim about who they are); the AI may not use them as pet titles. If the area's shows are unusable, one seed show stands in, with a note. If even that cannot be found, the venues and the map are left uncompared, and the note says so.

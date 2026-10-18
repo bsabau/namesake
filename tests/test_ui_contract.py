@@ -27,6 +27,7 @@ REQUIRED = {
         "qloo-returned",
         "our-reading",
         "map",
+        "venues-note",
         "photo-credit",
         "qloo-credit",
     ],

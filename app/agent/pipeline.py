@@ -75,10 +75,10 @@ async def agent_profile(
     # The baseline was fixed before the AI runs (`_build_profile`), so its venue choices
     # are judged against the same comparison the page shows.
     tastes, baselines, source, notes = prepared
-    base_ids = None
+    base_ids, filtered = None, None
     if baselines:
         log.add("qloo", f"Baseline: places near {location.label} for fans of its top shows")
-        base_ids = await asyncio.to_thread(baseline_venue_ids, qloo, location, baselines)
+        filtered, base_ids = await asyncio.to_thread(baseline_venue_ids, qloo, location, baselines)
 
     deps = ProfileDeps(
         qloo=qloo,
@@ -86,6 +86,7 @@ async def agent_profile(
         species=species,
         log=log,
         baseline_venues=base_ids,
+        venue_filter=filtered,
         baseline_titles={e.id: e.name for e in baselines},
         classifier=classifier,
     )
@@ -132,7 +133,7 @@ async def agent_profile(
         pets.append(entity)
 
     profile = await asyncio.to_thread(
-        profile_from, qloo, location, pets, baselines, deps.venue_signals
+        profile_from, qloo, location, pets, baselines, deps.venue_signals, deps.venue_filter
     )
     profile.local_tastes, profile.baseline_source = tastes, source
     profile.notes = notes + profile.notes

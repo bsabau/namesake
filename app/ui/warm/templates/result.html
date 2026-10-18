@@ -152,6 +152,7 @@
     <script type="application/json" id="map-data">{{ view.map|plain|tojson }}</script>
 
     <h2>Places to ask</h2>
+    {% if view.venues_note %}<p class="reading venues-note" data-role="venues-note">{{ view.venues_note }}</p>{% endif %}
     <ul class="venues">
       {% for venue in view.venues %}
       <li class="venue">

@@ -13,6 +13,9 @@ from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, pronouns, template
 from app.locations import Location
 from app.places import MAX_PIN_KM, distance_km
 from app.profile import (
+    LEFT_OUT_GROUPS,
+    MIN_CATEGORY_VENUES,
+    VENUE_GROUPS,
     Entity,
     FoundIn,
     LocationProfile,
@@ -459,6 +462,51 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
             )
         )
     return NameView(value=draft.names[0].name, placeholder="", options=options)
+
+
+def groups_in() -> str:
+    return and_list([f"{name} ({why})" for name, _, why in VENUE_GROUPS])
+
+
+def groups_out() -> str:
+    return and_list([f"{name} ({why})" for name, why in LEFT_OUT_GROUPS])
+
+
+def venues_note(profile: LocationProfile, species: str) -> str | None:
+    """Under "Places to ask": which kinds of place Qloo was asked for and why, which were
+    left out, and that the places belong to the area, not to this animal."""
+    if not profile.venues:
+        return None
+    shared = (
+        f"The same places for every {species} at this shelter; the name and the listing are "
+        "this animal's."
+    )
+    if profile.venue_categories:
+        return (
+            f"Qloo was asked only for places that can host an adoption stand or take a flyer: "
+            f"{groups_in()}. Left out: {groups_out()}. {shared}"
+        )
+    if profile.venue_categories is False:
+        return (
+            f"Qloo had fewer than {MIN_CATEGORY_VENUES} cafes, shops or community places for "
+            f"this area, so these are all the places it ranks near the shelter. {shared}"
+        )
+    return shared
+
+
+def kinds_reading(profile: LocationProfile) -> str:
+    if profile.venue_categories:
+        return (
+            f"Namesake asked Qloo for these kinds only: {groups_in()}. Left out: {groups_out()}. "
+            "Without them Qloo's list near a spot is mostly what is popular there, such as an "
+            "arena, whatever the titles. Qloo tags places broadly, so a few others come "
+            "through; the code screen and Namesake's AI judge each."
+        )
+    return (
+        f"Qloo had fewer than {MIN_CATEGORY_VENUES} places of the usual kinds (cafes and "
+        "breweries, bookshops and pet shops, community places) for this area, so every place "
+        "it ranks was used."
+    )
 
 
 def compared_with(profile: LocationProfile) -> str | None:
@@ -1028,6 +1076,8 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                 ),
             )
         )
+    if profile.venues and profile.venue_categories is not None:
+        reading.append(WhyItem(title="Kinds of place asked for", detail=kinds_reading(profile)))
     excluded = [f"{v.name} ({v.unsuitable})" for v in profile.venues if v.unsuitable]
     if excluded:
         reading.append(WhyItem(title="Left out as event venues", detail=and_list(excluded) + "."))
@@ -1226,6 +1276,7 @@ def build_result_view(
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
         map=map_view(location, profile, pin, shown),
         venues=[venue_view(v, location, profile, n, pin) for n, v in enumerate(shown, start=1)],
+        venues_note=venues_note(profile, animal.species),
         venues_empty=(
             f"Every place Namesake would suggest here mentions children, so none is suggested "
             f"for this {animal.species}."
