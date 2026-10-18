@@ -70,11 +70,18 @@ class LookupFailed(Exception):
 
 
 def same_name(asked: str, found: str) -> bool:
-    """Whether a match carries the venue's name: a word of four letters or more in
-    common, or the whole of a short name."""
+    """Whether a match carries the venue's name: its distinctive words (four letters or
+    more), two of them when it has two or more, else the short name as whole words."""
     words = lambda text: {w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) >= 4}  # noqa: E731
     a, f = words(asked), words(found)
-    return bool(a & f) if a else asked.lower().strip() in found.lower()
+    if a:
+        return len(a & f) >= min(2, len(a))
+    short = re.escape(" ".join(re.findall(r"[a-z0-9]+", asked.lower())))
+    return (
+        bool(short)
+        and re.search(rf"\b{short}\b", " ".join(re.findall(r"[a-z0-9]+", found.lower())))
+        is not None
+    )
 
 
 class Throttled(Exception):
@@ -158,6 +165,8 @@ class Places:
         self.overall = overall or Allowance(ALL_PER_MINUTE)
         self._calls = threading.BoundedSemaphore(CONCURRENT)
         self.pause = PAUSE
+        self._pace_lock = threading.Lock()
+        self._last_venue = 0.0
         self._cache: OrderedDict[str, list[Place]] = OrderedDict()
         self._lock = threading.Lock()
 
@@ -210,9 +219,8 @@ class Places:
         if not self.enabled:
             return None
         queries = [(f"{name}, {address}", True), (address, False)] if address else [(name, True)]
-        for n, (query, named) in enumerate(queries):
-            if n:
-                sleep(self.pause)  # Photon's fair use: about one request a second
+        for query, named in queries:
+            self._pace()
             params = {
                 "q": " ".join(query.split())[:200],
                 "limit": 1,
@@ -230,6 +238,15 @@ class Places:
                 continue
             return point
         return None
+
+    def _pace(self) -> None:
+        """Venue lookups from every run, one at least `pause` seconds after the last, so
+        concurrent profiles keep to Photon's fair use together."""
+        with self._pace_lock:
+            wait = self._last_venue + self.pause - time.monotonic()
+            if wait > 0:
+                sleep(wait)
+            self._last_venue = time.monotonic()
 
     def _url(self, path: str, params: dict, areas_only: bool = True) -> str:
         layers = [("layer", x) for x in LAYERS] if areas_only else []

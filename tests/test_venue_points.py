@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlparse
 from app.places import Allowance, Places
 from app.profile import Venue
 from app.venue_points import locate_venues, to_locate
-from app.views.build import build_result_view, cell_reading, map_view, walk
+from app.views.build import build_result_view, cell_of, cell_reading, map_view, walk
 from tests.qloo_fakes import LOCATION
 from tests.test_places import FakeGeocoder, feature
 from tests.test_views import profile
@@ -47,9 +47,8 @@ def test_locating_takes_the_picks_first_once_and_stops_when_throttled():
     names = [v.name for v in to_locate(p)]
     answers = [{"features": [feature(n, 40.67 + k / 1000, -73.98)]} for k, n in enumerate(names)]
     places, fake = lookup(*answers, per_minute=2)
-    pauses = []
-    placed = locate_venues(p, NEAR, places, sleep=pauses.append)
-    assert placed == 2 and len(pauses) == 2  # the third lookup was throttled
+    placed = locate_venues(p, NEAR, places)
+    assert placed == 2  # the third lookup was throttled
     assert sum(v.point_tried for v in p.venues) == 2
     assert len(to_locate(p)) == len(order) - 2  # the rest wait for a later save
 
@@ -66,7 +65,12 @@ def test_a_placed_venue_reads_its_cell_and_its_distance():
     assert cell_reading(inside, LOCATION, p).startswith(
         "OpenStreetMap places it where pet-show fans rank this part of Example Slope"
     )
-    assert cell_reading(outside, LOCATION, p) == "OpenStreetMap places it outside the mapped cells."
+    assert cell_reading(outside, LOCATION, p) == "OpenStreetMap places it beyond the map's view."
+    near_out = Venue(entity_id="n", name="Near", rank=4, latitude=NEAR[0] + 0.01, longitude=NEAR[1])
+    if cell_of(near_out, p) is None:
+        assert cell_reading(near_out, LOCATION, p) == (
+            "OpenStreetMap places it outside the mapped cells."
+        )
     assert cell_reading(Venue(entity_id="u", name="Unplaced", rank=3), LOCATION, p) is None
     # Far away: no walking estimate.
     assert walk(outside, NEAR).endswith("km from the shelter in a straight line.")
@@ -88,9 +92,10 @@ def test_the_map_numbers_only_the_placed_venues_as_the_list_does(roster):
 def test_a_failed_lookup_is_tried_again_later():
     # Codex, muse and Flash, PR #25: a Photon outage must not leave a venue unpinned for good.
     p = profile()
-    places, _ = lookup(OSError("down"))
-    assert locate_venues(p, NEAR, places, sleep=lambda s: None) == 0
+    places, fake = lookup(OSError("down"), OSError("down"))
+    assert locate_venues(p, NEAR, places) == 0
     assert not any(v.point_tried for v in p.venues)
+    assert len(fake.urls) == 2  # two failures in a row: Photon is down, stop asking
 
 
 def test_a_match_without_the_venues_name_falls_back_to_its_address():
@@ -111,3 +116,48 @@ def test_finishing_a_profile_keeps_its_points():
     new = finish_profile(p, LOCATION, FakeQloo(standard_script()), SEEDS)
     kept = next(v for v in new.venues if v.entity_id == p.venues[0].entity_id)
     assert (kept.latitude, kept.point_tried) == (40.675, True)
+
+
+def test_a_far_pin_is_not_drawn_and_the_key_counts_only_drawn_ones():
+    p = profile()
+    shown = [v for v in p.venues if v.unsuitable is None]
+    shown[0].latitude, shown[0].longitude = 40.9, -73.5  # about 40 km away
+    view = map_view(LOCATION, p, None, shown)
+    assert view.venues == [] and "Numbers:" not in (view.note or "")
+    shown[1].latitude, shown[1].longitude = NEAR[0] + 0.001, NEAR[1]
+    view = map_view(LOCATION, p, None, shown)
+    assert [x.number for x in view.venues] == [2] and "Numbers: the places to ask" in view.note
+
+
+def test_points_placed_meanwhile_survive_a_finished_profile_and_the_reverse():
+    from app.profile import carry_points
+
+    old, new = profile(), profile()
+    old.venues[0].latitude, old.venues[0].point_tried = 40.675, True
+    carry_points(old, new)
+    assert new.venues[0].latitude == 40.675 and new.venues[0].point_tried
+    # A venue already placed in the newer copy keeps its own point.
+    other = profile()
+    other.venues[0].latitude, other.venues[0].point_tried = 40.1, True
+    carry_points(other, new)
+    assert new.venues[0].latitude == 40.675
+
+
+def test_a_venue_photon_keeps_failing_on_is_given_up_after_three_tries():
+    from app.venue_points import MAX_FAILURES
+
+    p = profile()
+    first = to_locate(p)[0]
+    for _ in range(MAX_FAILURES):
+        places, _ = lookup(ValueError("odd"))  # then no match for the others
+        locate_venues(p, NEAR, places)
+    assert first.point_tried and first.latitude is None and first.point_failures == MAX_FAILURES
+
+
+def test_a_name_match_needs_the_distinctive_words():
+    from app.places import same_name
+
+    assert same_name("Brooklyn Arts Exchange", "Brooklyn Arts Exchange (BAX)")
+    assert not same_name("Bell House", "Bell Rock Tavern")
+    assert not same_name("Littlefield Hall", "Littlefield Deli")
+    assert same_name("Ola", "Ola Bar") and not same_name("Ola", "Bolanos")

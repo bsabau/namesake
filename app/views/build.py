@@ -487,7 +487,12 @@ def map_view(
             f"Only {len(cells)} map cell{'s' if len(cells) != 1 else ''} here: Qloo's data for "
             f"pet-show fans around {location.label} is thin, so the map says little. "
         )
-    placed = [v for v in venues or [] if v.latitude is not None]
+    placed = [
+        v
+        for v in venues or []
+        if v.latitude is not None
+        and in_view(v, profile, pin or (location.latitude, location.longitude))
+    ]
     numbers = (
         " Numbers: the places to ask, as listed beside the map (points from OpenStreetMap)."
         if placed
@@ -509,7 +514,10 @@ def map_view(
                 in_view=in_view(v, profile, pin or (location.latitude, location.longitude)),
             )
             for n, v in enumerate(venues or [], start=1)
-            if v.latitude is not None and v.longitude is not None
+            if v.latitude is not None
+            and v.longitude is not None
+            # A pin the map does not frame would be off screen: the card says so instead.
+            and in_view(v, profile, pin or (location.latitude, location.longitude))
         ],
         legend=swap
         + thin
@@ -579,6 +587,8 @@ def cell_reading(v: Venue, location: Location, profile: LocationProfile) -> str 
     if v.latitude is None or v.longitude is None:
         return None
     c = cell_of(v, profile)
+    if c is None and not in_view(v, profile, (location.latitude, location.longitude)):
+        return "OpenStreetMap places it beyond the map's view."
     if c is None:
         return "OpenStreetMap places it outside the mapped cells."
     if c.lift is None:

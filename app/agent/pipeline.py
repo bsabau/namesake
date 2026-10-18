@@ -37,6 +37,7 @@ from app.profile import (
     baseline_for,
     baseline_venue_ids,
     build_profile,
+    carry_points,
     finish_profile,
     needs_finishing,
     profile_from,
@@ -171,6 +172,8 @@ async def get_profile(
             log.add("qloo", f"Finishing the saved profile for {species}s in {location.label}")
             finished = await asyncio.to_thread(finish_profile, saved, location, qloo, seeds)
             if finished is not None:
+                # Venues pinned while this ran (app/venue_points.py) keep their points.
+                carry_points(store.get_profile(location.id, species) or saved, finished)
                 store.put_profile(finished)
                 return finished
             log.add("note", "Qloo could not finish it yet; using it as it is")
