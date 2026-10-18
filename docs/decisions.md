@@ -290,7 +290,7 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** lists cannot be complete. The model is still told to avoid real people and identity-coded names, and the volunteer chooses and approves; the lists catch the famous cases when the model does not.
 
-**Revised 18 October** (the author, "yeah lets go for it", after a rebuild offered "Garbage" for the lead dog and "Scat", Scat Cat from *The Aristocats*, as the Astoria dog's first name): the screen also refuses names that put an animal down: dirt, waste, pests and insults (`UNFLATTERING` in `app/agent/checks.py`: garbage, trash, scat, poop, stinky, smelly, dirty, rat, runt, mutt and the like), on the name alone, since a character may be "Scat Cat" while the animal is called "Scat". The model is told the same. `CHECKS_VERSION` 12; saved drafts are rechecked with the name screen.
+**Revised 18 October** (the author, "yeah lets go for it", after a rebuild offered "Garbage" for the lead dog and "Scat", Scat Cat from *The Aristocats*, as the Astoria dog's first name): the screen also refuses names that put an animal down: dirt, waste, pests and insults (`UNFLATTERING` in `app/agent/checks.py`: garbage, trash, scat, poop, stinky, smelly, dirty, rat and the like, with their plurals and variants, since matching is by whole word; "mutt" and "runt" are everyday shelter words and stay allowed), on the name alone, since a character may be "Scat Cat" while the animal is called "Scat". The model is told the same. `CHECKS_VERSION` 12; saved drafts are rechecked with the name screen.
 
 ## 20. Pet titles from the area's own lists, sorted by a classifier; the Qloo spacing revisited
 

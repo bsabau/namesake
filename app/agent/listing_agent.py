@@ -109,12 +109,21 @@ class BioSentence(BaseModel):
         '"look", "fact:0", "fact:1"…'
     )
 
-    @field_validator("facts")
+    @field_validator("facts", mode="before")
     @classmethod
-    def _numbered_facts(cls, facts: list[str]) -> list[str]:
-        # Models often cite a numbered fact as "0" for "fact:0"; it costs a repair round
-        # for no change in meaning, so it is read as meant.
-        return [f"fact:{f.strip()}" if f.strip().isdigit() else f for f in facts]
+    def _numbered_facts(cls, facts: Any) -> Any:
+        # Models often cite a numbered fact as "0" (or 0, "01", "fact: 0") for "fact:0";
+        # it costs a repair round for no change in meaning, so it is read as meant.
+        if not isinstance(facts, list):
+            return facts
+        out = []
+        for f in facts:
+            text = str(f).strip() if isinstance(f, int | str) else f
+            if isinstance(text, str):
+                number = re.fullmatch(r"(?:fact\s*:\s*)?(\d+)", text)
+                text = f"fact:{int(number[1])}" if number else text
+            out.append(text)
+        return out
 
 
 class ListingDraft(BaseModel):

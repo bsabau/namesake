@@ -504,21 +504,21 @@ def test_puppy_or_kitten_only_when_the_recorded_age_says_so(roster):
 
 def test_names_that_put_an_animal_down_are_refused():
     # Decided 18 October, after a rebuild offered "Garbage" and "Scat".
-    for name in ("Garbage", "Scat", "Stinky", "Runt", "Trash Panda"):
+    for name in ("Garbage", "Scat", "Stinky", "Trash Panda", "Rats", "Junkie", "Freaky"):
         problems = check_name(name, source="pet", role="dog", strict=False)
         assert any("unflattering" in p for p in problems), name
     # The name alone: the character "Scat Cat" does not block a different name from it.
     assert check_name("Toulouse", source="pet", role="cat", strict=False,
                       reference="Scat Cat") == []  # fmt: skip
-    for name in ("Scooby", "Muttley", "Scrappy", "Squeeks", "Ratchet"):
+    # Everyday shelter words, and names that only contain a listed word, pass.
+    for name in ("Scooby", "Muttley", "Scrappy", "Squeeks", "Ratchet", "Mutt", "Runt", "Pesto"):
         assert check_name(name, source="pet", role="dog", strict=False) == [], name
 
 
 def test_a_bare_fact_number_is_read_as_its_key():
     from app.agent.listing_agent import BioSentence
 
-    assert BioSentence(text="x", facts=["0", "temperament", " 1"]).facts == [
-        "fact:0",
-        "temperament",
-        "fact:1",
-    ]
+    facts = ["0", "temperament", " 1", "01", "fact: 2", 3]
+    assert BioSentence(text="x", facts=facts).facts == [
+        "fact:0", "temperament", "fact:1", "fact:1", "fact:2", "fact:3"
+    ]  # fmt: skip
