@@ -635,10 +635,10 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
             )
         elif info["excluded"]:
             problems.append(f"venue {info['name']} is {info['excluded']}")
-        if info is not None and info.get("chain"):
+        if info and info.get("chain"):
             problems.append(
                 f"venue {info['name']} is {info['chain']}; pick an independent, "
-                "neighbourhood place instead"
+                "neighbourhood place instead, or none if no independent place suits"
             )
     if deps.titles_seen and deps.venue_signals is None and not plan.venues:
         problems.append("call find_venues before answering")

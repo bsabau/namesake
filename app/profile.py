@@ -57,9 +57,10 @@ CATEGORY_TAGS = [f"urn:tag:category:place:{c}" for _, cs, _ in VENUE_GROUPS for 
 # (`venue_order` leaves it out, the plan check sends a pick back). Pet-shop chains are not
 # here: they hold adoption events. Chains named by an everyday word ("Target", "Subway")
 # are left to the AI: matching them would catch "Target Practice". A name such as "Five
-# Guys Bakery" would match too; that rare independent place is the stated cost.
+# Guys Bakery", "Blue Bottle Vintage" or "Olive Garden Cafe" would match too: an
+# independent place whose name starts with a chain's is the stated cost, named in Why.
 CHAINS = (
-    "mcdonalds", "starbucks", "dunkin", "burger king", "wendys", "taco bell", "kfc",
+    "mcdonalds", "mc donalds", "starbucks", "dunkin", "burger king", "wendys", "taco bell", "kfc",
     "chipotle", "panera", "chick fil a", "popeyes", "dominos", "pizza hut", "papa johns",
     "five guys", "shake shack", "sweetgreen", "7 eleven", "cvs", "walgreens", "duane reade",
     "walmart", "whole foods", "trader joes", "applebees", "ihop", "dennys", "olive garden",
@@ -79,7 +80,7 @@ FAST_FOOD = re.compile(
 def plain_name(name: str) -> str:
     """A place's name for matching: lower case, no apostrophes (straight or curly), words
     joined by single spaces."""
-    name = re.sub(r"['‘’ʼ`]", "", name.lower())
+    name = re.sub(r"['‘’ʼ`]", "", name.lower()).replace("&", " and ")
     return re.sub(r"[^a-z0-9]+", " ", name).strip()
 
 

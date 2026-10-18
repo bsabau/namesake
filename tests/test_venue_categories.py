@@ -274,6 +274,8 @@ def test_national_chains_are_named_by_the_start_of_their_name():
         "Starbucks Coffee Company",
         "Wendy\u2019s",
         "Dunkin'",
+        "Joe & The Juice",
+        "Mc Donald's",
     ):
         assert chain_name(name) == "a national chain", name
     # Independent places, pet-shop chains (they hold adoption events), everyday words, and
@@ -327,3 +329,20 @@ def test_a_chain_is_never_suggested_even_by_the_fixed_lookup():
     _, reading = why(LOCATION, profile)
     assert any(i.title == "Left out as national chains" and "McDonald's" in i.detail
                for i in reading)  # fmt: skip
+
+
+def test_the_fast_food_sentence_shows_only_where_the_ai_picked():
+    seeds = profile_with(True)
+    assert "passes over fast food" not in venues_note(seeds, "dog")
+    seeds.made_by = "agent"
+    assert "Namesake's AI passes over fast food." in venues_note(seeds, "dog")
+
+
+def test_an_area_of_only_chains_says_so(roster):
+    from app.views.build import build_result_view
+
+    profile = profile_with(True)
+    for v in profile.venues:
+        v.name, v.unsuitable = "Starbucks", None
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile)
+    assert view.venues == [] and view.venues_empty.startswith("Every place Qloo listed here")

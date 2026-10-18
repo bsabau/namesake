@@ -466,10 +466,13 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
 
 
 # What decision 23's chain rule enforces: listed chains are never suggested; fast food is
-# the AI's judgement from a place's description.
-CHAINS_NOTE = (
-    "National chains Namesake knows by name are left out, and Namesake's AI passes over fast food."
-)
+# the AI's judgement from a place's description, so said only where the AI picked.
+CHAINS_NOTE = "National chains Namesake knows by name are left out."
+FAST_FOOD_NOTE = "Namesake's AI passes over fast food."
+
+
+def chains_note(profile: LocationProfile) -> str:
+    return CHAINS_NOTE + (f" {FAST_FOOD_NOTE}" if profile.made_by == "agent" else "")
 
 
 def groups_in() -> str:
@@ -493,15 +496,15 @@ def venues_note(profile: LocationProfile, species: str) -> str | None:
         return (
             f"Qloo was asked only for places that can host an adoption stand or take a flyer: "
             f"{groups_in()}. Not asked for: {groups_out()}; Qloo's tags are broad, so a few "
-            f"others can appear. {CHAINS_NOTE} {shared}"
+            f"others can appear. {chains_note(profile)} {shared}"
         )
     if profile.venue_categories is False:
         return (
             f"Qloo's list here, asked for the usual kinds (cafes and breweries, bookshops and "
             f"pet shops, community places), held fewer than {MIN_CATEGORY_VENUES} places, so it "
-            f"was asked for places of any kind. {CHAINS_NOTE} {shared}"
+            f"was asked for places of any kind. {chains_note(profile)} {shared}"
         )
-    return f"{CHAINS_NOTE} {shared}"
+    return f"{chains_note(profile)} {shared}"
 
 
 def kinds_reading(profile: LocationProfile) -> str:
@@ -1200,7 +1203,8 @@ def qloo_part(
     if agent:
         own = [e for e in pets if not e.found_in]
         judged = [e for e in pets if e.found_in and bucket(e.verdict) != "kept"]
-        picked = [v for v in profile.venues if v.chosen_reason]
+        # As the cards show them: a pick that is a listed chain is left out (decision 23).
+        picked = [v for v in profile.venues if v.chosen_reason and not chain_name(v.name)]
         if own:
             ai.append(f"proposed {plural(len(own), 'title')} for Qloo to check")
         if judged:
@@ -1293,6 +1297,9 @@ def build_result_view(
             f"Every place Namesake would suggest here mentions children, so none is suggested "
             f"for this {animal.species}."
             if every and not ordered
+            else "Every place Qloo listed here is a national chain Namesake leaves out; the Why "
+            "panel names them."
+            if any(chain_name(v.name) for v in profile.venues)
             else "No venues for this area yet."
         ),
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
