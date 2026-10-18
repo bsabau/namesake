@@ -498,7 +498,81 @@ def location_script(status="ok", results=None, **fields):
         key("where_popular", {"entity": BASELINE, "within": text, "limit": 20}): envelope(
             "where_popular", status, results=results or [], **fields
         ),
+        # No list of the area's top shows, so the seed show is the probe.
+        top_list_key(text): envelope("recommend", "empty"),
     }
+
+
+def top_list_key(text):
+    return key("recommend", top_list_key_input(text))
+
+
+TOP = "00000000-0000-4000-8000-000000000320"
+
+
+def with_top_show(script, text, n_cells, status="ok"):
+    script[top_list_key(text)] = envelope(
+        "recommend",
+        status,
+        results=[{"entity_id": TOP, "name": "Example Local Show", "type": "urn:entity"}],
+    )
+    script[key("where_popular", {"entity": TOP, "within": text, "limit": 20})] = envelope(
+        "where_popular", results=cells(n_cells)
+    )
+    return script
+
+
+def test_a_typed_area_is_probed_with_its_own_top_show():
+    # Gràcia, Barcelona, 18 October: 2 cells for the US seed show, 20 for its own top show.
+    text, script = location_script(results=cells(2))
+    qloo = FakeQloo(with_top_show(script, text, 20))
+    assert check_location(qloo, text, SEEDS).status == "ok"
+    assert all(op != "describe" for op, _ in qloo.calls)  # the seed show was not needed
+
+
+def test_without_a_plain_top_list_the_seed_show_is_the_probe():
+    text, script = location_script(results=cells(6))
+    qloo = FakeQloo(with_top_show(script, text, 20, status="partial"))
+    assert check_location(qloo, text, SEEDS).status == "ok"
+    assert ("where_popular", {"entity": TOP, "within": text, "limit": 20}) not in qloo.calls
+
+
+def test_a_thin_top_show_falls_back_to_the_seed_show():
+    text, script = location_script(results=cells(6))
+    assert check_location(FakeQloo(with_top_show(script, text, 2)), text, SEEDS).status == "ok"
+    text, script = location_script(results=cells(1))
+    checked = check_location(FakeQloo(with_top_show(script, text, 3)), text, SEEDS)
+    assert checked.status == "thin" and "3 map cells" in checked.message  # the fuller map
+
+
+def test_an_uncached_top_list_is_unavailable_not_thin():
+    # Codex, PR #13: with live calls off, a cached thin seed map must not refuse an area
+    # whose own top list was never asked; "unavailable" lets /locations try it live.
+    text, script = location_script(results=cells(2))
+    del script[top_list_key(text)]
+    assert check_location(FakeQloo(script), text, SEEDS).status == "unavailable"
+
+
+def test_the_checks_top_list_is_the_profiles_local_tastes_call():
+    from app.profile import local_tastes
+
+    class Recording(FakeQloo):
+        def run(self, operation, input_):
+            self.calls.append((operation, input_))
+            return envelope(operation, "empty")
+
+    text, script = location_script(results=cells(6))
+    check = FakeQloo(script)
+    check_location(check, text, SEEDS)
+    profile = Recording({})
+    local_tastes(profile, check_location(FakeQloo(script), text, SEEDS).location)
+    # So the profile that follows finds it cached and costs no extra call.
+    assert ("recommend", top_list_key_input(text)) in check.calls
+    assert ("recommend", top_list_key_input(text)) in profile.calls
+
+
+def top_list_key_input(text):
+    return {"target_type": "tv_show", "signal_location": text, "limit": 10}
 
 
 def test_a_typed_location_with_enough_cells_gets_a_centre_and_zoom():
@@ -854,35 +928,3 @@ def test_a_generic_approval_without_the_shown_name_is_refused_plainly(client):
         data={"animal": "dog-02", "location": "park-slope", "variant": "generic", "text": "Hi."},
     )
     assert response.status_code == 400 and "None" not in response.text
-
-
-def test_a_typed_area_is_probed_with_its_own_top_show():
-    # Gràcia, Barcelona, 18 October: 2 cells for the US seed show, 20 for its own top show.
-    text = "Example Heights, Example City"
-    top = "00000000-0000-4000-8000-000000000320"
-    script = {
-        key(
-            "recommend", {"target_type": "tv_show", "signal_location": text, "limit": 10}
-        ): envelope(
-            "recommend",
-            results=[{"entity_id": top, "name": "Example Local Show", "type": "urn:entity"}],
-        ),
-        key("where_popular", {"entity": top, "within": text, "limit": 20}): envelope(
-            "where_popular", results=cells(20)
-        ),
-    }
-    qloo = FakeQloo(script)
-    checked = check_location(qloo, text, SEEDS)
-    assert checked.status == "ok"
-    # The seed show was never asked for.
-    assert all(op != "describe" for op, _ in qloo.calls)
-
-
-def test_without_a_plain_top_list_the_seed_show_is_the_probe():
-    text, script = location_script(results=cells(6))
-    script[key("recommend", {"target_type": "tv_show", "signal_location": text, "limit": 10})] = (
-        envelope(
-            "recommend", "partial", results=[{"entity_id": CAT_SHOW, "name": "x", "type": "y"}]
-        )
-    )
-    assert check_location(FakeQloo(script), text, SEEDS).status == "ok"

@@ -1,9 +1,11 @@
 """A location the visitor types: sent to Qloo as typed, and checked before any run.
 
-One fixed heatmap decides whether the place is usable: where fans of the area's own
+A fixed heatmap decides whether the place is usable: where fans of the area's own
 most-watched TV show are, within the typed place. That show comes from the call the
 profile's local tastes make, so the profile finds it cached. When that list is not a
-plain answer, the seed show is the probe instead (decision 12). A US seed show alone
+plain answer, or its top show is thin there, the seed show is heatmapped too and the
+fuller map decides (decision 12). Passing says Qloo has data for the area, not that its
+pet titles will map well; the result page says when the map is thin. A US seed show alone
 left neighbourhoods abroad looking thin: Gràcia, Barcelona had 2 cells for it and 20 for
 its own top show (docs/qloo-findings.md). Qloo returns no coordinates for a place name, so the map
 centre and zoom come from the cells it returns.
@@ -18,10 +20,11 @@ import math
 import re
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.locations import Location
 from app.profile import HEATMAP_LIMIT, Seeds, resolve_baseline
+from app.qloo.envelope import Envelope
 from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
 
 PREFIX = "custom-"
@@ -63,16 +66,26 @@ def zoom_for(lat_span: float, lon_span: float, latitude: float) -> int:
 
 def local_top_show(qloo: QlooClient, text: str) -> str | None:
     """The TV show Qloo ranks highest for people around the typed place, or None when the
-    answer is not a plain list. The input matches the profile's local-tastes call."""
+    answer is not a plain list. The input matches the profile's local-tastes call. A cache
+    miss with live calls off raises ReplayMiss, so the check says "unavailable" and is
+    tried live later, never "thin" from the seed show alone."""
     try:
         env = qloo.run(
             "recommend", {"target_type": "tv_show", "signal_location": text, "limit": 10}
         )
-    except (ReplayMiss, QlooExecError):
+    except QlooExecError:
         return None
     if env.status != "ok" or not env.has_results:
         return None
-    return env.results[0]["entity_id"]
+    try:
+        return env.entities()[0].entity_id
+    except ValidationError:
+        return None
+
+
+def heatmap_cells(qloo: QlooClient, entity_id: str, text: str) -> tuple[Envelope, list]:
+    env = qloo.run("where_popular", {"entity": entity_id, "within": text, "limit": HEATMAP_LIMIT})
+    return env, env.cells() if env.status != "error" and env.has_results else []
 
 
 def check_location(qloo: QlooClient, typed: str, seeds: Seeds) -> LocationCheck:
@@ -97,16 +110,19 @@ def check_location(qloo: QlooClient, typed: str, seeds: Seeds) -> LocationCheck:
         message="Qloo could not be reached to check this place, and it has not been checked "
         "before. Try again later, or pick one of the preset areas.",
     )
-    probe_id = local_top_show(qloo, text)
-    if probe_id is None:
-        baseline = resolve_baseline(qloo, probe, seeds.baseline)
-        if baseline is None:
-            return unavailable
-        probe_id = baseline.id
     try:
-        env = qloo.run(
-            "where_popular", {"entity": probe_id, "within": text, "limit": HEATMAP_LIMIT}
-        )
+        probe_id = local_top_show(qloo, text)
+        env, cells = heatmap_cells(qloo, probe_id, text) if probe_id else (None, [])
+        if env is None or (env.status != "needs_input" and len(cells) < MIN_CELLS):
+            # No plain top list, or its top show is thin here: the seed show as well,
+            # and the fuller of the two maps decides.
+            baseline = resolve_baseline(qloo, probe, seeds.baseline)
+            if baseline is None and env is None:
+                return unavailable
+            if baseline is not None and baseline.id != probe_id:
+                seed_env, seed_cells = heatmap_cells(qloo, baseline.id, text)
+                if env is None or len(seed_cells) > len(cells):
+                    env, cells = seed_env, seed_cells
     except (ReplayMiss, QlooExecError):
         return unavailable
 
@@ -124,7 +140,6 @@ def check_location(qloo: QlooClient, typed: str, seeds: Seeds) -> LocationCheck:
         return LocationCheck(status="needs_input", message=message, candidates=buttons)
     if env.status == "error":
         return unavailable
-    cells = env.cells() if env.has_results else []
     if len(cells) < MIN_CELLS:
         return LocationCheck(
             status="thin",

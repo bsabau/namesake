@@ -67,8 +67,8 @@ class Seed(BaseModel):
 
 class Seeds(BaseModel):
     pet: list[Seed]
-    # The probe show for checking a typed area (decision 12). Since profile version 2 it
-    # is no longer the baseline: the area's own top shows are.
+    # The fallback probe for checking a typed area, after the area's own top show
+    # (decision 12). Since profile version 2 it is no longer the baseline.
     baseline: Seed
 
 
@@ -578,7 +578,7 @@ def finish_profile(
 
 
 def resolve_baseline(qloo: QlooClient, location: Location, seed: Seed) -> Entity | None:
-    """The probe show on its own, for checking a typed area (decision 12)."""
+    """The seed show on its own: the fallback probe for a typed area (decision 12)."""
     return _Builder(qloo, location).resolve(seed)
 
 
