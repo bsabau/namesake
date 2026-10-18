@@ -145,7 +145,7 @@ def test_the_note_says_which_kinds_are_in_and_out_and_that_the_places_are_the_ar
         assert f"{name} ({why})" in note
     assert "The same places for every dog at this shelter" in note
     assert venues_note(profile_with(False), "cat").startswith(
-        "Qloo's list of places of the usual kinds"
+        "Qloo's list here, asked for the usual kinds"
     )
     assert venues_note(profile_with(None), "dog").startswith("The same places for every dog")
     assert venues_note(LocationProfile(location_id="x"), "dog") is None

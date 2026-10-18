@@ -74,11 +74,16 @@ def main() -> None:
         print("No pet brand found; stopping.")
         return
 
-    # The brands' places are asked as the comparison was (decision 23), so the overlap
-    # compares like with like.
+    # The brands' places are asked as the saved pet list was (decision 23; a profile from
+    # before it, every place), so that overlap compares like with like; the comparison's
+    # overlap is counted only when it was asked the same way.
+    filtered = bool(profile.venue_categories)
     bases = baseline_titles(profile)
-    mode, base_ids = baseline_venue_ids(qloo, location, bases) if bases else (False, None)
-    env = call("recommend", venue_input([b[0] for b in brands], location, bool(mode)))
+    mode, base_ids = baseline_venue_ids(qloo, location, bases) if bases else (None, None)
+    if mode is not None and mode != filtered:
+        print("The comparison is now asked another way than the saved list; not counted.")
+        base_ids = None
+    env = call("recommend", venue_input([b[0] for b in brands], location, filtered))
     if env is None or not env.has_results:
         print(f"Brand venues: {env.status if env else 'unavailable'}")
         return

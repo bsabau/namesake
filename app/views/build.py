@@ -489,9 +489,9 @@ def venues_note(profile: LocationProfile, species: str) -> str | None:
         )
     if profile.venue_categories is False:
         return (
-            f"Qloo's list of places of the usual kinds (cafes and breweries, bookshops and pet "
-            f"shops, community places) here held fewer than {MIN_CATEGORY_VENUES}, so it was "
-            f"asked for places of any kind. {shared}"
+            f"Qloo's list here, asked for the usual kinds (cafes and breweries, bookshops and "
+            f"pet shops, community places), held fewer than {MIN_CATEGORY_VENUES} places, so it "
+            f"was asked for places of any kind. {shared}"
         )
     return shared
 
@@ -506,9 +506,9 @@ def kinds_reading(profile: LocationProfile) -> str:
             "through; the code screen and Namesake's AI judge each."
         )
     return (
-        f"Qloo's list of places of the usual kinds (cafes and breweries, bookshops and pet "
-        f"shops, community places) for this area held fewer than {MIN_CATEGORY_VENUES}, so it "
-        "was asked for places of any kind."
+        f"Qloo's list for this area, asked for the usual kinds (cafes and breweries, bookshops "
+        f"and pet shops, community places), held fewer than {MIN_CATEGORY_VENUES} places, so "
+        "it was asked for places of any kind."
     )
 
 
