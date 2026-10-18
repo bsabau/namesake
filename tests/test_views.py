@@ -321,3 +321,9 @@ def test_the_compact_lines_cover_each_case():
     assert options["Rex"].evidence_line == f"{dog.name} · {options['Rex'].badge}"
     assert options["Ace"].source_line is None  # Qloo's title unknown: never a character
     assert options["Ace"].evidence_line == options["Ace"].badge
+    # A badge that names the title already (a lookalike's) is not given it twice.
+    look = name_view(
+        type("R", (), {"draft": type("D", (), {"names": [option("Rex", dog.id, "lookalike")]})(),
+                       "references": [], "lookalikes": []})(), p, "text"
+    ).options[0]  # fmt: skip
+    assert look.evidence_line == look.badge
