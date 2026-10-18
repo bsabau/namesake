@@ -287,3 +287,43 @@ def test_story_local_taste_names_show_the_actual_qloo_title(roster):
     evidence = view.story.names[0].returned
     assert title.name in evidence and title.description in evidence
     assert "Watched locally" not in evidence and "Pet-themed" not in evidence
+
+
+def test_name_cards_carry_their_compact_lines(roster):
+    from tests.test_product import saved_listing
+
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile(), saved_listing())
+    assert view.name.options
+    for o in view.name.options:
+        assert o.evidence_line.endswith(o.badge)
+        assert o.source_line is None or o.source_line == f"from {o.title}"
+        assert o.source_line != f"from {o.name}"
+
+
+def test_the_compact_lines_cover_each_case():
+    from app.agent.listing_agent import NameOption
+    from app.views.build import name_view
+
+    p = profile()
+    dog = p.pet_entities[0]
+
+    def option(name, entity_id, source="pet"):
+        return NameOption(name=name, source=source, entity_id=entity_id, character=name,
+                          role="dog", reference_role="friend", why="It suits her.")  # fmt: skip
+
+    class Draft:
+        names = [option(dog.name.lower(), dog.id), option("Rex", dog.id), option("Ace", "unknown")]
+
+    result = type("R", (), {"draft": Draft(), "references": [], "lookalikes": []})()
+    options = {o.name: o for o in name_view(result, p, "text").options}
+    assert options[dog.name.lower()].source_line is None  # the name is the title
+    assert options["Rex"].source_line == f"from {dog.name}"
+    assert options["Rex"].evidence_line == f"{dog.name} · {options['Rex'].badge}"
+    assert options["Ace"].source_line is None  # Qloo's title unknown: never a character
+    assert options["Ace"].evidence_line == options["Ace"].badge
+    # A badge that names the title already (a lookalike's) is not given it twice.
+    look = name_view(
+        type("R", (), {"draft": type("D", (), {"names": [option("Rex", dog.id, "lookalike")]})(),
+                       "references": [], "lookalikes": []})(), p, "text"
+    ).options[0]  # fmt: skip
+    assert look.evidence_line == look.badge

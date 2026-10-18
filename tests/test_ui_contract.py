@@ -214,13 +214,16 @@ def test_story_keeps_the_facts_sources_and_outreach_in_order(client):
     assert 'id="approval-editor"' in html and 'name="text" rows="8"' in html
 
 
-def test_story_maps_use_attributed_tiles_for_both_colour_schemes():
+def test_story_maps_use_keyless_attributed_tiles_quieted_in_both_schemes():
+    # CARTO's basemaps now need a key, which must never reach the browser (AGENTS.md).
     for name in ("location-map.js", "result-map.js"):
         text = (main.UI_ROOT / "story" / "static" / name).read_text()
-        assert "basemaps.cartocdn.com" in text
-        assert '"dark_all"' in text and '"rastertiles/voyager"' in text
-        assert "OpenStreetMap" in text and "CARTO" in text
-        assert 'scheme.addEventListener("change"' in text
+        assert "tile.openstreetmap.org" in text
+        assert "openstreetmap.org/copyright" in text  # the attribution option itself
+        assert "cartocdn" not in text
+        assert not re.search(r"api_?key|[?&]key=|token", text, re.IGNORECASE)
+    css = (main.UI_ROOT / "story" / "static" / "style.css").read_text()
+    assert ".leaflet-tile-pane { filter:" in css and "invert(1)" in css
 
 
 @pytest.mark.parametrize("ui", main.UIS)

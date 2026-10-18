@@ -17,8 +17,3 @@ document.addEventListener("change", (event) => {
   });
 });
 
-document.querySelector(".edit-link")?.addEventListener("click", (event) => {
-  event.preventDefault();
-  document.getElementById("approval-editor").open = true;
-  document.getElementById("edit-text").focus();
-});
