@@ -78,6 +78,8 @@ Eight cells appear in both. The difference in score is the lift for the pet show
 
 That is a usable map layer: where in the neighbourhood the pet show's fans stand out against the baseline. Eight cells is a small sample, and the reading is relative, so the map labels it as such.
 
+**Hoboken, 18 October (one live run):** PAW Patrol, the first map title then, scored 1 cell within Hoboken while Bluey scored 9, so a widely known title can still map thinly in one place. The map now lets a thin first title give way to the next (decision 18, revised).
+
 ## Rate limit
 
 About 12 calls went through in roughly 20 minutes before Qloo answered `QLOO_RATE_LIMIT`. The harness marks it retryable; a retry after 5 seconds failed too, and so did later attempts over several minutes. The window is not published. The wrapper retries once, as the harness's recovery text says, and never caches an error; since 18 October it waits 20 seconds after a rate limit, and gives `rank` a second retry after 40 (decision 20).

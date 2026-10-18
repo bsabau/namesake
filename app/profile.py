@@ -26,10 +26,17 @@ HEATMAP_LIMIT = 20
 # Version 2: the map combines the top pet titles, and the baseline is the area's own top
 # shows instead of one seed show (decision 18). Saved version-1 profiles still load and
 # show; app/upgrade_profiles.py brings them up to date.
-PROFILE_VERSION = 2
+PROFILE_VERSION = 3
 # Each title on the map is one `where_popular` call per area, and the hackathon key is
 # refused after about 12 calls in 20 minutes, so two of each.
 MAP_TITLES = 2
+# A first map title with fewer cells than this within the area is swapped, once, for the
+# next pet title when that gives a better map (PAW Patrol had 1 cell in Hoboken, 18
+# October). The same bar accepts a typed area (custom_location.MIN_CELLS). Version 3
+# profiles have had this check.
+THIN_MAP = 5
+# Said once when Qloo cannot tell which place a heatmap means (needs_input).
+PLACE_NOTE = "Qloo could not tell which place {query!r} means for its maps."
 BASELINE_TITLES = 2
 # A top local show whose name or description mentions animals is not a baseline: a word
 # list, so the page says "mentions animals", not "is about animals".
@@ -174,6 +181,13 @@ class QlooCall(BaseModel):
     results: int
 
 
+class ThinMap(BaseModel):
+    title: Entity
+    cells: int
+    # Qloo could not tell which place was meant for this title's map (needs_input).
+    unplaced: bool = False
+
+
 class LocationProfile(BaseModel):
     location_id: str
     species: str | None = None
@@ -196,6 +210,8 @@ class LocationProfile(BaseModel):
     maps_missing: int = 0
     # The pet titles combined into the map layer.
     map_titles: list[Entity] = Field(default_factory=list)
+    # The first map title, left off the map for its thin map, when a spare did better.
+    thin_map: ThinMap | None = None
     version: int = 1
     venues: list[Venue] = Field(default_factory=list)
     # How many venues the baseline's list held, when it was available to compare.
@@ -212,7 +228,10 @@ class LocationProfile(BaseModel):
         every map arrived (whether or not the maps overlap). An unfinished profile is saved
         with the AI's choices and finished on a later run (`finish_profile`)."""
         compared = bool(self.venues) and all(v.compared for v in self.venues)
-        return compared and bool(self.cells) and self.maps_missing == 0
+        # Every map arrived: with cells, or answered empty (a place Qloo cannot map stays
+        # without cells, and asking again would get the same cached answer).
+        mapped = bool(self.cells) or bool(self.map_titles)
+        return compared and mapped and self.maps_missing == 0
 
 
 def baseline_titles(profile: LocationProfile) -> list[Entity]:
@@ -267,6 +286,19 @@ def coarsen(cells: dict[str, Any], size: int) -> dict[str, Any]:
     }
 
 
+def better_map(
+    alt: dict[str, Any], thin: dict[str, Any], rest: list[dict[str, Any]], base: list[dict]
+) -> bool:
+    """Whether the spare title makes the better map in the first title's place: more cells
+    with a comparison first (the map is about lift), then more cells."""
+
+    def score(first: dict[str, Any]) -> tuple[int, int]:
+        cells = combine_cells([m for m in [first, *rest] if m], [m for m in base if m])
+        return sum(c.lift is not None for c in cells), len(cells)
+
+    return score(alt) > score(thin)
+
+
 def combine_cells(
     pet_maps: list[dict[str, Any]], base_maps: list[dict[str, Any]]
 ) -> list[LiftCell]:
@@ -304,6 +336,8 @@ class _Builder:
         self.qloo = qloo
         self.profile = LocationProfile(location_id=location.id)
         self.tastes_ok = False
+        # Titles whose map Qloo could not place (needs_input).
+        self.unplaced: set[str] = set()
         # Why the last call gave no answer: the exception it raised, or None.
         self.failure: Exception | None = None
 
@@ -406,9 +440,19 @@ class _Builder:
         )
         if env is None:
             return None
+        if env.status == "needs_input":
+            # Qloo could not tell which place is meant. The answer is cached and final, so
+            # the map counts as arrived, empty: finishing could never fetch it. The place,
+            # not the title, is in question, so the note is said once.
+            note = PLACE_NOTE.format(query=location.query)
+            if note not in self.profile.notes:
+                self.profile.notes.append(note)
+            self.unplaced.add(entity.id)
+            return {}
         if not env.has_results:
+            # Answered with no cells: the map arrived, empty (a refusal is None).
             self.profile.notes.append(f"Qloo returned no map cells for {entity.name}.")
-            return None
+            return {}
         return {c.location.geohash: c for c in env.cells()}
 
     def tastes(self, location: Location, limit: int = 10) -> list[Entity]:
@@ -571,9 +615,9 @@ def finish_profile(
     Qloo still could not complete it."""
     if not old.pet_entities:
         return None
-    if old.version >= PROFILE_VERSION and old.baselines and not stale_baseline(old):
-        # Finishing: the baseline the AI's choices were made against stays as it was;
-        # one that fails today's screen is chosen again below.
+    if old.baselines and not stale_baseline(old):
+        # Finishing or upgrading from version 2: the baseline the AI's choices were made
+        # against stays as it was; one that fails today's screen is chosen again below.
         tastes, baselines, source = old.local_tastes, old.baselines, old.baseline_source
         notes = [n for n in old.notes if n.startswith(BASELINE_NOTE)]
     else:
@@ -673,16 +717,51 @@ def assemble_profile(
 
     # The map: the titles the venues were asked for first, then the rest, two of them.
     by_id = {e.id: e for e in p.pet_entities}
-    ordered = [by_id[i] for i in p.venue_signals if i in by_id] + p.pet_entities
-    p.map_titles = list({e.id: e for e in ordered}.values())[:MAP_TITLES]
-    # The first pet title, then the baseline, then the rest: if the key refuses the last
-    # calls, the comparison survives and only an extra pet title is missing.
+    ordered = list(
+        {
+            e.id: e for e in [by_id[i] for i in p.venue_signals if i in by_id] + p.pet_entities
+        }.values()
+    )
+    p.map_titles = ordered[:MAP_TITLES]
+    # The first pet title, then the baseline, then the rest, then a spare: if the key
+    # refuses the last calls, the comparison survives and only an extra title is missing.
     first = [b.heatmap(e, location) for e in p.map_titles[:1]]
     base = [b.heatmap(e, location) for e in p.baselines]
     rest = [b.heatmap(e, location) for e in p.map_titles[1:]]
-    pet_maps = [m for m in first + rest if m]
-    base_maps = [m for m in base if m]
+    base_maps = [m for m in base if m is not None]
+    shown = {e.id for e in p.map_titles}
+    spare = next((e for e in ordered if e.id not in shown), None)
+    if first and first[0] is not None and len(first[0]) < THIN_MAP and spare is not None:
+        # One extra call, only when the first map is thin: the next pet title may be
+        # watched more here. Kept only if the map comes out better.
+        notes, calls = len(p.notes), len(p.calls)
+        alt = b.heatmap(spare, location)
+        if alt and better_map(alt, first[0], [m for m in rest if m], base_maps):
+            # The map's caption says it; the place note goes only when no map still in use
+            # was unplaced (a baseline's may be).
+            gone = {f"Qloo returned no map cells for {p.map_titles[0].name}."}
+            in_use = {e.id for e in p.map_titles[1:] + p.baselines}
+            if not in_use & b.unplaced:
+                gone.add(PLACE_NOTE.format(query=location.query))
+            p.notes = [n for n in p.notes if n not in gone]
+            p.thin_map = ThinMap(
+                title=p.map_titles[0],
+                cells=len(first[0]),
+                unplaced=p.map_titles[0].id in b.unplaced,
+            )
+            p.map_titles[0] = spare
+            first = [alt]
+        elif len(p.calls) > calls:
+            # Qloo answered: say so in the call list. A map that was no better leaves no
+            # notes, which say nothing about the map shown; an error keeps its note, the
+            # only place its code is told. A failure to reach Qloo records no call, so
+            # its note stays too.
+            p.calls[-1].purpose += " (tried for a thin map, not used)"
+            if p.calls[-1].status != "error":
+                del p.notes[notes:]
+    pet_maps = [m for m in first + rest if m is not None]
     p.maps_missing = len(p.map_titles) + len(p.baselines) - len(pet_maps) - len(base_maps)
+    pet_maps, base_maps = [m for m in pet_maps if m], [m for m in base_maps if m]
     p.cells = combine_cells(pet_maps, base_maps)
     if p.cells and p.baselines and not any(c.lift is not None for c in p.cells):
         p.notes.append(

@@ -436,6 +436,33 @@ def map_view(
                 label=label,
             )
         )
+    swap = ""
+    if profile.thin_map and titles:
+        t = profile.thin_map
+        by_id = {e.id: e for e in profile.pet_entities}
+        asked = [by_id[i] for i in profile.venue_signals if i in by_id] or profile.pet_entities
+        what = (
+            f"Qloo could not place {t.title.name}'s map within {location.label}"
+            if t.unplaced
+            else f"Qloo returned {t.cells} map cell{'s' if t.cells != 1 else ''} for "
+            f"{t.title.name} within {location.label}"
+        )
+        swap = (
+            f"{what}, so the map uses {titles[0].name} in its "
+            f"place. The places to ask are for fans of {and_list([e.name for e in asked])}. "
+        )
+    key = (
+        f"Warm: pet-show fans stand out here more than {base}. Cool: less. Grey: no comparison."
+        if any(c.lift is not None for c in cells)
+        else "Grey: no cell was scored for both, so there is no comparison here."
+        if cells
+        else None
+    )
+    swapped = (
+        f" Mapped: {titles[0].name}, in place of {profile.thin_map.title.name}."
+        if profile.thin_map and titles
+        else ""
+    )
     thin = ""
     if 0 < len(cells) < MIN_CELLS:
         # A typed area passes its check on the area's own top show; its pet titles may
@@ -451,7 +478,8 @@ def map_view(
         shelter_radius_m=shelter_radius(location),
         pin=Pin(latitude=pin[0], longitude=pin[1]) if pin else None,
         cells=cells,
-        legend=thin
+        legend=swap
+        + thin
         + (
             (
                 f"Warm cells: {pets} rank this part of {location.label} higher than {base} do. "
@@ -463,13 +491,7 @@ def map_view(
             else f"Cells: where {pets} rank high within {location.label}. No cell was also "
             f"scored for {base}, so the map shows no comparison here."
         ),
-        note=(
-            f"Warm: pet-show fans stand out here more than {base}. Cool: less. Grey: no comparison."
-            if any(c.lift is not None for c in cells)
-            else "Grey: no cell was scored for both, so there is no comparison here."
-            if cells
-            else None
-        ),
+        note=(key + swapped) if key else None,
         empty_message=None if cells else "No map data for this area yet.",
     )
 
