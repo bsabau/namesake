@@ -50,7 +50,7 @@ function attachSuggestions(field, list, onChoose) {
     list.replaceChildren(
       ...places.map((p, n) => {
         const li = document.createElement("li");
-        li.id = `place-suggestion-${n}`;
+        li.id = `${list.id}-${n}`;
         li.setAttribute("role", "option");
         li.textContent = p.label;
         // mousedown, not click: it lands before the field loses focus.
