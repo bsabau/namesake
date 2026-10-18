@@ -361,7 +361,8 @@ def name_badge(
         return f"Has a lookalike in {title}" if title else "Has a lookalike"
     if source == "local":
         return "Watched locally"
-    found = next((e.found_in for e in profile.pet_entities if e.id == entity_id), None)
+    title = next((e for e in profile.pet_entities if e.id == entity_id), None)
+    found = (title.found_in or title.listed_in) if title else None
     liked = None
     if found:
         liked = (
@@ -592,16 +593,20 @@ def place_in_list(f: FoundIn, location: Location) -> str:
     )
 
 
-def listed(e: Entity, location: Location) -> str:
+def listed(e: Entity, location: Location, also: bool = True) -> str:
     """A better place in another of the area's lists, or where a title Namesake's AI
     proposed also sits in one of them."""
-    return f"Also {place_in_list(e.listed_in, location)} " if e.listed_in else ""
+    if not e.listed_in:
+        return ""
+    return ("Also " if also else "") + place_in_list(e.listed_in, location) + " "
 
 
 def who_chose(profile: LocationProfile) -> str:
     """Who decided the area's titles, venues and order: Qloo's part apart from the AI's."""
     by_tags = any(e.found_in and e.found_in.by_tags for e in profile.pet_entities)
-    searched = any(e.found_in and not e.found_in.by_tags for e in profile.pet_entities)
+    searched = any(
+        f and not f.by_tags for e in profile.pet_entities for f in (e.found_in, e.listed_in)
+    )
     if by_tags:
         text = (
             "Qloo listed pet-themed titles people here tend to like, and a classifier sorted "
@@ -621,10 +626,10 @@ def who_chose(profile: LocationProfile) -> str:
             f"{'them' if len(profile.left_out_titles) > 1 else 'it'} here nor lists "
             f"{'them' if len(profile.left_out_titles) > 1 else 'it'} for this area. "
         )
-    elif not profile.titles_confirmed:
+    elif not profile.titles_confirmed and profile.made_by == "agent":
         text += (
-            "Qloo had no list or ranking that backs a pet title here, so the titles are "
-            "Namesake's AI's own. "
+            "None of the titles kept has Qloo's ranking or a place in the area's lists, so "
+            "they are Namesake's AI's own. "
         )
     text += (
         "Code chose which titles the venues were asked for, by Qloo's evidence, and checked "
@@ -667,7 +672,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
             returned.append(
                 WhyItem(
                     title=f"{e.name} ({kind})",
-                    detail=listed(e, location) + sentences(e.description),
+                    detail=listed(e, location, also=False) + sentences(e.description),
                 )
             )
     for e in profile.pet_entities:

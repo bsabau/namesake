@@ -610,7 +610,7 @@ def test_an_ais_title_in_the_areas_list_keeps_its_place_there(roster):
     profile = LocationProfile(location_id=LOCATION.id, pet_entities=[cat])
     returned, _ = why(LOCATION, profile)
     assert returned[0].detail.startswith(
-        "Also 2nd of 3 in Qloo's list of TV shows people around Example Slope who like "
+        "2nd of 3 in Qloo's list of TV shows people around Example Slope who like "
         "Example Dog Show tend to like."
     )
 

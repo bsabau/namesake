@@ -1,6 +1,8 @@
 """Pet titles decided by Qloo (decision 22): the area's own pet-themed lists come first,
 and a title stays only with Qloo's evidence for the area. Fake Qloo, invented data only."""
 
+from types import SimpleNamespace
+
 from app.agent.profile_agent import ProfileDeps, has_evidence, pet_lists
 from app.agent.steps import StepLog
 from app.profile import PET_TAGS, Entity, FoundIn
@@ -154,7 +156,9 @@ def test_with_no_evidence_anywhere_the_ais_titles_stay_and_say_so(roster):
     profile = store.get_profile(LOCATION.id, "dog")
     assert [e.id for e in profile.pet_entities] == [DOG_SHOW, CAT_SHOW]
     assert not profile.titles_confirmed and profile.left_out_titles == []
-    assert "Qloo had no list or ranking that backs a pet title here" in who_chose(profile)
+    assert "None of the titles kept has Qloo's ranking or a place in the area's lists" in (
+        who_chose(profile)
+    )
 
 
 def test_the_ai_is_told_qloos_pet_titles_up_front(roster):
@@ -169,3 +173,35 @@ def test_the_ai_is_told_qloos_pet_titles_up_front(roster):
     run(Recording([PLAN], [DRAFT]), roster, qloo=FakeQloo(refused_rank_script()))
     assert "Qloo's pet-themed titles for this area" in seen["prompt"]
     assert "Example Puppy School" in seen["prompt"]
+
+
+def test_a_plan_that_ignores_every_title_qloo_backs_is_sent_back():
+    from app.agent.profile_agent import ProfilePlan, check_plan
+
+    d = deps({})
+    place = FoundIn(signal="Qloo's pet tags", kind="tv_show", position=1, out_of=3, by_tags=True)
+    d.titles_seen = {
+        PUPPY_SCHOOL: Entity(
+            id=PUPPY_SCHOOL, name="Example Puppy School", type="urn:entity:tv_show",
+            found_in=place, verdict=VERDICTS[PUPPY_SCHOOL],
+        ),
+        DOG_SHOW: Entity(id=DOG_SHOW, name="Example Dog Show", type="urn:entity:tv_show"),
+    }  # fmt: skip
+    plan = ProfilePlan(titles=[{"entity_id": DOG_SHOW, "why": "dogs"}], venues=[])
+    try:
+        check_plan(SimpleNamespace(deps=d), plan)
+    except Exception as exc:  # ModelRetry
+        assert "keep the ones Qloo backs, such as Example Puppy School" in str(exc)
+    else:
+        raise AssertionError("check_plan accepted a plan with none of Qloo's titles")
+
+
+def test_an_ais_title_kept_for_its_place_in_a_list_says_so_on_its_badge():
+    from app.profile import LocationProfile
+
+    place = FoundIn(signal="Example Dog Show", kind="tv_show", position=2, out_of=20)
+    cat = Entity(id=CAT_SHOW, name="Example Cat Show", type="urn:entity:tv_show", listed_in=place)
+    profile = LocationProfile(location_id=LOCATION.id, pet_entities=[cat])
+    assert name_badge("pet", CAT_SHOW, profile) == (
+        "Pet-themed title, liked here by fans of Example Dog Show"
+    )

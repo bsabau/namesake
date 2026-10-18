@@ -89,7 +89,8 @@ The shelter is in {place}. You use Qloo, a taste-data service, through four tool
 1. The prompt lists the pet-themed titles Qloo itself found for people around {place}
    (each kind, best first). A classifier has marked the clearly pet-themed ones "kept";
    judge the "unsure" ones from their description and keep only titles clearly about
-   {species}s or pets. These are your main titles.
+   {species}s or pets. These are your main titles: your answer must keep at least one
+   title Qloo backs when there is one.
 2. You may add up to 4 well-known titles of your own (TV shows, films, books or brands)
    that are clearly about {species}s or pets. Avoid titles centred on an animal's death, on
    violence, or coded to a race, religion or political identity. Look each one up with
@@ -490,7 +491,12 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
         },
     )
     if isinstance(env, str) or not env.has_results:
-        status = env if isinstance(env, str) else "no venues returned"
+        if isinstance(env, str):
+            status = env
+        elif env.status == "needs_input":
+            status = f"unavailable: Qloo could not tell which place {deps.location.query!r} means"
+        else:
+            status = "no venues returned"
         deps.log.add("note", f"Venues: {status}")
         return {"status": status}
     deps.venue_signals = ids
@@ -562,6 +568,19 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
             problems.append(f"venue {info['name']} is {info['excluded']}")
     if deps.titles_seen and deps.venue_signals is None and not plan.venues:
         problems.append("call find_venues before answering")
+    # Qloo's titles come first (decision 22): when Qloo backs a title it also judged clearly
+    # pet-themed (ranked here, or kept from the area's lists), the plan keeps at least one.
+    strong = [
+        i
+        for i, e in deps.titles_seen.items()
+        if i in (deps.rank_order or []) or (best_place(e) and bucket(e.verdict) == "kept")
+    ]
+    if strong and plan.titles and not any(has_evidence(deps, t.entity_id) for t in plan.titles):
+        names = ", ".join(deps.titles_seen[i].name for i in strong[:4])
+        problems.append(
+            f"none of your titles has Qloo's evidence for this area; keep the ones Qloo "
+            f"backs, such as {names}"
+        )
     kept = {t.entity_id for t in plan.titles}
     if plan.titles and (dropped := [i for i in deps.venue_signals or [] if i not in kept]):
         # The venues and the map are built from these titles, so each must be in the plan.

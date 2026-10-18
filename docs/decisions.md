@@ -287,7 +287,7 @@ The refusal keeps the edit and names the missing words.
 
 **Why:** the AI proposes titles a broad US audience knows, so its list does not change with the area; only the ranking reorders it. Searching from its titles into the area's own lists finds pet titles that are strong there: in one recorded run for Austin the two titles Qloo ranked were both found this way, and in a probe for Barcelona the AI's own titles mostly had no ranking at all (`docs/qloo-findings.md`). The area's top lists alone hold almost no pet titles (1 of 30 in Park Slope), so the search starts from a pet title. A classifier, rather than the AI alone, sorts the 20 results because it gives a probability per question and is cheap (about $0.001 for 60 titles in the probes); the AI still decides every unclear case, with a reason, and Qloo's ranking still decides the order.
 
-**Follows:** a new area costs about 15 to 17 Qloo calls (decision 18 said 12 to 14). Profiles made before this have no found titles and render as they were. A pet-mindedness score per area or per age or gender group was probed and not built: every list held one or two pet titles at most, so differences between groups were noise, and a score for groups of people invites the "matching" claim AGENTS.md rules out.
+**Follows:** a new area costs about 15 to 17 Qloo calls (decision 18 said 12 to 14; 18 to 20 since decision 22). Profiles made before this have no found titles and render as they were. A pet-mindedness score per area or per age or gender group was probed and not built: every list held one or two pet titles at most, so differences between groups were noise, and a score for groups of people invites the "matching" claim AGENTS.md rules out.
 
 ## 21. A warm skin as the default UI; classic kept
 
