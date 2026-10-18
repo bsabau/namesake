@@ -64,7 +64,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
    - at the top, **Qloo's part and the AI's**, apart: what Qloo returned for this result (titles with Qloo's evidence for the area, the places near the shelter, the heatmaps' map cells) and what Namesake's AI did with it (titles it proposed or judged, places it picked, the names and bio)
    - the listing, with a **Generic / Local, with Qloo** toggle; both share the same bio, and the local one adds a name from Qloo's titles and one line saying where it comes from
    - the **name options**, each with its source badge, Qloo's title and the reason Namesake's AI gives, kept apart
-   - a **map** of where pet-show fans stand out within the area, and the **places to ask**, each with Qloo's rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline
+   - a **map** of where pet-show fans stand out within the area, and the **places to ask**, each with Qloo's rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline, numbered on the map, with the cell it sits in and its distance from the shelter (points from OpenStreetMap)
    - the **exposure checklist**, each item labelled Research, Qloo or Our suggestion; for an animal recorded as not good with children, places whose name or Qloo description mentions children are skipped, and the checklist says so
    - a **Why** drawer with two columns, "Qloo returned" and "How Namesake read it" (Namesake's AI and its code)
 4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software.
@@ -129,7 +129,7 @@ The image holds Python, Node and the pinned harness. The demo runs this image on
 - **Coverage is uneven.** The demo uses New York and Austin, where US coverage is deepest. Thin areas are refused with a message instead of answered weakly.
 - **Affinity scores saturate.** Raw scores sit near 1.0 for broad entities, so Namesake uses order within a call and lift against the area's own top shows, never raw affinity. The baseline is the area's own top two shows, so "stands out" means "more than this area's usual tastes", not more than everyone's.
 - **Ranking is often unavailable.** Qloo's `rank` is the most rate-limited workflow and twice returned nothing; the order Namesake's AI chose is then kept and labelled.
-- **Venues have no coordinates.** Qloo returns an address and a neighbourhood, so venues are listed beside the map, not pinned on it.
+- **Venues have no coordinates in Qloo.** Qloo returns an address and a neighbourhood, so the app looks each suggested venue up in OpenStreetMap (Photon) once; a venue with no close match stays in the list without a pin, and a pin outside the mapped cells says so.
 - **Area data says nothing about individuals.** Results read "people in this area tend to like X". A shelter's adopters are not its neighbours, and tastes can stand in for demographics, which is one reason names are screened for identity-coded references.
 - **The demo model is a free one.** It sometimes needs its one repair round, and it judges lookalikes from its own knowledge, which Qloo cannot check; the page labels that match as the reading of Namesake's AI.
 
@@ -151,7 +151,7 @@ Qloo's terms forbid publishing its response data, so real responses live only in
 
 Taste data from the Qloo API. This project is not affiliated with or endorsed by Qloo.
 
-The animals and the shelter are fictional, and the photos are AI-generated. Map tiles and place names © OpenStreetMap contributors; place lookups by Photon (komoot). Pet-themed titles are sorted with [TypeSafe](https://typesafe.ai)'s Jev classifier, which receives only a title's name, kind and Qloo's description; Namesake is not affiliated with TypeSafe. The typeface is Nunito, served from the app itself under the SIL Open Font License (`app/ui/warm/static/fonts/OFL.txt`).
+The animals and the shelter are fictional, and the photos are AI-generated. Map tiles and place names © OpenStreetMap contributors; place lookups and venue pins by Photon (komoot). Pet-themed titles are sorted with [TypeSafe](https://typesafe.ai)'s Jev classifier, which receives only a title's name, kind and Qloo's description; Namesake is not affiliated with TypeSafe. The typeface is Nunito, served from the app itself under the SIL Open Font License (`app/ui/warm/static/fonts/OFL.txt`).
 
 ## Licence
 

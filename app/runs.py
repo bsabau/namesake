@@ -24,11 +24,13 @@ from app.classify import classifier_from
 from app.config import Settings
 from app.limits import Limits
 from app.locations import Location
+from app.places import places_for
 from app.profile import load_seeds
 from app.qloo.cache import Cache
 from app.qloo.exec import QlooClient, harness_env
 from app.session import ADDED_PREFIX, Session
 from app.store import Store
+from app.venue_points import locate_saved
 
 
 @dataclass
@@ -144,10 +146,17 @@ def _saved(run: Run) -> Run:
     return run
 
 
-def _launch(run: Run, work) -> None:
+def _launch(run: Run, work, then=None) -> None:
     async def go() -> None:
         try:
             await work
+            if then is not None:
+                try:
+                    await asyncio.to_thread(then)
+                except Exception as exc:  # noqa: BLE001 - the result is saved; only pins wait
+                    run.log.add(
+                        "note", f"The places could not be pinned yet ({type(exc).__name__})"
+                    )
         except Exception as exc:  # noqa: BLE001 - shown on the Working page, never swallowed
             run.error = type(exc).__name__
             run.log.add("error", f"The run stopped: {type(exc).__name__}")
@@ -210,6 +219,9 @@ async def start_run(
             if personal
             else frozenset(),
         ),
+        then=lambda: locate_saved(
+            store, location, animal.species, places_for(settings.geocoder_url), run.log
+        ),
     )
     return run
 
@@ -238,6 +250,9 @@ async def start_litter_run(
             log=run.log,
             output_mode=settings.agent_output_mode,
             classifier=classifier_from(settings),
+        ),
+        then=lambda: locate_saved(
+            store, location, members[0].species, places_for(settings.geocoder_url), run.log
         ),
     )
     return run

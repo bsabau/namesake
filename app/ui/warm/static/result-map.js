@@ -49,6 +49,23 @@
     ).bindTooltip(cell.label).addTo(map);
   });
 
+  // The suggested places, numbered as in the list beside the map (decision 4, revised).
+  for (const venue of view.venues || []) {
+    const icon = L.divIcon({
+      className: "venue-pin",
+      html: `<span>${venue.number}</span>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    });
+    const label = document.createElement("span");
+    label.textContent = `${venue.number}. ${venue.name}`; // text, never markup
+    const marker = L.marker([venue.latitude, venue.longitude], { icon, keyboard: false })
+      .bindTooltip(label)
+      .addTo(map);
+    // The map frames the cells and the near pins; a far pin is drawn but not framed.
+    if (venue.in_view) layers.push(marker);
+  }
+
   // A short key on the map itself (the view model's note); the caption says the rest.
   if (view.note) {
     const key = L.control({ position: "bottomleft" });

@@ -106,6 +106,7 @@ sequenceDiagram
         M->>Q: up to 2 lookalike lookups (its choice)
         A-->>T: draft, sent back once if a check fails
         T->>S: save the listing
+        T->>S: pin the suggested places once, from OpenStreetMap (Photon), and save the points
         T-->>V: each step as it happens, then "done"
         V->>R: GET /result?animal=…&location=…
         R-->>V: result page built from the view model
@@ -120,6 +121,7 @@ sequenceDiagram
 This happens before any run, when the area is not one of the presets.
 
 - **A typed area** goes to Qloo as typed and is checked once: one heatmap, within it, for the TV show Qloo ranks highest there (the call the profile's local tastes make, so the profile finds it cached); when that list is not a plain answer, or its top show is thin there, for a seed show as well (after a `describe` of it, cached after the first time): the seed's candidates or its failure speak for the place, else the fuller map decides. Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". `needs_input`: Qloo's candidates become buttons (decision 12). Text with digits is refused, which keeps street addresses away from Qloo.
+- **Venue pins** (decision 4, revised): after a run saves its profile, `app/venue_points.py` looks up the suggested venues not yet tried in Photon, by name and address near the shelter (accepted only when the match carries the venue's name; else the address alone; within 12 km), paced a second apart across runs, and keeps the points on the profile, under one lock per profile shared with a run that finishes it. An outage stops the batch and counts nothing against the venues. The result map numbers the places it can frame (in a cell, or within 3 km of the shelter) as the list does; each card says which cell its place sits in, or that it is beyond the map's view, and its distance from the shelter. Never from the browser; `python -m app.venue_points` places profiles saved before.
 - **Suggestions, the map search and the map pick** (decision 17) go through the app's own `/api/places` to Photon. The search above the start map (wording from `LocationForm` in the view model) only moves the map: `place-suggest.js` raises a `namesake:fly` event that `location-map.js` follows; it has no field name, so nothing from it is submitted or reaches Qloo. Suggestions ask for areas only; a picked spot is sent rounded to about 100 m, and only the areas in Photon's answer are kept. The spot becomes an area's name, and stays in the visitor's session as a pin, to about 10 m. Qloo only ever gets the name.
 
 ## The area profile
@@ -194,7 +196,7 @@ Saved listings carry the version of the checks they passed. When the checks chan
 | `var/qloo-recordings/` | raw Qloo answers, for replay in development | never committed |
 | Session (memory) | added animals, their photos and listings; refined listings; the map pin | one visitor; ends 2 hours after the last visit, on a restart, or when over 500 sessions are open |
 
-No account exists. The session cookie holds a random ID and nothing else. Qloo receives cultural entities and place names only; Photon receives area names and rounded points; the classifier receives a title's name, kind and Qloo's description; none gets anything about a visitor. `tests/test_no_qloo_data.py` fails if real Qloo data appears in the repository.
+No account exists. The session cookie holds a random ID and nothing else. Qloo receives cultural entities and place names only; Photon receives area names, rounded points, and the names and public street addresses of venues Qloo returned (to pin them, once per saved profile); the classifier receives a title's name, kind and Qloo's description; none gets anything about a visitor. `tests/test_no_qloo_data.py` fails if real Qloo data appears in the repository.
 
 ## The API
 
@@ -226,7 +228,7 @@ Everything that differs between machines is an environment variable (`.env` loca
 | `LIVE_RUNS_PER_VISITOR_PER_HOUR` | 6 | live runs per visitor per hour |
 | `LIVE_RUNS_PER_DAY` | 60 | live runs per day, everyone together |
 | `NEW_LOCATIONS_PER_DAY` | 10 | new typed areas checked per day |
-| `GEOCODER_URL` | Photon's public server | empty turns suggestions and the map pick off |
+| `GEOCODER_URL` | Photon's public server | empty turns suggestions, the map pick and the venue pins off |
 | `TYPESAFE_API_KEY`, `TYPESAFE_BASE_URL`, `TYPESAFE_MODEL` | none, TypeSafe's API, `jev-latest` | the title classifier; without a key it is off and the AI judges the titles; an `https://` base URL only |
 | `UI` | `warm` | the default interface (`classic` is kept) |
 

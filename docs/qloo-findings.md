@@ -97,7 +97,7 @@ About 12 calls went through in roughly 20 minutes before Qloo answered `QLOO_RAT
 - Astoria's pet-show venues overlap the baseline's far more than Park Slope's do, so there the venue list is mostly "popular nearby". The result says so through each venue's badge.
 - Austin is a whole city, so its map cells are 6-character geohashes and overlap with the baseline is thin (3 cells).
 - Austin's list includes two sorority houses: places the keyword screen cannot judge, which is why milestone 3 adds the agent's suitability check.
-- **Venues have no coordinates.** Place results carry an address and a neighbourhood name but no latitude or longitude, and `describe` on a place returns only its ID, name and type. Venues are therefore listed, not pinned on the map. Pins would need a geocoder outside Qloo.
+- **Venues have no coordinates.** Place results carry an address and a neighbourhood name but no latitude or longitude, and `describe` on a place returns only its ID, name and type. Venues were therefore listed, not pinned. (18 October: they are now also pinned, from OpenStreetMap by name and address; decision 4, revised.)
 
 ## Preset locations
 

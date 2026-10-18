@@ -146,7 +146,7 @@
   <section class="result-local">
     <figure class="result-map">
       <div id="result-map" data-role="map" role="img"
-           aria-label="Map of where pet-show fans stand out around {{ view.location.label }}"></div>
+           aria-label="Map of where pet-show fans stand out around {{ view.location.label }}{% if view.map.venues %}, with the places to ask numbered as in the list{% endif %}"></div>
       <figcaption>{{ view.map.empty_message or view.map.legend }}</figcaption>
     </figure>
     <script type="application/json" id="map-data">{{ view.map|plain|tojson }}</script>
@@ -155,11 +155,12 @@
     <ul class="venues">
       {% for venue in view.venues %}
       <li class="venue">
-        <p><strong>{{ venue.name }}</strong>
+        <p>{% if venue.number %}<span class="venue-number">{{ venue.number }}.</span> {% endif %}<strong>{{ venue.name }}</strong>
           <span class="tag {{ 'tag-strong' if venue.stands_out }}">{{ venue.badge }}</span></p>
         <p class="venue-rank rank-{{ venue.rank_band }}" data-role="venue-rank">
           <strong>{{ venue.rank }}</strong> · {{ venue.rank_note }}</p>
         <p class="venue-place">{{ venue.place }}</p>
+        {% if venue.where %}<p class="reading venue-where"><span>Namesake:</span> {{ venue.where }}{% if venue.distance %} {{ venue.distance }}{% endif %}</p>{% endif %}
         {% if venue.description %}<p class="venue-description">{{ venue.description }}</p>{% endif %}
         <p class="evidence"><span>Qloo:</span> {{ venue.evidence }}</p>
         {% if venue.reason %}<p class="reading"><span>Namesake's AI:</span> {{ venue.reason }}</p>{% endif %}

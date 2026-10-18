@@ -24,6 +24,17 @@ class Pin(BaseModel):
     longitude: float
 
 
+class VenuePin(BaseModel):
+    """A suggested venue on the map, numbered as in the list beside it."""
+
+    number: int
+    name: str
+    latitude: float
+    longitude: float
+    # Framed by the map (in a cell or near the shelter); a far pin is drawn, not framed.
+    in_view: bool = True
+
+
 class LocationOption(BaseModel):
     id: str
     label: str
@@ -228,6 +239,7 @@ class MapView(BaseModel):
     shelter_radius_m: float
     pin: Pin | None = None
     cells: list[MapCell]
+    venues: list[VenuePin] = []
     legend: str
     # A short key drawn on the map itself; the legend under it says the rest.
     note_heading: str = "What the colours mean"
@@ -249,6 +261,11 @@ class VenueView(BaseModel):
     # The agent's reason for suggesting it: our reading, shown apart from the evidence.
     chosen: bool = False
     reason: str | None = None
+    # Its number on the map, and where it sits: the cell's reading and the distance from
+    # the shelter (None when OpenStreetMap had no match for it).
+    number: int = 0
+    where: str | None = None
+    distance: str | None = None
 
 
 class PlanItem(BaseModel):

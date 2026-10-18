@@ -1,7 +1,10 @@
 """Place lookups for the shelter's area: suggestions while typing, and the area around a
 spot picked on the map. Photon (OpenStreetMap data, `geocoder_url`) answers both.
 
-Only areas come back, never street addresses: cities, districts and neighbourhoods, named
+Venue pins (decision 4, revised) are the one exception: the server looks up the venues
+Qloo returned, by their names and public street addresses, once per saved profile
+(`venue_point`, `app/venue_points.py`). Otherwise only areas come back, never street
+addresses: cities, districts and neighbourhoods, named
 the way the location field takes them ("Park Slope, Brooklyn"), so the name still goes
 through `app/custom_location.py` and Qloo as typed (decision 12). Suggestions ask Photon
 for areas only. A picked spot asks for whatever is nearest, usually a house or a street,
@@ -19,12 +22,15 @@ server's threads. When Photon is slow, down or odd, the field works as typed.
 import http.client
 import json
 import math
+import re
 import threading
 import time
 import urllib.parse
 import urllib.request
 from collections import OrderedDict, deque
 from collections.abc import Callable
+from functools import cache
+from time import sleep
 
 from pydantic import BaseModel
 
@@ -47,6 +53,35 @@ ALL_PER_MINUTE = 120
 CONCURRENT = 4
 # A pin further than this from the centre of Qloo's cells is not the same area.
 MAX_PIN_KM = 15
+# A venue match further than this from the shelter is some other place of that name.
+VENUE_KM = 12
+# Seconds between venue lookups (Photon's fair use).
+PAUSE = 1.0
+
+
+@cache
+def places_for(url: str) -> "Places":
+    """One lookup client per geocoder URL, shared by the routes and the runs."""
+    return Places(url)
+
+
+class LookupFailed(Exception):
+    """Photon could not answer this time (down, slow, an odd answer): try again later."""
+
+
+def same_name(asked: str, found: str) -> bool:
+    """Whether a match carries the venue's name: its distinctive words (four letters or
+    more), two of them when it has two or more, else the short name as whole words."""
+    words = lambda text: {w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) >= 4}  # noqa: E731
+    a, f = words(asked), words(found)
+    if a:
+        return len(a & f) >= min(2, len(a))
+    short = re.escape(" ".join(re.findall(r"[a-z0-9]+", asked.lower())))
+    return (
+        bool(short)
+        and re.search(rf"\b{short}\b", " ".join(re.findall(r"[a-z0-9]+", found.lower())))
+        is not None
+    )
 
 
 class Throttled(Exception):
@@ -105,6 +140,13 @@ def distance_km(a: tuple[float, float], b: tuple[float, float]) -> float:
     return 2 * 6371 * math.asin(math.sqrt(h))
 
 
+def _point(feature: dict) -> Found:
+    lon, lat = (float(x) for x in feature["geometry"]["coordinates"][:2])
+    if not (math.isfinite(lat) and math.isfinite(lon)):
+        return []  # an odd answer: no point
+    return [(feature.get("properties", {}).get("name") or "", lat, lon)]
+
+
 def fetch_json(url: str) -> dict:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310 - https only
@@ -124,6 +166,9 @@ class Places:
         self.per_visitor = per_visitor or Allowance(PER_MINUTE)
         self.overall = overall or Allowance(ALL_PER_MINUTE)
         self._calls = threading.BoundedSemaphore(CONCURRENT)
+        self.pause = PAUSE
+        self._pace_lock = threading.Lock()
+        self._last_venue = 0.0
         self._cache: OrderedDict[str, list[Place]] = OrderedDict()
         self._lock = threading.Lock()
 
@@ -159,11 +204,58 @@ class Places:
             url, lambda f: [(a, lat, lon) for a in areas_around(f.get("properties", {}))], visitor
         )
 
+    def venue_point(
+        self,
+        name: str,
+        address: str | None,
+        near: tuple[float, float],
+        visitor: str = "profile-build",
+    ) -> Place | None:
+        """Where a venue Qloo returned is: OpenStreetMap's best match for its name and
+        address, else for the address alone, near the shelter. These are public business
+        addresses from Qloo, looked up on the server when a profile is saved, never typed
+        by a visitor. None when nothing close enough matches. A match by name and address
+        must carry the venue's name (else it may be a neighbour), so the address alone is
+        tried next. Raises Throttled, or LookupFailed when Photon could not answer, so the
+        caller can try again later."""
+        if not self.enabled:
+            return None
+        queries = [(f"{name}, {address}", True), (address, False)] if address else [(name, True)]
+        for query, named in queries:
+            params = {
+                "q": " ".join(query.split())[:200],
+                "limit": 1,
+                "lat": round(near[0], NEAR_DECIMALS + 1),
+                "lon": round(near[1], NEAR_DECIMALS + 1),
+            }
+            url = self._url("api", params, areas_only=False)
+            found = self._cached(url, _point, visitor, strict=True)
+            if not found:
+                continue
+            point = found[0]
+            if distance_km(near, (point.latitude, point.longitude)) > VENUE_KM:
+                continue
+            if named and not same_name(name, point.label):
+                continue
+            return point
+        return None
+
+    def _pace(self) -> None:
+        """Venue lookups from every run, one at least `pause` seconds after the last, so
+        concurrent profiles keep to Photon's fair use together."""
+        with self._pace_lock:
+            wait = self._last_venue + self.pause - time.monotonic()
+            if wait > 0:
+                sleep(wait)
+            self._last_venue = time.monotonic()
+
     def _url(self, path: str, params: dict, areas_only: bool = True) -> str:
         layers = [("layer", x) for x in LAYERS] if areas_only else []
         return f"{self.base_url}/{path}?{urllib.parse.urlencode([*params.items(), *layers])}"
 
-    def _cached(self, url: str, read: Callable[[dict], Found], visitor: str) -> list[Place]:
+    def _cached(
+        self, url: str, read: Callable[[dict], Found], visitor: str, strict: bool = False
+    ) -> list[Place]:
         """Places from one Photon answer, cached by URL; `read` turns each feature into
         (label, latitude, longitude). Raises Throttled when an allowance is spent. Only a
         call that goes out is counted: one that waits too long for a slot is not."""
@@ -172,6 +264,8 @@ class Places:
                 self._cache.move_to_end(url)
                 return self._cache[url]
         if not self._calls.acquire(timeout=TIMEOUT):
+            if strict:
+                raise LookupFailed("no free slot")
             return []
         try:
             if not self.overall.take("everyone"):
@@ -179,7 +273,16 @@ class Places:
             if not self.per_visitor.take(visitor):
                 self.overall.refund("everyone")
                 raise Throttled
-            data = self.fetch(url)
+            if strict:
+                self._pace()  # right before the request, so queued lookups keep apart
+            try:
+                data = self.fetch(url)
+            except (OSError, http.client.HTTPException, ValueError) as exc:
+                # Down, slow, refusing (a 429) or cut off mid-answer: a service failure,
+                # not an answer.
+                if strict:
+                    raise LookupFailed(type(exc).__name__) from None
+                raise
             places: list[Place] = []
             for feature in data["features"]:
                 for label, lat, lon in read(feature):
@@ -187,7 +290,9 @@ class Places:
                         places.append(Place(label=label, latitude=lat, longitude=lon))
         except (OSError, ValueError, http.client.HTTPException, LookupError, TypeError,
                 AttributeError):  # fmt: skip
-            return []  # down, cut off or an odd answer; not cached, so the next try may work
+            # Down, cut off or an odd answer; not cached, so the next try may work. For a
+            # venue lookup an odd answer counts as no match.
+            return []
         finally:
             self._calls.release()
         with self._lock:

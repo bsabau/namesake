@@ -884,6 +884,10 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
   *, ::before, ::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 
+/* Suggested places on the result map, numbered as in the list. */
+.venue-pin span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--primary-ink); color: var(--on-primary); font-weight: 800; font-size: 0.8rem; border: 2px solid #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.35); }
+.venue-number { font-weight: 800; }
+.venue-where { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
 /* The search above the start map: it only moves the map. */
 .map-search { margin: 0 0 8px; }
 .map-search label { display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; }
