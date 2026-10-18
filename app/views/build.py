@@ -611,7 +611,7 @@ def skipped_shown(every: list[Venue], kept: list[Venue], skipped: list[Venue]) -
 def mentions(v: Venue) -> str:
     """The child word a skipped venue mentions, quoted (only skipped venues are named)."""
     word = for_children(v.name, v.description)
-    return f"“{word}”" if word else "children"
+    return f"“{word or 'children'}”"
 
 
 KIND_WORDS = {"tv_show": "TV shows", "movie": "films", "book": "books"}
@@ -830,7 +830,8 @@ def build_result_view(
     ordered, skipped = venues_for_animal(animal, every)
     named_skips = skipped_shown(every, ordered, skipped)
     # Whether a venue the page would not have shown now takes a slot.
-    moved_up = any(v not in every[:VENUES_SHOWN] for v in ordered[:VENUES_SHOWN])
+    first = {v.entity_id for v in every[:VENUES_SHOWN]}
+    moved_up = any(v.entity_id not in first for v in ordered[:VENUES_SHOWN])
     returned, reading = why(location, profile)
     if named_skips:
         # Our reading of Qloo's venues for this animal; Qloo's column stays as it was.
