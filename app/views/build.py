@@ -555,8 +555,13 @@ def map_view(
     if not compared or thin:
         # A thin map already says it says little; a count would read as more.
         count = ""
+    elif len(compared) == 1:
+        verb = "stand out" if warm else "do not stand out"
+        count = f"{cap(pets)} {verb} against {base} in the one cell{which}. "
     elif not warm:
         count = f"{cap(pets)} do not stand out against {base} in any of {some} cells{which}. "
+    elif warm == len(compared):
+        count = f"{cap(pets)} stand out against {base} in all {warm} cells{which}. "
     else:
         count = (
             f"{cap(pets)} stand out against {base} in {warm} of {some} "

@@ -208,3 +208,12 @@ def test_qloo_text_on_a_venue_sits_under_qloo_label(ui):
     assert lines, f"{ui} result: no venue description"
     for line in lines:
         assert '<p class="evidence"><span>Qloo:</span>' in line, f"{ui}: {line.strip()}"
+
+
+@pytest.mark.parametrize("ui", main.UIS)
+def test_the_map_colours_cells_as_the_caption_counts_them(ui):
+    # The caption counts lift above zero as warm (app/views/build.py map_view); a tie is
+    # cool, and a compared cell never draws paler than a grey one.
+    script = (main.UI_ROOT / ui / "static" / "result-map.js").read_text(encoding="utf-8")
+    assert "cell.lift > 0 ? warm : cool" in script
+    assert "0.3 + 0.5 * Math.min(1, Math.abs(cell.lift))" in script

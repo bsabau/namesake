@@ -499,6 +499,20 @@ def test_no_warm_cell_says_so():
     )
 
 
+def test_one_compared_cell_among_grey_ones_reads_in_the_singular():
+    legend = map_view(
+        LOCATION, map_with([(0.9, 0.5), (0.8, None), (0.7, None), (0.6, None), (0.5, None)])
+    ).legend
+    assert "in the one cell with a comparison. " in legend
+
+
+def test_every_compared_cell_warm_says_all():
+    legend = map_view(
+        LOCATION, map_with([(0.9, 0.5), (0.8, 0.4), (0.7, 0.3), (0.6, 0.2), (0.5, None)])
+    ).legend
+    assert "in all 4 cells with a comparison. " in legend
+
+
 def test_a_thin_map_gets_no_count():
     # Fewer than five cells: the thin note says the map says little, so no count.
     legend = map_view(LOCATION, profile()).legend
