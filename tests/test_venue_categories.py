@@ -145,7 +145,7 @@ def test_the_note_says_which_kinds_are_in_and_out_and_that_the_places_are_the_ar
         assert f"{name} ({why})" in note
     assert "The same places for every dog at this shelter" in note
     assert venues_note(profile_with(False), "cat").startswith(
-        f"Qloo had fewer than {MIN_CATEGORY_VENUES} places of the usual kinds"
+        "Qloo's list of places of the usual kinds"
     )
     assert venues_note(profile_with(None), "dog").startswith("The same places for every dog")
     assert venues_note(LocationProfile(location_id="x"), "dog") is None
@@ -228,6 +228,36 @@ def test_a_place_only_the_pet_list_has_still_stands_out_within_the_kinds():
 def test_finishing_a_categorised_profile_keeps_the_categories():
     old = build_profile(FakeQloo(filtered_script(CAFES)), LOCATION.model_copy(), SEEDS)
     assert old.venue_categories is True
-    qloo = FakeQloo(filtered_script(CAFES[:2]), twins=False)  # now thin, but kept as asked
+    # Now thin within the kinds, but asked as before, so the AI's picks still match.
+    script = filtered_script(CAFES[:2], pet_results=CAFES)
+    qloo = FakeQloo(script, twins=False)
     new = finish_profile(old, LOCATION.model_copy(), qloo, SEEDS)
     assert new is not None and new.venue_categories is True
+    asks = [i for op, i in qloo.calls if op == "recommend" and i["target_type"] == "place"]
+    assert asks and all("include_tags" in i for i in asks)
+    assert [v.name for v in new.venues][:1] == ["Example Cafe 0"]
+
+
+def test_finishing_a_profile_whose_venues_never_arrived_records_the_new_decision():
+    # Reviewers, PR #32: the old flag was written back over the fresh decision.
+    for old_flag, base, expected in ((True, [], False), (False, CAFES, True)):
+        old = build_profile(FakeQloo(filtered_script(CAFES)), LOCATION.model_copy(), SEEDS)
+        old.venue_categories, old.venues = old_flag, []
+        script = filtered_script(base)
+        if not base:
+            script[key("recommend", venue_input([BASELINE, BASELINE_2], LOCATION, True))] = (
+                envelope("recommend", "empty", results=[])
+            )
+        new = finish_profile(old, LOCATION.model_copy(), FakeQloo(script, twins=False), SEEDS)
+        assert new is not None and new.venue_categories is expected
+
+
+def test_a_filtered_probe_that_falls_back_leaves_no_note():
+    # Reviewers, PR #32: "Qloo returned no venues" stayed beside a compared list.
+    script = standard_script()
+    script[key("recommend", venue_input([BASELINE, BASELINE_2], LOCATION, True))] = envelope(
+        "recommend", "empty", results=[]
+    )
+    profile = build_profile(FakeQloo(script, twins=False), LOCATION.model_copy(), SEEDS)
+    assert profile.venue_categories is False and profile.venues[0].compared
+    assert not any("returned no venues" in n for n in profile.notes)

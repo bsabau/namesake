@@ -473,8 +473,8 @@ def groups_out() -> str:
 
 
 def venues_note(profile: LocationProfile, species: str) -> str | None:
-    """Under "Places to ask": which kinds of place Qloo was asked for and why, which were
-    left out, and that the places belong to the area, not to this animal."""
+    """Under "Places to ask": which kinds of place Qloo was asked for and why, which were not
+    asked for, and that the places belong to the area, not to this animal."""
     if not profile.venues:
         return None
     shared = (
@@ -489,9 +489,9 @@ def venues_note(profile: LocationProfile, species: str) -> str | None:
         )
     if profile.venue_categories is False:
         return (
-            f"Qloo had fewer than {MIN_CATEGORY_VENUES} places of the usual kinds (cafes and "
-            f"breweries, bookshops and pet shops, community places) here, so it was asked for "
-            f"places of any kind. {shared}"
+            f"Qloo's list of places of the usual kinds (cafes and breweries, bookshops and pet "
+            f"shops, community places) here held fewer than {MIN_CATEGORY_VENUES}, so it was "
+            f"asked for places of any kind. {shared}"
         )
     return shared
 
@@ -506,9 +506,9 @@ def kinds_reading(profile: LocationProfile) -> str:
             "through; the code screen and Namesake's AI judge each."
         )
     return (
-        f"Qloo had fewer than {MIN_CATEGORY_VENUES} places of the usual kinds (cafes and "
-        "breweries, bookshops and pet shops, community places) for this area, so it was "
-        "asked for places of any kind."
+        f"Qloo's list of places of the usual kinds (cafes and breweries, bookshops and pet "
+        f"shops, community places) for this area held fewer than {MIN_CATEGORY_VENUES}, so it "
+        "was asked for places of any kind."
     )
 
 

@@ -52,7 +52,8 @@ LEFT_OUT_GROUPS = [
     ("restaurants and hotels", "no room for a stand"),
 ]
 CATEGORY_TAGS = [f"urn:tag:category:place:{c}" for _, cs, _ in VENUE_GROUPS for c in cs]
-# Fewer places than this in those kinds and an area uses every place Qloo ranks.
+# A full answer with fewer places than this in those kinds and an area's venues are asked
+# for places of any kind.
 MIN_CATEGORY_VENUES = 5
 
 
@@ -509,17 +510,22 @@ class _Builder:
         return self.call("recommend", venue_input(signals, location, filtered), purpose)
 
     def venue_results(
-        self, env: Envelope | None, purpose: str, *, complete: bool = False
+        self, env: Envelope | None, purpose: str, *, complete: bool = False, quiet: bool = False
     ) -> list[dict] | None:
+        """The answer's places, or None; a note says why none, unless `quiet` (a probe whose
+        answer may not be the one used)."""
         if env is None:
             return None
         if not env.has_results:
-            self.profile.notes.append(f"Qloo returned no venues for {purpose}.")
+            if not quiet:
+                self.profile.notes.append(f"Qloo returned no venues for {purpose}.")
             return None
         if complete and env.status != "ok":
-            self.profile.notes.append(
-                f"Qloo's answer for {purpose} was {env.status}, so it is not used for comparison."
-            )
+            if not quiet:
+                self.profile.notes.append(
+                    f"Qloo's answer for {purpose} was {env.status}, so it is not used for "
+                    "comparison."
+                )
             return None
         return env.results
 
@@ -743,7 +749,8 @@ def finish_profile(
     new.species, new.made_by = old.species, old.made_by
     new.left_out_titles, new.titles_confirmed = old.left_out_titles, old.titles_confirmed
     new.order_source, new.ranked = old.order_source, old.ranked
-    new.venue_categories = old.venue_categories
+    if old.venue_categories is None:
+        new.venue_categories = None  # from before decision 23: every place, as it was
     new.local_tastes, new.baseline_source = tastes, source
     new.notes = notes + new.notes
     # The lookups behind the titles stay on the record; the rest was asked again.
@@ -917,11 +924,13 @@ def area_venues(
     signals = [e.id for e in baselines]
     if filtered is not False:
         env = b.venue_answer(signals, location, purpose, True)
-        # An incomplete baseline would make missing venues look distinctive.
-        results = b.venue_results(env, purpose, complete=True)
+        # An incomplete baseline would make missing venues look distinctive. Noted only
+        # when this answer is the one used, not when the fallback replaces it.
+        results = b.venue_results(env, purpose, complete=True, quiet=True)
         if filtered or (results is not None and not too_few(env)):
-            return True, results
+            return True, b.venue_results(env, purpose, complete=True)
         if not too_few(env):
+            b.venue_results(env, purpose, complete=True)  # its note: no comparison here
             return None, None
     return False, b.venues(signals, location, purpose, complete=True)
 
