@@ -555,11 +555,12 @@ def test_a_thin_first_map_title_is_swapped_last_for_a_better_one(roster):
     legend = map_view(LOCATION, p).legend
     assert legend.startswith(
         "Qloo returned 2 map cells for Example Dog Show within Example Slope, so the map uses "
-        "Example Kitten Show in its place. The places to ask were found for fans of Example Dog "
-        "Show and Example Cat Show. "
+        "Example Kitten Show in its place. The places to ask are for fans of Example Dog Show "
+        "and Example Cat Show. "
     )
-    assert map_view(LOCATION, p).note.startswith(
-        "Map of Example Kitten Show in place of Example Dog Show. "
+    # The key keeps its heading's subject first: colours, then which title is mapped.
+    assert map_view(LOCATION, p).note.endswith(
+        " Mapped: Example Kitten Show, in place of Example Dog Show."
     )
 
 
@@ -600,12 +601,14 @@ def test_a_spare_that_answered_but_was_no_better_is_marked_in_the_calls():
     assert p.calls[-1].purpose.endswith("(tried for a thin map, not used)")
 
 
-def test_a_map_qloo_could_not_place_is_missing_not_empty():
-    # Codex, PR #14 re-check: needs_input is no map at all, so the profile stays unfinished.
+def test_a_map_qloo_could_not_place_is_empty_and_final():
+    # Flash, PR #14 second re-check: needs_input is cached, so counting it missing would
+    # have every later run try to finish the profile, forever. It arrives empty, with a note.
     script = standard_script()
     script[heat_key(BASELINE)] = envelope("where_popular", "needs_input")
     _, p = adaptive(script)
-    assert p.maps_missing == 1 and not p.complete
+    assert p.maps_missing == 0 and p.complete and not needs_finishing(p)
+    assert any("could not tell which place" in n for n in p.notes)
 
 
 def test_an_upgrade_from_version_2_keeps_the_saved_comparison():
@@ -648,14 +651,24 @@ def test_a_version_2_profile_is_upgraded_for_the_thin_map_check():
     assert needs_finishing(p.model_copy(update={"version": 2}))
 
 
-def test_a_first_map_qloo_could_not_place_tries_no_spare_and_stays_unfinished():
+def test_a_first_map_qloo_could_not_place_is_thin_and_gives_way():
     script = standard_script()
     script[heat_key(DOG_SHOW)] = envelope("where_popular", "needs_input")
     script[heat_key(EXTRA.id)] = envelope("where_popular", results=spread(6))
-    qloo, p = adaptive(script)
-    # Thinness is unknown, so the spare is not asked; a later run finishes it.
-    assert p.thin_map is None and p.maps_missing == 1 and not p.complete
-    assert all(i["entity"] != EXTRA.id for op, i in qloo.calls if op == "where_popular")
+    _, p = adaptive(script)
+    assert p.thin_map.title.id == DOG_SHOW and p.thin_map.cells == 0 and p.complete
+
+
+def test_a_spare_that_errs_keeps_its_note_with_the_code():
+    script = standard_script()
+    script[heat_key(EXTRA.id)] = envelope(
+        "where_popular",
+        "error",
+        error={"code": "QLOO_RATE_LIMIT", "layer": "api", "retryable": True, "recovery": "wait"},
+    )
+    _, p = adaptive(script)
+    assert p.calls[-1].purpose.endswith("(tried for a thin map, not used)")
+    assert any("QLOO_RATE_LIMIT" in n for n in p.notes)
 
 
 def test_a_spare_qloo_could_not_place_is_marked_as_not_used():

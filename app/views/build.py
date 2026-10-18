@@ -443,7 +443,7 @@ def map_view(
         swap = (
             f"Qloo returned {t.cells} map cell{'s' if t.cells != 1 else ''} for "
             f"{t.title.name} within {location.label}, so the map uses {titles[0].name} in its "
-            f"place. The places to ask were found for fans of {and_list([e.name for e in asked])}. "
+            f"place. The places to ask are for fans of {and_list([e.name for e in asked])}. "
         )
     key = (
         f"Warm: pet-show fans stand out here more than {base}. Cool: less. Grey: no comparison."
@@ -453,7 +453,7 @@ def map_view(
         else None
     )
     swapped = (
-        f"Map of {titles[0].name} in place of {profile.thin_map.title.name}. "
+        f" Mapped: {titles[0].name}, in place of {profile.thin_map.title.name}."
         if profile.thin_map and titles
         else ""
     )
@@ -476,7 +476,7 @@ def map_view(
             else f"Cells: where {pets} rank high within {location.label}. No cell was also "
             f"scored for {base}, so the map shows no comparison here."
         ),
-        note=(swapped + key) if key else None,
+        note=(key + swapped) if key else None,
         empty_message=None if cells else "No map data for this area yet.",
     )
 

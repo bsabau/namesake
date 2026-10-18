@@ -416,11 +416,12 @@ class _Builder:
         if env is None:
             return None
         if env.status == "needs_input":
-            # Qloo could not tell which place is meant: no map came back.
+            # Qloo could not tell which place is meant. The answer is cached and final, so
+            # the map counts as arrived, empty: finishing could never fetch it.
             self.profile.notes.append(
                 f"Qloo could not tell which place {location.query!r} means for {entity.name}'s map."
             )
-            return None
+            return {}
         if not env.has_results:
             # Answered with no cells: the map arrived, empty (a refusal is None).
             self.profile.notes.append(f"Qloo returned no map cells for {entity.name}.")
@@ -708,11 +709,13 @@ def assemble_profile(
             p.map_titles[0] = spare
             first = [alt]
         elif len(p.calls) > calls:
-            # Qloo answered, and the spare's map was no better: say so in the call list,
-            # and drop its own gaps, which say nothing about the map shown. A failure to
-            # reach Qloo records no call, so its note stays.
+            # Qloo answered: say so in the call list. A map that was no better leaves no
+            # notes, which say nothing about the map shown; an error keeps its note, the
+            # only place its code is told. A failure to reach Qloo records no call, so
+            # its note stays too.
             p.calls[-1].purpose += " (tried for a thin map, not used)"
-            del p.notes[notes:]
+            if p.calls[-1].status != "error":
+                del p.notes[notes:]
     pet_maps = [m for m in first + rest if m is not None]
     p.maps_missing = len(p.map_titles) + len(p.baselines) - len(pet_maps) - len(base_maps)
     pet_maps, base_maps = [m for m in pet_maps if m], [m for m in base_maps if m]
