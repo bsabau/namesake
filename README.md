@@ -35,6 +35,41 @@ Namesake does **not** claim to get animals adopted faster, save lives or money, 
 
 Namesake's AI (two agents, one per area and one per animal) and some plain code call Qloo through the official harness (`qloo exec`, pinned at 0.1.26). Every call is cached in SQLite and spaced at least 5 seconds apart, because the hackathon key is rate-limited; a refused ranking is retried after a longer wait.
 
+Who decides each step, from the area to the result (the same graph is in [`docs/architecture.md`](docs/architecture.md)):
+
+```mermaid
+flowchart TD
+    area(["The shelter's area and the animal's record"]) --> lists
+    lists["Lists for the area, asked with Qloo's pet tags:<br/>recommend, before the AI runs"]:::qloo --> sort1
+    sort1["Sort each title: kept, unsure or set aside"]:::jev --> judge
+    judge["Judge the unsure titles, add up to four of its own"]:::ai --> lookup
+    lookup["Look its own titles up: describe"]:::qloo --> pick
+    pick{"Ambiguous name?"}:::ai -- "choose a candidate, with a reason" --> search
+    pick -- no --> search
+    search["What fans here also like, as the AI asks:<br/>recommend with a title and the area"]:::qloo --> sort2
+    sort2["Sort the results the same way"]:::jev --> rank
+    rank["Order the titles for the area, as the AI asks: rank"]:::qloo --> evidence
+    evidence["Keep only titles Qloo ranks or lists here;<br/>pick the venue and map titles by that evidence"]:::code --> venues
+    venues["Places near the shelter for their fans:<br/>recommend place"]:::qloo --> compare
+    compare["Compare with the places for the area's top shows"]:::code --> choose
+    choose["Pick up to three places for an event or a flyer"]:::ai --> check
+    check{"Every title and place from Qloo,<br/>screens passed, evidence kept?"}:::code -- "no, once" --> judge
+    check -- yes --> maps
+    maps["Heatmaps within the area: where_popular"]:::qloo --> lift
+    lift["Lift against the top shows; a thin first map gives way"]:::code --> pins
+    pins["Place the suggested venues: OpenStreetMap"]:::code --> listing
+    listing["Names from the titles, and the bio from the record"]:::ai --> screen
+    screen{"Facts traced, names screened,<br/>no shared name, length?"}:::code -- "no, once" --> listing
+    screen -- yes --> page(["The result: Qloo's part and the AI's, kept apart"])
+
+    classDef qloo fill:#fbe3d9,stroke:#a84526,color:#3a1a10
+    classDef jev fill:#ece6f6,stroke:#6a4c93,color:#2a1d3d
+    classDef ai fill:#e1efe4,stroke:#3d6b4a,color:#173020
+    classDef code fill:#e8e8e8,stroke:#555555,color:#222222
+```
+
+Colours: **Qloo** answers (terracotta), **the classifier**, TypeSafe's Jev (violet), **Namesake's AI** decides (green), **plain code** decides the same way every time (grey).
+
 | What | Qloo workflow | Who decides | Why |
 |---|---|---|---|
 | Pet-themed titles people around the area tend to like | `recommend` TV, films and books with Qloo's four pet tags as signals plus `signal_location`, 20 each | Code asks, before the AI does anything; a classifier ([TypeSafe's Jev](https://typesafe.ai)) marks which are about pets; **Namesake's AI** judges the unsure ones | As filters the pet tags left two shows and no films; as signals with the area they gave 3 to 8 pet titles in each of four areas probed on 18 October ([findings](docs/qloo-findings.md)). These are the AI's main titles. |

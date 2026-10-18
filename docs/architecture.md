@@ -58,6 +58,40 @@ flowchart LR
 
 The hackathon asks for an agent, so this is the line that matters: where the model chooses, and where code does the same thing every time.
 
+```mermaid
+flowchart TD
+    area(["The shelter's area and the animal's record"]) --> lists
+    lists["Lists for the area, asked with Qloo's pet tags:<br/>recommend, before the AI runs"]:::qloo --> sort1
+    sort1["Sort each title: kept, unsure or set aside"]:::jev --> judge
+    judge["Judge the unsure titles, add up to four of its own"]:::ai --> lookup
+    lookup["Look its own titles up: describe"]:::qloo --> pick
+    pick{"Ambiguous name?"}:::ai -- "choose a candidate, with a reason" --> search
+    pick -- no --> search
+    search["What fans here also like, as the AI asks:<br/>recommend with a title and the area"]:::qloo --> sort2
+    sort2["Sort the results the same way"]:::jev --> rank
+    rank["Order the titles for the area, as the AI asks: rank"]:::qloo --> evidence
+    evidence["Keep only titles Qloo ranks or lists here;<br/>pick the venue and map titles by that evidence"]:::code --> venues
+    venues["Places near the shelter for their fans:<br/>recommend place"]:::qloo --> compare
+    compare["Compare with the places for the area's top shows"]:::code --> choose
+    choose["Pick up to three places for an event or a flyer"]:::ai --> check
+    check{"Every title and place from Qloo,<br/>screens passed, evidence kept?"}:::code -- "no, once" --> judge
+    check -- yes --> maps
+    maps["Heatmaps within the area: where_popular"]:::qloo --> lift
+    lift["Lift against the top shows; a thin first map gives way"]:::code --> pins
+    pins["Place the suggested venues: OpenStreetMap"]:::code --> listing
+    listing["Names from the titles, and the bio from the record"]:::ai --> screen
+    screen{"Facts traced, names screened,<br/>no shared name, length?"}:::code -- "no, once" --> listing
+    screen -- yes --> page(["The result: Qloo's part and the AI's, kept apart"])
+
+    classDef qloo fill:#fbe3d9,stroke:#a84526,color:#3a1a10
+    classDef jev fill:#ece6f6,stroke:#6a4c93,color:#2a1d3d
+    classDef ai fill:#e1efe4,stroke:#3d6b4a,color:#173020
+    classDef code fill:#e8e8e8,stroke:#555555,color:#222222
+```
+
+Colours: **Qloo** answers (terracotta), **the classifier**, TypeSafe's Jev (violet), **Namesake's AI** decides (green), **plain code** decides the same way every time (grey).
+
+
 | | Namesake's AI decides | Plain code does |
 |---|---|---|
 | **Area profile** | which unclear titles in Qloo's pet-themed lists for the area are about pets; which titles of its own to add; which of Qloo's candidates a name means, with a stated reason; which of its titles to search the area's lists with, and which unclear titles found there are about pets; the order when Qloo's ranking is unavailable; which titles to keep; which venues suit an adoption event | Qloo's pet-themed lists for the area (the four pet tags with the area as signals), sorted by the classifier, before the AI runs; leaving out titles Qloo neither ranks nor lists here when others have that evidence; sending back a plan that keeps none of the titles Qloo backs and that are established as pet-themed, or whose venues rest on titles Qloo does not back while the plan holds one it does; refusing a venue search with none of those titles; which three titles the venues and the map are asked for, by evidence (Qloo's ranking, else their best place in the area's lists, then the AI's order), never an identity-coded one, telling the AI which in `asked_for`; the area's top shows and the baseline; the baseline's venues; the venue comparison; every heatmap and the map; which titles found in the area's lists to keep or set aside, from the classifier's answers |
