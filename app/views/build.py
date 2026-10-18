@@ -440,9 +440,14 @@ def map_view(
         t = profile.thin_map
         by_id = {e.id: e for e in profile.pet_entities}
         asked = [by_id[i] for i in profile.venue_signals if i in by_id] or profile.pet_entities
+        what = (
+            f"Qloo could not place {t.title.name}'s map within {location.label}"
+            if t.unplaced
+            else f"Qloo returned {t.cells} map cell{'s' if t.cells != 1 else ''} for "
+            f"{t.title.name} within {location.label}"
+        )
         swap = (
-            f"Qloo returned {t.cells} map cell{'s' if t.cells != 1 else ''} for "
-            f"{t.title.name} within {location.label}, so the map uses {titles[0].name} in its "
+            f"{what}, so the map uses {titles[0].name} in its "
             f"place. The places to ask are for fans of {and_list([e.name for e in asked])}. "
         )
     key = (

@@ -678,3 +678,26 @@ def test_a_spare_qloo_could_not_place_is_marked_as_not_used():
     assert p.thin_map is None and p.complete
     assert p.calls[-1].status == "needs_input"
     assert p.calls[-1].purpose.endswith("(tried for a thin map, not used)")
+
+
+def test_a_place_qloo_cannot_map_is_finished_once_with_one_note():
+    # Flash, PR #14 third re-check: needs_input is about the place, so every map gets it;
+    # the profile must not be finished again on every run.
+    script = standard_script()
+    for entity in (DOG_SHOW, CAT_SHOW, BASELINE, BASELINE_2, EXTRA.id):
+        script[heat_key(entity)] = envelope("where_popular", "needs_input")
+    _, p = adaptive(script)
+    assert p.cells == [] and p.maps_missing == 0 and p.complete and not needs_finishing(p)
+    assert sum("could not tell which place" in n for n in p.notes) == 1
+
+
+def test_a_swapped_unplaced_map_says_so_in_the_caption():
+    script = standard_script()
+    script[heat_key(DOG_SHOW)] = envelope("where_popular", "needs_input")
+    script[heat_key(EXTRA.id)] = envelope("where_popular", results=spread(6))
+    _, p = adaptive(script)
+    assert p.thin_map.unplaced
+    assert map_view(LOCATION, p).legend.startswith(
+        "Qloo could not place Example Dog Show's map within Example Slope, so the map uses "
+        "Example Kitten Show in its place."
+    )

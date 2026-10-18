@@ -172,6 +172,8 @@ class QlooCall(BaseModel):
 class ThinMap(BaseModel):
     title: Entity
     cells: int
+    # Qloo could not tell which place was meant for this title's map (needs_input).
+    unplaced: bool = False
 
 
 class LocationProfile(BaseModel):
@@ -214,7 +216,10 @@ class LocationProfile(BaseModel):
         every map arrived (whether or not the maps overlap). An unfinished profile is saved
         with the AI's choices and finished on a later run (`finish_profile`)."""
         compared = bool(self.venues) and all(v.compared for v in self.venues)
-        return compared and bool(self.cells) and self.maps_missing == 0
+        # Every map arrived: with cells, or answered empty (a place Qloo cannot map stays
+        # without cells, and asking again would get the same cached answer).
+        mapped = bool(self.cells) or bool(self.map_titles)
+        return compared and mapped and self.maps_missing == 0
 
 
 def baseline_titles(profile: LocationProfile) -> list[Entity]:
@@ -319,6 +324,8 @@ class _Builder:
         self.qloo = qloo
         self.profile = LocationProfile(location_id=location.id)
         self.tastes_ok = False
+        # Titles whose map Qloo could not place (needs_input).
+        self.unplaced: set[str] = set()
 
     def call(self, operation: str, input_: dict[str, Any], purpose: str) -> Envelope | None:
         try:
@@ -417,10 +424,12 @@ class _Builder:
             return None
         if env.status == "needs_input":
             # Qloo could not tell which place is meant. The answer is cached and final, so
-            # the map counts as arrived, empty: finishing could never fetch it.
-            self.profile.notes.append(
-                f"Qloo could not tell which place {location.query!r} means for {entity.name}'s map."
-            )
+            # the map counts as arrived, empty: finishing could never fetch it. The place,
+            # not the title, is in question, so the note is said once.
+            note = f"Qloo could not tell which place {location.query!r} means for its maps."
+            if note not in self.profile.notes:
+                self.profile.notes.append(note)
+            self.unplaced.add(entity.id)
             return {}
         if not env.has_results:
             # Answered with no cells: the map arrived, empty (a refusal is None).
@@ -705,7 +714,11 @@ def assemble_profile(
         if alt and better_map(alt, first[0], [m for m in rest if m], base_maps):
             empty = f"Qloo returned no map cells for {p.map_titles[0].name}."
             p.notes = [n for n in p.notes if n != empty]  # the map's caption says it
-            p.thin_map = ThinMap(title=p.map_titles[0], cells=len(first[0]))
+            p.thin_map = ThinMap(
+                title=p.map_titles[0],
+                cells=len(first[0]),
+                unplaced=p.map_titles[0].id in b.unplaced,
+            )
             p.map_titles[0] = spare
             first = [alt]
         elif len(p.calls) > calls:
