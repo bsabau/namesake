@@ -568,7 +568,7 @@ def test_find_venues_asks_for_the_top_three_by_evidence():
     find_local_titles(ctx(d), DOG_SHOW, "tv_show")
     for n, name in ((CAT_SHOW, "Example Cat Show"), (SPACE_OPERA, "Example Other")):
         d.titles_seen[n] = Entity(id=n, name=name, type="urn:entity:tv_show")
-    order = [PUPPY_SCHOOL, CAT_CAFE, DOG_SHOW]
+    order = [PUPPY_SCHOOL, CAT_CAFE]
     d.qloo = FakeQloo(
         {
             key(
@@ -579,10 +579,11 @@ def test_find_venues_asks_for_the_top_three_by_evidence():
         }
     )  # fmt: skip
     out = find_venues(ctx(d), [DOG_SHOW, CAT_SHOW, SPACE_OPERA, CAT_CAFE, PUPPY_SCHOOL])
-    # Found titles by their place, then the AI's own order. Example Other was set aside
-    # by the classifier in that list, so looking it up later earns it no place there.
+    # Found titles by their place; the AI's own titles have no Qloo evidence here, so they
+    # are not asked for (decision 22). Example Other was set aside by the classifier in
+    # that list, so looking it up later earns it no place there.
     assert d.qloo.calls[-1][1]["signals"] == order and d.venue_signals == order
-    assert out["asked_for"] == ["Example Puppy School", "Example Cat Cafe", "Example Dog Show"]
+    assert out["asked_for"] == ["Example Puppy School", "Example Cat Cafe"]
 
 
 def test_an_ais_title_in_the_areas_list_keeps_its_place_there(roster):

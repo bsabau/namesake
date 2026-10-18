@@ -183,7 +183,7 @@ Qloo silently ignores parameters it does not recognise and then returns empty re
 
 `docs/qloo-findings.md` has the milestone 1 answers and the proposal for the agent, and `docs/decisions.md` what was decided from it; read both before building anything that calls Qloo. In short:
 
-- Pet tags exist but filter TV and films down to almost nothing, and lifestyle tags change nothing as a signal. The agent proposes pet-themed titles itself, and searches what people around the area who like them also like; a classifier sorts those results (decision 20).
+- Pet tags exist but filter TV and films down to almost nothing, and lifestyle tags change nothing as a signal. As signals with the area they give each area its own list of pet-themed titles, which the agent starts from (decision 22); it may add its own, kept only with Qloo's evidence, and searches what people around the area who like them also like; a classifier sorts every list (decision 20).
 - Pet-themed titles as signals give venues near the shelter. Most are just popular nearby, so venues are compared with those of the area's own top shows (decision 18) and screened for event suitability.
 - Citywide heatmaps rarely reach the shelter. Heatmaps within the neighbourhood work, and the map layer is the lift of the top two pet titles over the area's top two shows.
 - Names are often ambiguous; resolving them with a stated reason is an agent step.

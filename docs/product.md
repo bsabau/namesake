@@ -59,8 +59,8 @@ The plan's success measure is adoptions and returns; likes and reach are left ou
 
 | Step | Harness workflow | Who decides | Cached per |
 |---|---|---|---|
-| A. Find pet tags (dog, cat, pets, animals) | `find_tags` | probed in milestone 1 only: as filters the tags returned almost nothing, so the app does not use them | global |
-| B. Pet-themed entities strong here | `describe` for the titles the agent proposes; then `recommend` with one of them as the signal plus `signal_location`, per type (decision 20). Pet tags as filters returned almost nothing (milestone 1) | agent proposes and searches; a classifier sorts the search results; agent judges the unclear ones | location |
+| A. Pet-themed titles the area likes | `recommend` per type with the four pet tags as signals plus `signal_location` (decision 22). As filters the tags returned almost nothing (milestone 1) | code asks; a classifier sorts; agent judges the unclear ones | location |
+| B. More pet-themed entities strong here | `describe` for titles the agent adds; then `recommend` with one of them as the signal plus `signal_location`, per type (decision 20) | agent adds and searches; a classifier sorts the search results; agent judges the unclear ones; code keeps only titles Qloo ranks or lists here | location |
 | C. Local lift against a baseline | `where_popular` for the top two entities and the area's top two shows (decision 18); lift = the entities' averaged score in a cell minus the baseline shows' | code computes; agent drops entities with no lift | entity and city |
 | D. Venues fans favour | `recommend` for places, the three entities with the strongest evidence as signals (code picks them), location near the shelter | agent picks about three venues, with reasons | location |
 | E. General local tastes | `recommend` with `signal_location` per type | agent proposes, screens, keeps | location |

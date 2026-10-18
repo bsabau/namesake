@@ -192,6 +192,22 @@ The question: instead of Namesake's AI proposing pet titles and Qloo checking th
 
 `rank` was refused with `QLOO_RATE_LIMIT`, even after its retry, so the titles kept the order Namesake's AI proposed them in. The venues were asked for its first three (PAW Patrol, Bluey, Scooby-Doo), and the map's first title, PAW Patrol, scored one cell within Hoboken. The titles with evidence for the area, *Nature Cat* (9th in Qloo's list of what people around Hoboken who like PAW Patrol also like) and *My Cat from Hell*, went to neither. So code now orders the venue and map titles by evidence (decision 20, revised): Qloo's ranking, else each title's place in the area's lists, then the AI's order.
 
+## Qloo-first pet titles: the area plus the pet tags as signals (18 October, 26 calls)
+
+`recommend` with the four pet media tags as `signal_tags` (union) plus `signal_location`, limit 20, for TV shows, films and books; 10 seconds apart, no refusals, and `interpretation` showed all four tags sent every time. Kept means Jev's pets ≥ 0.8 and family ≥ 0.6; nothing came back unsure.
+
+| Area | TV | Films | Books | Kept |
+|---|---|---|---|---|
+| Park Slope | *My Cat from Hell* 1st, *Dogs in Space* 9th | none | *Rin Tin Tin: The Life and the Legend* 2nd | 3 |
+| Astoria | *My Cat from Hell* 1st, *Dogs in Space* 8th | *A Dog's Way Home* 7th | *Rin Tin Tin* 2nd, *The Aristocats* 7th | 5 |
+| Austin | *My Cat from Hell* 1st, *Dogs in Space* 8th, *It's Me or the Dog* 16th, *Bunnicula* 19th | *A Dog's Way Home* 4th, *A Dog's Journey* 11th | *Rin Tin Tin* 8th, *The Aristocats* 19th | 8 |
+| Hoboken | *My Cat from Hell* 1st, *Dogs in Space* 6th | *A Dog's Way Home* 7th, *Arthur the King* 18th | *Rin Tin Tin* 5th | 5 |
+
+- Every area gave at least three pet titles, where the tags as filters gave two TV shows and no films (milestone 1). So the lists are a source, and the app now starts from them (decision 22).
+- The lists barely differ by area: the tags dominate, and the area shifts positions and adds a few. Bluey, PAW Patrol and Clifford never appear, and many kept titles are about real people (names then come only from the animals).
+- One more search from each area's best kept title (*My Cat from Hell*, TV, with the area) added almost nothing: Bluey in Austin (11th), *Cesar Millan* in Hoboken (9th).
+- So Qloo's lists come first and the AI may add titles, but only Qloo's evidence for the area (its ranking, or a place in the area's lists) keeps one.
+
 ## A pet index per audience, and the rate limit (17 October, 30 calls)
 
 Top 20 TV shows, films and books for Astoria and Barcelona, for everyone and with `demographic` added (women, men, "millennials", "adults 55-64"); Jev marked the pet titles, and each list was scored as the sum of `p_pets / log2(position + 1)`.

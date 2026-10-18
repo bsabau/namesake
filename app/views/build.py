@@ -12,6 +12,7 @@ from app.locations import Location
 from app.places import MAX_PIN_KM
 from app.profile import (
     Entity,
+    FoundIn,
     LocationProfile,
     Venue,
     baseline_titles,
@@ -361,7 +362,13 @@ def name_badge(
     if source == "local":
         return "Watched locally"
     found = next((e.found_in for e in profile.pet_entities if e.id == entity_id), None)
-    liked = f"liked here by fans of {found.signal}" if found else None
+    liked = None
+    if found:
+        liked = (
+            "in Qloo's pet-themed list for this area"
+            if found.by_tags
+            else f"liked here by fans of {found.signal}"
+        )
     if entity_id in profile.ranked:
         place = profile.ranked.index(entity_id) + 1
         ranked = f"ranked {ordinal(place)} of {len(profile.ranked)} here by Qloo"
@@ -571,15 +578,62 @@ def sorted_by(e: Entity) -> str:
     )
 
 
-def listed(e: Entity, location: Location) -> str:
-    """Where a title Namesake's AI proposed also sits in one of the area's lists."""
-    f = e.listed_in
-    if f is None:
-        return ""
+def place_in_list(f: FoundIn, location: Location) -> str:
+    """Where a title sits in one of the area's lists, as Qloo returned it."""
+    what = KIND_WORDS.get(f.kind, "titles")
+    if f.by_tags:
+        return (
+            f"{ordinal(f.position)} of {f.out_of} in Qloo's list of pet-themed {what} people "
+            f"around {location.label} tend to like."
+        )
     return (
-        f"Also {ordinal(f.position)} of {f.out_of} in Qloo's list of "
-        f"{KIND_WORDS.get(f.kind, 'titles')} people around {location.label} who like "
-        f"{f.signal} tend to like. "
+        f"{ordinal(f.position)} of {f.out_of} in Qloo's list of {what} people around "
+        f"{location.label} who like {f.signal} tend to like."
+    )
+
+
+def listed(e: Entity, location: Location) -> str:
+    """A better place in another of the area's lists, or where a title Namesake's AI
+    proposed also sits in one of them."""
+    return f"Also {place_in_list(e.listed_in, location)} " if e.listed_in else ""
+
+
+def who_chose(profile: LocationProfile) -> str:
+    """Who decided the area's titles, venues and order: Qloo's part apart from the AI's."""
+    by_tags = any(e.found_in and e.found_in.by_tags for e in profile.pet_entities)
+    searched = any(e.found_in and not e.found_in.by_tags for e in profile.pet_entities)
+    if by_tags:
+        text = (
+            "Qloo listed pet-themed titles people here tend to like, and a classifier sorted "
+            "them; Namesake's AI judged the unclear ones, could add its own, settled ambiguous "
+            "names and picked the venues. "
+        )
+    else:
+        text = "Namesake's AI proposed the titles, settled ambiguous names and picked the venues. "
+    if searched:
+        text += (
+            "It also searched Qloo's lists for what people here who like its titles tend to "
+            "like, and kept the pet-themed ones. "
+        )
+    if profile.left_out_titles:
+        text += (
+            f"Code left out {and_list(profile.left_out_titles)}: Qloo neither ranks "
+            f"{'them' if len(profile.left_out_titles) > 1 else 'it'} here nor lists "
+            f"{'them' if len(profile.left_out_titles) > 1 else 'it'} for this area. "
+        )
+    elif not profile.titles_confirmed:
+        text += (
+            "Qloo had no list or ranking that backs a pet title here, so the titles are "
+            "Namesake's AI's own. "
+        )
+    text += (
+        "Code chose which titles the venues were asked for, by Qloo's evidence, and checked "
+        "that each came from Qloo. "
+    )
+    return text + (
+        "The order of the titles is Qloo's ranking for this area."
+        if profile.order_source == "qloo_rank"
+        else "Qloo's ranking was unavailable, so the order is the one Namesake's AI chose."
     )
 
 
@@ -600,13 +654,11 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                 )
             )
         elif e.found_in:
-            f = e.found_in
-            what = KIND_WORDS.get(f.kind, "titles")
             returned.append(
                 WhyItem(
                     title=f"{e.name} ({kind})",
-                    detail=f"{ordinal(f.position)} of {f.out_of} in Qloo's list of {what} "
-                    f"people around {location.label} who like {f.signal} tend to like. "
+                    detail=place_in_list(e.found_in, location)
+                    + " "
                     + listed(e, location)
                     + sentences(e.description),
                 )
@@ -629,21 +681,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         reading.append(
             WhyItem(
                 title="Who chose",
-                detail="Namesake's AI proposed the titles, settled ambiguous names and picked "
-                "the venues; code chose which titles the venues were asked for, by Qloo's "
-                "evidence, and checked that each came from Qloo. "
-                + (
-                    "It also searched Qloo's lists for what people here who like its titles "
-                    "tend to like, and kept the pet-themed ones. "
-                    if any(e.found_in for e in profile.pet_entities)
-                    else ""
-                )
-                + (
-                    "The order of the titles is Qloo's ranking for this area."
-                    if profile.order_source == "qloo_rank"
-                    else "Qloo's ranking was unavailable, so the order is the one Namesake's AI "
-                    "chose."
-                ),
+                detail=who_chose(profile),
             )
         )
     if profile.baselines and profile.baseline_source == "area":

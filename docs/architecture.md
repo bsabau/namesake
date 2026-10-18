@@ -60,7 +60,7 @@ The hackathon asks for an agent, so this is the line that matters: where the mod
 
 | | Namesake's AI decides | Plain code does |
 |---|---|---|
-| **Area profile** | which pet-themed titles to try; which of Qloo's candidates a name means, with a stated reason; which of its titles to search the area's lists with, and which unclear titles found there are about pets; the order when Qloo's ranking is unavailable; which titles to keep; which venues suit an adoption event | which three titles the venues and the map are asked for, by evidence (Qloo's ranking, else their place in the area's lists, then the AI's order); the area's top shows and the baseline; the baseline's venues; the venue comparison; every heatmap and the map; which titles found in the area's lists to keep or set aside, from the classifier's answers |
+| **Area profile** | which unclear titles in Qloo's pet-themed lists for the area are about pets; which titles of its own to add; which of Qloo's candidates a name means, with a stated reason; which of its titles to search the area's lists with, and which unclear titles found there are about pets; the order when Qloo's ranking is unavailable; which titles to keep; which venues suit an adoption event | Qloo's pet-themed lists for the area (the four pet tags with the area as signals), sorted by the classifier, before the AI runs; leaving out titles Qloo neither ranks nor lists here when others have that evidence; which three titles the venues and the map are asked for, by evidence (Qloo's ranking, else their place in the area's lists, then the AI's order); the area's top shows and the baseline; the baseline's venues; the venue comparison; every heatmap and the map; which titles found in the area's lists to keep or set aside, from the classifier's answers |
 | **Listing** | which names to offer from the area's titles; which lookalike titles to check, and how to retry one that was refused (with look words quoted from the record); the bio, from the facts | the answers about children, other animals, house-training and bites; the hook line; every check |
 | **Typed area** | nothing | the probe show's lookup and the one heatmap that accepts or refuses it |
 
@@ -93,9 +93,10 @@ sequenceDiagram
         R-->>V: Working page (/runs/{id})
         V->>R: GET /api/runs/{id}/events (SSE)
         T->>P: get or build the area profile
-        P->>Q: fixed calls: local shows, baseline venues
-        P->>M: profile agent: which titles, which venues
-        M->>Q: describe, then recommend titles in the area's lists (its choice)
+        P->>Q: fixed calls: local shows, baseline venues, the area's pet-themed lists
+        P->>J: the classifier sorts the pet-themed lists
+        P->>M: profile agent, starting from Qloo's pet-themed titles: which to keep, which venues
+        M->>Q: describe its own titles, then recommend titles in the area's lists (its choice)
         M->>J: inside that search, the classifier sorts what Qloo returned, before the AI sees it
         M->>Q: rank (its choice), recommend place (code picks the titles by evidence)
         P->>Q: fixed calls: heatmaps for the map
@@ -123,7 +124,7 @@ This happens before any run, when the area is not one of the presets.
 
 ## The area profile
 
-Most Qloo work depends on the area and the species, not the animal, so it is done once per area and species and shared by every animal there (decision 1). A new area and species costs about 15 to 17 Qloo calls; each further animal of that species there at most two.
+Most Qloo work depends on the area and the species, not the animal, so it is done once per area and species and shared by every animal there (decision 1). A new area and species costs about 18 to 20 Qloo calls; each further animal of that species there at most two.
 
 ```mermaid
 flowchart TD
@@ -133,11 +134,13 @@ flowchart TD
     usable -- no --> seed["Baseline: one seed show,<br/>with a note saying why"]
     base --> basevenues["Baseline venues<br/>recommend place, baseline as signals"]
     seed --> basevenues
-    basevenues --> ai["Profile agent (Namesake's AI)<br/>look_up_title: describe<br/>find_local_titles: recommend, up to 3,<br/>sorted by the classifier<br/>rank_titles: rank, once, up to 8 titles<br/>find_venues: recommend place"]
+    basevenues --> petlists["Qloo's pet-themed lists for the area<br/>recommend tv_show, movie, book<br/>with the pet tags and signal_location,<br/>sorted by the classifier"]
+    petlists --> ai["Profile agent (Namesake's AI), starting from them<br/>look_up_title: describe<br/>find_local_titles: recommend, up to 3,<br/>sorted by the classifier<br/>rank_titles: rank, once, up to 8 titles<br/>find_venues: recommend place"]
     ai --> check{"check_plan:<br/>every title and venue came from Qloo this run,<br/>passes the screens, keeps the venues' titles?"}
     check -- no --> ai
     check -- "still no, or the AI fails" --> fixed["Fixed lookup with the seed titles"]
-    check -- yes --> assemble
+    check -- yes --> evidence["Code keeps only titles Qloo ranks here<br/>or lists for the area, when any has that"]
+    evidence --> assemble
     fixed --> assemble["Assemble: venue comparison,<br/>heatmaps for two pet titles and two baseline shows"]
     assemble --> lift["Map cells: mean rank of the pet titles<br/>minus mean rank of the baseline shows"]
     lift --> save[("Saved, even if unfinished")]
@@ -146,7 +149,8 @@ flowchart TD
     finish --> save
 ```
 
-- **Budget**: the profile agent may make at most 20 model requests and 18 tool calls. That is a ceiling; the whole profile, fixed calls included, usually comes to 15 to 17 Qloo calls.
+- **Budget**: the profile agent may make at most 20 model requests and 18 tool calls. That is a ceiling; the whole profile, fixed calls included, usually comes to 18 to 20 Qloo calls, the three pet-themed lists included.
+- **Qloo's pet-themed lists** (decision 22): before the AI runs, code asks `recommend` for TV shows, films and books with Qloo's four pet tags as signals plus the area, 20 each, and the classifier sorts them. The AI starts from those; it may add up to four titles of its own, and code keeps a title only if Qloo ranks it here or lists it in one of the area's lists, whenever any title has that evidence (else the AI's own stay, and the page says so). The venues are asked for backed titles only, when the AI sent any.
 - **Titles from the area's lists** (decision 20): `find_local_titles` asks what people around the area who like one of the AI's titles (or one the classifier kept) also like, for TV, films or books, 20 at a time, up to three searches. Titles the classifier sets aside never reach the AI's plan. Each found title keeps where it was found ("1st of 20 in Qloo's list of TV shows people around Austin who like PAW Patrol tend to like") and the classifier's answers, and the Why panel shows them in separate columns.
 - **The baseline** is the area's top two shows, leaving out any whose name or description mentions animals, a religion, race or politics (decision 18: the page names them as what people here tend to watch, which must not read as a claim about who they are); the AI may not use them as pet titles. If the area's shows are unusable, one seed show stands in, with a note. If even that cannot be found, the venues and the map are left uncompared, and the note says so.
 - **The heatmaps** run in this order: the first pet title, the baseline shows, then the second pet title, so a profile cut short still has a comparison.

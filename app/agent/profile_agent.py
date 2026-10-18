@@ -16,7 +16,7 @@ from app.agent.checks import check_choice_reason, identity_coded
 from app.agent.steps import StepLog
 from app.classify import JevClassifier, bucket
 from app.locations import Location
-from app.profile import VENUE_LIMIT, Entity, FoundIn, rank_band, screen
+from app.profile import PET_TAGS, VENUE_LIMIT, Entity, FoundIn, rank_band, screen
 from app.qloo.envelope import Envelope
 from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
 
@@ -86,19 +86,23 @@ INSTRUCTIONS = """\
 You help a volunteer at a fictional animal shelter plan where to promote a {species}.
 The shelter is in {place}. You use Qloo, a taste-data service, through four tools.
 
-1. Think of 4 to 6 well-known titles (TV shows, films, books or brands) that are clearly
-   about {species}s or pets, and that a broad US audience recognises. Avoid titles centred
-   on an animal's death, on violence, or coded to a race, religion or political identity.
-2. Look each one up with look_up_title. When Qloo offers several candidates, choose the
-   pet-themed work you meant and give the reason (year, description). If none fits, drop it.
-3. Call find_local_titles with your strongest found title, for TV shows, then films or
-   books (up to 3 calls): it lists what people around {place} who like that title also
-   like. A classifier has marked the clearly pet-themed ones "kept"; judge the "unsure"
-   ones from their description and keep only titles clearly about {species}s or pets.
-   Local titles you keep are strong evidence: include them.
-4. Call rank_titles once, with up to 8 found titles of the same kind, your own and the
-   local ones together, to order them for this area. If it is unavailable, keep your own
-   order.
+1. The prompt lists the pet-themed titles Qloo itself found for people around {place}
+   (each kind, best first). A classifier has marked the clearly pet-themed ones "kept";
+   judge the "unsure" ones from their description and keep only titles clearly about
+   {species}s or pets. These are your main titles.
+2. You may add up to 4 well-known titles of your own (TV shows, films, books or brands)
+   that are clearly about {species}s or pets. Avoid titles centred on an animal's death, on
+   violence, or coded to a race, religion or political identity. Look each one up with
+   look_up_title; when Qloo offers several candidates, choose the pet-themed work you meant
+   and give the reason (year, description). If none fits, drop it. A title of yours counts
+   only if Qloo backs it for this area: rank_titles returns it, or it appears in one of
+   the area's lists. Code leaves out the others when any title is backed.
+3. Call find_local_titles with your strongest title, for TV shows, then films or books (up
+   to 3 calls): it lists what people around {place} who like that title also like, sorted
+   the same way. Local titles you keep are strong evidence: include them.
+4. Call rank_titles once, with up to 8 titles of the same kind, Qloo's and your own
+   together, to order them for this area. A title it leaves out is not ranked here. If it
+   is unavailable, keep your own order.
 5. Call find_venues with the titles you keep. Code asks Qloo for venues for the three with
    the strongest evidence for this area (Qloo's ranking, else their place in the area's
    lists, else your order) and names them in "asked_for"; your answer must keep each of
@@ -244,26 +248,87 @@ def find_local_titles(
             "limit": LOCAL_LIMIT,
         },
     )
-    if isinstance(env, str) or not env.has_results or env.status != "ok":
-        if isinstance(env, str):
-            status = env
-        elif env.status == "needs_input":
-            status = f"unavailable: Qloo could not tell which place {deps.location.query!r} means"
-        elif not env.has_results:
-            status = "unavailable: no titles returned"
-        else:
-            # A partial or degraded answer may have lost the location signal.
-            status = f"unavailable: Qloo's list was {env.status}"
+    if status := list_failure(deps, env):
         deps.log.add("note", f"Local {what}: {status}")
         return {"status": status}
+    return sort_list(deps, env, kind, what, signal_id=entity_id, signal=signal.name)
+
+
+PET_LIST_KINDS: tuple[StoryKind, ...] = ("tv_show", "movie", "book")
+
+
+def pet_lists(deps: ProfileDeps) -> dict[str, Any]:
+    """Qloo's own lists of pet-themed titles for the area, asked before Namesake's AI
+    proposes anything (decision 22): per kind, the area plus Qloo's pet tags as signals,
+    sorted by the classifier. Plain code, so the AI starts from what Qloo found."""
+    found: dict[str, Any] = {}
+    for kind in PET_LIST_KINDS:
+        what = f"pet-themed {KIND_WORDS[kind]}"
+        deps.log.add(
+            "qloo", f"Asking Qloo which {what} people around {deps.location.label} tend to like"
+        )
+        env = qloo_call(
+            deps,
+            "recommend",
+            {
+                "target_type": kind,
+                "signal_tags": PET_TAGS,
+                "signal_tags_operator": "union",
+                "signal_location": deps.location.query,
+                "limit": LOCAL_LIMIT,
+            },
+        )
+        if status := list_failure(deps, env):
+            deps.log.add("note", f"{what[0].upper()}{what[1:]}: {status}")
+            found[kind] = {"status": status}
+            continue
+        found[kind] = sort_list(
+            deps, env, kind, what, signal_id=None, signal="Qloo's pet tags", by_tags=True
+        )
+    return found
+
+
+def has_evidence(deps: ProfileDeps, entity_id: str) -> bool:
+    """Qloo backs this title for the area: it ranked it here, or it is in one of the
+    area's lists (decision 22)."""
+    e = deps.titles_seen.get(entity_id)
+    return entity_id in (deps.rank_order or []) or (e is not None and best_place(e) is not None)
+
+
+def list_failure(deps: ProfileDeps, env: Envelope | str) -> str | None:
+    """Why an answer is not a list to use, or None. Only a plain `ok` keeps the place: a
+    partial or degraded answer may have lost the location signal."""
+    if isinstance(env, str):
+        return env
+    if env.status == "needs_input":
+        return f"unavailable: Qloo could not tell which place {deps.location.query!r} means"
+    if not env.has_results:
+        return "unavailable: no titles returned"
+    if env.status != "ok":
+        return f"unavailable: Qloo's list was {env.status}"
+    return None
+
+
+def sort_list(
+    deps: ProfileDeps,
+    env: Envelope,
+    kind: StoryKind,
+    what: str,
+    signal_id: str | None,
+    signal: str,
+    by_tags: bool = False,
+) -> dict[str, Any]:
+    """One of the area's lists, sorted by the classifier into kept, unsure and dropped.
+    Kept and unsure titles become choosable (`titles_seen`); a title already seen keeps
+    its best place in the area's lists."""
     total = len(env.results)
     kept, unsure, dropped, unanswered = [], [], 0, 0
     for position, r in enumerate(env.results, start=1):
-        if r["entity_id"] in deps.baseline_titles or r["entity_id"] == entity_id:
+        if r["entity_id"] in deps.baseline_titles or r["entity_id"] == signal_id:
             continue  # a comparison show, or the search's own signal, is no evidence
+        place = FoundIn(signal=signal, kind=kind, position=position, out_of=total, by_tags=by_tags)
         if r["entity_id"] in deps.titles_seen:
             seen = deps.titles_seen[r["entity_id"]]
-            place = FoundIn(signal=signal.name, kind=kind, position=position, out_of=total)
             best = best_place(seen)
             if best is None or share(place) < share(best):
                 seen.listed_in = place  # in another of the area's lists, placed better
@@ -274,7 +339,7 @@ def find_local_titles(
             name=r["name"],
             type=r.get("type", f"urn:entity:{kind}"),
             description=props.get("short_description") or props.get("description"),
-            found_in=FoundIn(signal=signal.name, kind=kind, position=position, out_of=total),
+            found_in=place,
         )
         if deps.classifier:
             # After a failed call it answers from saved answers only (JevClassifier.down).
@@ -400,12 +465,14 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
         return {"status": f"unknown entity_ids {unknown}; look titles up first"}
     if refusal := baseline_refusal(deps, entity_ids):
         return refusal
-    # A title the plan could not keep (identity-coded, check_plan) is never a signal.
-    ids = [
+    # A title the plan could not keep (identity-coded, check_plan) is never a signal, and
+    # titles Qloo backs for the area come first: only they, when there are any.
+    eligible = [
         i
         for i in evidence_order(deps, entity_ids)
         if not identity_coded(deps.titles_seen[i].name, deps.titles_seen[i].description)
-    ][:MAX_VENUE_SIGNALS]
+    ]
+    ids = ([i for i in eligible if has_evidence(deps, i)] or eligible)[:MAX_VENUE_SIGNALS]
     if not ids:
         return {"status": "no title here can be a venue signal; send titles you keep"}
     names = [deps.titles_seen[i].name for i in ids]
