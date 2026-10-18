@@ -902,7 +902,7 @@ def qloo_part(
         qloo.append(f"{plural(len(pets), 'title')} looked up")
     if profile.venues:
         qloo.append(
-            f"{plural(len(profile.venues), 'place')} near the shelter for fans of "
+            f"{plural(len(profile.venues), 'place')} near the shelter, ranked for fans of "
             f"{venue_titles(profile)}"
         )
     if profile.cells:

@@ -588,4 +588,4 @@ button[type="submit"]:not(.animal-card):not(.link-button), .candidates button {
 }
 .map-key p { margin: 2px 0 0; }
 
-.qloo-part { margin: 0 0 16px; }
+.qloo-part { margin: 0 0 16px; padding: 8px 12px; border: 1px solid var(--border, #ddd); border-radius: 6px; }

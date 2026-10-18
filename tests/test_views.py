@@ -375,7 +375,7 @@ def test_the_qloo_part_counts_what_qloo_returned_apart_from_the_ais_part(roster)
     part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
     assert part.qloo == (
         f"2 titles with its evidence for {LOCATION.label} (2 ranked here); "
-        f"{len(p.venues)} places near the shelter for fans of Example Cat Show; "
+        f"{len(p.venues)} places near the shelter, ranked for fans of Example Cat Show; "
         f"heatmaps that make {len(p.cells)} map cell{'s' if len(p.cells) != 1 else ''}."
     )
     # Semicolons keep the AI's acts apart from what Qloo did.
@@ -412,3 +412,18 @@ def test_the_qloo_part_says_plainly_when_nothing_came_back(roster):
     part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
     assert part.qloo == f"Nothing for {LOCATION.label} yet."
     assert part.ai.startswith("Not used here")
+
+
+def test_an_agent_profile_with_nothing_else_to_say_still_credits_the_ai(roster):
+    from app.profile import FoundIn, PetVerdict
+
+    p = agent_profile()
+    p.order_source = "qloo_rank"
+    kept = PetVerdict(pets=0.97, dogs=0.9, cats=0.1, family=0.9, real_people=0.05)
+    for e in p.pet_entities:
+        e.found_in = FoundIn(signal="x", kind="tv_show", position=1, out_of=20)
+        e.verdict = kept
+    for v in p.venues:
+        v.chosen_reason = None
+    part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
+    assert part.ai == "Kept the titles above; the names and bio are the fixed template."
