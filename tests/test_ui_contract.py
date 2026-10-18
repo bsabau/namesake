@@ -374,7 +374,12 @@ def test_the_story_working_page_marks_each_step_by_who_did_it(client):
     assert "Writing her story…" in page
     for label in ["Qloo", "Namesake&#39;s AI", "Classifier (TypeSafe&#39;s Jev)", "Code"]:
         assert label in page
-    assert 'class="step step-note actor-code"><span class="step-actor">Code</span>' in page
+    # Whatever the run logged first (a saved result, a fresh start), each rendered step
+    # carries its actor as a class and in words.
+    steps = re.findall(
+        r'class="step step-[a-z]+ actor-([a-z]+)"><span class="step-actor">([^<]+)</span>', page
+    )
+    assert steps and all(label for _, label in steps)
     assert 'class="steps timeline" data-role="steps"' in page
     # Streamed steps take their actor from the event, never from the kind; the label from
     # the view model's list; a step without an actor is code's.

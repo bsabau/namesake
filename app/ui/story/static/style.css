@@ -546,7 +546,10 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
   box-shadow: var(--shadow);
   transition: border-color 0.15s, background-color 0.15s, transform 0.15s;
 }
-.name-option label:hover .option-name { background: var(--primary-soft); transform: translateY(-1px); }
+.name-option label:hover .option-name { background: var(--primary-soft); }
+@media (prefers-reduced-motion: no-preference) {
+  .name-option label:hover .option-name { transform: translateY(-1px); }
+}
 /* The picked name is teal like every choice of the volunteer's, never Qloo's terracotta;
    an unpicked one is white with a teal edge, so it reads as choosable, not disabled. */
 .name-option:has(input:checked) .option-name { background: var(--primary-ink); border-color: var(--primary-ink); color: var(--on-primary); }

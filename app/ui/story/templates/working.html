@@ -8,8 +8,9 @@
 
 {% block content %}
 {# The story being written: the animal, the headline, and the steps as a timeline, each
-   marked by who did it (the view model's actor for its kind; data-actors for the ones
-   that arrive over the stream). #}
+   marked by who did it: the step's own actor, from the view model for the steps rendered
+   here and from the event for the ones that arrive over the stream (data-actor-labels
+   gives the words). #}
 <section class="working story-working" data-role="working"
          data-events-url="{{ view.events_url }}" data-result-url="{{ view.result_url }}"
          data-actor-labels="{{ view.actor_labels|tojson|forceescape }}">
@@ -23,7 +24,7 @@
       <h1 class="headline working-title">{{ view.headline or view.title }}</h1>
       <p class="lead">{{ view.location.label }}, {{ view.location.region }}.</p>
       <p class="where-label" data-role="status">
-        {{ 'Finished.' if view.finished else 'Each step appears as it happens.' }}</p>
+        {{ 'Finished.' if view.finished else 'Working. Each step appears as it happens.' }}</p>
       <ul class="step-key" aria-label="Who did each step">
         {% for key in view.actor_key %}<li class="actor-{{ key.actor }}">{{ key.label }}</li>{% endfor %}
       </ul>
