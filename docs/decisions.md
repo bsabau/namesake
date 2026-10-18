@@ -26,6 +26,8 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 
 **Revised 17 October:** the "stands out" badge is yes-or-no, so a place ranked 15th of 15 for pet-show fans earned it as readily as the 1st. The agent now sees each venue's position in Qloo's list (top, middle or bottom third) and is told to prefer the top, then the middle, and to give a reason when it picks from the bottom. Each venue card states the rank plainly ("2nd of 15 · near the top of Qloo's list"). The author chose this over withholding the badge from low-ranked places.
 
+**Revised 18 October, per animal:** when an animal's record says it is not good with children, the result skips venues whose name or Qloo description mentions children (`for_children` in `app/views/build.py`: whole words such as child, kids, toddler, playground, preschool, kindergarten, childcare, family-friendly; "nursery", "daycare", "baby" and "youth" are not on the list, since plant nurseries, dog daycares, baby back ribs and youth hostels are common in venue text). The plan names each skipped venue the page would have shown, with the word it mentions, as our suggestion, and the next venues take their slots; the Why panel's reading column says the same, while Qloo's column keeps Qloo's list as it was. When every venue is skipped, the page says so instead of "no venues". "Unknown" and "yes" keep every venue: the record alone decides, and nothing is inferred about the area or its people. The area profile is shared by every animal there, so this is a filter on the view, with no Qloo call. The author asked, on 18 October, why the app avoids age demographics yet uses children's shows; a probe showed the venues barely change between children's and adult pet titles (`docs/qloo-findings.md`), so the per-animal filter is the useful part.
+
 ## 3. Ranking titles: one small `rank` call, with a stated fallback
 
 **Decided:**
@@ -51,8 +53,6 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 - The result screenshot already has a map.
 
 **Follows:** revisit in milestone 4 only if time allows. If done, geocode at profile-build time with a cached, rate-respecting service, never from the browser.
-
-**Revised 18 October, per animal:** when an animal's record says it is not good with children, the result leaves out venues whose own Qloo description is about children (`for_children` in `app/views/build.py`: whole words such as child, kids, toddler, playground, preschool, kindergarten, childcare; "nursery", "daycare", "baby" and "youth" are not on the list, since plant nurseries, dog daycares, baby back ribs and youth hostels are common in venue text), and the plan names the ones that would have been shown, labelled as our suggestion; the next venues fill their places. The Why panel's reading column says which were left out and why, while Qloo's column keeps Qloo's list as it was. When every venue is about children, the page says so instead of "no venues". "Unknown" and "yes" keep every venue: the record alone decides, and nothing is inferred about the area or its people. The area profile is shared by every animal there, so this is a filter on the view, with no Qloo call. The author asked, on 18 October, why the app avoids age demographics yet uses children's shows; a probe showed the venues barely change between children's and adult pet titles (`docs/qloo-findings.md`), so the per-animal filter is the useful part.
 
 ## 5. Agent-chosen Qloo calls go through our client, not `qloo mcp`
 

@@ -50,7 +50,7 @@ The plan is a checklist the volunteer can carry out without an ad budget:
 2. In-person visibility: outings, events, an "Adopt Me" vest.
 3. Timing: Friday, Saturday and early evening.
 4. For New York dogs: rescue partners and foster recruitment.
-5. **Venues (Qloo):** about three places near the shelter that fans of up to three of the pet-themed entities favour, for flyers and events. Code picks those titles by their evidence for the area (Qloo's ranking, else their best place in the area's lists), never an identity-coded one, and the agent picks the venues. Each venue shows its evidence. For an animal recorded as not good with children, venues whose own description is about children are left out, and the plan says which (decision 4).
+5. **Venues (Qloo):** about three places near the shelter that fans of up to three of the pet-themed entities favour, for flyers and events. Code picks those titles by their evidence for the area (Qloo's ranking, else their best place in the area's lists), never an identity-coded one, and the agent picks the venues. Each venue shows its evidence. For an animal recorded as not good with children, venues whose name or Qloo description mentions children are skipped, and the plan says which (decision 2).
 6. **One channel beyond the usual audience.** It comes from that location's `community_channels` entry in `data/locations.json` and is labelled as our suggestion.
 
 The plan's success measure is adoptions and returns; likes and reach are left out.

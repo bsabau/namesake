@@ -9,6 +9,7 @@ from app.views.build import (
     RANK_NOTES,
     build_result_view,
     build_start_view,
+    for_children,
     result_id,
     sentences,
 )
@@ -219,35 +220,39 @@ def with_children(roster, answer):
     )
 
 
-def test_an_animal_not_good_with_children_is_not_sent_to_places_for_children(roster):
+def test_an_animal_not_good_with_children_skips_places_that_mention_them(roster):
     view = build_result_view(with_children(roster, "no"), LOCATION, kids_profile())
     assert "Garden Cafe" not in [v.name for v in view.venues]
-    left = [i for i in view.plan if i.text.startswith("Left out")]
-    assert [i.text for i in left] == [
-        "Left out Garden Cafe: its description is about children, and this dog is recorded "
-        "as not good with children."
+    skip = [i for i in view.plan if i.text.startswith("Skip")]
+    assert [i.text for i in skip] == [
+        "Skip Garden Cafe (it mentions “kids”) for this dog: the record says she is not "
+        "good with children."
     ]
-    assert left[0].basis == "Our suggestion"
-    # Our reading says why; Qloo's own list is untouched.
+    assert skip[0].basis == "Our suggestion"
+    asks = next(i.text for i in view.plan if i.text.startswith("Ask"))
+    assert "Garden Cafe" not in asks
+    # Our reading says why; Qloo's column is untouched.
     reading = {i.title: i.detail for i in view.our_reading}
-    assert reading["Left out for this dog"].startswith("Garden Cafe (kids): Qloo's description")
+    assert reading["Skipped for this dog"].startswith(
+        "Garden Cafe: its name or Qloo description mentions “kids”."
+    )
 
 
 def test_unknown_or_yes_keeps_every_venue(roster):
     for answer in ("unknown", "yes"):
         view = build_result_view(with_children(roster, answer), LOCATION, kids_profile())
         assert "Garden Cafe" in [v.name for v in view.venues]
-        assert not any(i.text.startswith("Left out") for i in view.plan)
+        assert not any(i.text.startswith("Skip") for i in view.plan)
 
 
-def test_the_children_words_match_whole_words_only():
-    from app.views.build import for_children
-
-    assert for_children("A children's museum.") == "children"
-    assert for_children("A child-friendly play cafe.") == "child"
-    assert for_children("Kid’s birthday parties.") == "kid"
-    assert for_children("Toddler classes and a playground.") == "toddler"
-    assert for_children("A child care centre.") == "child"
+def test_the_children_words_match_whole_words_in_the_name_or_description():
+    assert for_children(None, "A children's museum.") == "children"
+    assert for_children("Childrens Museum of the Arts") == "childrens"
+    assert for_children(None, "A child-friendly play cafe.") == "child"
+    assert for_children(None, "Kid’s birthday parties.") == "kid"
+    assert for_children(None, "Toddler classes and a playground.") == "toddler"
+    assert for_children(None, "A family-friendly brewery.") == "family-friendly"
+    assert for_children(None, "A soft play centre.") == "play centre"
     # Other common meanings in venue text are not about children.
     for text in (
         "A plant nursery.",
@@ -257,17 +262,40 @@ def test_the_children_words_match_whole_words_only():
         "A bar for kidney-shaped pools.",
         None,
     ):
-        assert for_children(text) is None, text
+        assert for_children(None, text) is None, text
 
 
-def test_when_every_venue_is_for_children_the_page_says_so(roster):
+def test_when_every_venue_mentions_children_the_page_says_so(roster):
     p = kids_profile()
     for v in p.venues:
-        v.description = "A play space for kids."
+        v.description = "A cafe for kids."
     view = build_result_view(with_children(roster, "no"), LOCATION, p)
     assert view.venues == []
     assert view.venues_empty == (
-        "Every place Qloo suggested is about children, so none is suggested for this dog."
+        "Every place Namesake would suggest here mentions children, so none is suggested "
+        "for this dog."
     )
-    left = next(i.text for i in view.plan if i.text.startswith("Left out"))
-    assert "their descriptions are about children" in left
+    skip = next(i.text for i in view.plan if i.text.startswith("Skip"))
+    assert skip.count("(it mentions “kids”)") == 3
+    reading = {i.title: i.detail for i in view.our_reading}
+    assert reading["Skipped for this dog"].count("mentions “kids”") == 3
+
+
+def test_an_empty_profile_still_says_no_venues(roster):
+    p = profile()
+    p.venues = []
+    view = build_result_view(with_children(roster, "no"), LOCATION, p)
+    assert view.venues_empty == "No venues for this area yet."
+
+
+def test_a_skipped_venue_is_named_whenever_a_lower_one_takes_its_slot():
+    # Flash, PR #19: a fixed window of the first five missed a skipped venue that a
+    # lower one replaced.
+    from app.profile import Venue
+    from app.views.build import skipped_shown
+
+    every = [Venue(entity_id=str(n), name=f"Place {n}", rank=n + 1) for n in range(8)]
+    skipped = [every[0], every[5]]
+    kept = [v for v in every if v not in skipped]
+    # Five shown: 1, 2, 3, 4, 6; places 0 and 5 both rank above place 6.
+    assert [v.name for v in skipped_shown(every, kept, skipped)] == ["Place 0", "Place 5"]

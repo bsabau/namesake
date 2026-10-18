@@ -245,7 +245,7 @@ The shelter is fictional too. Do not use real shelter names, logos or photos.
 
 1. **Start:** a grid of the animals, a choice of three preset locations, a custom location field, and a "try an example" button that loads a precomputed result instantly. There is no tone setting: the listing rules fix the voice, and the refine line takes follow-ups (`docs/decisions.md` #15).
 2. **Working:** a live log of the agent's steps, streamed as they happen: entities proposed, each one checked against Qloo, which were kept and which dropped.
-3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges; a map of local lift; the venues as a list with their evidence, not as pins (`docs/decisions.md` #4); the exposure checklist.
+3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges; a map of local lift; the venues as a list with their evidence, not as pins (`docs/decisions.md` #4), skipping those that mention children for an animal recorded as not good with them (#2); the exposure checklist.
 4. **Why:** for each choice, the Qloo result behind it, separate from the app's reading of it.
 5. **Refine:** one text line for follow-ups such as "less childish". When Qloo returns `needs_input`, show the candidates here as buttons.
 
