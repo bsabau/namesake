@@ -447,7 +447,9 @@ def repeated_titles(
     """A title that gives two names while another open area title gives none: each option
     should show a different title (decided 18 October). Only the area's titles count, never
     a lookalike, so a recheck sees what the live check saw; the strictest screen names only
-    from pet-themed ones. Once those are all used a repeat is fine: a draft needs three."""
+    from pet-themed ones. Once those are all used a repeat is fine: a draft needs three.
+    Open is judged on the title alone, so a suggested title may still yield no name that
+    passes the screen; the model then has its one repair round, as for any check."""
     usable = {
         k
         for k, (entity, source) in offered.items()

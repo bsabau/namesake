@@ -381,6 +381,9 @@ def test_a_reason_may_only_draw_on_the_look():
     # Decided 18 October: a reference must not imply temperament, in the reason either.
     assert check_why(animal(), "It suits her short brindle coat.", "Bingo") == []
     assert check_why(animal(), "A short name, easy to say.", "Bingo") == []
+    for near in ("Short and easy to say.", "It is short and easy to say.", "Short, easy to say."):
+        assert check_why(animal(), near, "Bingo") == []
+    assert "A short name, easy to say." in check_why(animal(), "It suits a calm dog.", "B")[0]
     # "short" is allowed only in that fixed reason: a short coat it lacks is refused.
     problems = check_why(animal(look="yellow coat, grey muzzle"), "It suits a short coat.", "B")
     assert any("'short'" in p for p in problems)

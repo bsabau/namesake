@@ -154,3 +154,20 @@ def test_a_bully_type_dog_may_repeat_a_title_once_its_pet_titles_are_used(roster
 
 
 DOG_01_BIO = [{"text": "He is calm and gentle; a slow-walk companion.", "facts": ["temperament"]}]
+
+
+def test_the_recheck_floors():
+    # Drafts older than a floor are rerun: a recheck cannot cover what changed before it.
+    from app.agent.recheck import recheckable
+    from app.agent.results import LOOKALIKE_LISTINGS_FROM, PLAIN_LISTINGS_FROM
+
+    plain = ListingDraft.model_validate(DRAFT)
+    look = ListingDraft.model_validate(
+        {**DRAFT, "names": [*DRAFT["names"][:2], {**DRAFT["names"][2], "source": "lookalike"}]}
+    )
+    for draft, floor in ((plain, PLAIN_LISTINGS_FROM), (look, LOOKALIKE_LISTINGS_FROM)):
+        for version, expected in ((floor - 1, False), (floor, True)):
+            result = ListingResult(animal_id="dog-02", location_id="x", draft=draft,
+                                   checks_version=version)  # fmt: skip
+            assert recheckable(result) is expected
+    assert (PLAIN_LISTINGS_FROM, LOOKALIKE_LISTINGS_FROM) == (5, 7)

@@ -322,7 +322,9 @@ NEGATIONS = ("not", "no", "never", "nor", "without", "isn't", "doesn't", "won't"
 # Words a name's "why" may use on top of the facts.
 WHY_GLUE = ("suit", "suits", "fit", "fits", "name", "names", "named", "call", "calls")
 # The one reason that needs no look words: "short" alone could claim a short coat.
-EASY_TO_SAY = re.compile(r"^\s*a short name,? (and )?easy to say\.?\s*$", re.IGNORECASE)
+EASY_TO_SAY = re.compile(
+    r"^\s*(a short name|(it is |it's )?short),? (and )?easy to say\.?\s*$", re.IGNORECASE
+)
 
 
 def agent_fact_keys(animal: Animal) -> list[str]:
@@ -445,7 +447,7 @@ def check_why(animal: Animal, why: str, name: str) -> list[str]:
     if extra:
         problems.append(
             f"{label} says things the recorded look does not: {extra}; use the look's own "
-            "words, never temperament or behaviour"
+            'words, never temperament or behaviour, or write "A short name, easy to say."'
         )
     return problems
 

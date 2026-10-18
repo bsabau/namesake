@@ -24,7 +24,7 @@ The review found no study showing that names or wording speed adoption. Being se
 **The bio:**
 - Third person, behaviour toward people first, plain wording, 75 to 150 words.
 - Every sentence traces to a fact. Code checks this after the model writes.
-- What the animal does and what it needs from an adopter go in separate sentences, so no sentence reads as being about the adopter.
+- A fact about what the animal needs from an adopter gets its own sentence, never joined to a fact about what the animal does, so the animal's behaviour is never read as the adopter's.
 - Difficult behaviour is stated plainly with a management suggestion.
 
 **Generic and local versions** share the same bio. The generic version takes a common pet name from a fixed list; the local version takes the chosen name from Qloo's titles and adds one hook line. The toggle therefore shows exactly what Qloo contributed (`docs/decisions.md` #8).
@@ -41,7 +41,7 @@ Name options come from three sources. Each option carries a badge with what Qloo
 | Loved here generally | The area's top tastes by type (step E). Screened harder, because these lists lean on national hits and identity-coded titles. |
 | Title found, or Offered as a candidate (a lookalike) | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Qloo's line says only that it found the title, or offered it among candidates when it asked which was meant; the match ("A lookalike, matched on this animal's recorded look (brindle coat).", after the reference that names the character) is on the AI's line. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
 
-Each option shows the Qloo title, its kind and Qloo's evidence for the area (its rank here, or its place in one of the area's lists); a lookalike has no area evidence, only the title. Our reading, how the name fits the animal's recorded look, is shown separately; it never mentions temperament, so the reference cannot imply how the animal behaves. Each option comes from a different title while others are available, except a litter named as a set. The volunteer picks one. Ranking uses both affinity and popularity, so a recognisable reference beats a niche one.
+Each option shows the Qloo title, its kind and Qloo's evidence for the area (its rank here, or its place in one of the area's lists); a lookalike has no area evidence, only the title. Our reading, how the name fits the animal's recorded look, is shown separately; it never mentions temperament, so the reference cannot imply how the animal behaves. Each option comes from a different title while another of the area's open titles is unused (lookalike titles never count), except a litter named as a set. The volunteer picks one. Ranking uses both affinity and popularity, so a recognisable reference beats a niche one.
 
 ## Output 3: the exposure plan
 
