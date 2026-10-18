@@ -11,7 +11,13 @@ again when next opened. deploy/deploy.sh runs this on every deploy.
 """
 
 from app.agent import checks
-from app.agent.listing_agent import record_problems, repeated_titles, screen_names, shown_bio
+from app.agent.listing_agent import (
+    record_problems,
+    repeated_titles,
+    screen_names,
+    shared_look_problem,
+    shown_bio,
+)
 from app.agent.results import (
     CHECKS_VERSION,
     LOOKALIKE_LISTINGS_FROM,
@@ -35,12 +41,15 @@ def screen_problems(store: Store, animal: Animal, result: ListingResult) -> list
     """The name screen on a saved draft, with its titles as Qloo returned them: the
     area profile's and the lookalikes'. A title no longer found counts as a problem."""
     profile = store.get_profile(result.location_id, animal.species)
+    # As the listing agent was offered them: the area's titles, with the source the
+    # pipeline gave them, then the lookalikes (repeated_titles counts only the former).
     offered: dict[str, tuple[Entity, str]] = {}
     if profile is not None:
         offered = {e.id: (e, "pet") for e in profile.pet_entities}
         for e in profile.local_tastes:
             offered.setdefault(e.id, (e, "local"))
-    offered |= {look.entity.id: (look.entity, "lookalike") for look in result.lookalikes}
+    for look in result.lookalikes:
+        offered.setdefault(look.entity.id, (look.entity, "lookalike"))
     titles = {k: e for k, (e, _) in offered.items()}
     missing = [
         f"{o.name!r} has no title to check" for o in result.draft.names if o.entity_id not in titles
@@ -48,7 +57,13 @@ def screen_problems(store: Store, animal: Animal, result: ListingResult) -> list
     # A litter named as a set takes its names from one title on purpose.
     strict = checks.is_bully_type(animal)
     repeats = [] if animal.litter else repeated_titles(result.draft.names, offered, strict)
-    return missing + repeats + screen_names(result.draft.names, titles, strict)
+    looks = [shared_look_problem(animal.look, look.shared_look) for look in result.lookalikes]
+    return (
+        missing
+        + repeats
+        + [p for p in looks if p]
+        + screen_names(result.draft.names, titles, strict)
+    )
 
 
 def recheck(store: Store, roster: Roster) -> tuple[int, int]:

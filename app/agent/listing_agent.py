@@ -122,21 +122,23 @@ Rules:
   other animals, house-training or bites: confirmed answers are added separately.
 - Third person, plain words, behaviour toward people first, up to 150 words. If the facts
   are few, the bio is short; never pad it.
-- Keep what the animal does and what it needs from an adopter in separate sentences, so
-  no sentence can be read as being about the adopter ("She knows basic commands. She
-  needs an owner comfortable with a big dog.").
+- Give a fact about what the animal needs from an adopter its own sentence, never
+  joined to a fact about what the animal does, so the animal's behaviour is never read as
+  the adopter's ("She knows basic commands. She needs an owner comfortable with a big
+  dog.").
 - Offer 3 to 5 name options. Each comes from one of the titles below (a character, the
   title, or an object in it), with that title's entity_id and source, the character's own
   name as it appears in the story, and its role from the list. Short and easy to
   say: one to three syllables. No villains, violent or tragic characters, weapons, real
   people, or names coded to a race, religion or political identity. From a title about
   real people (a talk show, reality show, documentary or biopic), only an animal's name.
-- At most one name per title, while other titles are offered: each option shows a
-  different title. A litter named as a set is the exception.
-- Each name's reason says how the name fits the animal's recorded look ("It suits her
-  brindle coat"), or that it is short and easy to say. Never its temperament or behaviour:
-  a cultural reference must not imply how the animal behaves. Never repeat a name already
-  used at this shelter: {taken}.
+- Take each option from a different title; repeat a title only once every title you may
+  name from is used, since a listing needs three names. A litter named as a set is the
+  exception.
+- Each name's reason says how the name fits the animal's recorded look, in the look's own
+  words (for a "grey tabby": "It suits a grey tabby."), or is exactly "A short name, easy
+  to say." Never its temperament or behaviour: a cultural reference must not imply how
+  the animal behaves. Never repeat a name already used at this shelter: {taken}.
 {lookalike}{strict}{litter}{request}
 The animal ({they}):
 {facts}
@@ -232,6 +234,30 @@ def whole_phrase(quote: str, look: str) -> bool:
     )
 
 
+def shared_look_problem(look: str, quoted: list[str]) -> str | None:
+    """Why a lookalike's quoted look is not usable, or None: each quote is a whole phrase
+    of the recorded look, and together they say more than size or kind. Needs only the
+    record, so app/agent/recheck.py applies it to saved lookalikes too."""
+    record = look_words(look)
+    missing = [w for w in quoted if not look_words(w) or not look_words(w) <= record]
+    loose = [w for w in quoted if w not in missing and not whole_phrase(w, look)]
+    distinctive = set().union(*(look_words(w) for w in quoted)) - GENERIC_LOOK if quoted else set()
+    if not (missing or loose or not distinctive):
+        return None
+    examples = look_examples(look)
+    return (
+        f"shared_look must quote distinctive words from the recorded look ({look!r})"
+        + (f"; not in it: {missing}" if missing else "")
+        + (
+            "; quote whole phrases that end where a part of the look ends"
+            + (f", such as {examples}" if examples else "")
+            + f", not {loose}"
+            if loose
+            else ""
+        )
+    )
+
+
 def look_up_lookalike(
     ctx: RunContext[ListingDeps],
     title: str,
@@ -248,23 +274,10 @@ def look_up_lookalike(
     deps = ctx.deps
     if deps.qloo is None or deps.litter_title or deps.first_of_litter:
         return {"status": "unavailable: lookalike titles are not used for this listing"}
-    record = look_words(deps.animal.look)
     quoted = [w.strip() for w in shared_look if w.strip()]
-    missing = [w for w in quoted if not look_words(w) or not look_words(w) <= record]
-    loose = [w for w in quoted if w not in missing and not whole_phrase(w, deps.animal.look)]
-    distinctive = set().union(*(look_words(w) for w in quoted)) - GENERIC_LOOK if quoted else set()
-    if missing or loose or not distinctive:
-        return {
-            "status": "refused: shared_look must quote distinctive words from the recorded "
-            f"look ({deps.animal.look!r})"
-            + (f"; not in it: {missing}" if missing else "")
-            + (
-                f"; quote whole phrases that end where a part of the look ends, such as "
-                f"{look_examples(deps.animal.look)}, not {loose}"
-                if loose
-                else ""
-            )
-        }
+    refused = shared_look_problem(deps.animal.look, quoted)
+    if refused:
+        return {"status": f"refused: {refused}"}
     # Qloo's answer depends only on the request; the animal is recorded on every ask, so
     # asking again about another animal (or back) records the one asked about last.
     asked = (title.strip().lower(), kind)
@@ -419,19 +432,36 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
     return draft
 
 
+def open_title(entity: Entity) -> bool:
+    """A title any character's name may come from: not about real people (which gives only
+    animals' names) and not identity-coded (which gives none), by the name screen's rules."""
+    real = entity.verdict is not None and entity.verdict.real_people >= REAL_PEOPLE
+    return not checks.check_title(
+        "X", "character", entity.name, entity.description, real_people=real
+    )
+
+
 def repeated_titles(
     names: list[NameOption], offered: dict[str, tuple[Entity, str]], strict: bool
 ) -> list[str]:
-    """A title that gives two names while another usable title gives none: each option
-    should show a different title (decided 18 October). Repeats are allowed only once
-    every usable title is used, since a draft needs three names; the strictest screen
-    names only from pet-themed and lookalike titles."""
-    usable = {k for k, (_, source) in offered.items() if not strict or source != "local"}
+    """A title that gives two names while another open area title gives none: each option
+    should show a different title (decided 18 October). Only the area's titles count, never
+    a lookalike, so a recheck sees what the live check saw; the strictest screen names only
+    from pet-themed ones. Once those are all used a repeat is fine: a draft needs three."""
+    usable = {
+        k
+        for k, (entity, source) in offered.items()
+        if source == "pet" or (source == "local" and not strict)
+        if open_title(entity)
+    }
     used = [o.entity_id for o in names]
-    unused = usable - set(used)
+    unused = [offered[k][0].name for k in offered if k in usable - set(used)]
     twice = sorted({o.name for o in names if used.count(o.entity_id) > 1})
     if twice and unused:
-        return [f"names {twice} come from one title; take one of them from another title"]
+        return [
+            f"names {twice} come from one title; take one of them from a title not yet "
+            f"used, such as {unused[0]!r}"
+        ]
     return []
 
 

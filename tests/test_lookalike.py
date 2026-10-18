@@ -148,7 +148,9 @@ def test_a_lookalike_name_is_offered_with_its_own_badge_and_why(roster):
     rex = next(o for o in view.name.options if o.name == "Rex")
     assert rex.badge == "Title found"  # the look is the AI's reading, not Qloo's
     assert rex.header_source == "Title found: Example Dog Film"
-    assert rex.why.startswith("A lookalike, matched on this animal's recorded look (brindle coat). ")
+    assert rex.why.startswith(
+        "A lookalike, matched on this animal's recorded look (brindle coat). "
+    )
     assert rex.approved_source == (
         "a lookalike title, Example Dog Film: Qloo found the title, "
         "and the match is the reading of Namesake's AI"
@@ -194,6 +196,32 @@ def test_shared_look_must_quote_whole_phrases(roster):
     assert d.qloo.calls == []
     out = look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["Brindle coat", "broad head"])
     assert out["status"] == "found"
+
+
+def test_a_quote_spanning_two_parts_is_refused_and_an_all_generic_look_offers_no_examples():
+    from app.agent.listing_agent import shared_look_problem
+
+    problem = shared_look_problem("large mixed breed, short brindle coat, broad head",
+                                  ["brindle coat, broad head"])  # fmt: skip
+    assert problem and "whole phrases" in problem
+    problem = shared_look_problem("medium-length coat, large", ["coat"])
+    assert problem and "such as" not in problem
+
+
+def test_saved_lookalikes_with_loose_quotes_run_again(roster, tmp_path):
+    # The whole-phrase rule needs only the record, so the recheck holds saved ones to it.
+    from app.agent.recheck import recheck
+    from app.agent.results import CHECKS_VERSION, ListingResult
+
+    result, store, _ = run(
+        LookalikeScript([PLAN], [with_rex()]), roster, qloo=FakeQloo(film_script())
+    )
+    for quote, outcome in ((["short", "broad head"], (0, 1)), (["brindle coat"], (1, 0))):
+        loose = result.model_copy(deep=True)
+        loose.checks_version = CHECKS_VERSION - 1
+        loose.lookalikes[0].shared_look = quote
+        store.put_listing(ListingResult.model_validate(loose.model_dump()))
+        assert recheck(store, roster) == outcome
 
 
 def test_whole_phrases_end_where_a_part_of_the_look_ends():

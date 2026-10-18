@@ -320,10 +320,9 @@ def unsupported_words(animal: Animal, sentence: str, keys: list[str]) -> list[st
 
 NEGATIONS = ("not", "no", "never", "nor", "without", "isn't", "doesn't", "won't", "can't")
 # Words a name's "why" may use on top of the facts.
-WHY_GLUE = (
-    "suit", "suits", "fit", "fits", "name", "names", "named", "call", "calls",
-    "short", "easy", "say",
-)  # fmt: skip
+WHY_GLUE = ("suit", "suits", "fit", "fits", "name", "names", "named", "call", "calls")
+# The one reason that needs no look words: "short" alone could claim a short coat.
+EASY_TO_SAY = re.compile(r"^\s*a short name,? (and )?easy to say\.?\s*$", re.IGNORECASE)
 
 
 def agent_fact_keys(animal: Animal) -> list[str]:
@@ -427,9 +426,11 @@ def check_bio(
 
 def check_why(animal: Animal, why: str, name: str) -> list[str]:
     """A name's reason may only draw on the animal's recorded look (plus "suits", "fits",
-    "short and easy to say", the name): a cultural reference must not imply temperament,
-    so the hook's rule holds for the reasons too (decided 18 October)."""
+    the name), or be "A short name, easy to say.": a cultural reference must not imply
+    temperament, so the hook's rule holds for the reasons too (decided 18 October)."""
     label = f"the reason for {name!r}"
+    if EASY_TO_SAY.match(why):
+        return []
     keys = ["look"]
     # A reason draws on some facts, so it need not restate any of them whole.
     grounded = check_grounded(animal, why, keys, label, whole=False)
@@ -442,10 +443,10 @@ def check_why(animal: Animal, why: str, name: str) -> list[str]:
     )
     extra = sorted(_content(why) - allowed)
     if extra:
-        problems.append(f"{label} says things the recorded look does not: {extra}")
-    trait = find_word(why, HOOK_TRAIT_WORDS)
-    if trait and not find_word(animal.look, HOOK_TRAIT_WORDS):
-        problems.append(f"{label} describes temperament ({trait!r}); say how it fits the look")
+        problems.append(
+            f"{label} says things the recorded look does not: {extra}; use the look's own "
+            "words, never temperament or behaviour"
+        )
     return problems
 
 
