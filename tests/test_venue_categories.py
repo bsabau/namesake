@@ -361,3 +361,33 @@ def test_a_mixed_list_with_no_pick_never_claims_every_place_is_a_chain():
     for v in profile.venues:
         v.unsuitable = "a hookah lounge"
     assert empty_venues(profile).startswith("Every place Qloo listed here was screened out")
+
+
+def test_a_plan_must_pick_or_reject_a_place_that_stands_out():
+    # Decided 18 October: the AI skipped the standing-out places near Astoria.
+    from pydantic_ai import ModelRetry
+
+    from app.agent.profile_agent import ProfilePlan, check_plan
+
+    d = deps(answered(CAFES, True))
+    d.baseline_venues = [c["entity_id"] for c in CAFES if c["name"] != "Example Cafe 1"]
+    out = find_venues(SimpleNamespace(deps=d), [DOG_SHOW])
+    standing = [v for v in out["venues"] if v["stands_out"]]
+    assert [v["name"] for v in standing] == ["Example Cafe 1"]
+
+    def problems(venues, rejected=()):
+        plan = ProfilePlan(
+            titles=[{"entity_id": DOG_SHOW, "why": "dogs"}],
+            venues=[{"entity_id": i, "reason": "It hosts events."} for i in venues],
+            rejected_venues=[{"entity_id": i, "reason": "No room."} for i in rejected],
+        )
+        try:
+            check_plan(SimpleNamespace(deps=d), plan)
+        except ModelRetry as retry:
+            return str(retry)
+        return ""
+
+    first, second = CAFES[0]["entity_id"], CAFES[1]["entity_id"]
+    assert "none of your places stands out" in problems([first])
+    assert "stands out" not in problems([first, second])  # picked it
+    assert "stands out" not in problems([first], rejected=[second])  # judged it
