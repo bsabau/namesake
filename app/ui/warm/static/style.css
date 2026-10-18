@@ -499,7 +499,6 @@ button.animal-card:hover, button.animal-card:focus-visible {
 .venue-rank { font-size: 0.85rem; margin-top: 2px; }
 .venue-rank.rank-top strong { color: var(--qloo-ink); }
 .venue-rank.rank-bottom { color: var(--muted); }
-.venue-description { font-size: 0.9rem; margin-top: 4px; }
 .venue-evidence { margin-top: 4px; }
 
 .tag {

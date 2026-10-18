@@ -38,7 +38,7 @@ Name options come from three sources. Each option carries a badge naming its sou
 |---|---|
 | Pet-themed, strong here | Pet-themed titles with Qloo's evidence for the area (decision 22): ranked here by Qloo ("ranked 1st of 8 here by Qloo"), or placed in one of the area's lists, asked with Qloo's pet tags or for fans of another pet title ("in Qloo's list for this area asked with its pet tags", "liked here by fans of Bluey") |
 | Loved here generally | The area's top tastes by type (step E). Screened harder, because these lists lean on national hits and identity-coded titles. |
-| Has a lookalike in … | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
+| Title found in Qloo (a lookalike) | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Qloo's line says only that it found the title; the match ("A lookalike: Rex shares the recorded look (brindle)") is on the AI's line. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
 
 Each option shows the Qloo title, its kind and Qloo's evidence for the area (its rank here, or its place in one of the area's lists). Our reading of why it suits the animal is shown separately. The volunteer picks one. Ranking uses both affinity and popularity, so a recognisable reference beats a niche one.
 

@@ -304,12 +304,7 @@ def listing_view(
             available=draft is not None,
             name=local_name,
             name_source=(
-                name_badge(
-                    draft.names[0].source,
-                    draft.names[0].entity_id,
-                    profile,
-                    title_names(profile, result).get(draft.names[0].entity_id),
-                )
+                name_badge(draft.names[0].source, draft.names[0].entity_id, profile)
                 if draft
                 else ""
             ),
@@ -358,13 +353,13 @@ def title_names(profile: LocationProfile, result: ListingResult | None) -> dict[
     return names
 
 
-def name_badge(
-    source: str, entity_id: str, profile: LocationProfile, title: str | None = None
-) -> str:
-    """Claim local strength only where Qloo's evidence for this area says so: its ranking
-    here, or the title's place in one of the area's lists."""
+def name_badge(source: str, entity_id: str, profile: LocationProfile) -> str:
+    """What Qloo returned for a name's title. Claim local strength only where Qloo's
+    evidence for this area says so: its ranking here, or the title's place in one of the
+    area's lists. A lookalike is the AI's reading (see `look_reading`), so Qloo's part is
+    only that it found the title."""
     if source == "lookalike":
-        return f"Has a lookalike in {title}" if title else "Has a lookalike"
+        return "Title found in Qloo"
     if source == "local":
         return "Watched locally"
     entity = next((e for e in profile.pet_entities if e.id == entity_id), None)
@@ -383,6 +378,17 @@ def name_badge(
     return f"Pet-themed title, {liked}" if liked else "Pet-themed title"
 
 
+def look_reading(option, result: ListingResult) -> str:
+    """For a lookalike's name, the AI's match in front of its reason: Qloo found the title,
+    not the look."""
+    if option.source != "lookalike":
+        return ""
+    look = next((k for k in result.lookalikes if k.entity.id == option.entity_id), None)
+    if look is None or not look.shared_look:
+        return "A lookalike, in the reading of Namesake's AI. "
+    return f"A lookalike: {look.animal} shares the recorded look ({and_list(look.shared_look)}). "
+
+
 def name_view(result: ListingResult | None, profile: LocationProfile, text: str) -> NameView:
     draft = result.draft if result else None
     if draft is None:
@@ -398,10 +404,10 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
         options.append(
             NameOptionView(
                 name=o.name,
-                badge=name_badge(o.source, o.entity_id, profile, titles.get(o.entity_id)),
+                badge=name_badge(o.source, o.entity_id, profile),
                 title=titles.get(o.entity_id, o.character),
                 reference=reference,
-                why=o.why,
+                why=look_reading(o, result) + o.why,
                 hook=f"Named after {reference}.",
                 copy_text=copy_block(o.name, f"Named after {reference}.", text),
             )

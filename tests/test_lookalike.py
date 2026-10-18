@@ -146,7 +146,8 @@ def test_a_lookalike_name_is_offered_with_its_own_badge_and_why(roster):
     profile = store.get_profile(LOCATION.id, "dog")
     view = build_result_view(roster.get("dog-02"), LOCATION, profile, result)
     rex = next(o for o in view.name.options if o.name == "Rex")
-    assert rex.badge == "Has a lookalike in Example Dog Film"
+    assert rex.badge == "Title found in Qloo"  # the look is the AI's reading, not Qloo's
+    assert rex.why.startswith("A lookalike: Rex shares the recorded look (brindle). ")
     assert rex.title == "Example Dog Film"
     returned = {i.title: i.detail for i in view.qloo_returned}
     reading = {i.title: i.detail for i in view.our_reading}
@@ -300,10 +301,10 @@ def test_lookalikes_come_only_from_stories():
     assert set(get_args(StoryKind)) == {"tv_show", "movie", "book"}
 
 
-def test_a_lookalike_badge_without_a_title_still_reads():
+def test_a_lookalike_badge_claims_only_that_qloo_found_the_title():
     from app.views.build import name_badge
 
-    assert name_badge("lookalike", DOG_FILM, None, None) == "Has a lookalike"
+    assert name_badge("lookalike", DOG_FILM, None) == "Title found in Qloo"
 
 
 def test_a_choice_reason_cannot_carry_a_taste_claim():

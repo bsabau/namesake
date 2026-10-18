@@ -198,3 +198,13 @@ def test_provenance_lines_are_marked_in_every_ui(ui):
     template = (main.UI_ROOT / ui / "templates" / "result.html").read_text(encoding="utf-8")
     for marker in ['class="evidence"', 'class="reading"', "from-qloo"]:
         assert marker in template, f"{ui} result: no {marker}"
+
+
+@pytest.mark.parametrize("ui", main.UIS)
+def test_qloo_text_on_a_venue_sits_under_qloo_label(ui):
+    # Qloo's description of a venue is Qloo's words: it goes on the card's Qloo line.
+    template = (main.UI_ROOT / ui / "templates" / "result.html").read_text(encoding="utf-8")
+    lines = [line for line in template.splitlines() if "venue.description" in line]
+    assert lines, f"{ui} result: no venue description"
+    for line in lines:
+        assert '<p class="evidence"><span>Qloo:</span>' in line, f"{ui}: {line.strip()}"
