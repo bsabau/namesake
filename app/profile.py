@@ -89,6 +89,12 @@ class PetVerdict(BaseModel):
     model: str = ""
 
 
+def entity_type(raw: str | None, kind: str) -> str:
+    """Qloo's type for a result, or the kind that was asked for when the answer gives only
+    the generic "urn:entity" (its `recommend` lists do)."""
+    return raw if raw and raw.startswith("urn:entity:") else f"urn:entity:{kind}"
+
+
 class FoundIn(BaseModel):
     """Where Qloo listed a title the AI did not propose itself: among the titles people
     around the area who like `signal` also like (decision 20)."""
@@ -347,7 +353,7 @@ class _Builder:
             return Entity(
                 id=c.id,
                 name=c.name,
-                type=c.type,
+                type=entity_type(c.type, seed.type),
                 description=c.description,
                 why=seed.why,
                 resolution="chosen",
@@ -361,7 +367,7 @@ class _Builder:
         return Entity(
             id=r["entity_id"],
             name=r["name"],
-            type=r.get("type", seed.type),
+            type=entity_type(r.get("type"), seed.type),
             description=props.get("short_description") or props.get("description"),
             why=seed.why,
         )
@@ -432,7 +438,7 @@ class _Builder:
             Entity(
                 id=r["entity_id"],
                 name=r["name"],
-                type=r.get("type", "urn:entity:tv_show"),
+                type=entity_type(r.get("type"), "tv_show"),
                 description=(r.get("properties") or {}).get("short_description")
                 or (r.get("properties") or {}).get("description"),
             )

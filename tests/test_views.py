@@ -12,6 +12,7 @@ from app.views.build import (
     map_view,
     result_id,
     sentences,
+    why,
 )
 from tests.qloo_fakes import (
     BASELINE,
@@ -203,6 +204,46 @@ def test_venue_rank_is_stated_plainly(roster):
     for v in view.venues:
         assert re.fullmatch(rf"\d+(st|nd|rd|th) of {total}", v.rank)
         assert v.rank_note == RANK_NOTES[v.rank_band]
+
+
+def test_the_why_panels_venue_line_names_only_the_titles_searched(roster):
+    # Hoboken, 18 October: the line named seven pet titles; the venues were asked for three.
+    returned, _ = why(LOCATION, agent_profile())
+    line = next(i for i in returned if i.title.endswith(f"places near {LOCATION.label}"))
+    assert line.detail.startswith("Ranked for people who like Example Cat Show")
+    assert "Example Dog Show" not in line.detail
+
+
+def test_the_page_names_a_kind_even_for_qloos_generic_type():
+    from app.profile import Entity, FoundIn
+    from app.views.build import kind_word
+
+    # Profiles saved before entity_type: where the title was found, else a TV show.
+    found = FoundIn(signal="Example Dog Show", kind="movie", position=3, out_of=20)
+    assert kind_word(Entity(id="x", name="x", type="urn:entity", found_in=found)) == "film"
+    assert kind_word(Entity(id="x", name="x", type="urn:entity")) == "TV show"
+    assert kind_word(Entity(id="x", name="x", type="urn:entity"), default=None) == "title"
+    assert kind_word(Entity(id="x", name="x", type="movie")) == "film"  # a bare kind
+    assert kind_word(Entity(id="x", name="x", type="urn:entity:book")) == "book"
+
+
+def test_the_venue_line_falls_back_to_every_title_only_for_old_profiles():
+    from app.views.build import venue_titles
+
+    p = profile()
+    p.venue_signals = []
+    assert venue_titles(p) == "Example Dog Show and Example Cat Show"
+    p.venue_signals = [p.pet_entities[1].id]
+    assert venue_titles(p) == "Example Cat Show"
+
+
+def test_the_venue_line_never_reads_empty():
+    from app.views.build import venue_titles
+
+    p = profile()
+    p.venue_signals = ["00000000-0000-4000-8000-000000000999"]  # not among the titles
+    # Codex, PR #17: never name other titles as the ones searched.
+    assert venue_titles(p) == "the pet-themed titles searched"
 
 
 def test_a_thin_map_says_so_on_the_page():

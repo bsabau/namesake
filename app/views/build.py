@@ -494,10 +494,21 @@ def venue_order(profile: LocationProfile) -> list[Venue]:
     return sorted(suitable, key=lambda v: (not v.distinctive, v.rank))
 
 
+def venue_titles(profile: LocationProfile) -> str:
+    """The titles the venues were asked for, in that order: every pet title for a profile
+    saved before `venue_signals` was kept. The plan keeps those titles since decision 20's
+    revision; an older profile that dropped them gets a plain description instead."""
+    if not profile.venue_signals:
+        return and_list([e.name for e in profile.pet_entities])
+    by_id = {e.id: e for e in profile.pet_entities}
+    asked = [by_id[i].name for i in profile.venue_signals if i in by_id]
+    # An older profile may have searched with titles it no longer keeps; never name
+    # others in their place.
+    return and_list(asked) if asked else "the pet-themed titles searched"
+
+
 def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueView:
-    # Name only the titles the venues were asked for.
-    asked = set(profile.venue_signals) or {e.id for e in profile.pet_entities}
-    pets = and_list([e.name for e in profile.pet_entities if e.id in asked])
+    pets = venue_titles(profile)
     base = compared_with(profile)
     total = len(profile.venues)
     evidence = (
@@ -568,6 +579,23 @@ def plan(animal: Animal, location: Location, venues: list[Venue]) -> list[PlanIt
 
 
 KIND_WORDS = {"tv_show": "TV shows", "movie": "films", "book": "books"}
+KIND_SINGULAR = {"tv_show": "TV show", "movie": "film", "book": "book"}
+
+
+def kind_word(e: Entity, default: str | None = "tv_show") -> str:
+    """A title's kind for the page: "TV show", "film", "book". Profiles saved before
+    `entity_type` may hold Qloo's generic type: then the kind comes from where the title
+    was found, else `default` (the area's top shows and comparison shows are all TV; a
+    lookalike may be anything, so it reads as a "title")."""
+    if e.type.startswith("urn:entity:"):
+        kind = e.type.removeprefix("urn:entity:")
+    elif ":" not in e.type:
+        kind = e.type  # a bare kind
+    else:
+        kind = e.found_in.kind if e.found_in else default
+    if not kind:
+        return "title"
+    return KIND_SINGULAR.get(kind, kind.replace("_", " "))
 
 
 def sorted_by(e: Entity) -> str:
@@ -599,7 +627,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
     # the next run chooses the comparison again.
     hidden = {e.id for e in baseline_titles(profile) if mentions_identity(e.name, e.description)}
     for e in profile.pet_entities + [b for b in baseline_titles(profile) if b.id not in hidden]:
-        kind = e.type.removeprefix("urn:entity:").replace("_", " ")
+        kind = kind_word(e)
         if e.resolution == "chosen":
             returned.append(
                 WhyItem(
@@ -690,7 +718,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
             )
         )
     if profile.venues:
-        pets = and_list([e.name for e in profile.pet_entities])
+        pets = venue_titles(profile)
         shared = sum(1 for v in profile.venues if v.compared and not v.distinctive)
         returned.append(
             WhyItem(
@@ -743,7 +771,7 @@ def lookalike_why(
     reasons = {o.entity_id: o.choice_reason for o in result.draft.names}
     for look in result.lookalikes:
         e = look.entity
-        kind = e.type.removeprefix("urn:entity:").replace("_", " ")
+        kind = kind_word(e, default=None)
         found = "Found in Qloo. "
         if look.chosen:
             several = f"{look.candidates} candidates" if look.candidates > 1 else "one candidate"

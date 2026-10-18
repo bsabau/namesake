@@ -184,7 +184,7 @@ Saved listings carry the version of the checks they passed. When the checks chan
 | `qloo_meta` | the time of the last live Qloo call, for spacing across processes | server only |
 | `agent_results` | area profiles, listings, typed areas | server only |
 | `approvals` | approved names and versions, for the measurement log | server only |
-| `classifier_answers` | the classifier's answers per title, keyed by the title as described, the questions and the model | server only |
+| `classifier_answers` | the classifier's answers per title, keyed by the title as described (name, kind and description), the questions and the model | server only |
 | `usage` | live runs and new typed areas per day (UTC), for the daily caps | server only |
 | Memory | live runs per visitor in the last hour | server only, reset on restart |
 | `var/qloo-recordings/` | raw Qloo answers, for replay in development | never committed |

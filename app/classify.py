@@ -2,8 +2,8 @@
 
 Jev answers typed yes/no questions with a probability each. It reads one title at a
 time: its name, kind and Qloo's description, never anything about a visitor. Answers
-are cached in SQLite by the title, its description, the questions and the model, so a
-title is classified once.
+are cached in SQLite by the title, its kind, its description, the questions and the
+model, so a title is classified once.
 
 Without a key the classifier is off and Namesake's AI judges every title from its
 description instead.
