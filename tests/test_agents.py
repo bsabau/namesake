@@ -584,8 +584,12 @@ def test_find_venues_tells_the_agent_where_each_place_ranks():
     assert [v["rank"] for v in venues] == list(range(1, len(venues) + 1))
     assert {v["out_of"] for v in venues} == {len(venues)}
     assert venues[0]["position"] == "top" and venues[-1]["position"] != "top"
-    # The instructions name the field the agent should weigh.
-    assert 'position "top"' in INSTRUCTIONS
+    # The instructions name the fields the agent should weigh, in order: suitability, then
+    # standing out among top and middle places, then rank; the bottom third last.
+    flat = " ".join(INSTRUCTIONS.split())
+    assert 'with position "top" or "middle", pick those marked stands_out first' in flat
+    assert "Then the rest by rank" in flat
+    assert 'position "bottom" only when no higher one is suitable' in flat
 
 
 def test_two_names_from_one_title_are_sent_back_while_another_is_usable(roster):

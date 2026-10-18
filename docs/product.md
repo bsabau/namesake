@@ -37,7 +37,7 @@ Name options come from three sources. Each option carries a badge with what Qloo
 
 | Source | Where it comes from |
 |---|---|
-| Pet-themed, strong here | Pet-themed titles with Qloo's evidence for the area (decision 22): ranked here by Qloo ("ranked 1st of 8 here by Qloo"), or placed in one of the area's lists, asked with Qloo's pet tags or for fans of another pet title ("in Qloo's list for this area asked with its pet tags", "liked here by fans of Bluey") |
+| Pet-themed, strong here | Pet-themed titles with Qloo's evidence for the area (decision 22): ranked here by Qloo ("ranked 1st of 8 here by Qloo"), or placed in one of the area's lists, asked with Qloo's pet tags or for fans of another pet title ("in Qloo's list for this area, asked with its pet tags", "liked here by fans of Bluey") |
 | Loved here generally | The area's top tastes by type (step E). Screened harder, because these lists lean on national hits and identity-coded titles. |
 | Title found, or Offered as a candidate (a lookalike) | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Qloo's line says only that it found the title, or offered it among candidates when it asked which was meant; the match ("A lookalike, matched on this animal's recorded look (brindle coat).", after the reference that names the character) is on the AI's line. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
 
@@ -51,8 +51,7 @@ The plan is a checklist the volunteer can carry out without an ad budget:
 2. In-person visibility: outings, events, an "Adopt Me" vest.
 3. Timing: Friday, Saturday and early evening.
 4. For New York dogs: rescue partners and foster recruitment.
-5. **Venues (Qloo):** about three places near the shelter that fans of up to three of the pet-themed entities favour, for flyers and events. Code picks those titles by their evidence for the area (Qloo's ranking, else their best place in the area's lists), never an identity-coded one, and the agent picks the venues. Qloo is asked only for kinds of place that can host a stand or take a flyer, in three groups (cafes and breweries, bookshops and pet shops, community places), each in for a stated reason, and the page says which kinds were not asked for and why, and that the places are the same for every animal of that species at the shelter (decision 23). Each venue shows its evidence, and apart from it the agent's reason: why the place could host an adoption event or show a flyer, from its name and Qloo's description only. For an animal recorded as not good with children, venues whose name or Qloo description mentions children are skipped, and the plan says which (decision 2).
-6. **One channel beyond the usual audience.** It comes from that location's `community_channels` entry in `data/locations.json` and is labelled as our suggestion.
+5. **Venues (Qloo):** about three places near the shelter that fans of up to three of the pet-themed entities favour, for flyers and events. Code picks those titles by their evidence for the area (Qloo's ranking, else their best place in the area's lists), never an identity-coded one, and the agent picks the venues: among suitable places near the top or middle of Qloo's list, those that stand out against the area's top shows first, then the rest by rank (decision 23). Qloo is asked only for kinds of place that can host a stand or take a flyer, in three groups (cafes and breweries, bookshops and pet shops, community places), each in for a stated reason, and the page says which kinds were not asked for and why, and that the places are the same for every animal of that species at the shelter (decision 23). Each venue shows its evidence, and apart from it the agent's reason: why the place could host an adoption event or show a flyer, from its name and Qloo's description only. For an animal recorded as not good with children, venues whose name or Qloo description mentions children are skipped, and the plan says which (decision 2).
 
 The plan's success measure is adoptions and returns; likes and reach are left out.
 
@@ -78,7 +77,7 @@ The result screen must be legible in a single screenshot. It shows:
 - the photo and chosen name
 - the generic/local toggle, each button showing its version's name
 - the name options with what Qloo returned for each title
-- a map of local lift, its caption counting the cells where pet-show fans stand out (unless the map is thin or has no comparison), with the venues listed beside it under a note on which kinds of place were asked for and why (decision 23), and pinned on it by number, each card saying which cell it sits in and how far it is from the shelter (`docs/decisions.md` #4)
+- a map of local lift, its caption counting the cells where fans of pet-themed titles stand out (unless the map is thin or has no comparison), with the venues listed beside it under a note on which kinds of place were asked for and why (decision 23), and pinned on it by number, each card saying which cell it sits in and how far it is from the shelter (`docs/decisions.md` #4)
 - the exposure checklist
 - a "Why" drawer with two columns, "Qloo returned" and "How Namesake read it"
 

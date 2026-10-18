@@ -85,7 +85,7 @@ def test_every_venue_a_page_shows_is_looked_up_and_no_other():
 def test_an_agent_profile_is_looked_up_in_its_own_page_order():
     p = profile()
     p.made_by = "agent"
-    # Place 7 stands out for pet-show fans, but the page lists the AI's picks by rank.
+    # Place 7 stands out for fans of pet-themed titles, but the page lists the AI's picks by rank.
     p.venues = [
         Venue(entity_id=f"v{k}", name=f"Place {k}", rank=k, chosen_reason="a place to ask",
               compared=True, baseline_rank=None if k == 7 else 1)
@@ -104,7 +104,7 @@ def test_a_placed_venue_reads_its_cell_and_its_distance():
                    latitude=(south + north) / 2, longitude=(west + east) / 2)  # fmt: skip
     outside = Venue(entity_id="w", name="Outside", rank=2, latitude=40.9, longitude=-73.5)
     assert cell_reading(inside, LOCATION, p).startswith(
-        "OpenStreetMap places it where pet-show fans rank this part of Example Slope"
+        "OpenStreetMap places it where fans of pet-themed titles rank this part of Example Slope"
     )
     assert cell_reading(outside, LOCATION, p) == "OpenStreetMap places it beyond the map's view."
     near_out = Venue(entity_id="n", name="Near", rank=4, latitude=NEAR[0] + 0.01, longitude=NEAR[1])

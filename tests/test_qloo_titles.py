@@ -146,7 +146,7 @@ def test_the_ais_own_titles_stay_only_with_qloos_evidence(roster):
         "with Qloo's pet tags."
     )
     assert name_badge("pet", PUPPY_SCHOOL, profile) == (
-        "Pet-themed title, in Qloo's list for this area asked with its pet tags"
+        "Pet-themed title, in Qloo's list for this area, asked with its pet tags"
     )
 
 

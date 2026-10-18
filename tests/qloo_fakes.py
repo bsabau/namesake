@@ -38,7 +38,6 @@ LOCATION = Location(
     latitude=40.672,
     longitude=-73.978,
     zoom=14,
-    community_channel="example-language noticeboards in a nearby neighbourhood",
 )
 
 SEEDS = Seeds(
