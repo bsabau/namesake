@@ -133,7 +133,7 @@ The author wants to try more than one interface, so no screen's logic lives in a
 
 - **View models.** Each screen has a typed view model in `app/views/`, such as `StartView` or `ResultView`. Routes build it from domain objects. It holds everything the screen shows, already worded and in display order, and it contains no HTML.
 - **JSON API.** The same view models are served as JSON under `/api/` (`/api/start`, `/api/results/{id}`, and the SSE step log at `/api/runs/{id}/events`). A different interface, even a single static HTML page with a script, can be built on the API alone.
-- **UIs.** Each UI is a folder of templates and static files: `app/ui/<name>/templates/` and `app/ui/<name>/static/`. A UI only renders view models. It never calls Qloo, the agent or the cache, and it never re-derives data. The `UI` setting picks the default UI (`warm`; `classic` is the first skin, kept for comparison), and `?ui=<name>` switches UI per request so two can be compared side by side. See `docs/decisions.md` #21.
+- **UIs.** Each UI is a folder of templates and static files: `app/ui/<name>/templates/` and `app/ui/<name>/static/`. A UI only renders view models. It never calls Qloo, the agent or the cache, and it never re-derives data. The `UI` setting picks the default UI (`warm`; `classic` and `story` are alternatives for comparison), and `?ui=<name>` switches UI per request so two can be compared side by side. See `docs/decisions.md` #21 and #22.
 - **Shared test contract.** Tests check the view models and the API. One smoke test, run against every UI, checks that each screen renders the elements that must be there, found by `data-role` attributes: the name, the provenance split, the map, the photo credit and the Qloo credit. A new UI passes that test or isn't finished.
 
 ## The Qloo harness: what is known
@@ -280,7 +280,7 @@ app/
   custom_location.py checks a typed shelter area with Qloo before any run
   qloo/              exec wrapper, envelope types, cache, geohash helpers
   views/             UI-neutral view models, one per screen, also served as JSON
-  ui/<name>/         one folder per UI: templates/ and static/ (warm is the default; classic is kept)
+  ui/<name>/         one folder per UI: templates/ and static/ (warm is the default; classic and story are alternatives)
   static/            shared assets: web-sized animal photos
 data/animals/        animals.json and original photos
 data/locations.json  the preset shelter locations

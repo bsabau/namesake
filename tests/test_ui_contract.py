@@ -45,8 +45,8 @@ def client(monkeypatch):
     return TestClient(main.app)
 
 
-def test_both_skins_are_found():
-    assert {"classic", "warm"} <= set(main.UIS)
+def test_all_skins_are_found():
+    assert {"classic", "warm", "story"} <= set(main.UIS)
 
 
 def test_the_default_ui_is_warm():
@@ -174,12 +174,13 @@ def test_the_default_ui_is_served_at_the_root(client):
     assert f"/ui/{get_settings().ui}/static/style.css?v={version}" in client.get("/").text
 
 
-def test_the_warm_font_is_self_hosted_and_cacheable(client):
-    fonts = main.UI_ROOT / "warm" / "static" / "fonts"
+@pytest.mark.parametrize("ui", ["warm", "story"])
+def test_fonts_are_self_hosted_and_cacheable(client, ui):
+    fonts = main.UI_ROOT / ui / "static" / "fonts"
     files = sorted(fonts.glob("*.woff2"))
     assert files and (fonts / "OFL.txt").exists(), "the font ships with its licence"
     for path in files:
-        response = client.get(f"/ui/warm/static/fonts/{path.name}")
+        response = client.get(f"/ui/{ui}/static/fonts/{path.name}")
         assert response.status_code == 200
         # Registered in app/main.py: a slim Linux image has no mime.types file for .woff2.
         assert response.headers["content-type"] == "font/woff2"
@@ -197,3 +198,51 @@ def test_provenance_lines_are_marked_in_every_ui(ui):
     template = (main.UI_ROOT / ui / "templates" / "result.html").read_text(encoding="utf-8")
     for marker in ['class="evidence"', 'class="reading"', "from-qloo"]:
         assert marker in template, f"{ui} result: no {marker}"
+
+
+def test_story_keeps_the_facts_sources_and_outreach_in_order(client):
+    html = client.get(
+        "/result", params={"animal": "dog-02", "location": "park-slope", "ui": "story"}
+    ).text
+    sections = ["story-animal", 'id="story-heading"', 'id="behind-heading"', 'id="travel-heading"']
+    assert [html.index(section) for section in sections] == sorted(
+        html.index(section) for section in sections
+    )
+    assert "Still to learn:" in html and "AI-generated" in html
+    assert 'form="refine-form" id="refine-text"' in html
+    assert 'id="refine-form" method="post" action="/refine"' in html
+    assert 'id="approval-editor"' in html and 'name="text" rows="8"' in html
+
+
+def test_story_maps_use_attributed_tiles_for_both_colour_schemes():
+    for name in ("location-map.js", "result-map.js"):
+        text = (main.UI_ROOT / "story" / "static" / name).read_text()
+        assert "basemaps.cartocdn.com" in text
+        assert '"dark_all"' in text and '"rastertiles/voyager"' in text
+        assert "OpenStreetMap" in text and "CARTO" in text
+        assert 'scheme.addEventListener("change"' in text
+
+
+@pytest.mark.parametrize("ui", main.UIS)
+def test_approval_screen_meets_the_contract(client, ui):
+    from tests.test_product import save, saved_listing
+
+    save(saved_listing())
+    view = client.get("/api/results/dog-02@park-slope").json()
+    response = client.post(
+        "/approve",
+        data={
+            "animal": "dog-02",
+            "location": "park-slope",
+            "variant": "local",
+            "local_name": "Bingo",
+            "text": view["listing"]["text"],
+            "ui": ui,
+        },
+    )
+    assert response.status_code == 200
+    for role in ("approved", "copy-block", "photo-credit", "qloo-credit"):
+        assert f'data-role="{role}"' in response.text
+    if ui == "story":
+        # The POST has no query string; navigation still stays in the opt-in skin.
+        assert 'href="/?ui=story"' in response.text

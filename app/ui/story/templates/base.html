@@ -1,0 +1,26 @@
+{% set ui_query = '&ui=' ~ ui %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Namesake{% endblock %}</title>
+  {% block head %}{% endblock %}
+  <link rel="stylesheet" href="{{ ui_static('style.css') }}">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="/{% if ui_query %}?{{ ui_query[1:] }}{% endif %}">{% include "_paw.html" %}<span>Namesake</span></a>
+    <span class="tagline">Accurate adoption listings, and a plan to get every animal seen</span>
+  </header>
+  <main id="main-content">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <p data-role="photo-credit">{{ view.credits.photos }}</p>
+    <p data-role="qloo-credit">{{ view.credits.qloo }}</p>
+    {% if view.credits.classifier %}<p data-role="classifier-credit">{{ view.credits.classifier }}</p>{% endif %}
+  </footer>
+</body>
+</html>

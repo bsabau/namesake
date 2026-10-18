@@ -6,7 +6,7 @@ This is the technical tour: the parts, who decides what, how a request flows thr
 
 ```mermaid
 flowchart LR
-    browser["Browser<br/>warm UI (default) or classic:<br/>Jinja pages, a little JavaScript,<br/>Leaflet map"]
+    browser["Browser<br/>warm UI (default), classic or story:<br/>Jinja pages, a little JavaScript,<br/>Leaflet map"]
     subgraph app["One container: FastAPI app"]
         routes["Routes<br/>app/main.py"]
         views["View models<br/>app/views/"]
@@ -52,7 +52,7 @@ flowchart LR
 - **A classifier sorts titles the AI finds in the area's lists** (decision 20): TypeSafe's Jev answers yes-or-no questions with a probability (pets central, dogs, cats, family audience, real people). Code keeps the clear pet titles, sets the clear others aside, and leaves the rest to the AI. It receives a title's name, kind and Qloo's description only; its answers are cached; without a key, or after a failure, the AI judges the titles itself.
 - **Plain code checks everything the AI returns** before anything is saved or shown. The checks are PydanticAI output validators (`check_plan`, `check_draft`): a failed check goes back to the model with its reasons, as its one repair round.
 - **Qloo's answer and Namesake's reading stay apart.** View models carry them as separate fields, and the UI contract test checks that both render (`data-role="qloo-returned"` and `"our-reading"`).
-- **The UI is a replaceable skin.** Routes build typed view models (`app/views/`); a UI folder (`app/ui/<name>/`) only renders them, and the same view models are served as JSON under `/api/`. `warm` is the default and `classic` is kept for comparison (decision 21); `?ui=<name>` switches UI per request, and the contract test runs against both.
+- **The UI is a replaceable skin.** Routes build typed view models (`app/views/`); a UI folder (`app/ui/<name>/`) only renders them, and the same view models are served as JSON under `/api/`. `warm` is the default; `classic` and the editorial `story` skin are available for comparison (decisions 21 and 22); `?ui=<name>` switches UI per request, and the contract test runs against all three.
 
 ## Who decides what
 
@@ -224,7 +224,7 @@ Everything that differs between machines is an environment variable (`.env` loca
 | `NEW_LOCATIONS_PER_DAY` | 10 | new typed areas checked per day |
 | `GEOCODER_URL` | Photon's public server | empty turns suggestions and the map pick off |
 | `TYPESAFE_API_KEY`, `TYPESAFE_BASE_URL`, `TYPESAFE_MODEL` | none, TypeSafe's API, `jev-latest` | the title classifier; without a key it is off and the AI judges the titles; an `https://` base URL only |
-| `UI` | `warm` | the default interface (`classic` is kept) |
+| `UI` | `warm` | the default interface (`classic` and `story` are alternatives) |
 
 ## Limits and safety
 
@@ -256,3 +256,8 @@ flowchart LR
 
 - **Hosting**: one Docker container on a VM, behind an existing Caddy (TLS), with the SQLite cache on a private volume. `deploy/README.md` covers first setup, the deploy user, upgrading profiles, and rolling back.
 - **Auto-deploy**: a merge to `main` that passes CI runs the deploy from GitHub Actions, with a dedicated SSH key for a `deploy` user and the host key pinned. Only `main`'s newest commit is deployed, one deploy at a time. The server's `.env` is replaced only by a manual deploy with `--env`, never from CI.
+
+
+## The story skin
+
+`app/ui/story/` renders the same view models and posts to the same routes as warm and classic. Additive `ResultView.story` presentation fields supply pronoun-aware headings, the exact recorded observations, unknown checks, process labels and a selected name’s source explanation built from the existing Why fields. They contain no HTML and are available through the JSON result API. Name options and title-specific Why items carry an additive entity ID, so identically named works keep their own evidence. Name changes select existing display values in the browser; they make no data calls. The story maps use CARTO Voyager or Dark Matter according to the colour scheme, with OpenStreetMap and CARTO attribution. The default remains warm; `?ui=story` is opt-in (decision 22).

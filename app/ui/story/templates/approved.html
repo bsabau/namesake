@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}{{ view.title }} · Namesake{% endblock %}
+
+{% block head %}
+<script defer src="{{ ui_static('copy.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<p class="back"><a href="{{ view.back_url }}">&larr; Back to the result</a></p>
+
+<section class="approved" data-role="approved">
+  <div class="who">
+    <img src="{{ view.animal.image_url }}" alt="{{ view.animal.alt }}" width="120" height="120">
+    <div>
+      <p class="animal-meta">{{ view.animal.meta }} · {{ view.variant_label }} version</p>
+      <h1>{{ view.title }}</h1>
+    </div>
+  </div>
+
+  <h2>Copy-ready listing</h2>
+  <textarea id="approved-text" class="copy-block" data-role="copy-block" rows="8" readonly>{{ view.copy_text }}</textarea>
+  <p><button type="button" class="copy" data-copy-target="approved-text">Copy listing</button></p>
+
+  <h2>What was recorded</h2>
+  <ul class="recorded">
+    {% for line in view.recorded %}<li>{{ line }}</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}

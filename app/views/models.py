@@ -149,6 +149,7 @@ class AddAnimalView(BaseModel):
 
 
 class NameOptionView(BaseModel):
+    entity_id: str | None = None
     name: str
     # What Qloo returned: the title and where Qloo ranked it.
     badge: str
@@ -252,6 +253,7 @@ class PlanItem(BaseModel):
 
 
 class WhyItem(BaseModel):
+    entity_id: str | None = None
     title: str
     detail: str
 
@@ -286,6 +288,24 @@ class WorkingView(BaseModel):
     credits: Credits = Credits()
 
 
+class StoryNameView(BaseModel):
+    name: str
+    returned: str
+    selected: str
+
+
+class StoryView(BaseModel):
+    """Presentation of the recorded facts and process for the story skin."""
+
+    heading: str
+    introduction_heading: str
+    travel_heading: str
+    facts: list[str]
+    steps: list[WhyItem]
+    still_to_learn: str | None = None
+    names: list[StoryNameView] = []
+
+
 class ResultView(BaseModel):
     id: str
     animal: AnimalCard
@@ -301,6 +321,7 @@ class ResultView(BaseModel):
     edited_text: str | None = None
     # The local name option picked; the first option unless the volunteer chose another.
     chosen_name: str | None = None
+    story: StoryView | None = None
     name: NameView
     listing: ListingView
     map: MapView

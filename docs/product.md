@@ -89,3 +89,8 @@ Each listing records an ID, the animal, the location, the variant (`generic` or 
 - **Sample size:** about 190 adoptions to detect a 50% faster rate.
 
 The hackathon build records the data; it doesn't run the trial.
+
+
+## Alternative presentation: story
+
+`?ui=story` presents the same result as an editorial page (decision 22). The photo and recorded facts sit beside numbered name and introduction steps. The selected name’s provenance is visible near the name choices; a three-step explanation and a two-column source summary lead into the full Why drawer. A honey band holds the lift map, ranked venue list and complete exposure checklist. Start, Working, add-animal and approval screens use the same typography and palette. Warm remains the default. [Structure reference](img/story-structure.png) · [visual reference](img/story-look.png).

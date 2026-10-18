@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}{{ view.name.value or view.listing.heading }} · {{ view.location.label }} · Namesake{% endblock %}
+{% block head %}
+{% include "leaflet.html" %}
+<script defer src="{{ ui_static('result-map.js') }}"></script>
+<script defer src="{{ ui_static('copy.js') }}"></script>
+<script defer src="{{ ui_static('result.js') }}"></script>
+{% endblock %}
+{% block content %}
+<div class="story-topline"><a href="/?location={{ view.location.id }}{{ ui_query }}">← Meet another animal</a><span>{{ view.location.label }}, {{ view.location.region }}</span></div>
+
+<form id="listing-form" class="listing-form story-layout" method="post" action="{{ view.approve_url }}" data-role="listing">
+  <input type="hidden" name="animal" value="{{ view.animal.id }}">
+  <input type="hidden" name="location" value="{{ view.location.id }}">
+  {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
+  {% for version in view.listing.versions if version.variant == 'generic' and version.name %}<input type="hidden" name="generic_name" value="{{ version.name }}">{% endfor %}
+
+  <aside class="story-animal" aria-label="The animal’s recorded facts">
+    <figure class="portrait"><img src="{{ view.animal.image_url }}" alt="{{ view.animal.alt }}" width="480" height="480"><figcaption>{{ view.credits.photos }}</figcaption></figure>
+    {% for version in view.listing.versions %}
+    <div class="version version-{{ version.variant }}">
+      <h2 data-role="name" class="{{ 'name' if version.name else 'name name-empty' }}">{{ version.name or view.name.placeholder }}</h2>
+      {% if version.name_source %}<p class="name-source">{% if version.variant == 'local' %}<span class="from-qloo">Qloo</span> {% endif %}<span class="name-source-text">{{ version.name_source }}</span></p>{% endif %}
+      {% if version.note %}<p class="version-note">{{ version.note }}</p>{% endif %}
+    </div>
+    {% endfor %}
+    <p class="animal-meta">{{ view.animal.meta }} {% for badge in view.animal.badges %}<span class="badge">{{ badge }}</span>{% endfor %}</p>
+    <p class="animal-look">{{ view.animal.look }}</p>
+    <h3 class="ruled-heading">What we know</h3>
+    <ul class="fact-row">{% for fact in view.story.facts %}<li><span class="fact-mark" aria-hidden="true">✧</span>{{ fact }}</li>{% endfor %}</ul>
+    {% if view.story.still_to_learn %}<p class="still-learning">{{ view.story.still_to_learn }}</p>{% endif %}
+    {% if view.litter_note %}<p class="litter-mates">{{ view.litter_note }} {% for mate in view.litter %}{% if mate.name %}{% if mate.current %}<strong>{{ mate.name }}</strong>{% else %}<a href="{{ mate.url }}{{ ui_query }}">{{ mate.name }}</a>{% endif %}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}</p>{% endif %}
+  </aside>
+
+  <section class="story-editor" aria-labelledby="story-heading">
+    <p class="eyebrow">A name. An introduction. A little local context.</p>
+    <h1 id="story-heading">{{ view.story.heading }}</h1>
+    <p class="story-deck">A local name. A factual introduction. A plan to get seen.</p>
+    <section class="name-step local-only">
+      <h2 class="numbered"><span>01</span> Choose a name</h2>
+      {% if view.name.options %}
+      <ul class="name-options" data-role="name-options">
+        {% for option in view.name.options %}
+        <li class="name-option"><label>
+          <input type="radio" name="local_name" value="{{ option.name }}" data-hook="{{ option.hook }}" data-badge="{{ option.badge }}" data-copy="{{ option.copy_text }}" {% if option.name == view.chosen_name %}checked{% endif %}>
+          <strong>{{ option.name }}</strong><span class="option-title">{{ option.title }}</span>
+        </label></li>
+        {% endfor %}
+      </ul>
+      <div class="name-provenance" aria-live="polite">
+        {% for option in view.name.options %}
+        <div class="provenance-pair" data-name-detail="{{ option.name }}"{% if option.name != view.chosen_name %} hidden{% endif %}>
+          <p class="evidence"><span>Qloo:</span> {{ option.title }}. {{ option.badge }}.</p>
+          <p class="reading"><span>Namesake's AI:</span> {{ option.reference }}. {{ option.why }}</p>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}<p class="hint">No local name options yet. The generic listing is ready below.</p>{% endif %}
+    </section>
+
+    <section class="introduction" aria-labelledby="intro-heading">
+      <div class="intro-toolbar">
+        <h2 id="intro-heading" class="numbered"><span>02</span> {{ view.story.introduction_heading }}</h2>
+        <fieldset class="version-toggle" data-role="version-toggle"><legend>Version</legend>
+          {% for version in view.listing.versions %}<label class="version-choice"><input type="radio" name="variant" value="{{ version.variant }}" {% if version.selected %}checked{% endif %}{% if not version.available %} disabled{% endif %}>{{ version.label }}</label>{% endfor %}
+        </fieldset>
+      </div>
+      <div class="story-paper">
+        {% for version in view.listing.versions %}<div class="version version-{{ version.variant }}" data-role="version-{{ version.variant }}">
+          {% if version.hook %}<p class="hook" data-role="hook">{{ version.hook }}</p>{% endif %}
+          <textarea id="copy-{{ version.variant }}" hidden>{{ version.copy_text }}</textarea>
+        </div>{% endfor %}
+        <p class="listing-text" id="bio-text">{{ view.listing.text }}</p>
+        <p class="written-by">{{ view.listing.written_by }}</p>
+        <p class="listing-meta">{{ view.listing.word_count }} words · From shelter records</p>
+        {% if view.listing.fallback_note %}<p class="fallback-note">{{ view.listing.fallback_note }}</p>{% endif %}
+        {% if view.listing.refined_note %}<p class="refined-note">{{ view.listing.refined_note }} <button type="submit" form="reset-form" class="link-button">Show the original</button></p>{% endif %}
+      </div>
+      <div class="story-actions"><button type="button" class="copy" data-copy-variant>Copy this version</button><a class="edit-link" href="#approval-editor">Edit &amp; approve <span aria-hidden="true">↗</span></a></div>
+      <details id="approval-editor" class="approve" data-role="approve"{% if view.approve_error %} open{% endif %}>
+        <summary>Edit and approve</summary>
+        {% if view.approve_error %}<p class="form-error" role="alert">{{ view.approve_error }}</p>{% endif %}
+        <label for="edit-text">The bio, as it will be posted</label>
+        <textarea id="edit-text" name="text" rows="8" maxlength="3000">{{ view.edited_text or view.listing.text }}</textarea>
+        {% if view.listing.must_keep %}<p class="hint">Cautions the shelter recorded must stay, word for word: {% for phrase in view.listing.must_keep %}“{{ phrase }}”{% if not loop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
+        <button type="submit">Approve the selected version</button><p class="hint">Approving gives you a copy-ready listing and records the version and name for a trial, never the text.</p>
+      </details>
+      <div class="refine-fields"><label for="refine-text">Want to adjust the wording?</label><div class="inline-field"><input form="refine-form" id="refine-text" type="text" name="text" minlength="3" maxlength="200" required placeholder="{{ view.refine_placeholder }}"><button form="refine-form" type="submit">Refine</button></div><p class="hint">Makes a new version for you only; the same checks apply.</p></div>
+      <ul class="left-out">{% for line in view.listing.left_out %}<li>{{ line }}</li>{% endfor %}</ul>
+      {% if view.listing.short_note %}<details class="short-explanation"><summary>Why is this introduction short?</summary><p class="short-note">{{ view.listing.short_note }}</p></details>{% endif %}
+      <p class="toggle-note">{{ view.listing.toggle_note }}</p>
+    </section>
+  </section>
+</form>
+<form id="refine-form" method="post" action="{{ view.refine_url }}" data-role="refine"><input type="hidden" name="animal" value="{{ view.animal.id }}"><input type="hidden" name="location" value="{{ view.location.id }}">{% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}</form>
+<form id="reset-form" method="post" action="/refine/reset" hidden><input type="hidden" name="animal" value="{{ view.animal.id }}"><input type="hidden" name="location" value="{{ view.location.id }}">{% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}</form>
+
+<section class="behind-story" aria-labelledby="behind-heading">
+  <p class="eyebrow">The facts, the context, the choices</p><h2 id="behind-heading">Behind this story</h2>
+  <p class="section-deck">What came from Qloo. What Namesake did with it.</p>
+  <ol class="story-process">{% for step in view.story.steps %}<li><span class="process-number" aria-hidden="true">0{{ loop.index }}</span><div><h3>{{ step.title }}</h3><p>{{ step.detail }}</p></div></li>{% endfor %}</ol>
+  {% if view.story.names %}
+  <section class="selected-why" aria-label="Why this name?">
+    <h3>Why this name?</h3>
+    {% for choice in view.story.names %}
+    <div class="why-choice" data-name-detail="{{ choice.name }}"{% if choice.name != view.chosen_name %} hidden{% endif %}>
+      <div class="evidence"><h4>Qloo returned</h4><p>{{ choice.returned }}</p></div>
+      <div class="reading"><h4>Namesake selected</h4><p>{{ choice.selected }}</p></div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+  <details class="why" data-role="why"><summary>All the choices, sources &amp; processing details</summary>
+    <div class="why-columns"><div class="why-column" data-role="qloo-returned"><h3>Qloo returned</h3><dl>{% for item in view.qloo_returned %}<dt>{{ item.title }}</dt><dd>{{ item.detail }}</dd>{% endfor %}</dl></div><div class="why-column" data-role="our-reading"><h3>Namesake selected · interpretation &amp; checks</h3><dl>{% for item in view.our_reading %}<dt>{{ item.title }}</dt><dd>{{ item.detail }}</dd>{% endfor %}</dl></div></div>
+  </details>
+</section>
+
+<section class="travel-band" aria-labelledby="travel-heading">
+  <div class="travel-heading"><p class="eyebrow">Next stop: the neighbourhood</p><h2 id="travel-heading">{{ view.story.travel_heading }}</h2><p class="section-deck">Local places to ask about sharing the listing in {{ view.location.label }}.</p></div>
+  <div class="travel-grid"><figure class="result-map"><div id="result-map" data-role="map" role="img" aria-label="Map of where pet-show fans stand out around {{ view.location.label }}"></div><figcaption>{{ view.map.empty_message or view.map.legend }}</figcaption></figure><script type="application/json" id="map-data">{{ view.map|plain|tojson }}</script>
+    <section><h3>Places to ask</h3><p class="hint">Suggested outreach places. Contact them first.</p><ul class="venues">{% for venue in view.venues %}<li class="venue"><p><strong>{{ venue.name }}</strong><span class="tag {{ 'tag-strong' if venue.stands_out }}">{{ venue.badge }}</span></p><p class="venue-rank rank-{{ venue.rank_band }}" data-role="venue-rank"><strong>{{ venue.rank }}</strong> · {{ venue.rank_note }}</p><p class="venue-place">{{ venue.place }}</p>{% if venue.description %}<p class="venue-description">{{ venue.description }}</p>{% endif %}<p class="evidence"><span>Qloo:</span> {{ venue.evidence }}</p>{% if venue.reason %}<p class="reading"><span>Namesake's AI:</span> {{ venue.reason }}</p>{% endif %}</li>{% else %}<li>No venues for this area yet.</li>{% endfor %}</ul></section>
+  </div>
+  <section class="other-ways"><h3>Other ways to help</h3><p class="hint">{{ view.plan_heading }}</p><ol class="plan">{% for item in view.plan %}<li><span class="basis basis-{{ item.basis|lower|replace(' ', '-') }}">{{ item.basis }}</span><span class="plan-text">{{ item.text }}</span></li>{% endfor %}</ol></section>
+</section>
+{% if view.notes %}<section class="notes"><h2>Gaps in the data</h2><ul>{% for note in view.notes %}<li>{{ note }}</li>{% endfor %}</ul></section>{% endif %}
+{% endblock %}

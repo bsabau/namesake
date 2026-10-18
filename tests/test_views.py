@@ -202,3 +202,71 @@ def test_venue_rank_is_stated_plainly(roster):
     for v in view.venues:
         assert re.fullmatch(rf"\d+(st|nd|rd|th) of {total}", v.rank)
         assert v.rank_note == RANK_NOTES[v.rank_band]
+
+
+@pytest.mark.parametrize(
+    "sex,possessive", [("female", "her"), ("male", "his"), ("unknown", "their")]
+)
+def test_story_presentation_uses_only_recorded_facts(roster, sex, possessive):
+    animal = roster.get("dog-02").model_copy(update={"sex": sex})
+    view = build_result_view(animal, LOCATION, profile())
+    assert view.story.heading == f"Let’s tell {possessive} story."
+    assert view.story.introduction_heading == f"{possessive.capitalize()} introduction"
+    assert view.story.travel_heading == f"Help {possessive} story travel"
+    assert view.story.facts == [animal.temperament, *animal.facts]
+    assert all(fact not in view.story.facts for fact in animal.history)
+    assert len(view.story.steps) == 3
+    assert "bite history" in view.story.still_to_learn
+    assert view.story.names == []
+
+
+def test_story_never_lists_confirmed_checks_as_unknown(roster):
+    from app.animals import Checks
+
+    animal = roster.get("dog-02").model_copy(
+        update={
+            "checks": Checks(
+                good_with_children="no",
+                good_with_dogs="yes",
+                good_with_cats="no",
+                house_trained="yes",
+                bite_history="yes",
+            )
+        }
+    )
+    view = build_result_view(animal, LOCATION, profile())
+    assert view.story.still_to_learn is None
+    assert "bite" in view.listing.text.lower()
+
+
+def test_story_name_summary_keeps_qloo_and_interpretation_apart(roster):
+    from tests.test_product import saved_listing
+
+    p = profile()
+    view = build_result_view(roster.get("dog-02"), LOCATION, p, saved_listing())
+    assert [choice.name for choice in view.story.names] == [
+        option.name for option in view.name.options
+    ]
+    for choice, option in zip(view.story.names, view.name.options, strict=True):
+        assert option.reference in choice.selected and option.why in choice.selected
+        assert option.why not in choice.returned
+    assert "Qloo has 2 entries" in view.story.names[0].returned
+    assert view.story.names[1].returned.strip() == "Example Cat Show. Pet-themed title."
+
+
+def test_story_keeps_same_named_titles_evidence_with_their_own_entity(roster):
+    from tests.test_product import saved_listing
+
+    p = profile()
+    p.pet_entities[1].name = p.pet_entities[0].name
+    p.pet_entities[0].description = "The first invented title."
+    p.pet_entities[1].description = "The second invented title."
+    p.pet_entities[0].why = "the first interpretation"
+    p.pet_entities[1].why = "the second interpretation"
+    view = build_result_view(roster.get("dog-02"), LOCATION, p, saved_listing())
+    first, second = view.story.names[:2]
+    assert "first invented title" in first.returned
+    assert "second invented title" not in first.returned
+    assert "second invented title" in second.returned
+    assert "first interpretation" not in second.selected
+    assert "second interpretation" in second.selected

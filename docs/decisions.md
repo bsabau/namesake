@@ -300,3 +300,22 @@ The refusal keeps the edit and names the missing words.
 **Why:** design is a quarter of the score and judges may see one screenshot. The classic look, flat and grey-bordered, read as a prototype for an office tool; a shelter volunteer's tool should look like somewhere an animal lives. The seam built in milestone 2 made this a second folder rather than a rewrite, and keeping classic lets the two be compared on the same data.
 
 **Follows:** UI work that was waiting on this (the "Qloo's part" strip, the venue lift line, the per-run graph) will be built into `warm`, not classic. The README screenshot still shows classic until it is retaken at the end, once the examples are rebuilt on the final code. Classic gets no new features; it is deleted when it is no longer useful for comparison.
+
+
+## 22. Story: an editorial skin, available for comparison
+
+**Decided** (18 October, the author’s story UI brief):
+- Add `app/ui/story/`, starting from warm and keeping the same routes, forms, scripts and `data-role` contract. Warm stays the default; `?ui=story` selects the new skin on every screen.
+- The [structure mockup](img/story-structure.png) supplies the order: photo and recorded facts beside name choices and the introduction; then the process and two-column provenance; then the map, ranked venues and exposure checklist.
+- The [look mockup](img/story-look.png) supplies large serif headings, numbered steps, prominent name choices with source titles, the recorded-fact row and the honey outreach band. Georgia is a system serif; the skin ships Nunito and its licence for body text. Decoration is CSS only; the app’s own animal photos are unchanged.
+- Leave out share-card previews, sharing or posting controls, venue photos and illustrative map pins: the app has none of those. Facts and unknown checks come from additive `ResultView.story` fields; the UI derives no animal traits or Qloo evidence. Each selected name’s source explanation uses the existing Why evidence, apart from Namesake’s interpretation; all original evidence remains in the expandable panel.
+- Maps use CARTO Voyager in light mode and Dark Matter in dark mode, with both OpenStreetMap and CARTO attribution. No other external host is added. Keyboard focus, reduced motion and the mobile layout are preserved.
+
+**Why:** the name, its source, the animal photo and the listing need to read together at 1440×900. The second skin changed the palette; this alternative changes the visual hierarchy while preserving all existing content and behaviour. The local layer remains an experiment, and colour, labels and rules keep Qloo’s answers apart from Namesake’s reading.
+
+**Follows:** the shared contract runs against classic, warm and story; the JSON API exposes the additive presentation fields for other interfaces too. This decision changes no agent, Qloo workflow, cache policy or default UI.
+
+
+**Preview:** [Warm before](img/story-before.jpg) · [Story after](img/story-after.jpg), both at 1440×900 with the same cached result. The 390 px layout was also checked in light and dark styles. No live Qloo or agent calls were made for the design work.
+
+**External dependency found during verification (18 October):** the CARTO URLs in the brief currently return tiles watermarked “API key required”. [CARTO’s key page](https://carto.com/basemaps/apikey/) now requires a key parameter. The requested URLs and attribution remain in this preview pending the author’s choice of tile source; no key is embedded in the skin.

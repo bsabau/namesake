@@ -101,7 +101,7 @@ uv run python scripts/run_agent.py dog-02 park-slope  # one run, steps printed
 
 Set `ALLOW_LIVE_QLOO=false` to use only the cache. The model is configuration only (`AGENT_BASE_URL`, `AGENT_API_KEY`, `AGENT_MODEL`, `AGENT_API`); the demo runs a free model through [OpenCode Go](https://opencode.ai).
 
-The same data is served as JSON (`/api/start`, `/api/results/dog-02@park-slope`, and the live step log at `/api/runs/{id}/events`), and `?ui=<name>` switches between interfaces in `app/ui/` (`warm`, the default, or `classic`, the first skin).
+The same data is served as JSON (`/api/start`, `/api/results/dog-02@park-slope`, and the live step log at `/api/runs/{id}/events`), and `?ui=<name>` switches between interfaces in `app/ui/` (`warm`, the default, `classic`, the first skin, or `story`, an editorial alternative).
 
 Tests never call Qloo or a model; they use hand-written envelopes with invented IDs:
 
@@ -139,7 +139,7 @@ How it works inside, with diagrams: [`docs/architecture.md`](docs/architecture.m
 |---|---|
 | `app/agent/` | the two PydanticAI agents (area profile, listing), their Qloo tools, the plain-code checks, the run pipeline |
 | `app/qloo/` | the typed wrapper around `qloo exec`: envelope parsing, cache, spacing, replay |
-| `app/views/`, `app/ui/warm/` | view models (also served as JSON) and the default interface; `app/ui/classic/` is the first skin, kept for `?ui=classic` |
+| `app/views/`, `app/ui/warm/` | view models (also served as JSON) and the default interface; `app/ui/classic/` and `app/ui/story/` are alternatives, selected with `?ui=classic` or `?ui=story` |
 | `docs/` | [architecture](docs/architecture.md), [decisions](docs/decisions.md), [Qloo findings](docs/qloo-findings.md), [product design](docs/product.md), [evidence review](docs/research/adoption-evidence-review.md) |
 | `tests/` | about 400 tests, all offline; `tests/test_no_qloo_data.py` keeps Qloo data out of the repo |
 

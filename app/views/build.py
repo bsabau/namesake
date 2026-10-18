@@ -42,6 +42,8 @@ from app.views.models import (
     ShelterBar,
     StartView,
     StepView,
+    StoryNameView,
+    StoryView,
     VenueView,
     WhyItem,
     WorkingView,
@@ -383,6 +385,7 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
         reference = refs[i] if i < len(refs) else o.character
         options.append(
             NameOptionView(
+                entity_id=o.entity_id,
                 name=o.name,
                 badge=name_badge(o.source, o.entity_id, profile, titles.get(o.entity_id)),
                 title=titles.get(o.entity_id, o.character),
@@ -581,6 +584,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         if e.resolution == "chosen":
             returned.append(
                 WhyItem(
+                    entity_id=e.id,
                     title=f"{e.name} ({kind})",
                     detail=f"Qloo has {e.alternatives + 1} entries with this name. "
                     + sentences(e.description),
@@ -591,6 +595,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
             what = KIND_WORDS.get(f.kind, "titles")
             returned.append(
                 WhyItem(
+                    entity_id=e.id,
                     title=f"{e.name} ({kind})",
                     detail=f"{ordinal(f.position)} of {f.out_of} in Qloo's list of {what} "
                     f"people around {location.label} who like {f.signal} tend to like. "
@@ -598,14 +603,18 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                 )
             )
         else:
-            returned.append(WhyItem(title=f"{e.name} ({kind})", detail=sentences(e.description)))
+            returned.append(
+                WhyItem(entity_id=e.id, title=f"{e.name} ({kind})", detail=sentences(e.description))
+            )
     for e in profile.pet_entities:
         detail = f"A pet-themed pick: {e.why.rstrip('.')}."
         if e.choice_reason:
             detail += f" {cap(e.choice_reason.rstrip('.'))}."
-        reading.append(WhyItem(title=f"Why {e.name}", detail=detail))
+        reading.append(WhyItem(entity_id=e.id, title=f"Why {e.name}", detail=detail))
         if e.verdict:
-            reading.append(WhyItem(title=f"How {e.name} was sorted", detail=sorted_by(e)))
+            reading.append(
+                WhyItem(entity_id=e.id, title=f"How {e.name} was sorted", detail=sorted_by(e))
+            )
     if profile.made_by == "agent":
         reading.append(
             WhyItem(
@@ -719,7 +728,9 @@ def lookalike_why(
             several = f"{look.candidates} candidates" if look.candidates > 1 else "one candidate"
             found = f"Qloo asked which title was meant and offered {several}. "
         returned.append(
-            WhyItem(title=f"{e.name} ({kind})", detail=found + sentences(e.description))
+            WhyItem(
+                entity_id=e.id, title=f"{e.name} ({kind})", detail=found + sentences(e.description)
+            )
         )
         qloo_part = (
             "Namesake's AI chose this title among Qloo's candidates"
@@ -733,7 +744,7 @@ def lookalike_why(
         )
         if look.chosen and reasons.get(e.id):
             detail += f" Why this one: {reasons[e.id].rstrip('.')}."
-        reading.append(WhyItem(title=f"Why {e.name}", detail=detail))
+        reading.append(WhyItem(entity_id=e.id, title=f"Why {e.name}", detail=detail))
     return returned, reading
 
 
@@ -755,14 +766,72 @@ def build_result_view(
     returned, reading = look_returned + returned, look_reading + reading
     named = [m for m in litter or [] if m.name]
     listing_ = listing_view(animal, listing, profile, generic, refined)
+    names = name_view(listing, profile, listing_.text)
+    possessive = {"female": "her", "male": "his"}.get(animal.sex, "their")
+    unknown = [
+        CHECK_LABELS[field]
+        for field in CHECK_SENTENCES
+        if getattr(animal.checks, field) == "unknown"
+    ]
     return ResultView(
         id=result_id(animal.id, location.id),
         animal=animal_card(animal, image_url),
         location=location_option(location, True),
         litter=litter or [],
         litter_note=("Named as a set with the rest of the litter:" if len(named) > 1 else None),
-        name=name_view(listing, profile, listing_.text),
+        name=names,
         listing=listing_,
+        story=StoryView(
+            heading=f"Let’s tell {possessive} story.",
+            introduction_heading=f"{possessive.capitalize()} introduction",
+            travel_heading=f"Help {possessive} story travel",
+            facts=[animal.temperament, *animal.facts],
+            still_to_learn=f"Still to learn: {and_list(unknown)}." if unknown else None,
+            names=[
+                StoryNameView(
+                    name=option.name,
+                    returned=f"{option.title}. {option.badge}. "
+                    + next(
+                        (item.detail for item in returned if item.entity_id == option.entity_id),
+                        "",
+                    ),
+                    selected=" ".join(
+                        [
+                            f"{option.reference}. {option.why}",
+                            *[
+                                item.detail
+                                for item in reading
+                                if item.entity_id == option.entity_id
+                            ],
+                        ]
+                    ),
+                )
+                for option in names.options
+            ],
+            steps=[
+                WhyItem(
+                    title="Start with the facts",
+                    detail=(
+                        "The shelter’s recorded observations supply the bio. "
+                        "Anything unknown stays unmentioned."
+                    ),
+                ),
+                WhyItem(
+                    title="Add local context",
+                    detail=(
+                        "Qloo supplies title descriptions, local rankings, nearby places "
+                        "and map scores, where available."
+                    ),
+                ),
+                WhyItem(
+                    title="Interpret and check",
+                    detail=(
+                        "Namesake selects references and venues, checks the draft, and keeps "
+                        "its reading separate from Qloo’s answers."
+                    ),
+                ),
+            ],
+        ),
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
         map=map_view(location, profile, pin),
         venues=[venue_view(v, location, profile) for v in ordered[:VENUES_SHOWN]],
