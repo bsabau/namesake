@@ -60,7 +60,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
 1. **Start.** Pick one of twelve fictional animals, or the litter of four kittens, or add your own animal for this visit only. Pick a shelter area: Park Slope or Astoria in New York, Austin, or type one.
 2. **Working.** A live log streams each step: titles proposed, each one looked up in Qloo, which were ambiguous and how they were settled, the venues found and how many stand out against the baseline, and the checks on the answer from Namesake's AI.
 3. **Result**, legible as one screen:
-   - at the top, **Qloo's part and the AI's** on two lines: what Qloo gave for this result (pet-themed titles with evidence for the area, their order, the places near the shelter, the map cells) and what Namesake's AI did with it
+   - at the top, **Qloo's part and the AI's**, apart: what Qloo returned for this result (titles with its evidence for the area, the places near the shelter, the heatmaps' map cells) and what Namesake's AI did with it (titles it proposed or judged, places it picked, the names and bio)
    - the listing, with a **Generic / Local, with Qloo** toggle; both share the same bio, and the local one adds a name from Qloo's titles and one line saying where it comes from
    - the **name options**, each with its source badge, Qloo's title and the reason Namesake's AI gives, kept apart
    - a **map** of where pet-show fans stand out within the area, and the **places to ask**, each with Qloo's rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline

@@ -73,6 +73,7 @@ Steps A to E run once per location and every animal reuses them, so quota cost g
 ## The result screen
 
 The result screen must be legible in a single screenshot. It shows:
+- at the top, Qloo's part and Namesake's AI's part, apart: what Qloo returned for this result and what the AI did with it
 - the photo and chosen name
 - the generic/local toggle
 - the name options with their source badges

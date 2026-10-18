@@ -310,7 +310,7 @@ class ResultView(BaseModel):
     edited_text: str | None = None
     # The local name option picked; the first option unless the volunteer chose another.
     chosen_name: str | None = None
-    # What Qloo decided and what the AI did, legible in one screenshot.
+    # What Qloo returned and what the AI did, legible in one screenshot.
     qloo_part: QlooPart | None = None
     name: NameView
     listing: ListingView

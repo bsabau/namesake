@@ -370,19 +370,40 @@ def test_a_thin_map_says_so_on_the_page():
 
 
 def test_the_qloo_part_counts_what_qloo_returned_apart_from_the_ais_part(roster):
-    p = profile()
-    p.made_by, p.order_source = "agent", "qloo_rank"
-    p.ranked = [e.id for e in p.pet_entities]
-    for v in p.venues[:1]:
-        v.chosen_reason = "a community arts centre"
+    p = agent_profile()  # ranked by Qloo; venues asked for the cat show; one picked
+    p.order_source = "qloo_rank"
     part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
     assert part.qloo == (
-        f"2 pet-themed titles with evidence for {LOCATION.label}, their order here, "
-        f"{len(p.venues)} places near the shelter ranked for their fans and "
-        f"{len(p.cells)} map cell{'s' if len(p.cells) != 1 else ''}."
+        f"2 titles with its evidence for {LOCATION.label} (2 ranked here); "
+        f"{len(p.venues)} places near the shelter for fans of Example Cat Show; "
+        f"heatmaps that make {len(p.cells)} map cell{'s' if len(p.cells) != 1 else ''}."
     )
+    # Semicolons keep the AI's acts apart from what Qloo did.
     assert part.ai == (
-        "Proposed 2 titles Qloo then checked and picked the places to ask; code checked every step."
+        "Proposed 2 titles for Qloo to check; picked 1 of the places to ask. "
+        "The names and bio are the fixed template."
+    )
+
+
+def test_the_qloo_part_names_the_ais_order_and_titles_found_in_lists(roster):
+    from app.profile import FoundIn
+
+    p = agent_profile()
+    p.order_source, p.ranked = "agent", []
+    p.pet_entities[0].found_in = FoundIn(signal="x", kind="tv_show", position=2, out_of=20)
+    part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
+    assert part.qloo.startswith(f"1 title with its evidence for {LOCATION.label} (1 in its lists")
+    assert part.ai == (
+        "Proposed 1 title for Qloo to check; judged 1 unclear title; picked 1 of the places "
+        "to ask; set the order, as Qloo's ranking was unavailable. The names and bio are the "
+        "fixed template."
+    )
+
+
+def test_the_qloo_part_for_a_fixed_lookup_says_the_ai_was_not_used(roster):
+    part = build_result_view(roster.get("dog-02"), LOCATION, profile()).qloo_part
+    assert part.ai == (
+        "Not used here: the titles are a fixed lookup, and the names and bio a fixed template."
     )
 
 
@@ -390,4 +411,4 @@ def test_the_qloo_part_says_plainly_when_nothing_came_back(roster):
     p = LocationProfile(location_id=LOCATION.id)
     part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
     assert part.qloo == f"Nothing for {LOCATION.label} yet."
-    assert part.ai.startswith("Not used for this result")
+    assert part.ai.startswith("Not used here")

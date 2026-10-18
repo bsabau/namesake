@@ -883,45 +883,59 @@ def qloo_part(
     location: Location, profile: LocationProfile, listing: ListingResult | None
 ) -> QlooPart:
     """Qloo's part of this result and the AI's, counted from what the profile holds: no
-    calls, nothing invented."""
-    backed = [
-        e for e in profile.pet_entities if e.id in profile.ranked or e.found_in or e.listed_in
-    ]
-    found = [e for e in profile.pet_entities if e.found_in]
+    calls, nothing invented. Each part says only what that party did: Qloo returned the
+    lists, rankings, places and maps; the AI judged, picked and wrote."""
+    pets = profile.pet_entities
+    ranked = [e for e in pets if e.id in profile.ranked]
+    listed = [e for e in pets if e.found_in or e.listed_in]
+    backed = [e for e in pets if e in ranked or e in listed]
     qloo = []
     if backed:
-        qloo.append(f"{plural(len(backed), 'pet-themed title')} with evidence for {location.label}")
-        if found:
-            qloo.append(f"{len(found)} of them found in its lists for the area")
-    elif profile.pet_entities:
-        qloo.append(f"{plural(len(profile.pet_entities), 'pet-themed title')} looked up")
-    if profile.order_source == "qloo_rank":
-        qloo.append("their order here")
+        how = and_list(
+            ([f"{len(ranked)} ranked here"] if ranked else [])
+            + ([f"{len(listed)} in its lists for the area"] if listed else [])
+        )
+        qloo.append(
+            f"{plural(len(backed), 'title')} with its evidence for {location.label} ({how})"
+        )
+    elif pets:
+        qloo.append(f"{plural(len(pets), 'title')} looked up")
     if profile.venues:
         qloo.append(
-            f"{plural(len(profile.venues), 'place')} near the shelter ranked for their fans"
+            f"{plural(len(profile.venues), 'place')} near the shelter for fans of "
+            f"{venue_titles(profile)}"
         )
     if profile.cells:
-        qloo.append(f"{plural(len(profile.cells), 'map cell')}")
-    qloo_text = cap(and_list(qloo)) + "." if qloo else f"Nothing for {location.label} yet."
+        qloo.append(f"heatmaps that make {plural(len(profile.cells), 'map cell')}")
+    qloo_text = cap("; ".join(qloo)) + "." if qloo else f"Nothing for {location.label} yet."
+
     ai = []
-    if profile.made_by == "agent":
-        judged = [e for e in found if e.verdict is None or bucket(e.verdict) != "kept"]
-        own = [e for e in profile.pet_entities if not e.found_in]
+    agent = profile.made_by == "agent"
+    if agent:
+        own = [e for e in pets if not e.found_in]
+        judged = [e for e in pets if e.found_in and bucket(e.verdict) != "kept"]
+        picked = [v for v in profile.venues if v.chosen_reason]
         if own:
-            ai.append(f"proposed {plural(len(own), 'title')} Qloo then checked")
+            ai.append(f"proposed {plural(len(own), 'title')} for Qloo to check")
         if judged:
             ai.append(f"judged {plural(len(judged), 'unclear title')}")
-        if any(v.chosen_reason for v in profile.venues):
-            ai.append("picked the places to ask")
+        if picked:
+            ai.append(f"picked {len(picked)} of the places to ask")
+        if len(pets) > 1 and profile.order_source != "qloo_rank":
+            ai.append("set the order, as Qloo's ranking was unavailable")
     draft = listing.draft if listing else None
     if draft is not None:
         ai.append("chose the names and wrote the bio from the shelter's records")
-    ai_text = (
-        cap(and_list(ai)) + "; code checked every step."
-        if ai
-        else "Not used for this result; the listing is the fixed template."
-    )
+    if ai:
+        ai_text = cap("; ".join(ai)) + "."
+        if draft is None:
+            ai_text += " The names and bio are the fixed template."
+    elif agent:
+        ai_text = "Kept the titles above; the names and bio are the fixed template."
+    else:
+        ai_text = (
+            "Not used here: the titles are a fixed lookup, and the names and bio a fixed template."
+        )
     return QlooPart(qloo=qloo_text, ai=ai_text)
 
 
