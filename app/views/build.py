@@ -1246,7 +1246,10 @@ def plural(n: int, word: str) -> str:
 
 
 def qloo_part(
-    location: Location, profile: LocationProfile, listing: ListingResult | None
+    location: Location,
+    profile: LocationProfile,
+    listing: ListingResult | None,
+    places_shown: int | None = None,
 ) -> QlooPart:
     """Qloo's part of this result and the AI's, counted from what the profile holds: no
     calls, nothing invented. Each part says only what that party did: Qloo returned the
@@ -1283,13 +1286,15 @@ def qloo_part(
         own = [e for e in pets if not e.found_in]
         judged = [e for e in pets if e.found_in and bucket(e.verdict) != "kept"]
         # As the cards show them: a screened pick or a listed chain is left out (decision 23).
-        picked = venue_order(profile)
+        # The places the cards show (after the per-animal skip and the display cap), the
+        # same count as the process steps; without it, every place the code would suggest.
+        picked = len(venue_order(profile)) if places_shown is None else places_shown
         if own:
             ai.append(f"proposed {plural(len(own), 'title')} for Qloo to check")
         if judged:
             ai.append(f"judged {plural(len(judged), 'unclear title')}")
         if picked:
-            ai.append(f"picked {len(picked)} of the places to ask")
+            ai.append(f"picked {picked} of the places to ask")
         if len(pets) > 1 and profile.order_source != "qloo_rank":
             ai.append("set the order, as Qloo's ranking was unavailable")
     draft = listing.draft if listing else None
@@ -1368,8 +1373,10 @@ def process_steps(
         )
     checks = []
     if agent:
-        own = [e for e in pets if not e.found_in]
-        judged = [e for e in pets if e.found_in and bucket(e.verdict) != "kept"]
+        # A title is the AI's own when none of Qloo's lists holds it (found_in or
+        # listed_in); one Qloo listed was judged unless the classifier kept it outright.
+        own = [e for e in pets if not (e.found_in or e.listed_in)]
+        judged = [e for e in pets if (e.found_in or e.listed_in) and bucket(e.verdict) != "kept"]
         # The places the cards show, as the strip counts them: never a pick the code
         # screened out or skipped for this animal.
         picked = len(venue_order(profile)) if places_shown is None else places_shown
@@ -1418,8 +1425,13 @@ def story_leads(
     them = OBJECT_PRONOUN.get(animal.sex or "", "them")
     tail = f"An introduction from the shelter's records. A plan for getting {them} seen."
     draft = listing.draft if listing else None
-    if draft is None and listing is not None and listing.fallback_reason:
+    reason = (listing.fallback_reason or "") if listing else ""
+    if draft is None and "did not pass the checks" in reason:
+        # The pipeline's third reason; the other two (no model, no titles) are not a
+        # failed draft, and the paper prints the reason itself.
         local = "No local name yet: Namesake's AI's draft did not pass its checks. "
+    elif draft is None and reason:
+        local = "No local name yet: the templated listing says why. "
     elif draft is None:
         local = "No local name yet: it needs a run of Namesake's AI. "
     elif draft.names[0].source == "lookalike":
@@ -1489,7 +1501,7 @@ def build_result_view(
         location=location_option(location, True),
         litter=litter or [],
         litter_note=("Named as a set with the rest of the litter:" if len(named) > 1 else None),
-        qloo_part=qloo_part(location, profile, listing),
+        qloo_part=qloo_part(location, profile, listing, len(shown)),
         name=name_view(listing, profile, listing_.text),
         listing=listing_,
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,

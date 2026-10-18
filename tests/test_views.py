@@ -711,10 +711,14 @@ def test_the_process_steps_say_when_the_ais_own_titles_stayed_without_evidence(r
     # Decision 22: no evidence for any title keeps the AI's own, and the step says so, as
     # "Who chose" does; it never claims the titles were kept only with Qloo's evidence.
     p = agent_profile()
-    p.titles_confirmed = False
-    _, _, interpret = build_result_view(roster.get("dog-02"), LOCATION, p).process
+    p.titles_confirmed, p.ranked, p.order_source = False, [], "agent"
+    for e in p.pet_entities:
+        e.found_in = e.listed_in = None
+    _, context, interpret = build_result_view(roster.get("dog-02"), LOCATION, p).process
     assert "Namesake's AI's own titles were kept" in interpret.detail
+    assert "added 2 titles of its own" in interpret.detail
     assert "kept a title only with Qloo's evidence" not in interpret.detail
+    assert "Its ranking of the titles was unavailable." in context.detail
     p.titles_confirmed = True
     _, _, interpret = build_result_view(roster.get("dog-02"), LOCATION, p).process
     assert "kept a title only with Qloo's evidence for the area" in interpret.detail
@@ -766,9 +770,12 @@ def test_the_process_steps_count_the_place_cards_the_page_shows(roster):
     view = build_result_view(cat, LOCATION, p)
     _, _, interpret = view.process
     assert f"picked {len(view.venues)} of the places to ask" in interpret.detail
+    # The strip at the top says the same number as the step and the cards.
+    assert f"picked {len(view.venues)} of the places to ask" in view.qloo_part.ai
     assert "Community Hall" not in [v.name for v in view.venues]
     everyone = build_result_view(roster.get("dog-02"), LOCATION, p)
     assert f"picked {len(everyone.venues)} of the places to ask" in everyone.process[2].detail
+    assert f"picked {len(everyone.venues)} of the places to ask" in everyone.qloo_part.ai
     assert len(everyone.venues) == len(view.venues) + 1
 
 
@@ -777,15 +784,30 @@ def test_the_local_lead_follows_the_listings_state(roster):
     from tests.test_product import saved_listing
 
     animal = roster.get("dog-02")
+
     # The AI ran, but its draft failed the checks: the page falls back and says why.
-    failed = ListingResult(
-        animal_id=animal.id,
-        location_id=LOCATION.id,
-        checks_version=CHECKS_VERSION,
-        fallback_reason="the draft repeated a fact",
+    def fell_back(reason):
+        return ListingResult(
+            animal_id=animal.id,
+            location_id=LOCATION.id,
+            checks_version=CHECKS_VERSION,
+            fallback_reason=reason,
+        )
+
+    failed = fell_back(
+        "The draft from Namesake's AI did not pass the checks after one repair, so this is "
+        "the templated listing."
     )
     view = build_result_view(animal, LOCATION, profile(), failed)
     assert view.story_lead.startswith("No local name yet: Namesake's AI's draft did not pass")
+    # The pipeline's other two reasons are not a failed draft: the paper says which.
+    for reason in [
+        "No model is configured, so this is the templated listing.",
+        "Qloo returned no titles to draw names from.",
+    ]:
+        view = build_result_view(animal, LOCATION, profile(), fell_back(reason))
+        assert view.story_lead.startswith("No local name yet: the templated listing says why. ")
+        assert view.listing.fallback_note == reason
     # A draft whose first name is a lookalike: Qloo found the title, the AI matched it.
     listing = saved_listing()
     listing.draft.names[0].source = "lookalike"
@@ -813,3 +835,14 @@ def test_the_leads_for_a_litter_named_as_a_set(roster):
     assert view.story_lead_generic.startswith(
         "A common pet name from a fixed list, not from Qloo and not a set. "
     )
+
+
+def test_a_title_qloo_listed_elsewhere_is_not_the_ais_own(roster):
+    from app.profile import FoundIn
+
+    p = agent_profile()
+    p.pet_entities[0].listed_in = FoundIn(signal="x", kind="movie", position=4, out_of=20)
+    _, _, interpret = build_result_view(roster.get("dog-02"), LOCATION, p).process
+    # One title listed (and judged, as no classifier kept it), one the AI's own.
+    assert "judged 1 unclear title" in interpret.detail
+    assert "added 1 title of its own" in interpret.detail
