@@ -697,6 +697,7 @@ def test_a_swapped_unplaced_map_says_so_in_the_caption():
     script[heat_key(EXTRA.id)] = envelope("where_popular", results=spread(6))
     _, p = adaptive(script)
     assert p.thin_map.unplaced
+    assert not any("could not tell which place" in n for n in p.notes)  # the map has cells
     assert map_view(LOCATION, p).legend.startswith(
         "Qloo could not place Example Dog Show's map within Example Slope, so the map uses "
         "Example Kitten Show in its place."

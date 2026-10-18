@@ -716,8 +716,9 @@ def assemble_profile(
         notes, calls = len(p.notes), len(p.calls)
         alt = b.heatmap(spare, location)
         if alt and better_map(alt, first[0], [m for m in rest if m], base_maps):
+            # The map's caption says it; a place note no longer holds once a map has cells.
             empty = f"Qloo returned no map cells for {p.map_titles[0].name}."
-            p.notes = [n for n in p.notes if n != empty]  # the map's caption says it
+            p.notes = [n for n in p.notes if n != empty and "could not tell which place" not in n]
             p.thin_map = ThinMap(
                 title=p.map_titles[0],
                 cells=len(first[0]),
