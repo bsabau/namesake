@@ -28,7 +28,7 @@
     <figure class="portrait">
       <img src="{{ view.animal.image_url }}" alt="{{ view.animal.alt }}" width="800" height="800">
       <span class="doodle doodle-heart" aria-hidden="true">{% include "_heart.html" %}</span>
-      <figcaption>Fictional animal, AI-generated photo</figcaption>
+      <figcaption>{{ view.credits.photos }}</figcaption>
     </figure>
     {% for version in view.listing.versions %}
     <div class="version version-{{ version.variant }}" data-role="version-{{ version.variant }}">
@@ -69,7 +69,9 @@
     <div class="story-head">
       <div>
         <h2 class="headline">{{ view.story_heading }}<span class="doodle doodle-spark" aria-hidden="true">{% include "_spark.html" %}</span></h2>
-        <p class="lead">{{ view.story_lead }}</p>
+        {# One lead per version, so the picked version's lead is the true one. #}
+        <p class="lead version-local">{{ view.story_lead }}</p>
+        <p class="lead version-generic">{{ view.story_lead_generic }}</p>
       </div>
       <fieldset class="version-toggle" data-role="version-toggle">
         <legend>Version</legend>
@@ -90,11 +92,13 @@
         {% for option in view.name.options %}
         <li class="name-option">
           <label>
+            {# Named with its source kept apart, and described by its pair in "Why this name?". #}
             <input type="radio" name="local_name" value="{{ option.name }}"
+                   aria-labelledby="option-name-{{ loop.index }} option-title-{{ loop.index }}" aria-describedby="why-name-{{ loop.index }}"
                    data-hook="{{ option.hook }}" data-source="{{ option.header_source }}"
                    data-copy="{{ option.copy_text }}" data-choice="{{ option.version_choice }}" {% if option.name == view.chosen_name %}checked{% endif %}>
-            <strong class="option-name">{{ option.name }}</strong>
-            <span class="option-title">{{ option.title }}</span>
+            <strong class="option-name" id="option-name-{{ loop.index }}">{{ option.name }}</strong>
+            <span class="option-title evidence" id="option-title-{{ loop.index }}"><span>Qloo:</span> {{ option.title }}</span>
           </label>
         </li>
         {% endfor %}
@@ -177,29 +181,23 @@
     <h2 id="behind-heading">Behind this story</h2>
     <p class="lead">What came from Qloo. What Namesake did with it.</p>
   </div>
+  {# The three steps are worded from the actual profile and listing (view.process). #}
   <ol class="process">
+    {% for step in view.process %}
     <li>
-      <span class="process-no" aria-hidden="true">1</span>
-      <div><h3>Start with the facts</h3>
-        <p>The shelter's record supplies every sentence of the introduction. Anything not recorded stays unsaid.</p></div>
+      <span class="process-no" aria-hidden="true">{{ loop.index }}</span>
+      <div><h3>{{ step.title }}</h3><p>{{ step.detail }}</p></div>
     </li>
-    <li>
-      <span class="process-no" aria-hidden="true">2</span>
-      <div><h3>Add local context</h3>
-        <p>Qloo returns pet-themed titles people around {{ view.location.label }} tend to like, its ranking of them, nearby places their fans favour, and scored map cells.</p></div>
-    </li>
-    <li>
-      <span class="process-no" aria-hidden="true">3</span>
-      <div><h3>Interpret and check</h3>
-        <p>Namesake's AI judges the titles, proposes the names and picks the places to ask. Code checks that every title and place came from Qloo, screens the names, and traces every sentence to the record.</p></div>
-    </li>
+    {% endfor %}
   </ol>
 
   {% if view.name.options %}
   <section class="why-name" aria-labelledby="why-name-heading">
     <h3 id="why-name-heading">Why this name?</h3>
+    {# Every option's pair, so the names can be compared; the picked one is marked. #}
     {% for option in view.name.options %}
-    <div class="why-pair" data-name-detail="{{ option.name }}"{% if option.name != view.chosen_name %} hidden{% endif %}>
+    <div class="why-pair{% if option.name == view.chosen_name %} selected{% endif %}" id="why-name-{{ loop.index }}" data-name-detail="{{ option.name }}">
+      <h4>{{ option.name }}<span class="picked-mark">picked</span></h4>
       <div class="why-qloo">
         <p class="evidence"><span>Qloo returned</span> {{ option.title }}: {{ option.badge }}.</p>
       </div>

@@ -51,7 +51,7 @@ flowchart LR
 - **Namesake's AI is two agents** (PydanticAI): a **profile agent** per area and species, and a **listing agent** per animal. Their Qloo tools are plain Python functions over `QlooClient`, so every call they make is cached and spaced like any other (decision 5).
 - **A classifier sorts titles the AI finds in the area's lists** (decision 20): TypeSafe's Jev answers yes-or-no questions with a probability (pets central, dogs, cats, family audience, real people). Code keeps the clear pet titles, sets the clear others aside, and leaves the rest to the AI. It receives a title's name, kind and Qloo's description only; its answers are cached; without a key, or after a failure, the AI judges the titles itself.
 - **Plain code checks everything the AI returns** before anything is saved or shown. The checks are PydanticAI output validators (`check_plan`, `check_draft`): a failed check goes back to the model with its reasons, as its one repair round. `check_plan` asks that every title and venue came from Qloo in this run, that no picked venue is screened out or a listed national chain, that a place standing out near the top or middle of Qloo's list is picked or rejected with a reason, that no title is identity-coded, and that the plan keeps each title the venues were asked for.
-- **Qloo's answer and Namesake's reading stay apart.** View models carry them as separate fields, and the UI contract test checks that both render, along with the summary of each party's part at the top of the result (`data-role="qloo-part"`) (`data-role="qloo-returned"` and `"our-reading"`).
+- **Qloo's answer and Namesake's reading stay apart.** View models carry them as separate fields, and the UI contract test checks that both render, along with the summary of each party's part on the first screen (`data-role="qloo-part"`; at the top in warm and classic, under the name options in story) (`data-role="qloo-returned"` and `"our-reading"`).
 - **The UI is a replaceable skin.** Routes build typed view models (`app/views/`); a UI folder (`app/ui/<name>/`) only renders them, and the same view models are served as JSON under `/api/`. `warm` is the default, `story` tells the result as a story to two mockups (decision 24), and `classic` is kept for comparison (decision 21); `?ui=<name>` switches UI per request, and the contract test runs against all three. The map's basemap is a view-model piece too (`MapTiles`): CARTO's Positron and Dark Matter with the `MAP_TILES_KEY` setting, OpenStreetMap's tiles without; story's map scripts read it from the page, warm and classic keep their OpenStreetMap layer.
 
 ## Who decides what
@@ -281,7 +281,7 @@ Everything that differs between machines is an environment variable (`.env` loca
 
 ## Testing and delivery
 
-- **Tests** (`uv run pytest`, about 400) never reach Qloo, a model, the classifier or Photon: they use hand-written envelopes with invented IDs (`tests/fixtures/qloo/synthetic/`, `tests/qloo_fakes.py`), PydanticAI's `FunctionModel`, a fake classifier, and a fake geocoder.
+- **Tests** (`uv run pytest`, about 600) never reach Qloo, a model, the classifier or Photon: they use hand-written envelopes with invented IDs (`tests/fixtures/qloo/synthetic/`, `tests/qloo_fakes.py`), PydanticAI's `FunctionModel`, a fake classifier, and a fake geocoder.
 - **Reviews**: every change is reviewed by other models before it is merged (`CLAUDE.md`), and updates the docs it makes stale, this one included (AGENTS.md).
 
 ```mermaid

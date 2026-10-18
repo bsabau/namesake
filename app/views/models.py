@@ -34,6 +34,11 @@ class MapTiles(BaseModel):
     attribution: str
     subdomains: str
     max_zoom: int
+    # Where a map goes when the keyed basemap keeps failing (key refused, quota, outage):
+    # OpenStreetMap's tiles, with their own attribution.
+    fallback_url: str = ""
+    fallback_attribution: str = ""
+    fallback_max_zoom: int = 19
 
 
 class VenuePin(BaseModel):
@@ -305,6 +310,14 @@ class WhyItem(BaseModel):
     detail: str
 
 
+class ProcessStep(BaseModel):
+    """One of the three steps behind a result, worded from what the profile and the
+    listing record: the facts, Qloo's local context, the interpretation and the checks."""
+
+    title: str
+    detail: str
+
+
 class StepView(BaseModel):
     kind: str
     text: str
@@ -375,9 +388,14 @@ class ResultView(BaseModel):
     # Headings worded with the animal's pronoun ("Let's tell her story.", "Her
     # introduction", "Help her story travel"), for a skin that tells the result as a story.
     story_heading: str = ""
+    # The lead under the headline, for the local version and for the generic one, each
+    # true of that version (a Qloo name, a fixed-list name, or no local name yet).
     story_lead: str = ""
+    story_lead_generic: str = ""
     introduction_heading: str = ""
     travel_heading: str = ""
+    # "Behind this story": three steps from the actual profile and listing (decision 24).
+    process: list[ProcessStep] = []
     qloo_returned: list[WhyItem]
     our_reading: list[WhyItem]
     notes: list[str]

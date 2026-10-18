@@ -3,26 +3,42 @@
 // Everything drawn comes from the view model in #map-data; no data is computed here.
 
 // The basemap under the map, from the view model's tiles (MapTiles in app/views/): a light
-// and a dark tile URL, the attribution and the subdomains. Nothing here names a tile
-// server; with the MAP_TILES_KEY setting the URLs are CARTO's, without it OpenStreetMap's.
-// The dark URL is used when the browser prefers a dark scheme, and the map follows a
-// change of scheme. When both URLs are the same (OpenStreetMap), the container is marked
-// so the stylesheet can quieten the tiles instead.
+// and a dark tile URL, the attribution, the subdomains, and a fallback. Nothing here names
+// a tile server; with the MAP_TILES_KEY setting the URLs are CARTO's, without it
+// OpenStreetMap's. The dark URL is used when the browser prefers a dark scheme, and the
+// map follows a change of scheme. A keyed basemap that keeps failing (the key refused, a
+// quota, an outage) gives way to the fallback after a few tile errors. A map drawn over
+// the plain tiles (OpenStreetMap, or the fallback) is marked `tiles-plain`, so the
+// stylesheet can quieten them instead.
 function addBasemap(map, container, tiles) {
   if (!tiles || !tiles.url) return;
   const dark = matchMedia("(prefers-color-scheme: dark)");
+  const hasFallback = Boolean(tiles.fallback_url) && tiles.fallback_url !== tiles.url;
   let layer = null;
+  let failed = 0;
+  let fellBack = false;
   const show = () => {
     if (layer) layer.remove();
-    layer = L.tileLayer(dark.matches ? tiles.dark_url || tiles.url : tiles.url, {
-      maxZoom: tiles.max_zoom || 19,
-      subdomains: tiles.subdomains || "abc",
-      attribution: tiles.attribution || "",
+    const plain = fellBack || !tiles.dark_url || tiles.dark_url === tiles.url;
+    container.classList.toggle("tiles-plain", plain);
+    const url = fellBack ? tiles.fallback_url : dark.matches ? tiles.dark_url || tiles.url : tiles.url;
+    layer = L.tileLayer(url, {
+      maxZoom: (fellBack ? tiles.fallback_max_zoom : tiles.max_zoom) || 19,
+      subdomains: (fellBack ? "" : tiles.subdomains) || "abc",
+      attribution: (fellBack ? tiles.fallback_attribution : tiles.attribution) || "",
     }).addTo(map);
+    if (hasFallback && !fellBack) {
+      layer.on("tileerror", () => {
+        failed += 1;
+        if (failed >= 3) {
+          fellBack = true;
+          show();
+        }
+      });
+    }
   };
   show();
   dark.addEventListener("change", show);
-  if (!tiles.dark_url || tiles.dark_url === tiles.url) container.classList.add("tiles-plain");
 }
 
 (function () {
@@ -40,35 +56,61 @@ function addBasemap(map, container, tiles) {
   // The basemap comes from the view model (CARTO with a key, else OpenStreetMap).
   addBasemap(map, container, view.tiles);
 
-  const css = getComputedStyle(document.documentElement);
-  const colour = (name, fallback) => css.getPropertyValue(name).trim() || fallback;
-  const warm = colour("--lift-up", "#d96a4a");
-  const cool = colour("--lift-down", "#3b8ea5");
-  const none = colour("--lift-none", "#8a7f75");
+  // The palette is read from the stylesheet, and read again when the colour scheme
+  // changes, so the cells and the shelter's circle follow the basemap.
+  const palette = () => {
+    const css = getComputedStyle(document.documentElement);
+    const colour = (name, fallback) => css.getPropertyValue(name).trim() || fallback;
+    return {
+      warm: colour("--lift-up", "#d96a4a"),
+      cool: colour("--lift-down", "#3b8ea5"),
+      none: colour("--lift-none", "#8a7f75"),
+      accent: colour("--accent", "#d96a4a"),
+    };
+  };
+  let colours = palette();
 
   // The shelter's area: around the spot the visitor picked, when they picked one.
   const shelter = view.pin ? [view.pin.latitude, view.pin.longitude] : [view.latitude, view.longitude];
-  L.circle(shelter, {
+  const area = L.circle(shelter, {
     radius: view.shelter_radius_m,
-    color: colour("--accent", "#d96a4a"),
+    color: colours.accent,
     weight: 2,
     dashArray: "4 4",
     fill: false,
   }).addTo(map);
+  let pin = null;
   if (view.pin) {
-    L.circleMarker(shelter, {
-      radius: 8, color: "#fff", weight: 2, fillColor: colour("--accent", "#d96a4a"), fillOpacity: 1,
+    pin = L.circleMarker(shelter, {
+      radius: 8, color: "#fff", weight: 2, fillColor: colours.accent, fillOpacity: 1,
     }).bindTooltip("The spot you picked for the shelter").addTo(map);
   }
 
-  const layers = view.cells.map((cell) => {
+  const fillFor = (cell) => {
+    const { warm, cool, none } = colours;
+    return cell.lift === null ? none : cell.lift > 0 ? warm : cool;
+  };
+  const cells = view.cells.map((cell) => {
     // A compared cell never draws paler than a grey one, so warm cells are easy to count.
     const strength = cell.lift === null ? 0.25 : 0.3 + 0.5 * Math.min(1, Math.abs(cell.lift));
-    const fill = cell.lift === null ? none : cell.lift > 0 ? warm : cool;
-    return L.rectangle(
+    const fill = fillFor(cell);
+    const rect = L.rectangle(
       [[cell.south, cell.west], [cell.north, cell.east]],
       { color: fill, weight: 1, fillColor: fill, fillOpacity: strength },
     ).bindTooltip(cell.label).addTo(map);
+    return { cell, rect };
+  });
+  const layers = cells.map((c) => c.rect);
+
+  // A change of scheme recolours what was drawn; the venue pins are styled by the sheet.
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    colours = palette();
+    area.setStyle({ color: colours.accent });
+    if (pin) pin.setStyle({ fillColor: colours.accent });
+    for (const { cell, rect } of cells) {
+      const fill = fillFor(cell);
+      rect.setStyle({ color: fill, fillColor: fill });
+    }
   });
 
   // The suggested places, numbered as in the list beside the map (decision 4, revised).

@@ -58,7 +58,9 @@ class Settings(BaseSettings):
     # dark mode). Empty: OpenStreetMap's standard tiles. The one key that reaches the
     # browser, because tile requests come from the visitor's browser (AGENTS.md, Secrets):
     # a public basemap key, restricted by domain in CARTO's dashboard, never committed.
-    map_tiles_key: str = ""
+    # A SecretStr all the same, so it never shows in a settings dump; it is unwrapped
+    # only where the tile URL is built (app/views/build.py, map_tiles).
+    map_tiles_key: SecretStr | None = None
 
     animals_file: Path = ROOT / "data" / "animals" / "animals.json"
     locations_file: Path = ROOT / "data" / "locations.json"

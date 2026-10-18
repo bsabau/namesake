@@ -5,26 +5,42 @@
 // name to the location form, with the spot as the visit's pin.
 
 // The basemap under the map, from the view model's tiles (MapTiles in app/views/): a light
-// and a dark tile URL, the attribution and the subdomains. Nothing here names a tile
-// server; with the MAP_TILES_KEY setting the URLs are CARTO's, without it OpenStreetMap's.
-// The dark URL is used when the browser prefers a dark scheme, and the map follows a
-// change of scheme. When both URLs are the same (OpenStreetMap), the container is marked
-// so the stylesheet can quieten the tiles instead.
+// and a dark tile URL, the attribution, the subdomains, and a fallback. Nothing here names
+// a tile server; with the MAP_TILES_KEY setting the URLs are CARTO's, without it
+// OpenStreetMap's. The dark URL is used when the browser prefers a dark scheme, and the
+// map follows a change of scheme. A keyed basemap that keeps failing (the key refused, a
+// quota, an outage) gives way to the fallback after a few tile errors. A map drawn over
+// the plain tiles (OpenStreetMap, or the fallback) is marked `tiles-plain`, so the
+// stylesheet can quieten them instead.
 function addBasemap(map, container, tiles) {
   if (!tiles || !tiles.url) return;
   const dark = matchMedia("(prefers-color-scheme: dark)");
+  const hasFallback = Boolean(tiles.fallback_url) && tiles.fallback_url !== tiles.url;
   let layer = null;
+  let failed = 0;
+  let fellBack = false;
   const show = () => {
     if (layer) layer.remove();
-    layer = L.tileLayer(dark.matches ? tiles.dark_url || tiles.url : tiles.url, {
-      maxZoom: tiles.max_zoom || 19,
-      subdomains: tiles.subdomains || "abc",
-      attribution: tiles.attribution || "",
+    const plain = fellBack || !tiles.dark_url || tiles.dark_url === tiles.url;
+    container.classList.toggle("tiles-plain", plain);
+    const url = fellBack ? tiles.fallback_url : dark.matches ? tiles.dark_url || tiles.url : tiles.url;
+    layer = L.tileLayer(url, {
+      maxZoom: (fellBack ? tiles.fallback_max_zoom : tiles.max_zoom) || 19,
+      subdomains: (fellBack ? "" : tiles.subdomains) || "abc",
+      attribution: (fellBack ? tiles.fallback_attribution : tiles.attribution) || "",
     }).addTo(map);
+    if (hasFallback && !fellBack) {
+      layer.on("tileerror", () => {
+        failed += 1;
+        if (failed >= 3) {
+          fellBack = true;
+          show();
+        }
+      });
+    }
   };
   show();
   dark.addEventListener("change", show);
-  if (!tiles.dark_url || tiles.dark_url === tiles.url) container.classList.add("tiles-plain");
 }
 
 (function () {
@@ -60,9 +76,12 @@ function addBasemap(map, container, tiles) {
   const tiles = document.getElementById("map-tiles");
   addBasemap(map, container, tiles ? JSON.parse(tiles.textContent) : null);
 
-  const accent = getComputedStyle(document.documentElement)
+  // The accent is read from the stylesheet, and again when the colour scheme changes, so
+  // the circle and the pins follow the basemap.
+  const accentNow = () => getComputedStyle(document.documentElement)
     .getPropertyValue("--accent").trim() || "#d96a4a";
-  const pinStyle = { radius: 8, color: "#fff", weight: 2, fillColor: accent, fillOpacity: 1 };
+  let accent = accentNow();
+  const pinStyle = () => ({ radius: 8, color: "#fff", weight: 2, fillColor: accent, fillOpacity: 1 });
 
   // A soft circle around the shelter's area, and a pin only where the visitor put one.
   const area = L.circle(centreOf(start), {
@@ -71,7 +90,14 @@ function addBasemap(map, container, tiles) {
     weight: 2,
     fillOpacity: 0.15,
   }).addTo(map);
-  const pin = L.circleMarker(centreOf(start), pinStyle);
+  const pin = L.circleMarker(centreOf(start), pinStyle());
+  let picked = null;
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    accent = accentNow();
+    area.setStyle({ color: accent });
+    pin.setStyle({ fillColor: accent });
+    if (picked) picked.setStyle({ fillColor: accent });
+  });
   // The map sits in the shelter panel (shelter-bar.js keeps the bar's text).
   const panel = document.getElementById("shelter");
   let current = start;
@@ -134,11 +160,10 @@ function addBasemap(map, container, tiles) {
     if (event.inputType) pinLat.value = pinLon.value = "";
   });
 
-  let picked = null;
   map.on("contextmenu", async (event) => {
     const spot = event.latlng.wrap();
     if (picked) picked.remove();
-    picked = L.circleMarker(spot, pinStyle).addTo(map);
+    picked = L.circleMarker(spot, pinStyle()).addTo(map);
 
     const box = document.createElement("div");
     box.className = "map-pick";

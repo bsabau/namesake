@@ -1,6 +1,7 @@
 import re
 
 import pytest
+from pydantic import SecretStr
 
 from app.locations import load_locations
 from app.profile import LocationProfile, Venue, build_profile, rank_band
@@ -563,7 +564,7 @@ def test_map_tiles_are_carto_with_a_key_and_openstreetmap_without(monkeypatch):
     from app.config import get_settings
     from app.views.build import map_tiles
 
-    monkeypatch.setattr(get_settings(), "map_tiles_key", "test-key")
+    monkeypatch.setattr(get_settings(), "map_tiles_key", SecretStr("test-key"))
     tiles = map_tiles()
     assert (
         tiles.url == "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=test-key"
@@ -576,23 +577,28 @@ def test_map_tiles_are_carto_with_a_key_and_openstreetmap_without(monkeypatch):
     assert "openstreetmap.org/copyright" in tiles.attribution
     assert "carto.com/attributions" in tiles.attribution
 
-    monkeypatch.setattr(get_settings(), "map_tiles_key", "")
+    monkeypatch.setattr(get_settings(), "map_tiles_key", None)
     plain = map_tiles()
     assert plain.url == plain.dark_url == "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
     assert plain.subdomains == "" and plain.max_zoom == 19
     assert "CARTO" not in plain.attribution and "key" not in plain.url
+    # A keyed basemap that keeps failing gives way to OpenStreetMap, named by the view model.
+    assert tiles.fallback_url == plain.url and tiles.fallback_attribution == plain.attribution
+    assert plain.fallback_url == ""
 
 
 def test_every_map_carries_its_tiles(roster, monkeypatch):
     from app.config import get_settings
 
     locations = load_locations(get_settings().locations_file)
-    monkeypatch.setattr(get_settings(), "map_tiles_key", "test-key")
+    monkeypatch.setattr(get_settings(), "map_tiles_key", SecretStr("test-key"))
     start = build_start_view(roster, locations, locations[0].id)
     result = build_result_view(roster.get("dog-02"), LOCATION, profile())
     assert "key=test-key" in start.map_tiles.url and "key=test-key" in result.map.tiles.url
     # Served as JSON too: the key is a public basemap key that reaches the browser.
     assert "test-key" in result.model_dump_json()
+    # But never in a settings dump: it is a SecretStr like the other keys.
+    assert "test-key" not in repr(get_settings())
 
 
 def test_the_animal_card_lists_the_record_and_what_is_unknown(roster):
@@ -617,3 +623,81 @@ def test_story_headings_use_the_animals_pronoun(roster):
     him = build_result_view(roster.get("dog-01"), LOCATION, profile())
     assert him.story_heading == "Let's tell his story."
     assert him.introduction_heading == "His introduction"
+
+
+def test_the_confirmed_lines_cover_every_check():
+    from app.listing import CHECK_SENTENCES
+    from app.views.build import CONFIRMED_LINES
+
+    assert set(CONFIRMED_LINES) == set(CHECK_SENTENCES)
+    for field, lines in CONFIRMED_LINES.items():
+        assert set(lines) == set(CHECK_SENTENCES[field]) == {"yes", "no"}
+
+
+def test_a_check_the_lines_do_not_know_is_skipped_not_an_error(roster, monkeypatch):
+    from app.views import build
+
+    monkeypatch.setattr(build, "CONFIRMED_LINES", {})
+    assert build.animal_card(roster.get("dog-01")).facts == []
+
+
+def test_the_story_leads_are_true_of_each_version(roster):
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile())  # no draft
+    assert view.story_lead.startswith("No local name yet: it needs a run of Namesake's AI. ")
+    assert view.story_lead_generic.startswith(
+        "A common pet name from a fixed list, not from Qloo. "
+    )
+    assert view.story_lead.endswith("A plan for getting her seen.")
+    assert view.story_lead_generic.endswith("A plan for getting her seen.")
+
+
+def test_the_process_steps_say_what_happened_for_a_fixed_lookup(roster):
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    facts, context, interpret = view.process
+    assert facts.title == "Start with the facts" and "fixed template" in facts.detail
+    assert context.title == "Add local context"
+    # The fixed lookup's fake profile has places and cells but no ranking: it says so.
+    assert context.detail.startswith("Qloo returned 4 places near the shelter for fans of")
+    assert "map cells within" in context.detail
+    assert context.detail.endswith("Its ranking of the titles was unavailable.")
+    assert "ranking of" not in context.detail.split(".")[0]
+    assert interpret.title == "Interpret and check"
+    assert interpret.detail.startswith("The titles are a fixed lookup, so no AI judged them; ")
+    assert "the names and the introduction are a fixed template" in interpret.detail
+    assert "code added the shelter's confirmed answers" in interpret.detail
+    assert (
+        "classifier" not in interpret.detail and "checked that every place" not in interpret.detail
+    )
+
+
+def test_the_process_steps_name_the_classifier_and_the_ais_part_for_an_agent_profile(roster):
+    from app.profile import FoundIn, PetVerdict
+
+    p = agent_profile()
+    p.order_source, p.ranked = "agent", []
+    p.pet_entities[0].found_in = FoundIn(
+        signal="x", kind="tv_show", position=2, out_of=20, by_tags=True
+    )
+    p.pet_entities[0].verdict = PetVerdict(
+        pets=0.5, dogs=0.5, cats=0.1, family=0.9, real_people=0.05
+    )
+    facts, context, interpret = build_result_view(roster.get("dog-02"), LOCATION, p).process
+    assert context.detail.startswith(
+        f"Qloo returned lists of titles people around {LOCATION.label} tend to like, asked "
+        "with its pet tags"
+    )
+    assert context.detail.endswith("Its ranking of the titles was unavailable.")
+    assert interpret.detail.startswith(
+        "A classifier (TypeSafe's Jev) sorted the titles in Qloo's lists and kept the clear "
+        "pet titles; Namesake's AI judged 1 unclear title, added 1 title of its own, picked "
+        "1 of the places to ask and set the order, as Qloo's ranking was unavailable; "
+    )
+    assert "kept a title only with Qloo's evidence for the area" in interpret.detail
+    assert "checked that every place came from Qloo" in interpret.detail
+
+
+def test_the_process_steps_for_an_empty_profile_promise_nothing(roster):
+    p = LocationProfile(location_id=LOCATION.id)
+    facts, context, interpret = build_result_view(roster.get("dog-02"), LOCATION, p).process
+    assert context.detail == f"Qloo returned nothing for {LOCATION.label} yet."
+    assert "fixed lookup" in interpret.detail

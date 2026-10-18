@@ -7,6 +7,7 @@ import re
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
 import app.main as main
 from app.config import get_settings
@@ -240,7 +241,7 @@ def test_story_maps_take_their_tiles_from_the_view_model(client, monkeypatch):
         assert (
             "key=" not in script and "cartocdn" not in script and "tile.openstreetmap" not in script
         )
-    monkeypatch.setattr(get_settings(), "map_tiles_key", "test-key")
+    monkeypatch.setattr(get_settings(), "map_tiles_key", SecretStr("test-key"))
     start = client.get("/", params={"ui": "story"}).text
     assert 'id="map-tiles"' in start and "key=test-key" in start
     result = client.get(
@@ -275,3 +276,24 @@ def test_the_story_result_tells_the_story_in_order(client):
     positions = [page.index(mark) for mark in marks]
     assert positions == sorted(positions), marks
     assert "What we know" in page and "Still to learn: children" in page
+
+
+@pytest.mark.parametrize("ui", main.UIS)
+def test_a_name_options_title_always_carries_the_qloo_label(ui):
+    # The title under a name is Qloo's answer: wherever a skin prints it, the line carries
+    # the Qloo label on an evidence line, never bare under Namesake's name.
+    template = (main.UI_ROOT / ui / "templates" / "result.html").read_text(encoding="utf-8")
+    lines = [line for line in template.splitlines() if "option.title" in line]
+    assert lines, f"{ui} result: no name option title"
+    for line in lines:
+        assert "evidence" in line and "<span>Qloo" in line, f"{ui}: {line.strip()}"
+
+
+def test_story_maps_fall_back_when_the_keyed_basemap_fails():
+    # A refused key, a quota or an outage must not leave the map blank: after a few tile
+    # errors the scripts switch to the fallback the view model names (OpenStreetMap).
+    for name in ["result-map.js", "location-map.js"]:
+        script = (main.UI_ROOT / "story" / "static" / name).read_text(encoding="utf-8")
+        assert (
+            "tileerror" in script and "fallback_url" in script and "fallback_attribution" in script
+        )

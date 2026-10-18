@@ -180,7 +180,7 @@ How it works inside, with diagrams: [`docs/architecture.md`](docs/architecture.m
 | `app/qloo/` | the typed wrapper around `qloo exec`: envelope parsing, cache, spacing, replay |
 | `app/views/`, `app/ui/warm/` | view models (also served as JSON) and the default interface; `app/ui/story/` tells the result as a story (`?ui=story`), and `app/ui/classic/` is the first skin, kept for `?ui=classic` |
 | `docs/` | [architecture](docs/architecture.md), [decisions](docs/decisions.md), [Qloo findings](docs/qloo-findings.md), [product design](docs/product.md), [evidence review](docs/research/adoption-evidence-review.md) |
-| `tests/` | about 400 tests, all offline; `tests/test_no_qloo_data.py` keeps Qloo data out of the repo |
+| `tests/` | about 600 tests, all offline; `tests/test_no_qloo_data.py` keeps Qloo data out of the repo |
 
 Qloo's terms forbid publishing its response data, so real responses live only in the git-ignored `var/` and the deployed cache.
 

@@ -17,6 +17,6 @@ document.addEventListener("change", (event) => {
   const text = choice && choice.parentElement.querySelector(".version-choice-text");
   if (text) text.textContent = input.dataset.choice;
   document.querySelectorAll("[data-name-detail]").forEach((pair) => {
-    pair.hidden = pair.dataset.nameDetail !== input.value;
+    pair.classList.toggle("selected", pair.dataset.nameDetail === input.value);
   });
 });

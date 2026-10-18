@@ -491,10 +491,14 @@ button.animal-card:hover, button.animal-card:focus-visible {
   transition: border-color 0.15s, background-color 0.15s, transform 0.15s;
 }
 .name-option label:hover .option-name { border-color: var(--border-strong); transform: translateY(-1px); }
-.name-option:has(input:checked) .option-name { background: var(--primary-ink); border-color: var(--primary-ink); color: var(--on-primary); }
+/* The picked name is inked like the picked version in the toggle: a choice, never Qloo's
+   terracotta. */
+.name-option:has(input:checked) .option-name { background: var(--heading); border-color: var(--heading); color: var(--bg); }
 .name-option:has(input:checked) .option-name::after { content: " \2713"; }
 .name-option:has(input:focus-visible) .option-name { outline: 2px solid var(--focus); outline-offset: 3px; }
-.option-title { display: block; margin-top: 6px; color: var(--muted); font-size: 0.85rem; }
+/* The title under a name is Qloo's: it carries the Qloo label and swatch, centred under
+   the button (the left rule gives way to the swatch here). */
+.name-option .option-title { display: block; margin: 6px 0 0; padding: 0; border-left: 0; text-align: center; font-size: 0.85rem; }
 .name-placeholder { margin: 0; color: var(--muted); }
 
 .hook {
@@ -641,8 +645,12 @@ button.animal-card:hover, button.animal-card:focus-visible {
 /* Why this name? Qloo's answer and Namesake's choice, side by side and never in one box. */
 .why-name { margin-top: 28px; padding: 18px 22px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
 .why-name h3 { margin: 0 0 10px; font-size: 1.3rem; }
-.why-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
-.why-pair[hidden] { display: none; }
+.why-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; padding: 12px 14px; border: 1px solid transparent; border-radius: var(--radius-sm); }
+.why-pair + .why-pair { margin-top: 6px; }
+.why-pair h4 { grid-column: 1 / -1; margin: 0; font-size: 1.1rem; }
+.why-pair .picked-mark { display: none; margin-left: 8px; padding: 0 8px; border-radius: 999px; background: var(--highlight); color: var(--on-highlight); font-family: var(--font); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; vertical-align: middle; }
+.why-pair.selected { background: var(--highlight-soft); border-color: var(--highlight); }
+.why-pair.selected .picked-mark { display: inline-block; }
 /* The generic version has no Qloo name, so its view has no "Why this name?". */
 body:has(input[name="variant"][value="generic"]:checked) .why-name { display: none; }
 .why-pair .evidence, .why-pair .reading { margin: 0; font-size: 1rem; border-left-width: 4px; padding-left: 14px; }
