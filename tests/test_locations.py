@@ -89,3 +89,14 @@ def test_the_shelter_bar_script_is_served():
     # Flash: without it, a closed panel with no area chosen strands the visitor again.
     for ui in ["classic", "warm"]:
         assert client.get(f"/ui/{ui}/static/shelter-bar.js").status_code == 200
+
+
+def test_the_start_map_has_a_search_that_only_moves_it():
+    html = client.get("/").text
+    assert 'id="map-search-text"' in html and 'aria-controls="map-search-suggestions"' in html
+    # It submits nothing: no name, so the form never sends it to Qloo.
+    field = html[
+        html.index('id="map-search-text"') - 200 : html.index('id="map-search-text"') + 400
+    ]
+    assert " name=" not in field
+    assert "Find a place on the map" in html

@@ -247,6 +247,8 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** Photon's public server promises no uptime; swapping it is one setting (`geocoder_url`) and one module (`app/places.py`). Its terms ask for fair use, which the cache and the per-visitor allowance keep to.
 
+**Revised 18 October, a search on the map:** a field above the start map, "Find a place on the map", takes the same area suggestions as the typed-area field (`/api/places`, the same allowance and rules) and only moves the map to the chosen place, so a visitor far from the presets (Barcelona, say) need not pan there by hand before right-clicking the shelter's spot. It has no name, so it never submits, and nothing goes to Qloo.
+
 ## 18. The map combines the top pet titles; the baseline is the area's own top shows
 
 **Decided** (the author, 17 October: "lets go with combined layer", and for the baseline "Local top shows instead"; profile version 2):

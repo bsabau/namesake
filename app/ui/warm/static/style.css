@@ -883,3 +883,8 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* The search above the start map: it only moves the map. */
+.map-search { margin: 0 0 8px; }
+.map-search label { display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; }
+.map-search input { width: 100%; }

@@ -89,6 +89,17 @@
     });
   });
 
+  // The search above the map: move there, so the shelter's spot can be picked.
+  document.addEventListener("namesake:fly", (event) => {
+    const { latitude, longitude } = event.detail;
+    if (typeof latitude !== "number" || typeof longitude !== "number") return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      map.setView([latitude, longitude], 13, { animate: false });
+    } else {
+      map.flyTo([latitude, longitude], 13, { duration: 1.2 });
+    }
+  });
+
   // Picking the shelter's spot.
   const pickUrl = container.dataset.pickUrl;
   const field = document.getElementById("custom-location-text");

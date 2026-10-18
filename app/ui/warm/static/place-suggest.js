@@ -1,11 +1,10 @@
-// Suggestions for the typed shelter area: area names from the view model's
-// suggestions_url (/api/places), ranked near the area selected on the map, in a list
-// under the field. Arrow keys move, Enter picks, Escape closes. If the lookup fails,
-// typing works as before.
+// Suggestions for a place field: area names from the view model's suggestions_url
+// (/api/places), ranked near the area selected on the map, in a list under the field.
+// Arrow keys move, Enter picks, Escape closes. If the lookup fails, typing works as
+// before. Two fields use it: the typed shelter area (picking fills the field) and the
+// search on the map (picking moves the map there, with a "namesake:fly" event).
 
-(function () {
-  const field = document.getElementById("custom-location-text");
-  const list = document.getElementById("place-suggestions");
+function attachSuggestions(field, list, onChoose) {
   if (!field || !list || !field.dataset.suggestUrl) return;
 
   let timer = null;
@@ -27,12 +26,14 @@
     all.forEach((li, n) => li.setAttribute("aria-selected", String(n === active)));
     field.setAttribute("aria-activedescendant", all[active].id);
   };
-  const choose = (label) => {
-    field.value = label;
-    asked = label;
+  let shown = [];
+  const choose = (place) => {
+    field.value = place.label;
+    asked = place.label;
     answer = { text: "", places: [] };
     close();
     field.focus();
+    onChoose(place);
   };
 
   // The selected area's centre, from the map's data, so nearby places come first.
@@ -45,6 +46,7 @@
   };
 
   const show = (places) => {
+    shown = places;
     list.replaceChildren(
       ...places.map((p, n) => {
         const li = document.createElement("li");
@@ -54,7 +56,7 @@
         // mousedown, not click: it lands before the field loses focus.
         li.addEventListener("mousedown", (event) => {
           event.preventDefault();
-          choose(p.label);
+          choose(p);
         });
         return li;
       }),
@@ -97,10 +99,29 @@
       highlight(event.key === "ArrowDown" ? 1 : -1);
     } else if (event.key === "Enter" && active >= 0) {
       event.preventDefault(); // pick the suggestion; a second Enter submits
-      choose(items()[active].textContent);
+      choose(shown[active]);
     } else if (event.key === "Escape") {
       close();
     }
   });
   field.addEventListener("blur", close);
+}
+
+attachSuggestions(
+  document.getElementById("custom-location-text"),
+  document.getElementById("place-suggestions"),
+  () => {},
+);
+
+// The search on the map only moves it; it never chooses an area or asks Qloo. Enter in
+// it never submits the form around it.
+(function () {
+  const search = document.getElementById("map-search-text");
+  if (!search) return;
+  search.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") event.preventDefault();
+  });
+  attachSuggestions(search, document.getElementById("map-search-suggestions"), (place) => {
+    document.dispatchEvent(new CustomEvent("namesake:fly", { detail: place }));
+  });
 })();
