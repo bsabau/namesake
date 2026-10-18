@@ -53,13 +53,13 @@ Only committed changes are deployed. Every deploy re-checks the saved listings a
 
 ## Upgrading saved profiles
 
-When a change raises the profile version (`PROFILE_VERSION` in `app/profile.py`), saved profiles keep working as they were until upgraded. Upgrade them on the host, paced under the key's limit, the examples' areas first:
+When a change raises the profile version (`PROFILE_VERSION` in `app/profile.py`), or changes what a saved profile must have (`needs_finishing` in the same file, such as the comparison screen of decision 18), saved profiles keep working as they were until upgraded or until a visitor's run finishes them. Upgrade them on the host, paced under the key's limit, the examples' areas first:
 
 ```sh
 ssh deploy@host 'cd /opt/namesake && docker compose exec -T app python -m app.upgrade_profiles --only park-slope,astoria'
 ```
 
-It prints each profile it upgraded or left as it was; run it again later for the rest.
+It prints each profile it upgraded or left as it was; run it again later without `--only` for the rest, including Austin and the areas visitors typed.
 
 ## Settings worth knowing
 

@@ -37,6 +37,7 @@ from app.profile import (
     baseline_venue_ids,
     build_profile,
     finish_profile,
+    needs_finishing,
     profile_from,
 )
 from app.qloo.exec import QlooClient
@@ -140,9 +141,10 @@ async def get_profile(
     loop = id(asyncio.get_running_loop())
     async with _profile_locks[(loop, location.id, species)]:
         saved = store.get_profile(location.id, species)
-        if saved is not None and saved.version >= PROFILE_VERSION and not saved.complete:
-            # Saved unfinished: finish it around the same titles, so listings made from it
-            # keep their evidence. Fixed calls only; what is cached costs nothing.
+        if saved is not None and saved.version >= PROFILE_VERSION and needs_finishing(saved):
+            # Saved unfinished, or with a comparison today's screen would not choose: finish
+            # it around the same titles, so listings made from it keep their evidence. Fixed
+            # calls only; what is cached costs nothing.
             log.add("qloo", f"Finishing the saved profile for {species}s in {location.label}")
             finished = await asyncio.to_thread(finish_profile, saved, location, qloo, seeds)
             if finished is not None:

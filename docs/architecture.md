@@ -128,7 +128,7 @@ Most Qloo work depends on the area and the species, not the animal, so it is don
 ```mermaid
 flowchart TD
     start(["First run for an area and species"]) --> tastes["Area's top TV shows<br/>recommend tv_show with signal_location"]
-    tastes --> usable{"Plain ok answer<br/>with shows left after<br/>dropping animal shows?"}
+    tastes --> usable{"Plain ok answer<br/>with shows left after dropping<br/>those that mention animals,<br/>a religion, race or politics?"}
     usable -- yes --> base["Baseline: the top two"]
     usable -- no --> seed["Baseline: one seed show,<br/>with a note saying why"]
     base --> basevenues["Baseline venues<br/>recommend place, baseline as signals"]
@@ -141,18 +141,18 @@ flowchart TD
     fixed --> assemble["Assemble: venue comparison,<br/>heatmaps for two pet titles and two baseline shows"]
     assemble --> lift["Map cells: mean rank of the pet titles<br/>minus mean rank of the baseline shows"]
     lift --> save[("Saved, even if unfinished")]
-    save --> later{"Unfinished?<br/>(a map or comparison missing)"}
+    save --> later{"Needs finishing?<br/>(a map or comparison missing,<br/>or a comparison today's screen rejects)"}
     later -- "yes, on a later run" --> finish["finish_profile: same titles,<br/>fixed calls only, cached ones free"]
     finish --> save
 ```
 
 - **Budget**: the profile agent may make at most 20 model requests and 18 tool calls. That is a ceiling; the whole profile, fixed calls included, usually comes to 15 to 17 Qloo calls.
 - **Titles from the area's lists** (decision 20): `find_local_titles` asks what people around the area who like one of the AI's titles (or one the classifier kept) also like, for TV, films or books, 20 at a time, up to three searches. Titles the classifier sets aside never reach the AI's plan. Each found title keeps where it was found ("1st of 20 in Qloo's list of TV shows people around Austin who like PAW Patrol tend to like") and the classifier's answers, and the Why panel shows them in separate columns.
-- **The baseline** is the area's top two shows, leaving out any whose name or description mentions animals; the AI may not use them as pet titles. If the area's shows are unusable, one seed show stands in, with a note. If even that cannot be found, the venues and the map are left uncompared, and the note says so.
+- **The baseline** is the area's top two shows, leaving out any whose name or description mentions animals, a religion, race or politics (decision 18: the page names them as what people here tend to watch, which must not read as a claim about who they are); the AI may not use them as pet titles. If the area's shows are unusable, one seed show stands in, with a note. If even that cannot be found, the venues and the map are left uncompared, and the note says so.
 - **The heatmaps** run in this order: the first pet title, the baseline shows, then the second pet title, so a profile cut short still has a comparison.
 - **The map** is lift: in each cell, the pet titles' mean score minus the baseline shows' mean score. Within a neighbourhood, a heatmap's `query.affinity` is a rank spread from 0 to 1 inside the area (`docs/qloo-findings.md`), so ranks can be averaged and subtracted. Raw affinity saturates near 1.0, so it is never shown. Maps of different precision are brought to the coarsest one first.
-- **Saving**: a profile is saved even if a map or the comparison is missing, and finished on a later run. Only a profile with no pet title at all is not saved; the next run tries again.
-- **Versions**: profiles carry a version. An older one still renders as it was; `python -m app.upgrade_profiles` upgrades saved ones without rerunning the AI, so titles, names and listings stay valid.
+- **Saving**: a profile is saved even if a map or the comparison is missing, and finished on a later run. Only a profile with no pet title at all is not saved; the next run tries again. A saved comparison that today's screen would not choose is finished the same way (`needs_finishing`), and until then the page does not name the show.
+- **Versions**: profiles carry a version. An older one still renders as it was, except that a comparison show today's screen rejects is never named; `python -m app.upgrade_profiles` upgrades saved ones without rerunning the AI, so titles, names and listings stay valid.
 
 ## The listing
 

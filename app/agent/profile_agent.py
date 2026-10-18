@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent, ModelRetry, NativeOutput, PromptedOutput, RunContext, ToolOutput
 from pydantic_ai.models import Model
 
-from app.agent.checks import IDENTITY_CODED, IDENTITY_TERMS, check_choice_reason, find_word
+from app.agent.checks import check_choice_reason, identity_coded
 from app.agent.steps import StepLog
 from app.classify import JevClassifier, bucket
 from app.locations import Location
@@ -423,7 +423,7 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
             # The area's own lists carry identity-coded titles (docs/qloo-findings.md);
             # descriptions name the cast, so only words nobody bears as a name count there.
             e = deps.titles_seen[t.entity_id]
-            if find_word(e.name, IDENTITY_CODED) or find_word(e.description or "", IDENTITY_TERMS):
+            if identity_coded(e.name, e.description):
                 problems.append(
                     f"{e.name} is coded to a religion, race or political identity; leave it out"
                 )

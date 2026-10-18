@@ -15,8 +15,9 @@ from app.profile import (
     build_profile,
     combine_cells,
     finish_profile,
+    needs_finishing,
 )
-from app.views.build import build_result_view
+from app.views.build import build_result_view, why
 from tests.qloo_fakes import (
     BASELINE,
     BASELINE_2,
@@ -71,6 +72,27 @@ def test_the_baseline_leaves_out_pet_titles_and_shows_about_animals():
     # Flash: animal words used as metaphors must not cost the area its baseline.
     metaphors = [show(7, "The Example Bear"), show(8, "Example Shark Tank")]
     assert len(baseline_from_tastes(metaphors, [])) == 2
+
+
+def test_the_baseline_leaves_out_shows_tied_to_an_identity():
+    # Hoboken, 18 October: a documentary about a president's portraits was a top show, so
+    # the page said people there tend to like it, and it shaped the map.
+    def show(i: int, name: str, description: str = "A made-up show.") -> Entity:
+        return Entity(id=f"id-{i}", name=name, type="urn:entity:tv_show", description=description)
+
+    tastes = [
+        show(1, "Example Shore", "A made-up reality show at the beach."),
+        show(2, "Picturing Example", "A made-up documentary about Obama's portraits."),
+        show(3, "Example Sermons", "A made-up series of sermons about Christ."),
+        show(4, "Example Comedy"),
+    ]
+    assert [e.name for e in baseline_from_tastes(tastes, [])] == [
+        "Example Shore",
+        "Example Comedy",
+    ]
+    # A cast surname in a description does not count (decision 19).
+    harris = [show(5, "Example Days", "Starring Example Harris."), show(6, "Example Quiz")]
+    assert len(baseline_from_tastes(harris, [])) == 2
 
 
 def profile():
@@ -373,8 +395,108 @@ def test_the_seed_note_says_why_and_survives_finishing():
     ]  # fmt: skip
     p = build_profile(FakeQloo(script), LOCATION, SEEDS)
     note = next(n for n in p.notes if n.startswith("The comparison:"))
-    assert "mentions animals or is one of the pet titles" in note
+    assert "mentions animals, is one of the pet titles" in note
     finished = finish_profile(
         p.model_copy(update={"maps_missing": 1}), LOCATION, FakeQloo(script), SEEDS
     )
     assert note in finished.notes
+
+
+def test_a_saved_comparison_the_screen_would_not_choose_is_chosen_again():
+    # Codex, muse: profiles saved before the identity screen kept their comparison.
+    p = build_profile(FakeQloo(standard_script()), LOCATION, SEEDS)
+    assert p.complete and not needs_finishing(p)
+    doc = Entity(
+        id="00000000-0000-4000-8000-000000000310",
+        name="Example Portraits",
+        type="urn:entity:tv_show",
+        description="A made-up documentary about Obama's portraits.",
+    )
+    stale = p.model_copy(update={"baselines": [p.baselines[0], doc]})
+    assert needs_finishing(stale)
+    finished = finish_profile(stale, LOCATION, FakeQloo(standard_script()), SEEDS)
+    assert [e.id for e in finished.baselines] == [BASELINE, BASELINE_2]
+    assert not needs_finishing(finished)
+    # The AI's titles are kept.
+    assert [e.id for e in finished.pet_entities] == [e.id for e in p.pet_entities]
+
+
+def test_everyday_religion_and_politics_words_count_in_descriptions_only():
+    # Flash: "a Muslim family" or "a political satire" slipped through the name screen's
+    # lists; a cast member called Christian or Church must not count.
+    def show(i: int, name: str, description: str) -> Entity:
+        return Entity(id=f"id-{i}", name=name, type="urn:entity:tv_show", description=description)
+
+    tastes = [
+        show(1, "Example Family", "A made-up comedy about a Muslim family in Michigan."),
+        show(2, "Example Desk", "A made-up late-night political satire."),
+        show(3, "Example Heist", "Starring Christian Example and Example Church."),
+        show(4, "Example Quiz", "A made-up quiz show."),
+    ]
+    assert [e.name for e in baseline_from_tastes(tastes, [])] == ["Example Heist", "Example Quiz"]
+
+
+def test_when_every_top_show_is_left_out_the_seed_stands_in_and_says_why():
+    script = standard_script()
+    tastes_key = key(
+        "recommend", {"target_type": "tv_show", "signal_location": LOCATION.query, "limit": 10}
+    )
+    coded = {
+        **LOCAL_SHOWS[1],
+        "properties": {"short_description": "A made-up political talk show."},
+    }
+    script[tastes_key] = envelope("recommend", results=[coded])
+    script[
+        key(
+            "recommend",
+            {"target_type": "place", "signals": [BASELINE], "filter_location": LOCATION.query,
+             "limit": 15},
+        )
+    ] = script[
+        key(
+            "recommend",
+            {"target_type": "place", "signals": [BASELINE, BASELINE_2],
+             "filter_location": LOCATION.query, "limit": 15},
+        )
+    ]  # fmt: skip
+    p = build_profile(FakeQloo(script), LOCATION, SEEDS)
+    assert p.baseline_source == "seed"
+    note = next(n for n in p.notes if n.startswith("The comparison:"))
+    assert "mentions a religion, race or politics" in note
+
+
+def test_the_page_never_names_a_saved_comparison_show_the_screen_rejects():
+    p = build_profile(FakeQloo(standard_script()), LOCATION, SEEDS)
+    doc = Entity(
+        id="00000000-0000-4000-8000-000000000311",
+        name="Example Portraits",
+        type="urn:entity:tv_show",
+        description="A made-up documentary about Obama's portraits.",
+    )
+    stale = p.model_copy(update={"baselines": [p.baselines[0], doc]})
+    returned, reading = why(LOCATION, stale)
+    text = " ".join(f"{i.title} {i.detail}" for i in returned + reading)
+    assert "Example Portraits" not in text and "Example Drama" in text
+    compare = next(i for i in reading if i.title == "Why compare with this area's top shows")
+    assert "is not named here; the next run chooses it again" in compare.detail
+
+    both = stale.model_copy(update={"baselines": [doc, doc.model_copy(update={"id": "x2"})]})
+    compare = next(i for i in why(LOCATION, both)[1] if i.title.startswith("Why compare"))
+    assert compare.detail.startswith("The TV shows Qloo ranks highest")
+    assert "They were chosen before that rule and are not named here" in compare.detail
+
+
+def test_category_words_in_a_show_name_count_too():
+    def show(i: int, name: str, description: str | None = None) -> Entity:
+        return Entity(id=f"id-{i}", name=name, type="urn:entity:tv_show", description=description)
+
+    tastes = [
+        show(1, "The Example Election"),
+        show(2, "Example Town", "A made-up drama about a conservative town."),
+        show(3, "Example Quiz"),
+        show(4, "Example Bake Off"),
+    ]
+    assert [e.name for e in baseline_from_tastes(tastes, [])] == [
+        "Example Quiz",
+        "Example Bake Off",
+    ]

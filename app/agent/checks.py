@@ -189,6 +189,44 @@ def check_name(
     return problems
 
 
+# For the area's comparison shows only (decision 18): everyday words a description uses
+# for a religion, race or politics. Never a first name or surname (descriptions name the
+# cast), so "Christian" and "Church" appear only inside phrases. Not used for names, whose
+# screen (decision 19) stays as it was.
+IDENTITY_CATEGORIES = (
+    "muslim", "muslims", "islam", "islamic", "jewish", "judaism", "catholic", "catholics",
+    "christians", "christianity", "christian faith", "christian family", "evangelical",
+    "evangelicals", "hindu", "hinduism", "sikh", "mormon", "mormons", "religion",
+    "religious", "the church", "a church", "gospel", "political", "politics", "politician",
+    "politicians", "president", "presidential", "election", "elections", "senate",
+    "congress", "congressional", "partisan", "liberal", "liberals", "conservative",
+    "conservatives", "activist", "activism", "civil rights", "racism", "racist", "racial",
+    "race relations", "christian community", "christian church",
+)  # fmt: skip
+# The same kind of words, safe in a show's name too (none is a first name or surname).
+IDENTITY_CATEGORY_NAMES = (
+    "political", "politics", "president", "presidential", "election", "elections",
+    "senate", "congress", "religion", "religious", "gospel",
+)  # fmt: skip
+
+
+def mentions_identity(name: str, description: str | None) -> bool:
+    """A show whose name or description mentions a religion, race or politics: the
+    identity screen plus everyday category words. A word list, so the page says
+    "mentions", not "is about"."""
+    return (
+        identity_coded(name, description)
+        or bool(find_word(description or "", IDENTITY_CATEGORIES))
+        or bool(find_word(name, IDENTITY_CATEGORY_NAMES))
+    )
+
+
+def identity_coded(name: str, description: str | None) -> bool:
+    """A title coded to a religion, race or political identity: by its name, or by words in
+    its description that are rarely anyone's name (descriptions name the cast)."""
+    return bool(find_word(name, IDENTITY_CODED) or find_word(description or "", IDENTITY_TERMS))
+
+
 def check_title(
     name: str, role: str, title: str, description: str | None, *, real_people: bool = False
 ) -> list[str]:
@@ -204,7 +242,7 @@ def check_title(
             f"name {name!r}: {title} is about real people ({why}), so a name from it "
             "must be an animal's own"
         )
-    if find_word(title, IDENTITY_CODED) or find_word(description or "", IDENTITY_TERMS):
+    if identity_coded(title, description):
         problems.append(
             f"name {name!r}: {title} is coded to a religion, race or political identity; "
             "use another title"

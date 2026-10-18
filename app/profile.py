@@ -16,6 +16,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.agent.checks import mentions_identity
 from app.locations import Location
 from app.qloo.envelope import Envelope
 from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
@@ -217,12 +218,17 @@ def layer_titles(profile: LocationProfile) -> list[Entity]:
 def baseline_from_tastes(tastes: list[Entity], pets: list[Entity]) -> list[Entity]:
     """The area's top shows as the baseline, leaving out the pet titles themselves and any
     show whose name or description mentions animals: comparing a pet show with itself, or
-    with another pet show, would hide the very thing the map is for."""
+    with another pet show, would hide the very thing the map is for. Shows whose name or
+    description mentions a religion, race or politics are left out too: the page names the
+    baseline as what people here tend to watch, and that must not read as a claim about who
+    they are."""
     pet_ids = {e.id for e in pets}
     keep = [
         e
         for e in tastes
-        if e.id not in pet_ids and not PET_WORDS.search(f"{e.name} {e.description or ''}")
+        if e.id not in pet_ids
+        and not PET_WORDS.search(f"{e.name} {e.description or ''}")
+        and not mentions_identity(e.name, e.description)
     ]
     return keep[:BASELINE_TITLES]
 
@@ -507,8 +513,8 @@ def choose_baseline(
         why = f"Qloo returned no shows that people around {location.label} watch most"
     else:
         why = (
-            f"every show people around {location.label} watch most mentions animals or is one "
-            "of the pet titles here"
+            f"every show people around {location.label} watch most mentions animals, is one "
+            "of the pet titles here, or mentions a religion, race or politics"
         )
     b.profile.notes.append(
         f"{BASELINE_NOTE}{why}, so it is one widely watched show unrelated to pets: {seed.name}."
@@ -526,6 +532,20 @@ def baseline_for(
     return tastes, baselines, source, b.profile.notes
 
 
+def stale_baseline(profile: LocationProfile) -> bool:
+    """A saved comparison that today's screen would not choose: a show whose name or
+    description mentions a religion, race or politics (saved before that rule)."""
+    return any(mentions_identity(e.name, e.description) for e in profile.baselines)
+
+
+def needs_finishing(profile: LocationProfile) -> bool:
+    """A saved profile to finish before use: an older version, missing parts, or a
+    comparison chosen before today's screen. A visitor's run finishes current-version
+    profiles only (`get_profile`); older versions are brought up by
+    `app.upgrade_profiles`, which uses this whole test."""
+    return profile.version < PROFILE_VERSION or not profile.complete or stale_baseline(profile)
+
+
 def finish_profile(
     old: LocationProfile, location: Location, qloo: QlooClient, seeds: Seeds
 ) -> LocationProfile | None:
@@ -535,8 +555,9 @@ def finish_profile(
     Qloo still could not complete it."""
     if not old.pet_entities:
         return None
-    if old.version >= PROFILE_VERSION and old.baselines:
-        # Finishing: the baseline the AI's choices were made against stays as it was.
+    if old.version >= PROFILE_VERSION and old.baselines and not stale_baseline(old):
+        # Finishing: the baseline the AI's choices were made against stays as it was;
+        # one that fails today's screen is chosen again below.
         tastes, baselines, source = old.local_tastes, old.baselines, old.baseline_source
         notes = [n for n in old.notes if n.startswith(BASELINE_NOTE)]
     else:
