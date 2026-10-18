@@ -215,7 +215,7 @@ Everything that differs between machines is an environment variable (`.env` loca
 | Setting | Default | What it does |
 |---|---|---|
 | `QLOO_API_KEY`, `QLOO_BASE_URL`, `QLOO_TRUSTED_BASE_URL` | none | the hackathon key and its base URL, for the harness |
-| `QLOO_MIN_INTERVAL` | 2 s | the shortest gap between live Qloo calls, across processes |
+| `QLOO_MIN_INTERVAL` | 5 s | the shortest gap between live Qloo calls, across processes |
 | `ALLOW_LIVE_QLOO` | true | off: runs use the cache and recordings only |
 | `AGENT_BASE_URL`, `AGENT_API_KEY`, `AGENT_MODEL`, `AGENT_API` | none, `chat` | the model, as configuration, never code |
 | `AGENT_OUTPUT_MODE` | `native` | how the model returns structured output (`native`, `prompted`, `tool`) |
@@ -228,7 +228,7 @@ Everything that differs between machines is an environment variable (`.env` loca
 
 ## Limits and safety
 
-- **Qloo**: the hackathon key was refused after about 12 calls in 20 minutes on 15 October (30 calls 10 seconds apart passed on 17 October), so every live call goes through `QlooClient`: cached in SQLite, spaced at least `QLOO_MIN_INTERVAL` apart across processes, retried once only when Qloo says the error is retryable, with a 90-second timeout. Pages read Qloo from the cache only; runs and the typed-area check call it live, within the caps.
+- **Qloo**: the hackathon key was refused after about 12 calls in 20 minutes on 15 October (30 calls 10 seconds apart passed on 17 October), so every live call goes through `QlooClient`: cached in SQLite, spaced at least `QLOO_MIN_INTERVAL` apart across processes, with a 90-second timeout. An error is retried only when Qloo says it is retryable: once, after 5 seconds, or 20 after a rate limit; `rank`, which runs once per profile, gets a second retry after 40 (decision 20). Pages read Qloo from the cache only; runs and the typed-area check call it live, within the caps.
 - **Visitors**: live runs are capped per visitor per hour, and per day for everyone together; new typed areas per day. Place lookups have their own allowance (30 a minute per visitor, 120 for everyone), and only calls that reach Photon count.
 - **Classifier**: a 10-second timeout per title; any failure of Jev or its cache leaves the title to the AI, and after the first failed call a run uses saved answers only, so a slow classifier costs one timeout.
 - **Model**: the per-run request and tool-call limits above, and one repair round. Then the profile falls back to a fixed lookup with the seed titles, and the listing to a templated one that says why.
