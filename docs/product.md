@@ -50,7 +50,7 @@ The plan is a checklist the volunteer can carry out without an ad budget:
 2. In-person visibility: outings, events, an "Adopt Me" vest.
 3. Timing: Friday, Saturday and early evening.
 4. For New York dogs: rescue partners and foster recruitment.
-5. **Venues (Qloo):** about three places near the shelter that fans of the surviving pet-themed entities favour, for flyers and events. Each venue shows its evidence. For an animal recorded as not good with children, venues whose own description is about children are left out, and the plan says which (decision 4).
+5. **Venues (Qloo):** about three places near the shelter that fans of up to three of the pet-themed entities favour, for flyers and events. Code picks those titles by their evidence for the area (Qloo's ranking, else their best place in the area's lists), never an identity-coded one, and the agent picks the venues. Each venue shows its evidence. For an animal recorded as not good with children, venues whose own description is about children are left out, and the plan says which (decision 4).
 6. **One channel beyond the usual audience.** It comes from that location's `community_channels` entry in `data/locations.json` and is labelled as our suggestion.
 
 The plan's success measure is adoptions and returns; likes and reach are left out.
@@ -62,7 +62,7 @@ The plan's success measure is adoptions and returns; likes and reach are left ou
 | A. Find pet tags (dog, cat, pets, animals) | `find_tags` | probed in milestone 1 only: as filters the tags returned almost nothing, so the app does not use them | global |
 | B. Pet-themed entities strong here | `describe` for the titles the agent proposes; then `recommend` with one of them as the signal plus `signal_location`, per type (decision 20). Pet tags as filters returned almost nothing (milestone 1) | agent proposes and searches; a classifier sorts the search results; agent judges the unclear ones | location |
 | C. Local lift against a baseline | `where_popular` for the top two entities and the area's top two shows (decision 18); lift = the entities' averaged score in a cell minus the baseline shows' | code computes; agent drops entities with no lift | entity and city |
-| D. Venues fans favour | `recommend` for places, surviving entities as signals, location near the shelter | agent picks about three, with reasons | location |
+| D. Venues fans favour | `recommend` for places, up to three entities with the strongest evidence as signals, never an identity-coded one (code picks them), location near the shelter | agent picks about three venues, with reasons | location |
 | E. General local tastes | `recommend` with `signal_location` per type | agent proposes, screens, keeps | location |
 | F. Check each name's reference | resolve and `describe`; `needs_input` goes to candidate buttons or a pick with a stated reason | agent | entity |
 
