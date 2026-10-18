@@ -96,6 +96,16 @@ class PetVerdict(BaseModel):
     model: str = ""
 
 
+# Qloo's pet media tags (milestone 1). As filters they left almost nothing; as signals
+# with the area, they give each area its own list of pet-themed titles (decision 22).
+PET_TAGS = [
+    "urn:tag:genre:media:dogs",
+    "urn:tag:keyword:media:pet_dogs",
+    "urn:tag:subgenre:qloo:pets",
+    "urn:tag:keyword:qloo:cats",
+]
+
+
 def entity_type(raw: str | None, kind: str) -> str:
     """Qloo's type for a result, or the kind that was asked for when the answer gives only
     the generic "urn:entity" (its `recommend` lists do)."""
@@ -104,12 +114,14 @@ def entity_type(raw: str | None, kind: str) -> str:
 
 class FoundIn(BaseModel):
     """Where Qloo listed a title the AI did not propose itself: among the titles people
-    around the area who like `signal` also like (decision 20)."""
+    around the area who like `signal` also like (decision 20), or, with `by_tags`, among
+    the pet-themed titles people around the area tend to like (decision 22)."""
 
     signal: str
     kind: str
     position: int
     out_of: int
+    by_tags: bool = False
 
 
 class Entity(BaseModel):
@@ -200,6 +212,11 @@ class LocationProfile(BaseModel):
     made_by: str = "seeds"
     # Where the titles' order came from: Qloo's `rank`, or the agent when rank failed.
     order_source: str | None = None
+    # Titles Namesake's AI proposed that Qloo neither ranked here nor listed in the area's
+    # lists, left out because others had that evidence (decision 22).
+    left_out_titles: list[str] = Field(default_factory=list)
+    # False when no title had Qloo evidence for the area, so the AI's own were kept.
+    titles_confirmed: bool = True
     # The titles Qloo ranked for this area, in its order (empty when rank was unavailable).
     ranked: list[str] = Field(default_factory=list)
     # The titles the venues were asked for: the evidence names these, not every title.
@@ -634,6 +651,7 @@ def finish_profile(
     for venue in new.venues:
         venue.chosen_reason, venue.rejected_reason = reasons.get(venue.entity_id, (None, None))
     new.species, new.made_by = old.species, old.made_by
+    new.left_out_titles, new.titles_confirmed = old.left_out_titles, old.titles_confirmed
     new.order_source, new.ranked = old.order_source, old.ranked
     new.local_tastes, new.baseline_source = tastes, source
     new.notes = notes + new.notes
