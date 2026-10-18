@@ -85,7 +85,7 @@ def test_every_venue_a_page_shows_is_looked_up_and_no_other():
 def test_an_agent_profile_is_looked_up_in_its_own_page_order():
     p = profile()
     p.made_by = "agent"
-    # Place 7 stands out for pet-show fans, but the page lists the AI's picks by rank.
+    # Place 7 stands out for fans of pet-themed titles, but the page lists the AI's picks by rank.
     p.venues = [
         Venue(entity_id=f"v{k}", name=f"Place {k}", rank=k, chosen_reason="a place to ask",
               compared=True, baseline_rank=None if k == 7 else 1)
