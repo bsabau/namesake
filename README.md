@@ -35,6 +35,43 @@ Namesake does **not** claim to get animals adopted faster, save lives or money, 
 
 Namesake's AI (two agents, one per area and one per animal) and some plain code call Qloo through the official harness (`qloo exec`, pinned at 0.1.26). Every call is cached in SQLite and spaced at least 5 seconds apart, because the hackathon key is rate-limited; a refused ranking is retried after a longer wait.
 
+Who decides each step, from the area to the result (the same graph is in [`docs/architecture.md`](docs/architecture.md)):
+
+```mermaid
+flowchart TD
+    area(["The shelter's area and the animal's record"]) --> tastes
+    tastes["The area's top TV shows:<br/>recommend with the area"]:::qloo --> lists
+    lists["Lists for the area, asked with Qloo's pet tags:<br/>recommend, before the AI runs"]:::qloo --> sort1
+    sort1["Sort each title: kept, unsure or set aside"]:::jev --> judge
+    judge["Judge the unsure titles, add up to four of its own"]:::ai --> lookup
+    lookup["Look its own titles up: describe"]:::qloo --> pick
+    pick{"Ambiguous name?"}:::ai -- "choose a candidate, with a reason" --> search
+    pick -- no --> search
+    search["What fans here also like, as the AI asks:<br/>recommend with a title and the area"]:::qloo --> sort2
+    sort2["Sort the results the same way"]:::jev --> rank
+    rank["Order the titles for the area, as the AI asks: rank"]:::qloo --> evidence
+    evidence["Keep only titles Qloo ranks or lists here,<br/>when any has that (else the AI's own, said so);<br/>pick the venue and map titles by that evidence"]:::code --> venues
+    venues["Places near the shelter for their fans:<br/>recommend place"]:::qloo --> compare
+    compare["Compare with the places for the area's top shows<br/>(recommend place, as code asks it)"]:::code --> choose
+    choose["Pick up to three places for an event or a flyer"]:::ai --> check
+    check{"Every title and place from Qloo,<br/>screens passed, evidence kept?"}:::code -- "no, once" --> judge
+    check -- yes --> maps
+    maps["Heatmaps within the area: where_popular"]:::qloo --> lift
+    lift["Lift against the top shows; a thin first map gives way"]:::code --> lookalike
+    lookalike["Up to two lookalike titles, as the AI asks:<br/>describe"]:::qloo --> listing
+    listing["Names from the pet titles and the area's top shows,<br/>and the bio from the record"]:::ai --> screen
+    screen{"Facts traced, names screened,<br/>no shared name, length?"}:::code -- "no, once" --> listing
+    screen -- yes --> pins
+    pins["After the run: place the suggested venues not yet tried,<br/>with OpenStreetMap, and keep the points"]:::code --> page(["The result: Qloo's part and the AI's, kept apart"])
+
+    classDef qloo fill:#fbe3d9,stroke:#a84526,color:#3a1a10
+    classDef jev fill:#ece6f6,stroke:#6a4c93,color:#2a1d3d
+    classDef ai fill:#e1efe4,stroke:#3d6b4a,color:#173020
+    classDef code fill:#e8e8e8,stroke:#555555,color:#222222
+```
+
+Colours: **Qloo** answers (terracotta), **the classifier**, TypeSafe's Jev (violet), **Namesake's AI** decides (green), **plain code** decides the same way every time (grey).
+
 | What | Qloo workflow | Who decides | Why |
 |---|---|---|---|
 | Pet-themed titles people around the area tend to like | `recommend` TV, films and books with Qloo's four pet tags as signals plus `signal_location`, 20 each | Code asks, before the AI does anything; a classifier ([TypeSafe's Jev](https://typesafe.ai)) marks which are about pets; **Namesake's AI** judges the unsure ones | As filters the pet tags left two shows and no films; as signals with the area they gave 3 to 8 pet titles in each of four areas probed on 18 October ([findings](docs/qloo-findings.md)). These are the AI's main titles. |
@@ -44,7 +81,7 @@ Namesake's AI (two agents, one per area and one per animal) and some plain code 
 | Places near the shelter that fans favour | `recommend`, `target_type: place`, titles as signals | Code sends the three of the AI's kept titles with the strongest evidence for the area (Qloo's ranking, else their place in the area's lists); **Namesake's AI** picks up to three venues for a flyer or event, with a reason | Fans of two pet shows give 15 venues in and around Park Slope. |
 | A baseline to compare against | `recommend` TV with `signal_location` for the area's top shows, leaving out any whose name or description mentions animals, a religion, race or politics; then `recommend` places for their fans | Code | With one unrelated show (*Yellowstone*) as the baseline, 9 of the first 15 pet-show venues also came back for it: they are just popular nearby. The baseline is now what the area itself watches most, so "stands out" means "for pet-show fans more than for this area's usual tastes". Each venue shows its rank and whether it stands out. |
 | A map of where pet-show fans stand out | `where_popular` within the neighbourhood, for the two pet titles the venues were asked for first (by evidence) and the top two baseline shows; a first pet title with fewer than five cells there gives way once to the next, when that makes a better map (more cells with a comparison) | Code | Raw affinity saturates near 1.0, so the map shows **lift**: the pet titles' cell score minus the baseline shows', each averaged over the maps that scored the cell. A key on the map says what the colours mean. |
-| What the area tends to watch | `recommend` TV and films with `signal_location` | Code | A second, labelled source of name options. |
+| What the area tends to watch | `recommend` TV shows with `signal_location` | Code | A second, labelled source of name options. |
 | Titles with an animal that looks like this one | `describe` | **Namesake's AI**, per animal, at most two | A personal name option, badged "Has a lookalike in …". The shared look must be quoted from the animal's record. |
 | A volunteer types their own area, or right-clicks the shelter's spot on the map (in the warm skin, a search above the map moves it to any city first) | `recommend` for the area's own top TV show, then `where_popular` for that show within the area's name (a widely watched seed show as well when the list is not a plain answer or its show is thin there) | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". Passing says Qloo has data for the area; when its pet titles still map thinly, the result page says so. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
 
