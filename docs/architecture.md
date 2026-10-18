@@ -40,7 +40,7 @@ flowchart LR
     classify --> db
     agents --> checks
     runs -- "fixed calls:<br/>local shows, baseline venues, heatmaps" --> qclient
-    typed -- "fixed call: one heatmap" --> qclient
+    typed -- "fixed calls: the area's top show, its heatmap" --> qclient
     qclient --> harness --> qloo
     qclient --> db
     runs --> db
@@ -62,7 +62,7 @@ The hackathon asks for an agent, so this is the line that matters: where the mod
 |---|---|---|
 | **Area profile** | which unclear titles in Qloo's pet-themed lists for the area are about pets; which titles of its own to add; which of Qloo's candidates a name means, with a stated reason; which of its titles to search the area's lists with, and which unclear titles found there are about pets; the order when Qloo's ranking is unavailable; which titles to keep; which venues suit an adoption event | Qloo's pet-themed lists for the area (the four pet tags with the area as signals), sorted by the classifier, before the AI runs; leaving out titles Qloo neither ranks nor lists here when others have that evidence; sending back a plan that keeps none of Qloo's backed titles; which three titles the venues and the map are asked for, by evidence (Qloo's ranking, else their best place in the area's lists, then the AI's order), never an identity-coded one, telling the AI which in `asked_for`; the area's top shows and the baseline; the baseline's venues; the venue comparison; every heatmap and the map; which titles found in the area's lists to keep or set aside, from the classifier's answers |
 | **Listing** | which names to offer from the area's titles; which lookalike titles to check, and how to retry one that was refused (with look words quoted from the record); the bio, from the facts | the answers about children, other animals, house-training and bites; the hook line; every check |
-| **Typed area** | nothing | the probe show's lookup and the one heatmap that accepts or refuses it |
+| **Typed area** | nothing | the area's own top TV show (or a seed show) and the one heatmap that accepts or refuses it |
 
 The AI reads each answer and adapts: an ambiguous title gets a choice or is dropped, a title found in the area's lists that the classifier was unsure of gets the AI's judgement, and an unavailable ranking falls back to its own order.
 
@@ -119,7 +119,7 @@ sequenceDiagram
 
 This happens before any run, when the area is not one of the presets.
 
-- **A typed area** goes to Qloo as typed and is checked once: one heatmap for a probe show within it (after a `describe` of that show, cached after the first time). Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". `needs_input`: Qloo's candidates become buttons (decision 12). Text with digits is refused, which keeps street addresses away from Qloo.
+- **A typed area** goes to Qloo as typed and is checked once: one heatmap, within it, for the TV show Qloo ranks highest there (the call the profile's local tastes make, so the profile finds it cached); when that list is not a plain answer, or its top show is thin there, for a seed show as well (after a `describe` of it, cached after the first time): the seed's candidates or its failure speak for the place, else the fuller map decides. Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". `needs_input`: Qloo's candidates become buttons (decision 12). Text with digits is refused, which keeps street addresses away from Qloo.
 - **Suggestions and the map pick** (decision 17) go through the app's own `/api/places` to Photon. Suggestions ask for areas only; a picked spot is sent rounded to about 100 m, and only the areas in Photon's answer are kept. The spot becomes an area's name, and stays in the visitor's session as a pin, to about 10 m. Qloo only ever gets the name.
 
 ## The area profile
@@ -188,7 +188,7 @@ Saved listings carry the version of the checks they passed. When the checks chan
 | `qloo_meta` | the time of the last live Qloo call, for spacing across processes | server only |
 | `agent_results` | area profiles, listings, typed areas | server only |
 | `approvals` | approved names and versions, for the measurement log | server only |
-| `classifier_answers` | the classifier's answers per title, keyed by the title as described, the questions and the model | server only |
+| `classifier_answers` | the classifier's answers per title, keyed by the title as described (name, kind and description), the questions and the model | server only |
 | `usage` | live runs and new typed areas per day (UTC), for the daily caps | server only |
 | Memory | live runs per visitor in the last hour | server only, reset on restart |
 | `var/qloo-recordings/` | raw Qloo answers, for replay in development | never committed |

@@ -16,7 +16,7 @@ from app.agent.checks import check_choice_reason, identity_coded
 from app.agent.steps import StepLog
 from app.classify import JevClassifier, bucket
 from app.locations import Location
-from app.profile import PET_TAGS, VENUE_LIMIT, Entity, FoundIn, rank_band, screen
+from app.profile import PET_TAGS, VENUE_LIMIT, Entity, FoundIn, entity_type, rank_band, screen
 from app.qloo.envelope import Envelope
 from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
 
@@ -164,7 +164,7 @@ def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> d
             entity = Entity(
                 id=c.id,
                 name=c.name,
-                type=c.type,
+                type=entity_type(c.type, kind),
                 description=c.description,
                 resolution="chosen",
                 alternatives=len(env.candidates) - 1,
@@ -185,7 +185,7 @@ def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> d
     entity = Entity(
         id=r["entity_id"],
         name=r["name"],
-        type=r.get("type", f"urn:entity:{kind}"),
+        type=entity_type(r.get("type"), kind),
         description=props.get("short_description") or props.get("description"),
     )
     keep_found(deps, entity)
@@ -344,7 +344,7 @@ def sort_list(
         entity = Entity(
             id=r["entity_id"],
             name=r["name"],
-            type=r.get("type", f"urn:entity:{kind}"),
+            type=entity_type(r.get("type"), kind),
             description=props.get("short_description") or props.get("description"),
             found_in=place,
         )
