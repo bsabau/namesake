@@ -538,7 +538,7 @@ def approve(
         if option is None:
             raise HTTPException(400, "pick one of the name options")
         name, hook = option.name, option.hook
-        source = f"Qloo, {option.badge.lower()}: {option.title}"
+        source = option.approved_source
     else:
         name, source = version.name, "a fixed list of common pet names, not Qloo"
         # The generic name is worked out afresh; approve only the one the volunteer saw.

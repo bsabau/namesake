@@ -4,6 +4,7 @@ import re
 import time
 
 from app.agent.checks import mentions_identity
+from app.agent.listing_agent import Lookalike, NameOption
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
 from app.classify import bucket
@@ -304,7 +305,12 @@ def listing_view(
             available=draft is not None,
             name=local_name,
             name_source=(
-                name_badge(draft.names[0].source, draft.names[0].entity_id, profile)
+                name_badge(
+                    draft.names[0].source,
+                    draft.names[0].entity_id,
+                    profile,
+                    lookalike_of(result, draft.names[0].entity_id),
+                )
                 if draft
                 else ""
             ),
@@ -353,13 +359,15 @@ def title_names(profile: LocationProfile, result: ListingResult | None) -> dict[
     return names
 
 
-def name_badge(source: str, entity_id: str, profile: LocationProfile) -> str:
+def name_badge(
+    source: str, entity_id: str, profile: LocationProfile, look: Lookalike | None = None
+) -> str:
     """What Qloo returned for a name's title. Claim local strength only where Qloo's
     evidence for this area says so: its ranking here, or the title's place in one of the
-    area's lists. A lookalike is the AI's reading (see `look_reading`), so Qloo's part is
-    only that it found the title."""
+    area's lists. A lookalike's match is the AI's reading (see `look_line`), so Qloo's part
+    is only the title: found, or offered among candidates when Qloo asked which was meant."""
     if source == "lookalike":
-        return "Title found in Qloo"
+        return "Offered as a candidate" if look and look.chosen else "Title found"
     if source == "local":
         return "Watched locally"
     entity = next((e for e in profile.pet_entities if e.id == entity_id), None)
@@ -378,15 +386,33 @@ def name_badge(source: str, entity_id: str, profile: LocationProfile) -> str:
     return f"Pet-themed title, {liked}" if liked else "Pet-themed title"
 
 
-def look_reading(option, result: ListingResult) -> str:
+def lookalike_of(result: ListingResult | None, entity_id: str) -> Lookalike | None:
+    return (
+        next((k for k in result.lookalikes if k.entity.id == entity_id), None) if result else None
+    )
+
+
+def look_line(option: NameOption, look: Lookalike | None) -> str:
     """For a lookalike's name, the AI's match in front of its reason: Qloo found the title,
     not the look."""
     if option.source != "lookalike":
         return ""
-    look = next((k for k in result.lookalikes if k.entity.id == option.entity_id), None)
     if look is None or not look.shared_look:
-        return "A lookalike, in the reading of Namesake's AI. "
-    return f"A lookalike: {look.animal} shares the recorded look ({and_list(look.shared_look)}). "
+        return "A lookalike. "
+    shared = and_list(look.shared_look)
+    return f"A lookalike: {look.animal} shares this animal's recorded look ({shared}). "
+
+
+def approved_source(option: NameOption, badge: str, title: str, look: Lookalike | None) -> str:
+    """Where an approved name came from, as the approval records it."""
+    if option.source == "lookalike":
+        qloo = (
+            "Qloo offered the title among candidates"
+            if look and look.chosen
+            else "Qloo found the title"
+        )
+        return f"a lookalike title, {title}: {qloo}, and the match is the reading of Namesake's AI"
+    return f"Qloo, {badge[:1].lower()}{badge[1:]}: {title}"
 
 
 def name_view(result: ListingResult | None, profile: LocationProfile, text: str) -> NameView:
@@ -401,13 +427,17 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
     options = []
     for i, o in enumerate(draft.names):
         reference = refs[i] if i < len(refs) else o.character
+        look = lookalike_of(result, o.entity_id)
+        badge = name_badge(o.source, o.entity_id, profile, look)
+        title = titles.get(o.entity_id, o.character)
         options.append(
             NameOptionView(
                 name=o.name,
-                badge=name_badge(o.source, o.entity_id, profile),
-                title=titles.get(o.entity_id, o.character),
+                badge=badge,
+                title=title,
+                approved_source=approved_source(o, badge, title, look),
                 reference=reference,
-                why=look_reading(o, result) + o.why,
+                why=look_line(o, look) + o.why,
                 hook=f"Named after {reference}.",
                 copy_text=copy_block(o.name, f"Named after {reference}.", text),
             )
@@ -1011,9 +1041,15 @@ def lookalike_why(
             if look.chosen
             else "Qloo confirmed the title"
         )
-        detail = (
+        match = (
             f"{look.animal} in it shares this {animal.species}'s recorded look: "
-            f"{and_list(look.shared_look)}. That match is the reading of Namesake's AI; "
+            f"{and_list(look.shared_look)}."
+            if look.shared_look
+            else f"{look.animal} in it is the lookalike Namesake's AI chose for this "
+            f"{animal.species}."
+        )
+        detail = (
+            f"{match} That match is the reading of Namesake's AI; "
             f"{qloo_part}, not how its animals look."
         )
         if look.chosen and reasons.get(e.id):
@@ -1135,8 +1171,8 @@ def build_result_view(
                 "shelter, are Namesake's reading.",
             )
         )
-    look_returned, look_reading = lookalike_why(animal, listing)
-    returned, reading = look_returned + returned, look_reading + reading
+    looks_returned, looks_read = lookalike_why(animal, listing)
+    returned, reading = looks_returned + returned, looks_read + reading
     named = [m for m in litter or [] if m.name]
     listing_ = listing_view(animal, listing, profile, generic, refined)
     return ResultView(

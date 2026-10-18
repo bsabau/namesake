@@ -146,8 +146,12 @@ def test_a_lookalike_name_is_offered_with_its_own_badge_and_why(roster):
     profile = store.get_profile(LOCATION.id, "dog")
     view = build_result_view(roster.get("dog-02"), LOCATION, profile, result)
     rex = next(o for o in view.name.options if o.name == "Rex")
-    assert rex.badge == "Title found in Qloo"  # the look is the AI's reading, not Qloo's
-    assert rex.why.startswith("A lookalike: Rex shares the recorded look (brindle). ")
+    assert rex.badge == "Title found"  # the look is the AI's reading, not Qloo's
+    assert rex.why.startswith("A lookalike: Rex shares this animal's recorded look (brindle). ")
+    assert rex.approved_source == (
+        "a lookalike title, Example Dog Film: Qloo found the title, "
+        "and the match is the reading of Namesake's AI"
+    )
     assert rex.title == "Example Dog Film"
     returned = {i.title: i.detail for i in view.qloo_returned}
     reading = {i.title: i.detail for i in view.our_reading}
@@ -290,6 +294,9 @@ def test_a_single_needs_input_candidate_is_a_choice_not_a_confirmation(roster):
     why = reading["Why Example Dog Film"]
     assert "Namesake's AI chose this title among Qloo's candidates" in why
     assert "Qloo confirmed" not in why and why.endswith("Why this one: the 1989 film.")
+    rex = next(o for o in view.name.options if o.name == "Rex")
+    assert rex.badge == "Offered as a candidate"
+    assert "Qloo offered the title among candidates" in rex.approved_source
 
 
 def test_lookalikes_come_only_from_stories():
@@ -301,10 +308,16 @@ def test_lookalikes_come_only_from_stories():
     assert set(get_args(StoryKind)) == {"tv_show", "movie", "book"}
 
 
-def test_a_lookalike_badge_claims_only_that_qloo_found_the_title():
-    from app.views.build import name_badge
+def test_a_lookalike_badge_claims_only_what_qloo_did_with_the_title():
+    from app.views.build import look_line, name_badge
 
-    assert name_badge("lookalike", DOG_FILM, None) == "Title found in Qloo"
+    assert name_badge("lookalike", DOG_FILM, None) == "Title found"
+    look = Lookalike(entity=Entity(id=DOG_FILM, name="Example Dog Film", type="urn:entity:movie"),
+                     animal="Rex", shared_look=[], chosen=True)  # fmt: skip
+    assert name_badge("lookalike", DOG_FILM, None, look) == "Offered as a candidate"
+    # With no recorded match to show, the AI's line says only that it is a lookalike.
+    assert look_line(NameOption(**REX), look) == "A lookalike. "
+    assert look_line(NameOption(**REX), None) == "A lookalike. "
 
 
 def test_a_choice_reason_cannot_carry_a_taste_claim():
