@@ -39,7 +39,8 @@ Who decides each step, from the area to the result (the same graph is in [`docs/
 
 ```mermaid
 flowchart TD
-    area(["The shelter's area and the animal's record"]) --> lists
+    area(["The shelter's area and the animal's record"]) --> tastes
+    tastes["The area's top shows and films:<br/>recommend with the area"]:::qloo --> lists
     lists["Lists for the area, asked with Qloo's pet tags:<br/>recommend, before the AI runs"]:::qloo --> sort1
     sort1["Sort each title: kept, unsure or set aside"]:::jev --> judge
     judge["Judge the unsure titles, add up to four of its own"]:::ai --> lookup
@@ -49,18 +50,19 @@ flowchart TD
     search["What fans here also like, as the AI asks:<br/>recommend with a title and the area"]:::qloo --> sort2
     sort2["Sort the results the same way"]:::jev --> rank
     rank["Order the titles for the area, as the AI asks: rank"]:::qloo --> evidence
-    evidence["Keep only titles Qloo ranks or lists here;<br/>pick the venue and map titles by that evidence"]:::code --> venues
+    evidence["Keep only titles Qloo ranks or lists here,<br/>when any has that (else the AI's own, said so);<br/>pick the venue and map titles by that evidence"]:::code --> venues
     venues["Places near the shelter for their fans:<br/>recommend place"]:::qloo --> compare
-    compare["Compare with the places for the area's top shows"]:::code --> choose
+    compare["Compare with the places for the area's top shows<br/>(recommend place, for them)"]:::code --> choose
     choose["Pick up to three places for an event or a flyer"]:::ai --> check
     check{"Every title and place from Qloo,<br/>screens passed, evidence kept?"}:::code -- "no, once" --> judge
     check -- yes --> maps
     maps["Heatmaps within the area: where_popular"]:::qloo --> lift
-    lift["Lift against the top shows; a thin first map gives way"]:::code --> pins
-    pins["Place the suggested venues: OpenStreetMap"]:::code --> listing
-    listing["Names from the titles, and the bio from the record"]:::ai --> screen
+    lift["Lift against the top shows; a thin first map gives way"]:::code --> listing
+    listing["Names from the pet titles and the area's top titles,<br/>and the bio from the record"]:::ai --> lookalike
+    lookalike["Up to two lookalike titles, as the AI asks:<br/>describe"]:::qloo --> screen
     screen{"Facts traced, names screened,<br/>no shared name, length?"}:::code -- "no, once" --> listing
-    screen -- yes --> page(["The result: Qloo's part and the AI's, kept apart"])
+    screen -- yes --> pins
+    pins["Once per saved profile: place the suggested venues<br/>with OpenStreetMap, for the map"]:::code --> page(["The result: Qloo's part and the AI's, kept apart"])
 
     classDef qloo fill:#fbe3d9,stroke:#a84526,color:#3a1a10
     classDef jev fill:#ece6f6,stroke:#6a4c93,color:#2a1d3d
