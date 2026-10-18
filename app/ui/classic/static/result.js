@@ -12,4 +12,7 @@ document.addEventListener("change", (event) => {
   if (source) source.textContent = input.dataset.source;
   const copy = document.getElementById("copy-local");
   if (copy) copy.value = input.dataset.copy;
+  const choice = document.querySelector('input[name="variant"][value="local"]');
+  const text = choice && choice.parentElement.querySelector(".version-choice-text");
+  if (text) text.textContent = input.dataset.choice;
 });

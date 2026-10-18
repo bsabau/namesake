@@ -977,3 +977,24 @@ def test_a_generic_approval_without_the_shown_name_is_refused_plainly(client):
         data={"animal": "dog-02", "location": "park-slope", "variant": "generic", "text": "Hi."},
     )
     assert response.status_code == 400 and "None" not in response.text
+
+
+def test_a_refused_edit_keeps_the_chosen_name_on_the_toggle(client, profile):
+    # Reviewers, PR #30: the toggle named the first name after another was picked.
+    save(saved_listing("cat-03"))
+    response = approve(
+        client, animal="cat-03", variant="local", local_name="Biscuit", text="She loves toys."
+    )
+    toggle = response.text.split('data-role="version-toggle"')[1].split("</fieldset>")[0]
+    assert "Local, with Qloo · Biscuit" in toggle and "· Bingo" not in toggle
+
+
+@pytest.mark.parametrize("ui", main.UIS)
+def test_each_name_option_carries_its_toggle_text(client, ui):
+    save(saved_listing())
+    page = client.get(
+        "/result", params={"animal": "dog-02", "location": "park-slope", "ui": ui}
+    ).text
+    toggle = page.split('data-role="version-toggle"')[1].split("</fieldset>")[0]
+    assert "Local, with Qloo · Bingo" in toggle and "Generic · " in toggle
+    assert 'data-choice="Local, with Qloo · Biscuit"' in page

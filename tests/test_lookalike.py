@@ -148,7 +148,7 @@ def test_a_lookalike_name_is_offered_with_its_own_badge_and_why(roster):
     rex = next(o for o in view.name.options if o.name == "Rex")
     assert rex.badge == "Title found"  # the look is the AI's reading, not Qloo's
     assert rex.header_source == "Title found: Example Dog Film"
-    assert rex.why.startswith("A lookalike: Rex shares this animal's recorded look (brindle). ")
+    assert rex.why.startswith("A lookalike, matched on this animal's recorded look (brindle). ")
     assert rex.approved_source == (
         "a lookalike title, Example Dog Film: Qloo found the title, "
         "and the match is the reading of Namesake's AI"

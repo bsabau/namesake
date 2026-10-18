@@ -178,9 +178,10 @@ class NameOptionView(BaseModel):
     # (for a lookalike, after the match, which code checked against the record).
     reference: str
     why: str
-    # The local version as it reads when this name is chosen.
+    # The local version as it reads when this name is chosen, its toggle button included.
     hook: str
     copy_text: str
+    version_choice: str
 
 
 class NameView(BaseModel):
@@ -199,6 +200,8 @@ class ListingVersion(BaseModel):
 
     variant: Literal["generic", "local"]
     label: str
+    # The toggle's text: the label and the version's name, so both names show at a glance.
+    choice: str
     available: bool
     name: str | None
     name_source: str

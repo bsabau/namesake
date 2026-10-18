@@ -32,7 +32,7 @@ class Animal(BaseModel):
     temperament: str
     # Present-tense observations; the only facts a listing may state.
     facts: list[str]
-    # Backstory and time in the shelter: for staff, never printed in a listing.
+    # Backstory and time in the shelter: never printed in a listing.
     history: list[str] = Field(default_factory=list)
     checks: Checks = Field(default_factory=Checks)
     image: str

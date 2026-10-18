@@ -250,6 +250,14 @@ def copy_block(name: str | None, hook: str | None, text: str) -> str:
     return "\n\n".join(x for x in [f"Meet {name}." if name else None, hook, text] if x)
 
 
+LOCAL_LABEL = "Local, with Qloo"
+
+
+def local_choice(name: str | None) -> str:
+    """The local version's toggle button: its label and, once there is one, its name."""
+    return f"{LOCAL_LABEL} · {name}" if name else LOCAL_LABEL
+
+
 def listing_view(
     animal: Animal,
     result: ListingResult | None,
@@ -282,7 +290,7 @@ def listing_view(
     if unknown:
         left_out.append(f"Not yet known, so not mentioned: {and_list(unknown)}.")
     if animal.history:
-        left_out.append("Backstory and time in the shelter are kept for staff, not printed.")
+        left_out.append("Backstory and time in the shelter stay out of the listing.")
 
     local_name = draft.names[0].name if draft else None
     local_hook = result.hook if draft else None
@@ -290,6 +298,7 @@ def listing_view(
         ListingVersion(
             variant="generic",
             label="Generic",
+            choice=f"Generic · {generic}" if generic else "Generic",
             available=generic is not None,
             name=generic,
             name_source="A common pet name from a fixed list, not from Qloo.",
@@ -301,7 +310,8 @@ def listing_view(
         ),
         ListingVersion(
             variant="local",
-            label="Local, with Qloo",
+            label=LOCAL_LABEL,
+            choice=local_choice(local_name),
             available=draft is not None,
             name=local_name,
             name_source=(
@@ -400,7 +410,8 @@ def look_line(option: NameOption, look: Lookalike | None) -> str:
     if look is None or not look.shared_look:
         return "A lookalike. "
     shared = and_list(look.shared_look)
-    return f"A lookalike: {look.animal} shares this animal's recorded look ({shared}). "
+    # The reference before it names the character, so this part does not.
+    return f"A lookalike, matched on this animal's recorded look ({shared}). "
 
 
 def approved_source(option: NameOption, badge: str, title: str, look: Lookalike | None) -> str:
@@ -444,6 +455,7 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
                 why=look_line(o, look) + o.why,
                 hook=f"Named after {reference}.",
                 copy_text=copy_block(o.name, f"Named after {reference}.", text),
+                version_choice=local_choice(o.name),
             )
         )
     return NameView(value=draft.names[0].name, placeholder="", options=options)
@@ -508,7 +520,8 @@ def map_view(
             f"place. The places to ask are for fans of {and_list([e.name for e in asked])}. "
         )
     key = (
-        f"Warm: pet-show fans stand out here more than {base}. Cool: less. Grey: no comparison."
+        f"Warm: pet-show fans stand out here more than {base}. Cool: less, or level. "
+        "Grey: no comparison."
         if any(c.lift is not None for c in cells)
         else "Grey: no cell was scored for both, so there is no comparison here."
         if cells
@@ -533,6 +546,27 @@ def map_view(
         if v.latitude is not None
         and in_view(v, profile, pin or (location.latitude, location.longitude))
     ]
+    compared = [c.lift for c in cells if c.lift is not None]
+    # Counted as the map colours them (above zero is warm; a tie is cool), so a reader
+    # counting warm cells gets this number.
+    warm = sum(lift > 0 for lift in compared)
+    which = "" if len(compared) == len(cells) else " with a comparison"
+    some = "these" if len(compared) == len(cells) else "the"
+    if not compared or thin:
+        # A thin map already says it says little; a count would read as more.
+        count = ""
+    elif len(compared) == 1:
+        verb = "stand out" if warm else "do not stand out"
+        count = f"{cap(pets)} {verb} against {base} in the one cell{which}. "
+    elif not warm:
+        count = f"{cap(pets)} do not stand out against {base} in any of {some} cells{which}. "
+    elif warm == len(compared):
+        count = f"{cap(pets)} stand out against {base} in all {warm} cells{which}. "
+    else:
+        count = (
+            f"{cap(pets)} stand out against {base} in {warm} of {some} "
+            f"{len(compared)} cells{which}. "
+        )
     numbers = (
         " Numbers: the places to ask plotted here, as numbered in the list (points from "
         "OpenStreetMap)."
@@ -562,10 +596,12 @@ def map_view(
         ],
         legend=swap
         + thin
+        + count
         + (
             (
                 f"Warm cells: {pets} rank this part of {location.label} higher than {base} do. "
-                "Cool cells: lower. Grey: only the pet shows have a score there. Where several "
+                "Cool cells: lower, or level. Grey: only the pet shows have a score there. "
+                "Where several "
                 "shows scored a cell, their scores are averaged. Scores are ranks within the "
                 "area, so they compare places here, not with other cities."
             )

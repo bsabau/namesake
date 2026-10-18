@@ -568,7 +568,7 @@ def approve(
             v.selected = v.variant == variant
             if v.variant == "local" and variant == "local":
                 v.name, v.hook, v.name_source = name, hook, option.header_source
-                v.copy_text = option.copy_text
+                v.copy_text, v.choice = option.copy_text, option.version_choice
         view.chosen_name = name if variant == "local" else view.name.value
         return render(request, chosen_ui, "result.html", view)
 

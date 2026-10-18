@@ -41,8 +41,9 @@
   }
 
   const layers = view.cells.map((cell) => {
-    const strength = cell.lift === null ? 0.25 : 0.2 + 0.6 * Math.min(1, Math.abs(cell.lift));
-    const fill = cell.lift === null ? none : cell.lift >= 0 ? warm : cool;
+    // A compared cell never draws paler than a grey one, so warm cells are easy to count.
+    const strength = cell.lift === null ? 0.25 : 0.3 + 0.5 * Math.min(1, Math.abs(cell.lift));
+    const fill = cell.lift === null ? none : cell.lift > 0 ? warm : cool;
     return L.rectangle(
       [[cell.south, cell.west], [cell.north, cell.east]],
       { color: fill, weight: 1, fillColor: fill, fillOpacity: strength },
