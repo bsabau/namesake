@@ -440,3 +440,13 @@ def test_a_title_both_ranked_and_listed_is_counted_once(roster):
     assert part.qloo.startswith(
         f"2 titles with Qloo's evidence for {LOCATION.label} (2 ranked here);"
     )
+
+
+def test_a_fixed_lookup_with_a_saved_listing_says_both(roster):
+    from tests.test_product import saved_listing
+
+    part = build_result_view(roster.get("dog-02"), LOCATION, profile(), saved_listing()).qloo_part
+    assert part.ai == (
+        "Chose the names and wrote the bio from the shelter's records. The titles are a fixed "
+        "lookup."
+    )
