@@ -35,6 +35,8 @@ MAP_TITLES = 2
 # October). The same bar accepts a typed area (custom_location.MIN_CELLS). Version 3
 # profiles have had this check.
 THIN_MAP = 5
+# Said once when Qloo cannot tell which place a heatmap means (needs_input).
+PLACE_NOTE = "Qloo could not tell which place {query!r} means for its maps."
 BASELINE_TITLES = 2
 # A top local show whose name or description mentions animals is not a baseline: a word
 # list, so the page says "mentions animals", not "is about animals".
@@ -430,7 +432,7 @@ class _Builder:
             # Qloo could not tell which place is meant. The answer is cached and final, so
             # the map counts as arrived, empty: finishing could never fetch it. The place,
             # not the title, is in question, so the note is said once.
-            note = f"Qloo could not tell which place {location.query!r} means for its maps."
+            note = PLACE_NOTE.format(query=location.query)
             if note not in self.profile.notes:
                 self.profile.notes.append(note)
             self.unplaced.add(entity.id)
@@ -716,9 +718,13 @@ def assemble_profile(
         notes, calls = len(p.notes), len(p.calls)
         alt = b.heatmap(spare, location)
         if alt and better_map(alt, first[0], [m for m in rest if m], base_maps):
-            # The map's caption says it; a place note no longer holds once a map has cells.
-            empty = f"Qloo returned no map cells for {p.map_titles[0].name}."
-            p.notes = [n for n in p.notes if n != empty and "could not tell which place" not in n]
+            # The map's caption says it; the place note goes only when no map still in use
+            # was unplaced (a baseline's may be).
+            gone = {f"Qloo returned no map cells for {p.map_titles[0].name}."}
+            in_use = {e.id for e in p.map_titles[1:] + p.baselines}
+            if not in_use & b.unplaced:
+                gone.add(PLACE_NOTE.format(query=location.query))
+            p.notes = [n for n in p.notes if n not in gone]
             p.thin_map = ThinMap(
                 title=p.map_titles[0],
                 cells=len(first[0]),

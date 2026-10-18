@@ -702,3 +702,14 @@ def test_a_swapped_unplaced_map_says_so_in_the_caption():
         "Qloo could not place Example Dog Show's map within Example Slope, so the map uses "
         "Example Kitten Show in its place."
     )
+
+
+def test_a_swap_keeps_the_place_note_while_a_comparison_map_is_unplaced():
+    # Codex, PR #14: the note must stay while a map still in use could not be placed.
+    script = standard_script()
+    for entity in (DOG_SHOW, BASELINE, BASELINE_2):
+        script[heat_key(entity)] = envelope("where_popular", "needs_input")
+    script[heat_key(EXTRA.id)] = envelope("where_popular", results=spread(6))
+    _, p = adaptive(script)
+    assert p.thin_map is not None
+    assert sum("could not tell which place" in n for n in p.notes) == 1
