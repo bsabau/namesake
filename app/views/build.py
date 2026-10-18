@@ -595,6 +595,18 @@ def sorted_by(e: Entity) -> str:
     )
 
 
+def listed(e: Entity, location: Location) -> str:
+    """Where a title Namesake's AI proposed also sits in one of the area's lists."""
+    f = e.listed_in
+    if f is None:
+        return ""
+    return (
+        f"Also {ordinal(f.position)} of {f.out_of} in Qloo's list of "
+        f"{KIND_WORDS.get(f.kind, 'titles')} people around {location.label} who like "
+        f"{f.signal} tend to like. "
+    )
+
+
 def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], list[WhyItem]]:
     returned, reading = [], []
     # A saved comparison show today's screen would not choose is never named (decision 18);
@@ -607,6 +619,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                 WhyItem(
                     title=f"{e.name} ({kind})",
                     detail=f"Qloo has {e.alternatives + 1} entries with this name. "
+                    + listed(e, location)
                     + sentences(e.description),
                 )
             )
@@ -618,11 +631,17 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
                     title=f"{e.name} ({kind})",
                     detail=f"{ordinal(f.position)} of {f.out_of} in Qloo's list of {what} "
                     f"people around {location.label} who like {f.signal} tend to like. "
+                    + listed(e, location)
                     + sentences(e.description),
                 )
             )
         else:
-            returned.append(WhyItem(title=f"{e.name} ({kind})", detail=sentences(e.description)))
+            returned.append(
+                WhyItem(
+                    title=f"{e.name} ({kind})",
+                    detail=listed(e, location) + sentences(e.description),
+                )
+            )
     for e in profile.pet_entities:
         detail = f"A pet-themed pick: {e.why.rstrip('.')}."
         if e.choice_reason:
@@ -635,7 +654,8 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
             WhyItem(
                 title="Who chose",
                 detail="Namesake's AI proposed the titles, settled ambiguous names and picked "
-                "the venues; code checked that each came from Qloo. "
+                "the venues; code chose which titles the venues were asked for, by Qloo's "
+                "evidence, and checked that each came from Qloo. "
                 + (
                     "It also searched Qloo's lists for what people here who like its titles "
                     "tend to like, and kept the pet-themed ones. "

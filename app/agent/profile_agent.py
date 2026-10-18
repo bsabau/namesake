@@ -99,7 +99,10 @@ The shelter is in {place}. You use Qloo, a taste-data service, through four tool
 4. Call rank_titles once, with up to 8 found titles of the same kind, your own and the
    local ones together, to order them for this area. If it is unavailable, keep your own
    order.
-5. Call find_venues with your top 2 or 3 titles. From the venues it returns, and only those,
+5. Call find_venues with the titles you keep. Code asks Qloo for venues for the three with
+   the strongest evidence for this area (Qloo's ranking, else their place in the area's
+   lists, else your order) and names them in "asked_for"; your answer must keep each of
+   those. From the venues it returns, and only those,
    choose up to 3 that could host an adoption event or display a flyer: public,
    family-friendly, community places such as cafes, parks, arts centres, bookshops, pet
    shops or breweries with event space. Reject private homes and residences, gyms,
@@ -138,6 +141,8 @@ def keep_found(deps: ProfileDeps, entity: Entity) -> None:
     seen = deps.titles_seen.get(entity.id)
     if seen is not None and seen.found_in is not None:
         entity.found_in, entity.verdict = seen.found_in, seen.verdict
+    if seen is not None:
+        entity.listed_in = seen.listed_in
 
 
 def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> dict[str, Any]:
@@ -254,7 +259,14 @@ def find_local_titles(
     total = len(env.results)
     kept, unsure, dropped, unanswered = [], [], 0, 0
     for position, r in enumerate(env.results, start=1):
-        if r["entity_id"] in deps.titles_seen or r["entity_id"] in deps.baseline_titles:
+        if r["entity_id"] in deps.baseline_titles or r["entity_id"] == entity_id:
+            continue  # a comparison show, or the search's own signal, is no evidence
+        if r["entity_id"] in deps.titles_seen:
+            seen = deps.titles_seen[r["entity_id"]]
+            place = FoundIn(signal=signal.name, kind=kind, position=position, out_of=total)
+            best = best_place(seen)
+            if best is None or share(place) < share(best):
+                seen.listed_in = place  # in another of the area's lists, placed better
             continue
         props = r.get("properties") or {}
         entity = Entity(
@@ -348,15 +360,54 @@ def rank_titles(
     return {"status": "ranked", "order": order}
 
 
+def share(place: FoundIn) -> float:
+    return place.position / place.out_of
+
+
+def best_place(e: Entity) -> FoundIn | None:
+    """A title's best place in the area's lists: where it was found, or a better place in
+    a later search (`listed_in`), which is also where an AI title's place is kept."""
+    places = [p for p in (e.found_in, e.listed_in) if p is not None]
+    return min(places, key=share) if places else None
+
+
+def evidence_order(deps: ProfileDeps, entity_ids: list[str]) -> list[str]:
+    """Titles by their evidence for this area: Qloo's ranking for the area first, then
+    titles in the area's lists by their place there, then the AI's own order. The venues
+    and the map use the top of this order, so they rest on Qloo, not on the AI's say-so.
+
+    A place is a share of its list, so lists of different lengths sort together. Lists
+    from different searches are not strictly comparable, so this is the fallback for when
+    Qloo's ranking is refused; the place each choice rests on is kept on the title and
+    shown on the page."""
+    ids = [i for i in dict.fromkeys(entity_ids) if i in deps.titles_seen]
+    ranked = [i for i in deps.rank_order or [] if i in ids]
+
+    def place(i: str) -> FoundIn | None:
+        return best_place(deps.titles_seen[i])
+
+    found = sorted((i for i in ids if i not in ranked and place(i)), key=lambda i: share(place(i)))
+    rest = [i for i in ids if i not in ranked and i not in found]
+    return ranked + found + rest
+
+
 def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str, Any]:
-    """Places near the shelter that fans of these titles favour (up to 3 titles)."""
+    """Places near the shelter that fans of your titles favour. Send the titles you keep;
+    code asks for the three with the strongest evidence for this area."""
     deps = ctx.deps
     unknown = [i for i in entity_ids if i not in deps.titles_seen]
     if unknown:
         return {"status": f"unknown entity_ids {unknown}; look titles up first"}
     if refusal := baseline_refusal(deps, entity_ids):
         return refusal
-    ids = entity_ids[:MAX_VENUE_SIGNALS]
+    # A title the plan could not keep (identity-coded, check_plan) is never a signal.
+    ids = [
+        i
+        for i in evidence_order(deps, entity_ids)
+        if not identity_coded(deps.titles_seen[i].name, deps.titles_seen[i].description)
+    ][:MAX_VENUE_SIGNALS]
+    if not ids:
+        return {"status": "no title here can be a venue signal; send titles you keep"}
     names = [deps.titles_seen[i].name for i in ids]
     deps.log.add(
         "qloo", f"Finding places near {deps.location.label} for fans of {', '.join(names)}"
@@ -399,11 +450,13 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
         venues.append(info)
     stand_out = sum(1 for v in venues if v["stands_out"])
     deps.log.add("qloo", f"{len(venues)} places; {stand_out} stand out against the baseline")
-    return {"status": "found", "venues": venues}
+    asked = [{"entity_id": i, "name": n} for i, n in zip(ids, names, strict=True)]
+    return {"status": "found", "asked_for": asked, "venues": venues}
 
 
 def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
-    """Everything in the plan must come from Qloo during this run."""
+    """Everything in the plan must come from Qloo during this run, pass the screens, and
+    keep each title the venues were asked for."""
     deps = ctx.deps
     problems = []
     for t in plan.titles:
@@ -442,6 +495,14 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
             problems.append(f"venue {info['name']} is {info['excluded']}")
     if deps.titles_seen and deps.venue_signals is None and not plan.venues:
         problems.append("call find_venues before answering")
+    kept = {t.entity_id for t in plan.titles}
+    if plan.titles and (dropped := [i for i in deps.venue_signals or [] if i not in kept]):
+        # The venues and the map are built from these titles, so each must be in the plan.
+        names = ", ".join(deps.titles_seen[i].name for i in dropped)
+        problems.append(
+            f"the venues were asked for {names}, which your titles leave out; keep it in "
+            "your titles, or call find_venues again with the titles you keep"
+        )
     if problems:
         deps.log.add("check", "Sent back for a fix: " + "; ".join(problems))
         raise ModelRetry("Fix these and answer again: " + "; ".join(problems))
