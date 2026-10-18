@@ -170,7 +170,7 @@ async def get_profile(
             # Saved unfinished, or with a comparison today's screen would not choose: finish
             # it around the same titles, so listings made from it keep their evidence. Fixed
             # calls only; what is cached costs nothing.
-            log.add("qloo", f"Finishing the saved profile for {species}s in {location.label}")
+            log.add("note", f"Finishing the saved profile for {species}s in {location.label}")
             finished = await asyncio.to_thread(finish_profile, saved, location, qloo, seeds)
             if finished is not None:
                 # Venues pinned while this ran (app/venue_points.py) keep their points.

@@ -433,13 +433,15 @@ def sort_list(
             f"judges them; it found {len(kept)} about pets and set {dropped} aside",
         )
     elif deps.classifier:
+        # The classifier's own result, not Qloo's answer.
         deps.log.add(
-            "qloo",
+            "note",
             f"{total} {what}: the classifier found {len(kept)} about pets, left {len(unsure)} "
             f"to Namesake's AI and set {dropped} aside",
+            actor="classifier",
         )
     else:
-        deps.log.add("qloo", f"{total} {what}: no classifier, so Namesake's AI judges them")
+        deps.log.add("note", f"{total} {what}: no classifier, so Namesake's AI judges them")
     return {"status": "found", "out_of": total, "kept": kept, "unsure": unsure, "dropped": dropped}
 
 
@@ -592,7 +594,11 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
         deps.venues_seen[r["entity_id"]] = info
         venues.append(info)
     stand_out = sum(1 for v in venues if v["stands_out"])
-    deps.log.add("qloo", f"{len(venues)} places; {stand_out} stand out against the baseline")
+    # Qloo returned the places; which of them stand out is code's comparison (decision 18).
+    deps.log.add(
+        "note",
+        f"Qloo returned {len(venues)} places; {stand_out} stand out against the baseline",
+    )
     asked = [{"entity_id": i, "name": n} for i, n in zip(ids, names, strict=True)]
     return {"status": "found", "asked_for": asked, "venues": venues}
 

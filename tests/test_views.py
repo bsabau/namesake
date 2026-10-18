@@ -1,3 +1,4 @@
+import pathlib
 import re
 
 import pytest
@@ -850,3 +851,62 @@ def test_an_ais_own_title_qloo_listed_later_stays_the_ais_own(roster):
     # The same "added N of its own" in the steps and the strip.
     assert after.process[2].detail == before.process[2].detail
     assert after.qloo_part.ai == before.qloo_part.ai
+
+
+def test_the_working_view_names_who_did_each_step(roster):
+    from types import SimpleNamespace
+
+    from app.agent.steps import StepLog
+    from app.views.build import build_working_view
+
+    log = StepLog()
+    log.add("start", "Building the profile")
+    log.add("qloo", "Asking Qloo")
+    log.add("decision", "The litter's names will all come from a title")
+    log.add("check", "Listing checked")
+    log.add("note", "Using the saved profile")
+    log.add("error", "The run stopped")
+    log.add("done", "Done")
+    run = SimpleNamespace(id="r1", result_url="/result?animal=dog-02&location=x", log=log)
+    view = build_working_view(run, roster.get("dog-02"), LOCATION)
+    log.add("note", "the classifier sorted the lists", actor="classifier")
+    assert view.headline == "Writing her story…"
+    view = build_working_view(run, roster.get("dog-02"), LOCATION)
+    assert [s.actor for s in view.steps] == [
+        "code", "qloo", "ai", "code", "code", "code", "code", "classifier"
+    ]  # fmt: skip
+    assert [s.label for s in view.steps][:3] == ["Code", "Qloo", "Namesake's AI"]
+    assert view.steps[-1].label == "Classifier (TypeSafe's Jev)"
+    assert view.actor_labels == {
+        "qloo": "Qloo", "ai": "Namesake's AI",
+        "classifier": "Classifier (TypeSafe's Jev)", "code": "Code",
+    }  # fmt: skip
+    assert [(k.actor, k.label) for k in view.actor_key] == list(view.actor_labels.items())
+    him = build_working_view(run, roster.get("dog-01"), LOCATION)
+    assert him.headline == "Writing his story…"
+
+
+def test_a_step_takes_its_actor_from_the_site_or_from_its_kind():
+    from app.agent.steps import StepLog, actor_for
+
+    log = StepLog()
+    assert log.add("qloo", "Asking Qloo").actor == "qloo"
+    assert log.add("decision", "Chose a title").actor == "ai"
+    assert log.add("note", "the classifier sorted the lists", actor="classifier").actor == (
+        "classifier"
+    )
+    assert log.add("note", "Finishing the saved profile").actor == "code"
+    for kind in ["start", "check", "note", "done", "error", "no-such-kind"]:
+        assert actor_for(kind) == "code"
+
+
+def test_the_classifier_and_the_comparison_are_never_logged_as_qloos():
+    # The classifier's result and code's stand-out count were logged as Qloo's before.
+    source = (
+        pathlib.Path(__file__).parent.parent / "app" / "agent" / "profile_agent.py"
+    ).read_text()
+    assert 'actor="classifier"' in source
+    assert '"qloo", f"{total} {what}: no classifier' not in source
+    assert '"qloo", f"{len(venues)} places' not in source
+    pipeline = (pathlib.Path(__file__).parent.parent / "app" / "agent" / "pipeline.py").read_text()
+    assert '"qloo", f"Finishing the saved profile' not in pipeline

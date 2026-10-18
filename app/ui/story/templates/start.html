@@ -8,9 +8,9 @@
 {% endblock %}
 
 {% block content %}
-<section class="intro">
-  <h1>{{ view.title }}</h1>
-  <p>{{ view.intro }}</p>
+<section class="intro story-intro">
+  <h1 class="headline">{{ view.title }}<span class="doodle doodle-spark" aria-hidden="true">{% include "_spark.html" %}</span></h1>
+  <p class="lead">{{ view.intro }}</p>
 </section>
 
 
@@ -23,6 +23,18 @@
 
 <form id="pick" action="/runs" method="post">
   {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
+
+  {% if view.examples %}
+  {# Finished stories first: they open at once, from saved runs. #}
+  <section class="examples band" data-role="examples">
+    <h2>Read a finished story</h2>
+    <ul>
+      {% for example in view.examples %}<li><a class="example" href="{{ example.url }}">{{ example.label }}</a></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <h2 class="numbered step-heading"><span class="step-no" aria-hidden="true">01</span> {{ view.shelter.heading }}</h2>
   {# The chosen area as a slim bar; its panel holds everything for changing it. #}
   <details class="shelter{% if not view.shelter.chosen %} unchosen{% endif %}" id="shelter" data-role="shelter"{% if view.shelter.open %} open{% endif %}>
     <summary>
@@ -32,7 +44,7 @@
     </summary>
   <section class="where">
     <fieldset class="locations">
-      <legend><h2>{{ view.shelter.panel_heading }}</h2></legend>
+      <legend><h3>{{ view.shelter.panel_heading }}</h3></legend>
       {% if view.location_form.message %}
       {# A failed area check: said where the visitor will see it, and no area stays chosen. #}
       <p class="location-alert" id="location-alert" role="alert">{{ view.location_form.message }}</p>
@@ -97,18 +109,10 @@
   </section>
   </details>
 
-{% if view.examples %}
-  <section class="examples" data-role="examples">
-    <h2>{{ view.examples_heading }}</h2>
-    <ul>
-      {% for example in view.examples %}<li><a class="example" href="{{ example.url }}">{{ example.label }}</a></li>{% endfor %}
-    </ul>
-  </section>
-  {% endif %}
+  <h2 class="numbered step-heading"><span class="step-no" aria-hidden="true">02</span> Pick an animal</h2>
 
-  <h2 class="step-heading">Pick an animal</h2>
-
-  <ul class="animal-grid">
+  {# Each card a taped photo, tilted a little; picking one opens the result. #}
+  <ul class="animal-grid taped">
     {% for animal in view.animals %}
     <li id="{{ animal.id }}">
       <button class="animal-card" type="submit" name="animal" value="{{ animal.id }}">

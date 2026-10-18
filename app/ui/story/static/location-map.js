@@ -82,7 +82,7 @@ function addBasemap(map, container, tiles) {
   // The accent is read from the stylesheet, and again when the colour scheme changes, so
   // the circle and the pins follow the basemap.
   const accentNow = () => getComputedStyle(document.documentElement)
-    .getPropertyValue("--accent").trim() || "#d96a4a";
+    .getPropertyValue("--accent").trim() || "#227880";
   let accent = accentNow();
   const pinStyle = () => ({ radius: 8, color: "#fff", weight: 2, fillColor: accent, fillOpacity: 1 });
 

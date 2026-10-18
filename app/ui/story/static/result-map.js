@@ -66,9 +66,9 @@ function addBasemap(map, container, tiles) {
     const colour = (name, fallback) => css.getPropertyValue(name).trim() || fallback;
     return {
       warm: colour("--lift-up", "#d96a4a"),
-      cool: colour("--lift-down", "#3b8ea5"),
+      cool: colour("--lift-down", "#3f78c2"),
       none: colour("--lift-none", "#8a7f75"),
-      accent: colour("--accent", "#d96a4a"),
+      accent: colour("--accent", "#227880"),
     };
   };
   let colours = palette();

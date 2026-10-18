@@ -362,3 +362,94 @@ def test_the_fallback_waits_for_three_errors_in_a_row(name):
     assert out[:2] == ["https://keyed.example/{z}", "https://keyed.example/{z}"]
     # Three layers in all: the first, the one after the scheme change, the fallback.
     assert out[2:] == ["https://plain.example/{z}", "plain", "true", "3"]
+
+
+def test_the_story_working_page_marks_each_step_by_who_did_it(client):
+    # The timeline's marks come from each step's own actor: the view model's StepView.actor
+    # for rendered steps, the event's actor for streamed ones; never a guess in the script.
+    page = client.post(
+        "/runs", data={"animal": "dog-02", "location": "park-slope", "ui": "story"}
+    ).text
+    assert 'data-actor-labels="' in page and "&#34;classifier&#34;" in page
+    assert "Writing her story…" in page
+    for label in ["Qloo", "Namesake&#39;s AI", "Classifier (TypeSafe&#39;s Jev)", "Code"]:
+        assert label in page
+    # Whatever the run logged first (a saved result, a fresh start), each rendered step
+    # carries its actor as a class and in words.
+    steps = re.findall(
+        r'class="step step-[a-z]+ actor-([a-z]+)"><span class="step-actor">([^<]+)</span>', page
+    )
+    assert steps and all(label for _, label in steps)
+    assert 'class="steps timeline" data-role="steps"' in page
+    # Streamed steps take their actor from the event, never from the kind; the label from
+    # the view model's list; a step without an actor is code's.
+    script = (main.UI_ROOT / "story" / "static" / "working.js").read_text(encoding="utf-8")
+    assert "root.dataset.actorLabels" in script and 'step.actor || "code"' in script
+    assert "actors[step.kind]" not in script
+
+
+def test_every_actor_renders_in_words_and_colour_on_the_story_working_page(monkeypatch):
+    # A Qloo call, an AI decision, the classifier's sorting and a code note, each with its
+    # actor in text and in its class, on the page and on the stream.
+    import asyncio
+
+    import app.runs as runs
+
+    async def scripted(*args, **kwargs):
+        log = kwargs["log"]
+        log.add("qloo", "Asking Qloo which TV shows people around Example tend to like")
+        log.add("decision", "The litter's names will all come from Example Show")
+        log.add("note", "20 TV shows: the classifier found 3 about pets", actor="classifier")
+        log.add("note", "Qloo returned 15 places; 4 stand out against the baseline")
+        while not log._listeners:
+            await asyncio.sleep(0.01)
+
+    monkeypatch.setattr(runs, "run_pipeline", scripted)
+    with TestClient(main.app) as client:
+        location = client.post(
+            "/runs",
+            data={"animal": "dog-02", "location": "park-slope", "ui": "story"},
+            follow_redirects=False,
+        ).headers["location"]
+        run_id = location.rsplit("?", 1)[0].rsplit("/", 1)[-1]
+        with client.stream("GET", f"/api/runs/{run_id}/events") as stream:
+            lines = [line for line in stream.iter_lines() if line.startswith("data:")]
+        page = client.get(f"/runs/{run_id}", params={"ui": "story"}).text
+    import json
+
+    events = [json.loads(line[5:]) for line in lines[:-1]]
+    assert [e["actor"] for e in events] == ["qloo", "ai", "classifier", "code"]
+    assert all(set(e) == {"kind", "text", "actor"} for e in events)
+    assert 'class="step step-qloo actor-qloo"><span class="step-actor">Qloo</span>' in page
+    assert (
+        'class="step step-decision actor-ai"><span class="step-actor">Namesake&#39;s AI</span>'
+        in page
+    )
+    assert (
+        'class="step step-note actor-classifier"><span class="step-actor">'
+        "Classifier (TypeSafe&#39;s Jev)</span>" in page
+    )
+    assert (
+        'class="step step-note actor-code"><span class="step-actor">Code</span> '
+        "Qloo returned 15 places" in page
+    )
+
+
+def test_the_story_start_page_reads_as_the_result_does(client, monkeypatch):
+    # Finished stories first, then 01 the shelter area and 02 the animals as taped photos.
+    import app.store as store_module
+
+    page = client.get("/", params={"ui": "story"}).text
+    assert page.index('class="headline"') < page.index('data-role="shelter"')
+    assert page.index('class="step-no" aria-hidden="true">01') < page.index('data-role="shelter"')
+    assert page.index('data-role="shelter"') < page.index('class="step-no" aria-hidden="true">02')
+    assert page.index(">02") < page.index('class="animal-grid taped"')
+    # The radio markup the location tests read is unchanged.
+    assert re.search(
+        r'<input type="radio" name="location" value="park-slope" required\s+checked>', page
+    )
+    # With a saved example, the band of finished stories comes before 01.
+    monkeypatch.setattr(store_module.Store, "get_listing", lambda self, a, loc: object())
+    page = client.get("/", params={"ui": "story"}).text
+    assert 'class="examples band" data-role="examples"' in page
+    assert page.index("Read a finished story") < page.index('aria-hidden="true">01')

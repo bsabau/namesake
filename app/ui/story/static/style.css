@@ -41,11 +41,13 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-/* Tokens, as in warm: each hue has a bright value for fills, borders and the map, and an
-   "ink" value for text and for fills that carry white text. Terracotta means "what Qloo
-   returned". Sage means "how Namesake read it". Honey marks a choice or a note, and the
-   neighbourhood band. The brand's red is the ink of the primary buttons. None of them
-   stands in for another. */
+/* Tokens: each hue has a bright value for fills, borders and the map, and an "ink" value
+   for text and for fills that carry white text. One colour per meaning: deep teal is the
+   volunteer's own actions and choices (buttons, links, the picked name and version, the
+   step numbers, the focus ring, the shelter's circle). Terracotta means "what Qloo
+   returned", and nothing else. Sage means "how Namesake read it". Honey marks a highlight
+   and the neighbourhood band. Neutral tags are grey. None of them stands in for another.
+   Teal ink on the cream page is 6.1:1, white on it 6.8:1, the bright teal border 4.6:1. */
 :root {
   --bg: #f8f2e6;
   --surface: #fffdf8;
@@ -57,9 +59,9 @@
   --border: #e4dac8;
   --border-strong: #8e8577;   /* field edges: 3.3:1 on a white field */
 
-  --primary: #d4603f;
-  --primary-ink: #a43f22;     /* 6.4:1 under white text                */
-  --primary-soft: #f9e2d8;
+  --primary: #227880;         /* borders, icons: 4.6:1 on the page      */
+  --primary-ink: #19646c;     /* text and fills: 6.1:1 on cream, 6.8:1 under white */
+  --primary-soft: #dcebed;
   --on-primary: #ffffff;
 
   --secondary: #5f8a6a;
@@ -83,10 +85,12 @@
   --attention-ink: #2b6f82;
   --tape: rgb(236 212 150 / 0.8);
 
-  /* Read by result-map.js and location-map.js through getComputedStyle: literal values. */
-  --accent: #d4603f;
+  /* Read by result-map.js and location-map.js through getComputedStyle: literal values.
+     The accent draws the shelter's circle and the visitor's pin (their choice: teal);
+     the lift colours are Qloo's cells. */
+  --accent: #227880;
   --lift-up: #d4603f;
-  --lift-down: #3b8ea5;
+  --lift-down: #3f78c2;       /* cool cells: a clear blue, apart from the teal ring */
   --lift-none: #8a7f75;
 
   --radius: 14px;
@@ -111,9 +115,9 @@
     --muted: #b5aa9e;
     --border: #3f3932;
     --border-strong: #8a7f73;
-    --primary: #f0916f;
-    --primary-ink: #f0916f;
-    --primary-soft: #3e2a22;
+    --primary: #7fcbd3;         /* 9.4:1 on the dark page */
+    --primary-ink: #7fcbd3;
+    --primary-soft: #1f3538;
     --on-primary: #1d1a17;
     --secondary: #8fbf9a;
     --secondary-ink: #8fbf9a;
@@ -129,9 +133,9 @@
     --on-qloo: #1d1a17;
     --attention-ink: #6cc0d6;
     --tape: rgb(120 100 60 / 0.6);
-    --accent: #f0916f;
+    --accent: #7fcbd3;
     --lift-up: #f0916f;
-    --lift-down: #6cc0d6;
+    --lift-down: #7fb0ea;
     --lift-none: #9a8f84;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 20px rgb(0 0 0 / 0.35);
     --shadow-hover: 0 2px 4px rgb(0 0 0 / 0.45), 0 14px 28px rgb(0 0 0 / 0.45);
@@ -294,7 +298,9 @@ button.animal-card {
 button.animal-card:hover, button.animal-card:focus-visible {
   border-color: var(--primary);
   box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  button.animal-card:hover, button.animal-card:focus-visible { transform: translateY(-2px); }
 }
 
 .animal-body > span { display: block; }
@@ -307,6 +313,55 @@ button.animal-card:hover, button.animal-card:focus-visible {
   box-shadow: var(--shadow);
   overflow: hidden;
 }
+
+/* The story's start: each animal a taped photo on a small mat, tilted a little either
+   way (a static tilt; only the hover lift moves, and not under reduced motion). */
+.taped > li { padding-top: 10px; }
+.taped button.animal-card {
+  position: relative;
+  overflow: visible;
+  padding: 10px 10px 0;
+  border-radius: var(--radius-photo);
+}
+.taped button.animal-card::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 84px;
+  height: 24px;
+  margin-left: -42px;
+  background: var(--tape);
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  transform: rotate(-3deg);
+  z-index: 1;
+}
+.taped > li:nth-child(odd) button.animal-card { transform: rotate(-0.8deg); }
+.taped > li:nth-child(even) button.animal-card { transform: rotate(0.8deg); }
+.taped > li:nth-child(even) button.animal-card::before { transform: rotate(4deg); }
+.taped .animal-card img { border-radius: 3px; }
+.taped .animal-body { padding: 12px 8px 14px; }
+@media (prefers-reduced-motion: no-preference) {
+  .taped button.animal-card:hover, .taped button.animal-card:focus-visible { transform: translateY(-3px) rotate(0); }
+}
+.story-intro { margin-top: 26px; }
+.story-intro .headline { display: inline-block; }
+.story-intro .lead { max-width: 64ch; margin-bottom: 26px; }
+h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
+.band {
+  margin: 8px 0 26px;
+  padding: 26px 0 28px;
+  background: var(--band);
+  box-shadow: 0 0 0 100vmax var(--band);
+  clip-path: inset(0 -100vmax);
+}
+.band h2 { margin: 0; font-size: 1.6rem; }
+.band .lead { margin: 4px 0 12px; color: var(--text); }
+.examples.band ul { margin: 0; }
+.examples.band .example { background: var(--surface); border-color: var(--primary); color: var(--primary-ink); }
+.examples.band .example:hover { background: var(--primary-ink); color: var(--on-primary); }
+.locations h3 { font-size: 1.15rem; margin: 0 0 12px; }
 
 .animal-card img, .litter img {
   display: block;
@@ -327,10 +382,10 @@ button.animal-card:hover, button.animal-card:focus-visible {
   display: inline-block;
   margin-left: 4px;
   padding: 0 8px;
-  border: 1px solid var(--primary);
+  border: 1px solid var(--border-strong);
   border-radius: 999px;
-  background: var(--primary-soft);
-  color: var(--primary-ink);
+  background: var(--surface-2);
+  color: var(--muted);
   font-size: 0.75rem;
   font-weight: 700;
   vertical-align: middle;
@@ -440,7 +495,8 @@ button.animal-card:hover, button.animal-card:focus-visible {
   font-weight: 600;
 }
 .fact-row li:last-child { border-right: 0; margin-right: 0; }
-.fact-icon { display: inline-flex; color: var(--primary); font-size: 1.25rem; flex: none; }
+/* The record's own marks, in neutral ink: not a choice, not Qloo's. */
+.fact-icon { display: inline-flex; color: var(--muted); font-size: 1.25rem; flex: none; }
 .fact-icon .paw { transform: rotate(-12deg); }
 .still-to-learn { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; color: var(--muted); font-size: 0.9rem; }
 .still-to-learn .fact-icon { color: var(--muted); }
@@ -479,8 +535,8 @@ button.animal-card:hover, button.animal-card:focus-visible {
   display: block;
   min-width: 9rem;
   padding: 8px 24px;
-  background: var(--surface-2);
-  border: 2px solid var(--border);
+  background: var(--surface);
+  border: 2px solid var(--primary);
   border-radius: 10px 6px 12px 7px;
   font-family: var(--display);
   font-size: 1.7rem;
@@ -490,10 +546,13 @@ button.animal-card:hover, button.animal-card:focus-visible {
   box-shadow: var(--shadow);
   transition: border-color 0.15s, background-color 0.15s, transform 0.15s;
 }
-.name-option label:hover .option-name { border-color: var(--border-strong); transform: translateY(-1px); }
-/* The picked name is inked like the picked version in the toggle: a choice, never Qloo's
-   terracotta. */
-.name-option:has(input:checked) .option-name { background: var(--heading); border-color: var(--heading); color: var(--bg); }
+.name-option label:hover .option-name { background: var(--primary-soft); }
+@media (prefers-reduced-motion: no-preference) {
+  .name-option label:hover .option-name { transform: translateY(-1px); }
+}
+/* The picked name is teal like every choice of the volunteer's, never Qloo's terracotta;
+   an unpicked one is white with a teal edge, so it reads as choosable, not disabled. */
+.name-option:has(input:checked) .option-name { background: var(--primary-ink); border-color: var(--primary-ink); color: var(--on-primary); }
 .name-option:has(input:checked) .option-name::after { content: " \2713"; }
 .name-option:has(input:focus-visible) .option-name { outline: 2px solid var(--focus); outline-offset: 3px; }
 /* The title under a name is Qloo's: it carries the Qloo label and swatch, centred under
@@ -742,8 +801,8 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--primary-ink);
-  color: var(--on-primary);
+  background: var(--heading);
+  color: var(--bg);
   font-size: 0.8rem;
   font-weight: 800;
   flex: none;
@@ -816,13 +875,66 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
 .basis-qloo { border-color: var(--qloo); background: var(--qloo-soft); color: var(--qloo-ink); }
 .basis-our-suggestion { border-color: var(--ai); background: var(--ai-soft); color: var(--ai-ink); }
 
-/* Working */
+/* Working: the animal's taped photo, the headline, a key, and the steps as a timeline,
+   each marked by who did it, in colour and in words: terracotta for Qloo's part of the
+   work (its calls and its answers), sage for Namesake's AI, grey for the classifier
+   (TypeSafe's Jev), ink for the run's own code. */
+.working-head { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px 36px; align-items: center; margin-top: 18px; }
+.portrait-small { margin: 10px 6px 0; }
+.portrait-small::before { width: 64px; height: 20px; top: -8px; left: 18px; }
+.portrait-small::after { width: 64px; height: 20px; bottom: 16px; right: 10px; }
+.working-intro .animal-meta { margin: 0; }
+.working-title { margin: 4px 0 6px; font-size: clamp(2rem, 3.8vw, 3rem); }
+.working-intro .lead { margin: 0 0 6px; }
+.step-key { display: flex; flex-wrap: wrap; gap: 6px 18px; list-style: none; margin: 10px 0 0; padding: 0; font-size: 0.85rem; font-weight: 700; }
+.step-key li::before, .timeline li::before {
+  content: "";
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 50%;
+  background: var(--text);
+}
+.step-key li::before { margin-right: 6px; vertical-align: 0.02em; }
+.step-key .actor-qloo::before, .timeline .actor-qloo::before { background: var(--qloo); }
+.step-key .actor-ai::before, .timeline .actor-ai::before { background: var(--ai); }
+.step-key .actor-classifier::before, .timeline .actor-classifier::before { background: var(--border-strong); }
+.timeline .actor-classifier { border-left-color: var(--border-strong); }
+/* The actor in words on every step, so colour is never the only cue. */
+.step-actor { display: inline-block; margin-right: 4px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text); }
+.actor-qloo .step-actor { color: var(--qloo-ink); }
+.actor-ai .step-actor { color: var(--ai-ink); }
+.actor-classifier .step-actor { color: var(--muted); }
+/* More specific than the `.steps` box below, which the classic layout still uses. */
+.steps.timeline { position: relative; list-style: none; margin: 26px 0 14px; padding: 0 0 0 30px; background: none; border: 0; box-shadow: none; font-size: inherit; }
+.timeline::before { content: ""; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; background: var(--border-strong); opacity: 0.45; }
+.timeline li {
+  position: relative;
+  margin: 8px 0;
+  padding: 9px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--text);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  font-size: 0.95rem;
+}
+.timeline li::before { position: absolute; left: -29px; top: 13px; width: 12px; height: 12px; box-shadow: 0 0 0 3px var(--bg); }
+.timeline .actor-qloo { border-left-color: var(--qloo); }
+.timeline .actor-ai { border-left-color: var(--ai); }
+.timeline .step-check, .timeline .step-note { color: var(--muted); }
+.timeline .step-error { color: var(--attention-ink); font-weight: 700; }
+.timeline .step-done { font-weight: 700; }
+@media (max-width: 720px) {
+  .working-head { grid-template-columns: 1fr; }
+  .portrait-small { max-width: 260px; }
+}
+
 .who { display: grid; grid-template-columns: 120px 1fr; gap: 18px; align-items: center; margin-top: 20px; }
 .who img { width: 120px; height: 120px; object-fit: cover; border-radius: var(--radius); box-shadow: var(--shadow), 0 0 0 3px var(--surface); }
 .who p { margin: 0; }
 .who h1 { margin: 2px 0; font-size: 1.8rem; line-height: 1.15; }
 .where-label { color: var(--muted); font-size: 0.9rem; }
-.working-title { font-size: 1.6rem; }
 
 .steps {
   margin: 20px 0;
@@ -834,7 +946,6 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
   font-size: 0.95rem;
 }
 .steps li { margin: 4px 0; }
-.step-qloo::marker { color: var(--qloo-ink); font-weight: 800; }
 .step-check { color: var(--muted); }
 .step-error { color: var(--attention-ink); font-weight: 700; }
 .step-done { font-weight: 700; }
@@ -854,7 +965,7 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
 }
 .version-toggle legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .version-choice { position: relative; padding: 6px 16px; border-radius: 999px; cursor: pointer; font-size: 0.9rem; font-weight: 700; }
-.version-choice:has(input:checked) { background: var(--heading); color: var(--bg); box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.1); }
+.version-choice:has(input:checked) { background: var(--primary-ink); color: var(--on-primary); box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.1); }
 .version-choice:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 .version-choice:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
 .version-choice input { position: absolute; opacity: 0; }
@@ -910,7 +1021,6 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
   text-decoration: none;
 }
 .example:hover { background: var(--highlight); color: var(--on-highlight); }
-.examples h2 { font-size: 1.1rem; margin: 0; }
 .examples { margin-bottom: 28px; }
 .add-animal a, .litter button { margin-top: 8px; }
 .add-animal-form h1 { font-size: 2.2rem; margin: 16px 0 6px; }
@@ -1049,7 +1159,8 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
 .leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
 
 /* Suggested places on the result map, numbered as in the list. */
-.venue-pin span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--primary-ink); color: var(--on-primary); font-weight: 800; font-size: 0.8rem; border: 2px solid #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.35); }
+/* The numbers mark Qloo's places in the list's order: neutral ink, not a choice. */
+.venue-pin span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--heading); color: var(--bg); font-weight: 800; font-size: 0.8rem; border: 2px solid #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.35); }
 
 /* The search above the start map: it only moves the map. */
 .map-search { margin: 0 0 8px; }
@@ -1059,3 +1170,7 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Under the "01 Shelter area" heading the bar's own "Shelter area:" label is for screen
+   readers only; the heading says it once. */
+.shelter-heading { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

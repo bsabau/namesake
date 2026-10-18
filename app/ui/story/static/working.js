@@ -39,14 +39,22 @@
     }, 1000));
   }
 
+  // Each streamed step carries its actor; its label comes from the view model
+  // (data-actor-labels). A step without one is the run's own code.
+  const labels = JSON.parse(root.dataset.actorLabels || "{}");
+
   source.addEventListener("step", (event) => {
     streamed += 1;
     if (streamed > shown) lastStep = Date.now();
     if (first) { list.innerHTML = ""; first = false; }
     const step = JSON.parse(event.data);
     const item = document.createElement("li");
-    item.className = `step step-${step.kind}`;
-    item.textContent = step.text;
+    const actor = step.actor || "code";
+    item.className = `step step-${step.kind} actor-${actor}`;
+    const who = document.createElement("span");
+    who.className = "step-actor";
+    who.textContent = labels[actor] || labels.code || "Code";
+    item.append(who, ` ${step.text}`);
     list.appendChild(item);
   });
 

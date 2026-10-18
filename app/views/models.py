@@ -321,16 +321,30 @@ class ProcessStep(BaseModel):
 class StepView(BaseModel):
     kind: str
     text: str
+    # Who did it, as the step records it: "qloo" (its calls and answers), "ai" (a decision
+    # of Namesake's AI), "classifier" (TypeSafe's Jev) or "code" (the run's own steps).
+    actor: str = "code"
+    label: str = "Code"
+
+
+class ActorKey(BaseModel):
+    actor: str
+    label: str
 
 
 class WorkingView(BaseModel):
     run_id: str
     title: str
+    # The story skin's headline ("Writing her story…", the pronoun from the record).
+    headline: str = ""
     animal: AnimalCard
     location: LocationOption
     events_url: str
     result_url: str
     steps: list[StepView]
+    # Each actor's label, for the key and for steps that arrive over the live stream.
+    actor_labels: dict[str, str] = {}
+    actor_key: list[ActorKey] = []
     finished: bool
     # A sign of life between steps, so a long model call never looks stuck: words to
     # cycle, and the time since the last step ("0:42 since the last step").

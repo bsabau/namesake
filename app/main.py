@@ -849,12 +849,13 @@ def api_run(request: Request, run_id: str) -> WorkingView:
 
 @app.get("/api/runs/{run_id}/events")
 async def run_events(request: Request, run_id: str) -> StreamingResponse:
-    """The step log as server-sent events: one `step` per step, then `done`."""
+    """The step log as server-sent events: one `step` per step (its kind, text and actor),
+    then `done`."""
     run = find_run(run_id, request)
 
     async def stream():
         async for step in run.log.follow():
-            payload = json.dumps({"kind": step.kind, "text": step.text})
+            payload = json.dumps({"kind": step.kind, "text": step.text, "actor": step.actor})
             yield f"event: step\ndata: {payload}\n\n"
         payload = {"result_url": run.result_url, "failed": run.failed, "error": run.error}
         yield f"event: done\ndata: {json.dumps(payload)}\n\n"
