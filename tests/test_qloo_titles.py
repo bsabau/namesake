@@ -174,7 +174,7 @@ def test_the_ai_is_told_qloos_pet_titles_up_front(roster):
     plan = {**PLAN, "titles": [{"entity_id": PUPPY_SCHOOL, "why": "a puppy"}, *PLAN["titles"]]}
     script = Recording([plan], [DRAFT, DRAFT], venue_titles=[PUPPY_SCHOOL, DOG_SHOW, CAT_SHOW])
     run(script, roster, qloo=FakeQloo(refused_rank_script()))
-    assert "Qloo's pet-themed titles for this area" in seen["prompt"]
+    assert "Qloo's lists for this area, asked with its pet tags" in seen["prompt"]
     assert "Example Puppy School" in seen["prompt"]
 
 
@@ -230,7 +230,8 @@ def test_a_list_qloo_answered_without_the_tags_is_not_a_pet_list():
         "recommend", results=PET_LIST, interpretation={"signal_location": LOCATION.query}
     )
     d = deps({pet_key("tv_show"): listing}, FakeClassifier(VERDICTS))
-    assert pet_lists(d)["tv_show"]["status"] == "unavailable: Qloo did not take the pet tags"
+    status = pet_lists(d)["tv_show"]["status"]
+    assert status == "unavailable: Qloo did not take the pet tags and the place"
     assert PUPPY_SCHOOL not in d.titles_seen
 
 
@@ -274,3 +275,26 @@ def test_venues_asked_before_the_evidence_arrived_are_asked_again():
         assert "venues were asked for Example Dog Show, which Qloo does not back" in str(exc)
     else:
         raise AssertionError("check_plan accepted venues resting on an unbacked title")
+
+
+def test_an_unsure_listed_title_never_blocks_the_ais_own_venue_search():
+    from app.agent.profile_agent import find_venues
+
+    # Codex, PR #20 re-check: with the classifier off every listed title is unsure, and
+    # the AI may judge one unsuitable; it must not be pressed on the venues.
+    d = deps({pet_key("tv_show"): envelope("recommend", results=PET_LIST[1:2])})  # no classifier
+    pet_lists(d)
+    d.titles_seen[DOG_SHOW] = Entity(
+        id=DOG_SHOW, name="Example Dog Show", type="urn:entity:tv_show"
+    )
+    d.qloo = FakeQloo(
+        {
+            key(
+                "recommend",
+                {"target_type": "place", "signals": [DOG_SHOW],
+                 "filter_location": LOCATION.query, "limit": 15},
+            ): envelope("recommend", results=PET_VENUES)
+        }
+    )  # fmt: skip
+    out = find_venues(SimpleNamespace(deps=d), [DOG_SHOW])
+    assert out["status"] == "found" and d.venue_signals == [DOG_SHOW]

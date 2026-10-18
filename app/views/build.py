@@ -648,7 +648,7 @@ def who_chose(profile: LocationProfile) -> str:
     sorted_ = any(e.verdict for e in profile.pet_entities)
     if by_tags:
         text = (
-            "Qloo listed pet-themed titles people here tend to like"
+            "Qloo listed titles people here tend to like, asked with its pet tags"
             + (", and a classifier sorted them" if sorted_ else "")
             + "; Namesake's AI judged the unclear ones, could add its own, settled ambiguous "
             "names and picked the venues. "

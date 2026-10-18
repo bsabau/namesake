@@ -91,8 +91,9 @@ async def agent_profile(
     agent = build_profile_agent(model, output_mode)
     # Qloo's own pet-themed lists for the area come first; the AI starts from them.
     found = await asyncio.to_thread(pet_lists, deps)
-    prompt = "Build the profile. Qloo's pet-themed titles for this area: " + json.dumps(
-        found, ensure_ascii=False
+    prompt = (
+        "Build the profile. Qloo's lists for this area, asked with its pet tags: "
+        + json.dumps(found, ensure_ascii=False)
     )
     if baselines:
         # Said up front, so no lookup or repair round is spent on them.

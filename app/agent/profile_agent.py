@@ -266,7 +266,9 @@ def pet_lists(deps: ProfileDeps) -> dict[str, Any]:
     for kind in PET_LIST_KINDS:
         what = f"pet-themed {KIND_WORDS[kind]}"
         deps.log.add(
-            "qloo", f"Asking Qloo which {what} people around {deps.location.label} tend to like"
+            "qloo",
+            f"Asking Qloo which {KIND_WORDS[kind]} people around {deps.location.label} tend to "
+            "like, with its pet tags",
         )
         env = qloo_call(
             deps,
@@ -280,11 +282,15 @@ def pet_lists(deps: ProfileDeps) -> dict[str, Any]:
             },
         )
         status = list_failure(deps, env)
-        sent = (getattr(env, "interpretation", None) or {}).get("signal_tags")
-        if not status and env.interpretation is not None and not sent:
+        echo = getattr(env, "interpretation", None)
+        if (
+            not status
+            and echo is not None
+            and not (echo.get("signal_tags") and echo.get("signal_location"))
+        ):
             # Qloo ignores what it does not understand: without the tags this would be the
-            # area's ordinary top titles, not pet-themed ones.
-            status = "unavailable: Qloo did not take the pet tags"
+            # area's ordinary top titles; without the place, not this area's.
+            status = "unavailable: Qloo did not take the pet tags and the place"
         if status:
             deps.log.add("note", f"{what[0].upper()}{what[1:]}: {status}")
             found[kind] = {"status": status}
@@ -293,6 +299,23 @@ def pet_lists(deps: ProfileDeps) -> dict[str, Any]:
             deps, env, kind, what, signal_id=None, signal="Qloo's pet tags", by_tags=True
         )
     return found
+
+
+def strong_titles(deps: ProfileDeps) -> list[str]:
+    """Titles Qloo backs that are established as pet-themed, best evidence first: ranked
+    here, kept by the classifier from the area's lists, or the AI's own placed in them.
+    Never an unsure title the AI may judge unsuitable, nor an identity-coded one."""
+    return [
+        i
+        for i in evidence_order(deps, list(deps.titles_seen))
+        if has_evidence(deps, i)
+        and (
+            i in (deps.rank_order or [])
+            or bucket(deps.titles_seen[i].verdict) == "kept"
+            or deps.titles_seen[i].found_in is None  # the AI's own, listed or ranked
+        )
+        and not identity_coded(deps.titles_seen[i].name, deps.titles_seen[i].description)
+    ]
 
 
 def has_evidence(deps: ProfileDeps, entity_id: str) -> bool:
@@ -480,19 +503,15 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
         if not identity_coded(deps.titles_seen[i].name, deps.titles_seen[i].description)
     ]
     backed = [i for i in eligible if has_evidence(deps, i)]
-    if not backed:
-        # Titles Qloo backs exist but none was sent: the venues must rest on them.
-        others = [
-            deps.titles_seen[i].name
-            for i in evidence_order(deps, list(deps.titles_seen))
-            if has_evidence(deps, i)
-            and not identity_coded(deps.titles_seen[i].name, deps.titles_seen[i].description)
-        ]
-        if others:
-            return {
-                "status": "none of these titles has Qloo's evidence for this area; send "
-                f"titles Qloo backs, such as {', '.join(others[:3])}"
-            }
+    if not backed and (others := strong_titles(deps)):
+        # Established pet titles Qloo backs exist, but none was sent: the venues must rest
+        # on them. Unsure titles are never pressed on the AI.
+        names = ", ".join(deps.titles_seen[i].name for i in others[:3])
+        deps.log.add("check", f"Venues not asked: no title sent has Qloo's evidence ({names} do)")
+        return {
+            "status": "none of the usable titles sent has Qloo's evidence for this area; send "
+            f"titles Qloo backs, such as {names}"
+        }
     ids = (backed or eligible)[:MAX_VENUE_SIGNALS]
     if not ids:
         return {"status": "no title here can be a venue signal; send titles you keep"}
@@ -590,11 +609,7 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
         problems.append("call find_venues before answering")
     # Qloo's titles come first (decision 22): when Qloo backs a title it also judged clearly
     # pet-themed (ranked here, or kept from the area's lists), the plan keeps at least one.
-    strong = [
-        i
-        for i, e in deps.titles_seen.items()
-        if i in (deps.rank_order or []) or (best_place(e) and bucket(e.verdict) == "kept")
-    ]
+    strong = strong_titles(deps)
     if strong and plan.titles and not any(has_evidence(deps, t.entity_id) for t in plan.titles):
         names = ", ".join(deps.titles_seen[i].name for i in strong[:4])
         problems.append(

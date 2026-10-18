@@ -196,7 +196,7 @@ The question: instead of Namesake's AI proposing pet titles and Qloo checking th
 
 ## Qloo-first pet titles: the area plus the pet tags as signals (18 October, 12 calls of a 26-call probe run)
 
-`recommend` with the four pet media tags as `signal_tags` (union) plus `signal_location`, limit 20, for TV shows, films and books (12 calls; the night's other 14 were the follow-up searches, breed tags and podcasts below and in TODO); 10 seconds apart, no refusals, and `interpretation` showed all four tags sent every time. Kept means Jev's pets ≥ 0.8 and family ≥ 0.6; nothing came back unsure.
+`recommend` with the four pet media tags as `signal_tags` (union) plus `signal_location`, limit 20, for TV shows, films and books (12 calls; the night's other 14 were the follow-up searches below and two probes that gave nothing usable, breed tags as filters and podcasts, which are not recorded here); 10 seconds apart, no refusals, and `interpretation` showed all four tags sent every time. Kept means Jev's pets ≥ 0.8 and family ≥ 0.6; nothing came back unsure.
 
 | Area | TV | Films | Books | Kept |
 |---|---|---|---|---|
