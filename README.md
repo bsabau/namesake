@@ -14,7 +14,7 @@ A **generic version** of the listing sits beside the **local version**, so you c
 
 Built for the [Qloo Agentic Hackathon](https://qloo-hackathon.devpost.com/). Taste data from the Qloo API; not affiliated with Qloo.
 
-![The result screen for the lead dog in Park Slope: a strip at the top with what Qloo returned and what Namesake's AI did, side by side; the local listing with its Qloo-sourced name; name options with Qloo's answer and the reading of Namesake's AI kept apart; the lift map with the places to ask as numbered pins; three places with their Qloo rank; and the exposure checklist](docs/img/result.png)
+![The result screen for the lead dog in Park Slope: a strip at the top with what Qloo returned and what Namesake's AI did, side by side; the local listing with its Qloo-sourced name; name options with Qloo's answer and the reading of Namesake's AI kept apart; a map of where pet-show fans stand out against fans of the area's top shows, with the places to ask as numbered pins; three places with Qloo's description and rank; and the exposure checklist](docs/img/result.png)
 
 ## The problem
 
