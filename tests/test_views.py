@@ -287,3 +287,14 @@ def test_story_local_taste_names_show_the_actual_qloo_title(roster):
     evidence = view.story.names[0].returned
     assert title.name in evidence and title.description in evidence
     assert "Watched locally" not in evidence and "Pet-themed" not in evidence
+
+
+def test_name_cards_carry_their_compact_lines(roster):
+    from tests.test_product import saved_listing
+
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile(), saved_listing())
+    assert view.name.options
+    for o in view.name.options:
+        assert o.evidence_line.endswith(o.badge)
+        assert o.source_line is None or o.source_line == f"from {o.title}"
+        assert o.source_line != f"from {o.name}"

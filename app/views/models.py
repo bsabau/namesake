@@ -154,6 +154,10 @@ class NameOptionView(BaseModel):
     # What Qloo returned: the title and where Qloo ranked it.
     badge: str
     title: str
+    # Compact forms for a card: "from <title>" (None when the name is the title or the
+    # title is unknown), and the badge with the title unless the badge names it already.
+    source_line: str | None = None
+    evidence_line: str = ""
     # Our reading: the reference code built from the agent's pick, and the agent's reason.
     reference: str
     why: str

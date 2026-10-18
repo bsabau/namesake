@@ -383,12 +383,18 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
     options = []
     for i, o in enumerate(draft.names):
         reference = refs[i] if i < len(refs) else o.character
+        known = titles.get(o.entity_id)
+        badge = name_badge(o.source, o.entity_id, profile, known)
         options.append(
             NameOptionView(
                 entity_id=o.entity_id,
                 name=o.name,
-                badge=name_badge(o.source, o.entity_id, profile, titles.get(o.entity_id)),
+                badge=badge,
                 title=titles.get(o.entity_id, o.character),
+                # Short forms for a compact card: no title repeated, never a character
+                # shown as a title when Qloo's title is unknown.
+                source_line=f"from {known}" if known and known != o.name else None,
+                evidence_line=f"{known} · {badge}" if known and known not in badge else badge,
                 reference=reference,
                 why=o.why,
                 hook=f"Named after {reference}.",
