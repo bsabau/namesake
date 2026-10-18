@@ -234,3 +234,11 @@ def test_the_venue_line_falls_back_to_every_title_only_for_old_profiles():
     assert venue_titles(p) == "Example Dog Show and Example Cat Show"
     p.venue_signals = [p.pet_entities[1].id]
     assert venue_titles(p) == "Example Cat Show"
+
+
+def test_the_venue_line_never_reads_empty():
+    from app.views.build import venue_titles
+
+    p = profile()
+    p.venue_signals = ["00000000-0000-4000-8000-000000000999"]  # not among the titles
+    assert venue_titles(p) == "Example Dog Show and Example Cat Show"

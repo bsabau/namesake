@@ -485,12 +485,12 @@ def venue_order(profile: LocationProfile) -> list[Venue]:
 
 
 def venue_titles(profile: LocationProfile) -> str:
-    """The titles the venues were asked for, in that order; every pet title only for a
-    profile saved before `venue_signals` was kept."""
-    if not profile.venue_signals:
-        return and_list([e.name for e in profile.pet_entities])
+    """The titles the venues were asked for, in that order. Every pet title for a profile
+    saved before `venue_signals` was kept, or if none of its signals is among the titles
+    (the plan keeps them since decision 20's revision, so only an older profile)."""
     by_id = {e.id: e for e in profile.pet_entities}
-    return and_list([by_id[i].name for i in profile.venue_signals if i in by_id])
+    asked = [by_id[i] for i in profile.venue_signals if i in by_id] or profile.pet_entities
+    return and_list([e.name for e in asked])
 
 
 def venue_view(v: Venue, location: Location, profile: LocationProfile) -> VenueView:
@@ -579,7 +579,7 @@ def kind_word(e: Entity, default: str | None = "tv_show") -> str:
         kind = e.type  # a bare kind
     else:
         kind = e.found_in.kind if e.found_in else default
-    if kind is None:
+    if not kind:
         return "title"
     return KIND_WORD.get(kind, kind.replace("_", " "))
 
