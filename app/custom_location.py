@@ -3,12 +3,13 @@
 A fixed heatmap decides whether the place is usable: where fans of the area's own
 most-watched TV show are, within the typed place. That show comes from the call the
 profile's local tastes make, so the profile finds it cached. When that list is not a
-plain answer, or its top show is thin there, the seed show is heatmapped too and the
-fuller map decides (decision 12). Passing says Qloo has data for the area, not that its
-pet titles will map well; the result page says when the map is thin. A US seed show alone
-left neighbourhoods abroad looking thin: Gràcia, Barcelona had 2 cells for it and 20 for
-its own top show (docs/qloo-findings.md). Qloo returns no coordinates for a place name, so the map
-centre and zoom come from the cells it returns.
+plain answer, or its top show is thin there, the seed show is heatmapped too: its
+candidates or its failure speak for the place, else the fuller map decides (decision
+12). Passing says Qloo has data for the area, not that its pet titles will map well; the
+result page says when the map is thin. A US seed show alone left neighbourhoods abroad
+looking thin: Gràcia, Barcelona had 2 cells for it and 20 for its own top show
+(docs/qloo-findings.md). Qloo returns no coordinates for a place name, so the map centre
+and zoom come from the cells it returns.
 
 - Qloo offers candidates (`needs_input`): the visitor picks one, as buttons.
 - Too few cells for every probe: Qloo has too little data there, and the app says so
@@ -118,15 +119,18 @@ def check_location(qloo: QlooClient, typed: str, seeds: Seeds) -> LocationCheck:
         env, cells = heatmap_cells(qloo, probe_id, text) if probe_id else (None, [])
         failed = env is None or env.status == "error"
         if failed or (env.status != "needs_input" and len(cells) < MIN_CELLS):
-            # No plain top list, or its top show is thin here: the seed show as well,
-            # and the fuller of the two maps decides. A seed show that cannot be looked
-            # up (not cached, live calls off) leaves the check to be tried live later.
+            # No plain top list, or its top show is thin here: the seed show as well. Its
+            # candidates or its failure speak for the place; else the fuller map decides.
+            # A seed lookup not cached (live calls off) raises: tried live later.
             baseline = resolve_baseline(qloo, probe, seeds.baseline)
-            if baseline is None:
-                return unavailable
-            if baseline.id != probe_id:
+            if baseline is None and failed:
+                return LocationCheck(
+                    status="thin",
+                    message=f"Qloo has too little data to check “{text}”. Try a larger area, "
+                    "or add the city, such as “Astoria, Queens”.",
+                )
+            if baseline is not None and baseline.id != probe_id:
                 seed_env, seed_cells = heatmap_cells(qloo, baseline.id, text)
-                # Its candidates or its failure speak for the place too; else more cells win.
                 speaks = seed_env.status in ("needs_input", "error")
                 if failed or speaks or len(seed_cells) > len(cells):
                     env, cells = seed_env, seed_cells

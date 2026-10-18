@@ -118,7 +118,7 @@ sequenceDiagram
 
 This happens before any run, when the area is not one of the presets.
 
-- **A typed area** goes to Qloo as typed and is checked once: one heatmap, within it, for the TV show Qloo ranks highest there (the call the profile's local tastes make, so the profile finds it cached); when that list is not a plain answer, or its top show is thin there, for a seed show as well (after a `describe` of it, cached after the first time), and the fuller map decides. Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". `needs_input`: Qloo's candidates become buttons (decision 12). Text with digits is refused, which keeps street addresses away from Qloo.
+- **A typed area** goes to Qloo as typed and is checked once: one heatmap, within it, for the TV show Qloo ranks highest there (the call the profile's local tastes make, so the profile finds it cached); when that list is not a plain answer, or its top show is thin there, for a seed show as well (after a `describe` of it, cached after the first time): the seed's candidates or its failure speak for the place, else the fuller map decides. Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". `needs_input`: Qloo's candidates become buttons (decision 12). Text with digits is refused, which keeps street addresses away from Qloo.
 - **Suggestions and the map pick** (decision 17) go through the app's own `/api/places` to Photon. Suggestions ask for areas only; a picked spot is sent rounded to about 100 m, and only the areas in Photon's answer are kept. The spot becomes an area's name, and stays in the visitor's session as a pin, to about 10 m. Qloo only ever gets the name.
 
 ## The area profile

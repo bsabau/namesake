@@ -31,6 +31,7 @@ from tests.qloo_fakes import (
     SEEDS,
     FakeQloo,
     cell,
+    describe_needs_input,
     describe_ok,
     envelope,
     key,
@@ -566,6 +567,15 @@ def test_a_thin_top_show_and_an_unresolvable_seed_show_is_unavailable_not_thin()
     with_top_show(script, text, 2)
     del script[key("describe", {"entity": "Example Drama", "type": "tv_show"})]
     assert check_location(FakeQloo(script), text, SEEDS).status == "unavailable"
+
+
+def test_a_seed_show_qloo_answered_but_could_not_single_out_leaves_the_thin_answer():
+    # Flash, PR #13 second re-check: an answered lookup is not "could not be reached".
+    text, script = location_script(results=cells(6))
+    with_top_show(script, text, 2)
+    script[key("describe", {"entity": "Example Drama", "type": "tv_show"})] = describe_needs_input()
+    checked = check_location(FakeQloo(script), text, SEEDS)
+    assert checked.status == "thin" and "2 map cells" in checked.message
 
 
 def test_the_seed_shows_candidates_or_failure_are_not_lost_to_a_thin_top_show():

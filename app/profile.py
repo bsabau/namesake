@@ -578,8 +578,18 @@ def finish_profile(
 
 
 def resolve_baseline(qloo: QlooClient, location: Location, seed: Seed) -> Entity | None:
-    """The seed show on its own: the fallback probe for a typed area (decision 12)."""
-    return _Builder(qloo, location).resolve(seed)
+    """The seed show on its own: the fallback probe for a typed area (decision 12). None
+    when Qloo answered but no entry fits the seed's rule; a lookup that is not cached
+    (live calls off) or could not reach Qloo raises, so the check can be tried again."""
+    b = _Builder(qloo, location)
+    entity = b.resolve(seed)
+    if entity is None:
+        for note in b.profile.notes:
+            if note.startswith("Not precomputed yet"):
+                raise ReplayMiss(note)
+            if note.startswith("Qloo could not be reached"):
+                raise QlooExecError(note)
+    return entity
 
 
 def assemble_profile(
