@@ -62,7 +62,7 @@ The hackathon asks for an agent, so this is the line that matters: where the mod
 |---|---|---|
 | **Area profile** | which pet-themed titles to try; which of Qloo's candidates a name means, with a stated reason; which of its titles to search the area's lists with, and which unclear titles found there are about pets; the order when Qloo's ranking is unavailable; which titles to send for venues; which venues suit an adoption event | the area's top shows and the baseline; the baseline's venues; the venue comparison; every heatmap and the map; which titles found in the area's lists to keep or set aside, from the classifier's answers |
 | **Listing** | which names to offer from the area's titles; which lookalike titles to check, and how to retry one that was refused (with look words quoted from the record); the bio, from the facts | the answers about children, other animals, house-training and bites; the hook line; every check |
-| **Typed area** | nothing | the one heatmap that accepts or refuses it |
+| **Typed area** | nothing | the probe show's lookup and the one heatmap that accepts or refuses it |
 
 The AI reads each answer and adapts: an ambiguous title gets a choice or is dropped, a title found in the area's lists that the classifier was unsure of gets the AI's judgement, and an unavailable ranking falls back to its own order.
 
@@ -95,14 +95,16 @@ sequenceDiagram
         T->>P: get or build the area profile
         P->>Q: fixed calls: local shows, baseline venues
         P->>M: profile agent: which titles, which venues
-        M->>Q: describe, recommend titles in the area's lists, rank, recommend place (its choice)
-        P->>J: sort the titles found in the area's lists
+        M->>Q: describe; recommend titles in the area's lists (its choice)
+        M->>J: inside that search, the classifier sorts what Qloo returned, before the AI sees it
+        M->>Q: rank, recommend place (its choice)
         P->>Q: fixed calls: heatmaps for the map
+        P->>S: save the profile
         T->>A: write names and bio from the record
         A->>M: listing agent
         M->>Q: up to 2 lookalike lookups (its choice)
         A-->>T: draft, sent back once if a check fails
-        T->>S: save the listing (and the profile)
+        T->>S: save the listing
         T-->>V: each step as it happens, then "done"
         V->>R: GET /result?animal=…&location=…
         R-->>V: result page built from the view model
@@ -116,12 +118,12 @@ sequenceDiagram
 
 This happens before any run, when the area is not one of the presets.
 
-- **A typed area** goes to Qloo as typed and is checked once: one heatmap for a probe show within it. Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". `needs_input`: Qloo's candidates become buttons (decision 12). Text with digits is refused, which keeps street addresses away from Qloo.
+- **A typed area** goes to Qloo as typed and is checked once: one heatmap for a probe show within it (after a `describe` of that show, cached after the first time). Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". `needs_input`: Qloo's candidates become buttons (decision 12). Text with digits is refused, which keeps street addresses away from Qloo.
 - **Suggestions and the map pick** (decision 17) go through the app's own `/api/places` to Photon. Suggestions ask for areas only; a picked spot is sent rounded to about 100 m, and only the areas in Photon's answer are kept. The spot becomes an area's name, and stays in the visitor's session as a pin, to about 10 m. Qloo only ever gets the name.
 
 ## The area profile
 
-Most Qloo work depends on the area and the species, not the animal, so it is done once per area and species and shared by every animal there (decision 1). A new area costs about 15 to 17 Qloo calls; each further animal at most two.
+Most Qloo work depends on the area and the species, not the animal, so it is done once per area and species and shared by every animal there (decision 1). A new area and species costs about 15 to 17 Qloo calls; each further animal of that species there at most two.
 
 ```mermaid
 flowchart TD
@@ -172,7 +174,7 @@ The listing agent may make at most 6 model requests and 4 tool calls. What code 
 - **Hook**: assembled by code from the name, its role and Qloo's title; it says nothing about temperament.
 - **Lookalikes**: the shared look must be quoted from the record, and the name must be that animal's own (decision 14).
 
-Saved listings carry the version of the checks they passed. When the checks change, every deploy rechecks the saved ones with today's rules (`app/agent/recheck.py`); one that fails runs again when next opened (decision 16).
+Saved listings carry the version of the checks they passed. When the checks change, every deploy rechecks the saved ones it can with today's rules (`app/agent/recheck.py`); one that fails, or one older than a change the recheck cannot cover, runs again when next opened (decision 16).
 
 ## Data: what is kept where
 
@@ -192,7 +194,7 @@ No account exists. The session cookie holds a random ID and nothing else. Qloo r
 
 ## The API
 
-Every screen's view model is also served as JSON, so another interface can be built on the API alone.
+The start, result and working screens' view models are also served as JSON, so another interface can show them from the API alone; the add-animal form and the approval page are HTML only.
 
 | Method and path | Returns |
 |---|---|
@@ -227,7 +229,7 @@ Everything that differs between machines is an environment variable (`.env` loca
 ## Limits and safety
 
 - **Qloo**: the hackathon key was refused after about 12 calls in 20 minutes on 15 October (30 calls 10 seconds apart passed on 17 October), so every live call goes through `QlooClient`: cached in SQLite, spaced at least `QLOO_MIN_INTERVAL` apart across processes, retried once only when Qloo says the error is retryable, with a 90-second timeout. Pages read Qloo from the cache only; runs and the typed-area check call it live, within the caps.
-- **Visitors**: live runs are capped per visitor per hour and per day; new typed areas per day. Place lookups have their own allowance (30 a minute per visitor, 120 for everyone), and only calls that reach Photon count.
+- **Visitors**: live runs are capped per visitor per hour, and per day for everyone together; new typed areas per day. Place lookups have their own allowance (30 a minute per visitor, 120 for everyone), and only calls that reach Photon count.
 - **Classifier**: a 10-second timeout per title; any failure of Jev or its cache leaves the title to the AI, and after the first failed call a run uses saved answers only, so a slow classifier costs one timeout.
 - **Model**: the per-run request and tool-call limits above, and one repair round. Then the profile falls back to a fixed lookup with the seed titles, and the listing to a templated one that says why.
 - **Secrets** live in environment variables (`SecretStr`, never logged) and, on the server, in a `.env` with mode 600 that CI never touches.
@@ -246,8 +248,9 @@ flowchart LR
     review --> merge
     merge --> ci2["CI on main"]
     ci2 --> deploy["Deploy workflow:<br/>newest commit on main only"]
-    deploy --> script["deploy/deploy.sh on the host:<br/>swap source, compose file, image;<br/>build, prepare the cache folder,<br/>recheck saved listings, restart,<br/>health and proxy checks"]
-    script -- "any step fails" --> rollback["Restore what was swapped;<br/>if the new version started,<br/>start the previous one"]
+    deploy --> script["deploy/deploy.sh, over ssh to the host:<br/>swap source, compose file, image;<br/>build, prepare the cache folder,<br/>recheck saved listings, restart,<br/>health and proxy checks"]
+    script -- "a step fails, or the proxy<br/>answers with an error" --> rollback["Restore what was swapped;<br/>if the new version started,<br/>start the previous one"]
+    script -- "the proxy cannot be reached<br/>from the runner" --> keep["Keep the new version;<br/>the run fails so someone looks"]
     script -- ok --> live["Live demo"]
 ```
 

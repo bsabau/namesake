@@ -68,7 +68,7 @@ The plan's success measure is adoptions and returns; likes and reach are left ou
 
 Steps A to E run once per location and every animal reuses them, so quota cost grows with locations, not animals. Fixed calls, such as the heatmap, use `qloo exec` from code. Calls the agent chooses go through function tools over the same client, so they are cached and spaced too (`docs/decisions.md` #5).
 
-**Use lift, not raw affinity.** Raw affinity saturates near 1.0, and a broad entity's heatmap mostly shows where people are. Lift against a baseline entity is the number that carries taste. See `docs/qloo-findings.md` once milestone 1 writes it.
+**Use lift, not raw affinity.** Raw affinity saturates near 1.0, and a broad entity's heatmap mostly shows where people are. Lift against a baseline entity is the number that carries taste. See `docs/qloo-findings.md`.
 
 ## The result screen
 
