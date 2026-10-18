@@ -16,6 +16,7 @@ from app.profile import (
     combine_cells,
     finish_profile,
     needs_finishing,
+    profile_from,
 )
 from app.views.build import build_result_view, why
 from tests.qloo_fakes import (
@@ -27,6 +28,7 @@ from tests.qloo_fakes import (
     LOCATION,
     SEEDS,
     FakeQloo,
+    cell,
     envelope,
     key,
     standard_script,
@@ -500,3 +502,42 @@ def test_category_words_in_a_show_name_count_too():
         "Example Quiz",
         "Example Bake Off",
     ]
+
+
+def test_a_thin_first_map_title_is_swapped_once_for_a_better_one():
+    # Hoboken, 18 October: the first map title had 1 cell there.
+    extra = Entity(
+        id="00000000-0000-4000-8000-000000000330",
+        name="Example Kitten Show",
+        type="urn:entity:tv_show",
+    )
+    script = standard_script()
+    many = [cell(f"dr5rk{n}x", 40.66 + n / 1000, -73.98, 0.5) for n in range(6)]
+    script[key("where_popular", {"entity": extra.id, "within": LOCATION.query, "limit": 20})] = (
+        envelope("where_popular", results=many)
+    )
+    pets = [
+        Entity(id=DOG_SHOW, name="Example Dog Show", type="urn:entity:tv_show"),
+        Entity(id=CAT_SHOW, name="Example Cat Show", type="urn:entity:tv_show"),
+        extra,
+    ]
+    baselines = [
+        Entity(id=BASELINE, name="Example Drama", type="urn:entity:tv_show"),
+        Entity(id=BASELINE_2, name="Example Comedy", type="urn:entity:tv_show"),
+    ]
+    p = profile_from(FakeQloo(script), LOCATION, pets, baselines, [DOG_SHOW, CAT_SHOW])
+    # The dog show's map has 2 cells, under the threshold; the spare title has 6.
+    assert [e.id for e in p.map_titles] == [extra.id, CAT_SHOW]
+    assert any("so the map uses Example Kitten Show instead" in n for n in p.notes)
+
+
+def test_a_thin_first_map_stays_when_the_spare_is_no_better():
+    script = standard_script()
+    pets = [
+        Entity(id=DOG_SHOW, name="Example Dog Show", type="urn:entity:tv_show"),
+        Entity(id=CAT_SHOW, name="Example Cat Show", type="urn:entity:tv_show"),
+    ]
+    p = profile_from(FakeQloo(script), LOCATION, pets, [], [DOG_SHOW])
+    # The only spare, the cat show, is already the second map title: nothing to swap.
+    assert [e.id for e in p.map_titles] == [DOG_SHOW, CAT_SHOW]
+    assert not any("so the map uses" in n for n in p.notes)

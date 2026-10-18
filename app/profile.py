@@ -30,6 +30,9 @@ PROFILE_VERSION = 2
 # Each title on the map is one `where_popular` call per area, and the hackathon key is
 # refused after about 12 calls in 20 minutes, so two of each.
 MAP_TITLES = 2
+# A first map title with fewer cells than this within the area is swapped, once, for the
+# next pet title (PAW Patrol had 1 cell in Hoboken, 18 October).
+THIN_MAP = 5
 BASELINE_TITLES = 2
 # A top local show whose name or description mentions animals is not a baseline: a word
 # list, so the page says "mentions animals", not "is about animals".
@@ -650,11 +653,28 @@ def assemble_profile(
 
     # The map: the titles the venues were asked for first, then the rest, two of them.
     by_id = {e.id: e for e in p.pet_entities}
-    ordered = [by_id[i] for i in p.venue_signals if i in by_id] + p.pet_entities
-    p.map_titles = list({e.id: e for e in ordered}.values())[:MAP_TITLES]
+    ordered = list(
+        {
+            e.id: e for e in [by_id[i] for i in p.venue_signals if i in by_id] + p.pet_entities
+        }.values()
+    )
+    p.map_titles = ordered[:MAP_TITLES]
     # The first pet title, then the baseline, then the rest: if the key refuses the last
     # calls, the comparison survives and only an extra pet title is missing.
     first = [b.heatmap(e, location) for e in p.map_titles[:1]]
+    thin = first[0] if first else None
+    spare = next((e for e in ordered if e not in p.map_titles), None)
+    if thin is not None and len(thin) < THIN_MAP and spare is not None:
+        # One extra call, only when the first map is thin: the next pet title may be
+        # watched more here. Kept only if it scores more cells.
+        alt = b.heatmap(spare, location)
+        if alt and len(alt) > len(thin):
+            p.notes.append(
+                f"{p.map_titles[0].name} scored only {len(thin)} map cells within "
+                f"{location.label}, so the map uses {spare.name} instead."
+            )
+            p.map_titles[0] = spare
+            first = [alt]
     base = [b.heatmap(e, location) for e in p.baselines]
     rest = [b.heatmap(e, location) for e in p.map_titles[1:]]
     pet_maps = [m for m in first + rest if m]
