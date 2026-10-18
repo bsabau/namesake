@@ -141,7 +141,7 @@ flowchart TD
     fixed --> assemble["Assemble: venue comparison,<br/>heatmaps for two pet titles and two baseline shows"]
     assemble --> lift["Map cells: mean rank of the pet titles<br/>minus mean rank of the baseline shows"]
     lift --> save[("Saved, even if unfinished")]
-    save --> later{"Unfinished?<br/>(a map or comparison missing)"}
+    save --> later{"Needs finishing?<br/>(a map or comparison missing,<br/>or a comparison today's screen rejects)"}
     later -- "yes, on a later run" --> finish["finish_profile: same titles,<br/>fixed calls only, cached ones free"]
     finish --> save
 ```
@@ -152,7 +152,7 @@ flowchart TD
 - **The heatmaps** run in this order: the first pet title, the baseline shows, then the second pet title, so a profile cut short still has a comparison.
 - **The map** is lift: in each cell, the pet titles' mean score minus the baseline shows' mean score. Within a neighbourhood, a heatmap's `query.affinity` is a rank spread from 0 to 1 inside the area (`docs/qloo-findings.md`), so ranks can be averaged and subtracted. Raw affinity saturates near 1.0, so it is never shown. Maps of different precision are brought to the coarsest one first.
 - **Saving**: a profile is saved even if a map or the comparison is missing, and finished on a later run. Only a profile with no pet title at all is not saved; the next run tries again. A saved comparison that today's screen would not choose is finished the same way (`needs_finishing`), and until then the page does not name the show.
-- **Versions**: profiles carry a version. An older one still renders as it was; `python -m app.upgrade_profiles` upgrades saved ones without rerunning the AI, so titles, names and listings stay valid.
+- **Versions**: profiles carry a version. An older one still renders as it was, except that a comparison show today's screen rejects is never named; `python -m app.upgrade_profiles` upgrades saved ones without rerunning the AI, so titles, names and listings stay valid.
 
 ## The listing
 
