@@ -52,6 +52,33 @@ LEFT_OUT_GROUPS = [
     ("restaurants and hotels", "no room for a stand"),
 ]
 CATEGORY_TAGS = [f"urn:tag:category:place:{c}" for _, cs, _ in VENUE_GROUPS for c in cs]
+# National chains and fast food: Qloo tags them as cafes, and one stood out near Astoria
+# (decided 18 October). Namesake's AI passes over them, and the plan check sends one back.
+# Pet-shop chains are not here: they hold adoption events. Names as Qloo gives them,
+# compared without punctuation or case. Chains named by an everyday word ("Target",
+# "Subway") are left to the AI: matching them would catch "Target Practice".
+CHAINS = (
+    "mcdonalds", "starbucks", "dunkin", "burger king", "wendys", "taco bell", "kfc",
+    "chipotle", "panera", "chick fil a", "popeyes", "dominos", "pizza hut", "papa johns",
+    "five guys", "shake shack", "sweetgreen", "7 eleven", "cvs", "walgreens", "duane reade",
+    "walmart", "whole foods", "trader joes", "applebees", "ihop", "dennys",
+    "olive garden", "tim hortons", "panda express", "jamba", "pret a manger", "le pain quotidien",
+)  # fmt: skip
+FAST_FOOD = ("fast food", "fast-food", "drive-thru", "drive thru", "quick-service")
+
+
+def chain_or_fast_food(name: str, description: str | None) -> str | None:
+    """Why a place is a national chain or fast food, or None (whole words of its name)."""
+    plain = " " + re.sub(r"[^a-z0-9]+", " ", name.lower().replace("'", "")).strip() + " "
+    for chain in CHAINS:
+        if f" {chain} " in plain:
+            return "a national chain"
+    text = (description or "").lower()
+    if any(word in text for word in FAST_FOOD):
+        return "fast food"
+    return None
+
+
 # A full answer with fewer places than this in those kinds and an area's venues are asked
 # for places of any kind.
 MIN_CATEGORY_VENUES = 5

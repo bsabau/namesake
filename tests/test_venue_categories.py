@@ -261,3 +261,40 @@ def test_a_filtered_probe_that_falls_back_leaves_no_note():
     profile = build_profile(FakeQloo(script, twins=False), LOCATION.model_copy(), SEEDS)
     assert profile.venue_categories is False and profile.venues[0].compared
     assert not any("returned no venues" in n for n in profile.notes)
+
+
+def test_national_chains_and_fast_food_are_named():
+    from app.profile import chain_or_fast_food
+
+    assert chain_or_fast_food("McDonald's", "Burgers and fries.") == "a national chain"
+    assert chain_or_fast_food("Starbucks Coffee Company", None) == "a national chain"
+    assert chain_or_fast_food("Corner Grill", "Fast-food burgers to go.") == "fast food"
+    # Independent places, pet-shop chains (they hold adoption events) and everyday words pass.
+    for name in ("BrownStone Bagels", "Petco", "PetSmart", "Target Practice Range", "Subway Inn"):
+        assert chain_or_fast_food(name, "A neighbourhood place.") is None, name
+
+
+def test_a_chain_pick_is_sent_back_and_the_tool_marks_it():
+    from pydantic_ai import ModelRetry
+
+    from app.agent.profile_agent import ProfilePlan, check_plan
+
+    chain = venue(40, "McDonald's", "A fast-food restaurant.", {DOG_SHOW: 1.0})
+    d = deps(answered([chain, *CAFES], True))
+    out = find_venues(SimpleNamespace(deps=d), [DOG_SHOW])
+    marked = {v["name"]: v["chain"] for v in out["venues"]}
+    assert marked["McDonald's"] == "a national chain" and marked["Example Cafe 0"] is None
+    plan = ProfilePlan(
+        titles=[{"entity_id": DOG_SHOW, "why": "dogs"}],
+        venues=[{"entity_id": chain["entity_id"], "reason": "It has room for a stand."}],
+    )
+    try:
+        check_plan(SimpleNamespace(deps=d), plan)
+        problems = ""
+    except ModelRetry as retry:
+        problems = str(retry)
+    assert "McDonald's is a national chain" in problems
+
+
+def test_the_note_says_chains_and_fast_food_are_passed_over():
+    assert "passes over national chains and fast food" in venues_note(profile_with(True), "dog")

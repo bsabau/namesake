@@ -485,7 +485,8 @@ def venues_note(profile: LocationProfile, species: str) -> str | None:
         return (
             f"Qloo was asked only for places that can host an adoption stand or take a flyer: "
             f"{groups_in()}. Not asked for: {groups_out()}; Qloo's tags are broad, so a few "
-            f"others can appear. {shared}"
+            f"others can appear. Namesake's AI passes over national chains and fast food. "
+            f"{shared}"
         )
     if profile.venue_categories is False:
         return (
