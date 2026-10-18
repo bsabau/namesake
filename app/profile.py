@@ -114,6 +114,10 @@ class Entity(BaseModel):
     # classifier sorted it (None when the classifier was off or failed).
     found_in: FoundIn | None = None
     verdict: PetVerdict | None = None
+    # A better place in another of the area's lists than `found_in`, or, for a title
+    # Namesake's AI proposed, its best place in them: the evidence code orders venue and
+    # map titles by (decision 20).
+    listed_in: FoundIn | None = None
 
 
 class Venue(BaseModel):
