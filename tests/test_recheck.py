@@ -172,3 +172,10 @@ def test_the_recheck_floors():
                                    checks_version=version)  # fmt: skip
             assert recheckable(result) is expected
     assert (PLAIN_LISTINGS_FROM, LOOKALIKE_LISTINGS_FROM) == (5, 7)
+
+
+def test_an_older_draft_with_an_unflattering_name_runs_again(roster, tmp_path):
+    store = Store(tmp_path / "store.sqlite")
+    names = [{**DRAFT["names"][0], "name": "Garbage", "character": "Garbage"}, *DRAFT["names"][1:]]
+    save(store, "dog-02", {**DRAFT, "names": names}, CHECKS_VERSION - 1)
+    assert recheck(store, roster) == (0, 1)
