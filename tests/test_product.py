@@ -19,7 +19,7 @@ from app.animals import Animal, Checks
 from app.custom_location import check_location, clean, location_id, zoom_for
 from app.limits import LimitReached, Limits
 from app.listing import GENERIC_NAMES, cautions, generic_name, missing_cautions
-from app.profile import build_profile
+from app.profile import build_profile, local_tastes
 from app.session import Sessions, photo_type
 from app.store import Store
 from app.views.build import build_result_view
@@ -503,6 +503,10 @@ def location_script(status="ok", results=None, **fields):
     }
 
 
+def top_list_key_input(text):
+    return {"target_type": "tv_show", "signal_location": text, "limit": 10}
+
+
 def top_list_key(text):
     return key("recommend", top_list_key_input(text))
 
@@ -539,7 +543,9 @@ def test_without_a_plain_top_list_the_seed_show_is_the_probe():
 
 def test_a_thin_top_show_falls_back_to_the_seed_show():
     text, script = location_script(results=cells(6))
-    assert check_location(FakeQloo(with_top_show(script, text, 2)), text, SEEDS).status == "ok"
+    checked = check_location(FakeQloo(with_top_show(script, text, 2)), text, SEEDS)
+    # The seed show's six cells decide, centre and all.
+    assert checked.status == "ok" and 40.67 < checked.location.latitude < 40.68
     text, script = location_script(results=cells(1))
     checked = check_location(FakeQloo(with_top_show(script, text, 3)), text, SEEDS)
     assert checked.status == "thin" and "3 map cells" in checked.message  # the fuller map
@@ -578,8 +584,6 @@ def test_the_seed_shows_candidates_or_failure_are_not_lost_to_a_thin_top_show():
 
 
 def test_the_checks_top_list_is_the_profiles_local_tastes_call():
-    from app.profile import local_tastes
-
     class Recording(FakeQloo):
         def run(self, operation, input_):
             self.calls.append((operation, input_))
@@ -593,10 +597,6 @@ def test_the_checks_top_list_is_the_profiles_local_tastes_call():
     # So the profile that follows finds it cached and costs no extra call.
     assert ("recommend", top_list_key_input(text)) in check.calls
     assert ("recommend", top_list_key_input(text)) in profile.calls
-
-
-def top_list_key_input(text):
-    return {"target_type": "tv_show", "signal_location": text, "limit": 10}
 
 
 def test_a_typed_location_with_enough_cells_gets_a_centre_and_zoom():

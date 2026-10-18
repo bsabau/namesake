@@ -202,3 +202,15 @@ def test_venue_rank_is_stated_plainly(roster):
     for v in view.venues:
         assert re.fullmatch(rf"\d+(st|nd|rd|th) of {total}", v.rank)
         assert v.rank_note == RANK_NOTES[v.rank_band]
+
+
+def test_a_thin_map_says_so_on_the_page():
+    # Flash, PR #13: a typed area passes on its own top show; its pet titles may still map
+    # thinly, and the page must say so, not only when there are no cells.
+    from app.views.build import map_view
+
+    p = profile()
+    p.cells = p.cells[:2]
+    assert map_view(LOCATION, p).legend.startswith(
+        f"Only 2 map cells here: Qloo's data for pet-show fans around {LOCATION.label} is thin"
+    )

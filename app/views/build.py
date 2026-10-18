@@ -7,6 +7,7 @@ from app.agent.checks import mentions_identity
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
 from app.classify import bucket
+from app.custom_location import MIN_CELLS
 from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, templated_listing
 from app.locations import Location
 from app.places import MAX_PIN_KM
@@ -435,6 +436,14 @@ def map_view(
                 label=label,
             )
         )
+    thin = ""
+    if 0 < len(cells) < MIN_CELLS:
+        # A typed area passes its check on the area's own top show; its pet titles may
+        # still map thinly (decision 12), and the page says so.
+        thin = (
+            f"Only {len(cells)} map cell{'s' if len(cells) != 1 else ''} here: Qloo's data for "
+            f"pet-show fans around {location.label} is thin, so the map says little. "
+        )
     return MapView(
         latitude=location.latitude,
         longitude=location.longitude,
@@ -442,7 +451,8 @@ def map_view(
         shelter_radius_m=shelter_radius(location),
         pin=Pin(latitude=pin[0], longitude=pin[1]) if pin else None,
         cells=cells,
-        legend=(
+        legend=thin
+        + (
             (
                 f"Warm cells: {pets} rank this part of {location.label} higher than {base} do. "
                 "Cool cells: lower. Grey: only the pet shows have a score there. Where several "

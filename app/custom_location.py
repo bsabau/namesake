@@ -11,8 +11,8 @@ its own top show (docs/qloo-findings.md). Qloo returns no coordinates for a plac
 centre and zoom come from the cells it returns.
 
 - Qloo offers candidates (`needs_input`): the visitor picks one, as buttons.
-- Too few cells: the data is thin there, and the app says so instead of
-  producing a weak result.
+- Too few cells for every probe: Qloo has too little data there, and the app says so
+  before any run.
 """
 
 import hashlib
@@ -24,7 +24,7 @@ from pydantic import BaseModel, ValidationError
 
 from app.locations import Location
 from app.profile import HEATMAP_LIMIT, Seeds, resolve_baseline
-from app.qloo.envelope import Envelope
+from app.qloo.envelope import Envelope, HeatmapCell
 from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
 
 PREFIX = "custom-"
@@ -67,8 +67,7 @@ def zoom_for(lat_span: float, lon_span: float, latitude: float) -> int:
 def local_top_show(qloo: QlooClient, text: str) -> str | None:
     """The TV show Qloo ranks highest for people around the typed place, or None when the
     answer is not a plain list. The input matches the profile's local-tastes call. A cache
-    miss with live calls off raises ReplayMiss, so the check says "unavailable" and is
-    tried live later, never "thin" from the seed show alone."""
+    miss (live calls off) raises ReplayMiss for `check_location` to report as unavailable."""
     try:
         env = qloo.run(
             "recommend", {"target_type": "tv_show", "signal_location": text, "limit": 10}
@@ -83,7 +82,11 @@ def local_top_show(qloo: QlooClient, text: str) -> str | None:
         return None
 
 
-def heatmap_cells(qloo: QlooClient, entity_id: str, text: str) -> tuple[Envelope, list]:
+def heatmap_cells(
+    qloo: QlooClient, entity_id: str, text: str
+) -> tuple[Envelope, list[HeatmapCell]]:
+    """The heatmap for one probe show within the place, and its cells. An `error` or
+    `needs_input` answer has no cells; `check_location` reads its status."""
     env = qloo.run("where_popular", {"entity": entity_id, "within": text, "limit": HEATMAP_LIMIT})
     return env, env.cells() if env.status != "error" and env.has_results else []
 
