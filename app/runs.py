@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
 
-from app.agent.model import ModelNotConfigured, build_model
+from app.agent.model import ModelNotConfigured, build_model, fallback_models
 from app.agent.pipeline import run_litter, run_pipeline
 from app.agent.results import ListingResult
 from app.agent.steps import StepLog
@@ -119,7 +119,11 @@ def visit_names(
 
 def live_work_possible(settings: Settings) -> bool:
     """Whether a run can reach a model or Qloo; without either it is a free fallback."""
-    return settings.allow_live_qloo or model_factory(settings) is not None
+    return (
+        settings.allow_live_qloo
+        or model_factory(settings) is not None
+        or bool(fallback_models(settings))
+    )
 
 
 def charge(settings: Settings, visitor: str) -> None:
@@ -208,6 +212,7 @@ async def start_run(
             store=store,
             seeds=load_seeds(settings.seeds_file),
             model_factory=model_factory(settings),
+            fallbacks=fallback_models(settings),
             log=run.log,
             output_mode=settings.agent_output_mode,
             classifier=classifier_from(settings),
@@ -247,6 +252,7 @@ async def start_litter_run(
             store=store,
             seeds=load_seeds(settings.seeds_file),
             model_factory=model_factory(settings),
+            fallbacks=fallback_models(settings),
             log=run.log,
             output_mode=settings.agent_output_mode,
             classifier=classifier_from(settings),

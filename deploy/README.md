@@ -73,5 +73,5 @@ ssh deploy@host 'cd /opt/namesake && docker compose exec -T app python -m app.ve
 
 - **`PROXY_NETWORK`**: the Caddy container's Docker network, which the app joins as `namesake`. It has no published port, so only the proxy reaches it.
 - **`FORWARDED_ALLOW_IPS`** is set to that network's subnet, so the app trusts the visitor address Caddy forwards and per-visitor limits see real visitors. Caddy's own address changes when its container restarts, so a single IP would break silently. The cost: any container on that network could forge a visitor address and dodge the per-visitor limit; the daily caps still hold. On a host with one operator that is acceptable; on a shared host, give Caddy a fixed IP and use it instead.
-- **The model and the Qloo key** come from `.env`. To change the model, edit the `AGENT_*` values in your local `.env` and deploy with `--env`.
+- **The model and the Qloo key** come from `.env`. To change the model or its fallbacks, edit the `AGENT_*` values (`AGENT_FALLBACK_1_*`, `AGENT_FALLBACK_2_*` for the fallbacks) in your local `.env` and deploy with `--env`.
 - **`MAP_TILES_KEY`** (optional) is a CARTO basemap key for the story skin's maps. It reaches the visitor's browser, which is where tile requests come from, so restrict it to the site's domain in CARTO's dashboard. Without it the maps use OpenStreetMap's standard tiles.

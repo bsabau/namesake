@@ -24,6 +24,10 @@ def isolated_settings(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "agent_base_url", None)
     monkeypatch.setattr(settings, "agent_api_key", None)
     monkeypatch.setattr(settings, "agent_model", None)
+    # The fallbacks too: a key in a local .env would otherwise reach a real model.
+    for n in (1, 2):
+        monkeypatch.setattr(settings, f"agent_fallback_{n}_api_key", None)
+        monkeypatch.setattr(settings, f"agent_fallback_{n}_model", None)
     monkeypatch.setattr(settings, "geocoder_url", "")
     monkeypatch.setattr(settings, "typesafe_api_key", None)
     return settings
