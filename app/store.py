@@ -112,7 +112,8 @@ class Store:
         only while it still holds the same draft, so a run that rewrote it meanwhile
         is never written over (app/audience.py's backfill). True when it wrote."""
         key = f"listing:{result.animal_id}@{result.location_id}"
-        db = sqlite3.connect(self.path, isolation_level=None)
+        # The cache waits as long for the same cross-process write lock.
+        db = sqlite3.connect(self.path, isolation_level=None, timeout=30)
         try:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(

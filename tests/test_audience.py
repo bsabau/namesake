@@ -289,7 +289,7 @@ def test_the_backfill_leaves_a_listing_from_before_the_checks_changed(monkeypatc
     assert kept.checks_version == CHECKS_VERSION - 1 and kept.audiences == {}
 
 
-def test_the_backfill_never_writes_over_a_listing_rewritten_meanwhile(monkeypatch):
+def test_the_backfill_never_writes_over_a_listing_rewritten_meanwhile(monkeypatch, capsys):
     # Codex and flash: it read every listing first and wrote each back whole.
     store = Store(app_main.get_settings().cache_db)
     store.put_listing(saved())
@@ -308,3 +308,4 @@ def test_the_backfill_never_writes_over_a_listing_rewritten_meanwhile(monkeypatc
     backfill(monkeypatch, qloo)
     kept = store.get_listing("dog-02", "park-slope")
     assert kept.draft == newer.draft and kept.audiences == {}
+    assert "dog-02 at park-slope: left alone, a run rewrote it meanwhile" in capsys.readouterr().out

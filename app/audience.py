@@ -167,13 +167,17 @@ def main() -> None:
     for result in store.saved_listings():
         if result.draft is None or result.checks_version != CHECKS_VERSION:
             continue
+        before = dict(result.audiences)
         complete = add_audiences(result, qloo)
+        where = f"{result.animal_id} at {result.location_id}"
         # The calls take a while; a run may have rewritten this listing meanwhile, so
         # the answers go only onto the same draft, never over a newer one.
-        store.merge_audiences(result)
+        if result.audiences != before and not store.merge_audiences(result):
+            print(f"{where}: left alone, a run rewrote it meanwhile")
+            continue
         done += complete
         left += not complete
-        print(f"{result.animal_id} at {result.location_id}: {len(result.audiences)} titles")
+        print(f"{where}: {len(result.audiences)} titles")
     print(f"Listings complete: {done}; with a title Qloo had nothing for: {left}")
 
 
