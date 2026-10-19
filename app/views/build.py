@@ -686,10 +686,14 @@ def map_view(
             f"place. The places to ask are for fans of {and_list([e.name for e in asked])}. "
         )
     key = (
-        f"Warm: fans of pet-themed titles stand out here more than {base}. Cool: less, or level. "
-        "Grey: no comparison. Circle: the area around the fictional shelter."
-        if any(c.lift is not None for c in cells)
-        else "Grey: no cell was scored for both, so there is no comparison here."
+        (
+            f"Warm: fans of pet-themed titles stand out here more than {base}. Cool: less, or "
+            "level. Grey: no comparison."
+            if any(c.lift is not None for c in cells)
+            else "Grey: no cell was scored for both, so there is no comparison here."
+        )
+        # The circle is drawn on every map with cells, so it is explained on every one.
+        + " Circle: the area around the fictional shelter."
         if cells
         else None
     )
@@ -769,8 +773,7 @@ def map_view(
                 # A key, worded as one, so it never reads as a finding when no cell is warm.
                 f"Colours: warm where {pets} rank this part of {location.label} higher than "
                 f"{base} do; cool where lower, or level; grey where only the pet-themed titles "
-                "have a score. The dashed circle marks the area around the fictional shelter. "
-                "Where several "
+                "have a score. Where several "
                 "shows scored a cell, their scores are averaged. Scores are ranks within the "
                 "area, so they compare places here, not with other cities."
             )

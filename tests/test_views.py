@@ -514,7 +514,10 @@ def test_no_warm_cell_says_so():
     # Review of PR #48: the colour key follows as a key, never as a second finding, and
     # the shelter's circle is explained.
     assert "Warm cells:" not in legend and "Colours: warm where" in legend
-    assert "dashed circle marks the area around the fictional shelter" in legend
+    note = map_view(
+        LOCATION, map_with([(0.5, 0.9), (0.4, 0.8), (0.3, 0.7), (0.2, 0.6), (0.1, 0.5)])
+    ).note
+    assert note.endswith("Circle: the area around the fictional shelter.")
 
 
 def test_one_compared_cell_among_grey_ones_reads_in_the_singular():

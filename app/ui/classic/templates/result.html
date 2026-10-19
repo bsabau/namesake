@@ -146,7 +146,7 @@
   <section class="result-local">
     <figure class="result-map">
       <div id="result-map" data-role="map" role="region"
-           aria-label="Map of where fans of pet-themed titles stand out around {{ view.location.label }}{% if view.map.venues %}, with the places to ask numbered as in the list{% endif %}"></div>
+           aria-label="Map of how fans of pet-themed titles compare around {{ view.location.label }}{% if view.map.venues %}, with the places to ask numbered as in the list{% endif %}"></div>
       <figcaption>{{ view.map.empty_message or view.map.legend }}</figcaption>
     </figure>
     <script type="application/json" id="map-data">{{ view.map|plain|tojson }}</script>
