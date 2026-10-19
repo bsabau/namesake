@@ -262,3 +262,14 @@ Reading:
 - The quiet kinds found the one new place worth having (the Central Library for a shy cat), and a bookshop chain the chain list did not yet name.
 
 **Not adopted.** The places stay the same for every animal of a species at a shelter, as the venue note says. A call or two per animal would mostly return empty lists or repeat the page, and tailoring would promise more than the data backs. Barnes & Noble and the other bookshop chains join the chain list (decision 23, revised 19 October).
+
+## The lead dog in Barcelona (19 October, 13 calls)
+
+The fourth example (decision 30), built live on the server with `precompute_examples.py --only barcelona`, "Barcelona, Spain" as the area.
+
+- **Titles:** Qloo's area lists gave almost nothing pet-themed. Of the TV shows, films and books that people around Barcelona who like *Dogs in Space* also like (20 each), the classifier found no pet title, and left one film to Namesake's AI. `rank` ordered *Dogs in Space*, *My Cat from Hell*, *Bluey* and *It's Me or the Dog*. *My Cat from Hell* is about cats, and its own name rules it out for names (decision 26); the dog's saved profile holds the other three, as its titles and its venue signals.
+- **Places:** Qloo returned 15 places for fans of those three titles, and 11 stand out against the area's top two shows (*Crims*, *BricoHeroes*). The ones Namesake's AI picked are tourist landmarks rather than neighbourhood spots: Park Güell (1st), La Pedrera's bookshop (6th) and Illa Fantasia (9th), a water park in Vilassar de Dalt outside the city. Two places were found in OpenStreetMap and placed on the map.
+- **Map:** 20 cells for *Dogs in Space* and *Bluey*. Their fans stand out against fans of the area's top shows in none of the cells with a comparison, and the page says so.
+- **Names:** Bluey (the general pet title), Hooch and Scooby (titles with a dog that shares this one's broad head). Both lookalike titles came back ambiguous. Namesake's AI chose a candidate for each and was sent back once to give its reason.
+
+**Reading:** Qloo answers for Barcelona, but the pet-themed layer is thin. The titles are the US ones again, the map is flat, and the places are the city's best-known sights. The example shows the uneven coverage the README names, which is what it is there for.
