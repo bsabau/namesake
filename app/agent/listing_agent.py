@@ -423,7 +423,6 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
     deps = ctx.deps
     problems: list[str] = []
     seen_names = set()
-    seen_refs: list[tuple[str, tuple[str, tuple[str, ...]]]] = []
     for option in draft.names:
         if option.entity_id not in deps.titles:
             problems.append(f"name {option.name!r} cites a title that was not offered")
@@ -453,13 +452,7 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
                 "shelter is named after; use another character or title"
             )
         seen_names.add(option.name.lower())
-        ref = checks.reference_key(option.entity_id, option.character)
-        twin = next((name for name, r in seen_refs if checks.same_reference(r, ref)), None)
-        if twin:
-            problems.append(
-                f"names {twin!r} and {option.name!r} refer to one character; offer another"
-            )
-        seen_refs.append((option.name, ref))
+    problems += twin_references(draft.names)
     problems += screen_names(draft.names, {k: e for k, (e, _) in deps.titles.items()}, deps.strict)
     if draft.names[0].source == "lookalike":
         # The first name is the local version's: it shows what the area's data adds.
@@ -481,6 +474,22 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
         raise ModelRetry("Fix these and answer again: " + "; ".join(problems))
     deps.log.add("check", "Listing checked: built from the recorded facts, names pass the screen")
     return draft
+
+
+def twin_references(names: list[NameOption]) -> list[str]:
+    """Two options of one draft that refer to one character ("Bingo" and "Bing", after
+    Bingo): a draft offers three references, not two. Needs only the draft, so the recheck
+    applies it to saved drafts too."""
+    problems, seen = [], []
+    for option in names:
+        ref = checks.reference_key(option.entity_id, option.character)
+        twin = next((name for name, r in seen if checks.same_reference(r, ref)), None)
+        if twin:
+            problems.append(
+                f"names {twin!r} and {option.name!r} refer to one character; offer another"
+            )
+        seen.append((option.name, ref))
+    return problems
 
 
 def open_title(entity: Entity) -> bool:

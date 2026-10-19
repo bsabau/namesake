@@ -659,14 +659,16 @@ def _animal_word(text: str, species: str) -> bool:
 
 def about_other_species_only(entity: "Entity", species: str) -> bool:
     """A title about another animal and not this one: a cat show for a dog. The classifier's
-    answers decide; without them, the animal words in the title's name and description
-    ("The Aristocats": a family of cats)."""
+    answers decide; without them, the animal words in the title's name, Qloo's description
+    and the seed's own reason ("The Aristocats": a family of cats; Bluey's seed: a family
+    of dogs). A general pet title whose description mentions only cats goes last for a
+    dog too: stricter, never dropped."""
     other = "cat" if species == "dog" else "dog"
     if entity.verdict is not None:
         mine = getattr(entity.verdict, f"{species}s", 0.0)
         theirs = getattr(entity.verdict, f"{other}s", 0.0)
         return theirs >= 0.5 and mine < 0.5
-    text = f"{entity.name} {entity.description or ''}".lower()
+    text = f"{entity.name} {entity.description or ''} {entity.why}".lower()
     return _animal_word(text, other) and not _animal_word(text, species)
 
 

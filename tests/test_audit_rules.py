@@ -255,3 +255,24 @@ def test_a_litter_mate_awaiting_a_rerun_still_holds_the_litters_title():
     store = Store(_tmp_db())
     store.put_listing(saved("kitten-02", "Bing", "Bingo", version=CHECKS_VERSION - 1))
     assert litter_theme(LOCATION, store, {"kitten-02"}) == DOG_SHOW
+
+
+def test_a_seeds_own_reason_says_which_animal_and_a_recheck_finds_a_twin(roster):
+    from app.agent.listing_agent import twin_references
+    from app.profile import about_other_species_only
+
+    bluey = Entity(id="b", name="Bluey", type="urn:entity:tv_show", why="a family of dogs")
+    assert about_other_species_only(bluey, "cat") and not about_other_species_only(bluey, "dog")
+    twin = ListingDraft.model_validate(
+        {
+            **DRAFT,
+            "names": [
+                DRAFT["names"][0],
+                {**DRAFT["names"][2], "name": "Bing", "character": "Bingo"},
+                DRAFT["names"][1],
+            ],
+        }  # fmt: skip
+    )
+    assert twin_references(twin.names) and not twin_references(
+        ListingDraft.model_validate(DRAFT).names
+    )

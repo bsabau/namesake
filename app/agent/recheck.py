@@ -18,6 +18,7 @@ from app.agent.listing_agent import (
     screen_names,
     shared_look_problem,
     shown_bio,
+    twin_references,
 )
 from app.agent.results import (
     CHECKS_VERSION,
@@ -72,6 +73,7 @@ def screen_problems(store: Store, animal: Animal, result: ListingResult) -> list
         + screen_names(result.draft.names, titles, strict)
         + characters
         + hook
+        + twin_references(result.draft.names)
     )
 
 

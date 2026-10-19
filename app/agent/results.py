@@ -10,8 +10,9 @@ from app.agent.steps import Step
 # and the names' reasons) and name screen, and anything it cannot recheck is rerun.
 CHECKS_VERSION = 13
 # What changed since, so which saved drafts a recheck of the record is enough for:
-# - 13 refused a title whose own name does not suit a listing, and screened a name used as
-#   its own title for temperament (both rechecked with the name screen); widened the
+# - 13 refused a title whose own name does not suit a listing (rechecked with the name
+#   screen) and one character offered twice in a draft, and screened a name used as its own
+#   title for temperament (both rechecked from the saved draft); widened the
 #   bully-type looks (rechecked: the screen reads today's look); screened the hook's
 #   character and role, not Qloo's title (rechecked; the saved hook is rebuilt by code);
 #   and refused a reference another animal at the shelter has (a check across animals,
