@@ -175,7 +175,9 @@ def test_no_page_needs_an_exception_to_the_content_security_policy(plain, ui):
     pages.append(started.headers["location"])
     for path in pages:
         sep = "&" if "?" in path else "?"
-        html = plain.get(f"{path}{sep}ui={ui}").text
+        page = plain.get(f"{path}{sep}ui={ui}")
+        assert page.status_code == 200, path
+        html = page.text
         scripts = re.findall(r"<script(?![^>]*\bsrc=)(?![^>]*application/json)[^>]*>", html)
         assert scripts == [], (path, scripts)
         assert not re.search(r"\sstyle=", html), path

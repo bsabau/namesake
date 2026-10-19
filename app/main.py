@@ -810,7 +810,7 @@ async def add_animal(
     def refuse(message: str, status: int = 400) -> HTMLResponse:
         # What was entered comes back, so only the fix is needed; a photo cannot be kept
         # in the form, so the message says to add it again.
-        if photo is not None and photo.filename:
+        if photo is not None and photo.filename and "without one" not in message:
             message += " Add the photo again."
         view = build_add_animal_view(place.id, MAX_FACTS, error=message, values=entered)
         response = render(request, chosen_ui, "add_animal.html", view)
