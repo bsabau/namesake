@@ -52,7 +52,9 @@ from app.venue_points import save_keeping_points
 
 # Bounds on one agent run: model requests and tool calls.
 # The profile's budget allows up to three find_local_titles searches (decision 20).
-PROFILE_LIMITS = UsageLimits(request_limit=20, tool_calls_limit=18)
+# 20 tool calls: the caps on lookups (10), searches (3), venue searches (3) and the ranking
+# (1) leave room for a repair round's call.
+PROFILE_LIMITS = UsageLimits(request_limit=21, tool_calls_limit=20)
 LISTING_LIMITS = UsageLimits(request_limit=6, tool_calls_limit=4)
 
 ModelFactory = Callable[[], Model]

@@ -1636,10 +1636,14 @@ def build_approved_view(
 
 
 def build_add_animal_view(
-    location_id: str, max_facts: int, error: str | None = None
+    location_id: str,
+    max_facts: int,
+    error: str | None = None,
+    values: dict[str, str] | None = None,
 ) -> AddAnimalView:
     return AddAnimalView(
         location_id=location_id,
+        values=values or {},
         questions=[
             Question(field=field, label=label)
             for field, label in [

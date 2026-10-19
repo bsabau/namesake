@@ -11,6 +11,7 @@ visitor's session and is never saved to the store.
 
 import asyncio
 import logging
+import time
 import uuid
 from dataclasses import dataclass, field
 from functools import cache
@@ -57,6 +58,24 @@ class Run:
 
 
 RUNS: dict[str, Run] = {}
+# Runs are kept in memory for their Working page and its stream: finished ones for an
+# hour, and never more than this many in all (19 October audit: a bot could grow the
+# list without end). A run still working is never dropped.
+RUN_TTL = 3600.0
+MAX_RUNS = 300
+
+
+def prune_runs(now: float | None = None) -> None:
+    now = time.monotonic() if now is None else now
+    # An hour from when the run finished, not when it started: a slow run's page stays.
+    old = [
+        i for i, r in RUNS.items() if r.log.finished and (r.log.finished_at or 0) < now - RUN_TTL
+    ]
+    for run_id in old:
+        del RUNS[run_id]
+    finished = [i for i, r in RUNS.items() if r.log.finished]
+    while len(RUNS) > MAX_RUNS and finished:
+        del RUNS[finished.pop(0)]
 
 
 @cache
@@ -146,6 +165,7 @@ def _new_run(animal_id: str, location_id: str, session_id: str | None = None) ->
         log=StepLog(asyncio.get_running_loop()),
         session_id=session_id,
     )
+    prune_runs()
     RUNS[run.id] = run
     return run
 

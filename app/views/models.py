@@ -173,6 +173,8 @@ class AddAnimalView(BaseModel):
     )
     action: str = "/animals"
     location_id: str
+    # What the visitor entered, kept when the form is refused so only the fix is needed.
+    values: dict[str, str] = {}
     species: list[str] = ["dog", "cat"]
     sexes: list[str] = ["female", "male"]
     questions: list[Question]

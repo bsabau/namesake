@@ -72,6 +72,11 @@ class ProfileDeps:
     # Sorts the titles find_local_titles returns; None leaves them all to the AI.
     classifier: JevClassifier | None = None
     local_searches: int = 0
+    # The AI's own lookups and venue searches, each capped per run (MAX_LOOKUPS,
+    # MAX_VENUE_SEARCHES): the run's tool budget alone would let one model spend the
+    # key's rate limit on them (19 October audit).
+    lookups: int = 0
+    venue_searches: int = 0
     # The calls the AI's tools made, for the Why panel's list beside the assembly's own.
     calls: list[QlooCall] = field(default_factory=list)
 
@@ -195,9 +200,19 @@ def keep_found(deps: ProfileDeps, entity: Entity) -> None:
         entity.listed_in = seen.listed_in
 
 
+# Per run: up to four titles of its own, each perhaps looked up twice (the instructions), and
+# venues asked once, again after a fix, and once more.
+MAX_LOOKUPS = 10
+MAX_VENUE_SEARCHES = 3
+
+
 def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> dict[str, Any]:
     """Find a title in Qloo by name. Returns the entity, or candidates to choose from."""
     deps = ctx.deps
+    if deps.lookups >= MAX_LOOKUPS:
+        deps.log.add("note", f"Not looked up: “{name}” (this run's {MAX_LOOKUPS} lookups are used)")
+        return {"status": f"limit reached: this run may look up {MAX_LOOKUPS} titles"}
+    deps.lookups += 1
     deps.log.add("qloo", f"Looking up “{name}” ({kind.replace('_', ' ')}) in Qloo")
     env = qloo_call(
         deps,
@@ -230,6 +245,9 @@ def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> d
     if not env.has_results:
         deps.log.add("qloo", f"Qloo has nothing for “{name}”")
         return {"status": "not found"}
+    if env.status in ("partial", "degraded"):
+        # The entity is still the one Qloo named; only the answer around it is incomplete.
+        deps.log.add("note", f"Qloo's answer for “{name}” was {env.status}")
     r = env.results[0]
     props = r.get("properties") or {}
     entity = Entity(
@@ -586,6 +604,13 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
     ids = (backed or eligible)[:MAX_VENUE_SIGNALS]
     if not ids:
         return {"status": "no title here can be a venue signal; send titles you keep"}
+    # Counted only when the call goes to Qloo (review of PR #46).
+    if deps.venue_searches >= MAX_VENUE_SEARCHES:
+        deps.log.add(
+            "note", f"Venues not asked again: this run's {MAX_VENUE_SEARCHES} searches are used"
+        )
+        return {"status": f"limit reached: venues may be asked {MAX_VENUE_SEARCHES} times per run"}
+    deps.venue_searches += 1
     names = [deps.titles_seen[i].name for i in ids]
     deps.log.add(
         "qloo", f"Finding places near {deps.location.label} for fans of {', '.join(names)}"
@@ -601,11 +626,14 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
             deps.venue_filter = False
         elif env.status == "ok":
             deps.venue_filter = True
-    if isinstance(env, str) or not env.has_results:
+    if isinstance(env, str) or not env.has_results or env.status in ("partial", "degraded"):
         if isinstance(env, str):
             status = env
         elif env.status == "needs_input":
             status = f"unavailable: Qloo could not tell which place {deps.location.query!r} means"
+        elif env.status in ("partial", "degraded"):
+            # An incomplete list may have lost the area: no venue is picked from it.
+            status = f"unavailable: Qloo's list of places was {env.status}"
         else:
             status = "no venues returned"
         deps.log.add("note", f"Venues: {status}")

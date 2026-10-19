@@ -24,6 +24,10 @@ TTL = 2 * 3600
 MAX_SESSIONS = 500
 MAX_ANIMALS = 3
 MAX_PHOTO_BYTES = 3 * 1024 * 1024
+# All visitors' photos together, in memory (19 October audit: 500 sessions of three 3 MB
+# photos could take the demo down). Past it, an add with a photo is refused, and the
+# visitor may add the animal again without one.
+PHOTO_BUDGET = 64 * 1024 * 1024
 
 # Only these formats, recognised from their first bytes, never from a name or a header.
 PHOTO_TYPES = {
@@ -103,6 +107,19 @@ class Sessions:
             session.last_seen = time.monotonic()
             self._items.move_to_end(session_id)
             return session
+
+    def _photo_bytes(self) -> int:
+        return sum(len(p.data) for s in self._items.values() for p in s.photos.values())
+
+    def add_photo(self, session: "Session", animal_id: str, photo: "Photo", budget: int) -> bool:
+        """Keep the photo if every session's photos together stay within `budget`: the
+        check and the store under one lock, so two adds at once cannot both pass."""
+        with self._lock:
+            self._expire()
+            if self._photo_bytes() + len(photo.data) > budget:
+                return False
+            session.photos[animal_id] = photo
+            return True
 
     def _expire(self) -> None:
         cutoff = time.monotonic() - self.ttl
