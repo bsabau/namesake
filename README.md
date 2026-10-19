@@ -106,8 +106,8 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
    - a **map** of where fans of pet-themed titles stand out within the area, and the **places to ask**, under a note on which kinds of place were asked for and why, each with Qloo's description, its rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline on one Qloo line, numbered on the map, with the cell it sits in and its distance from the shelter (points from OpenStreetMap)
    - the **other ways to help**, each labelled Research, Qloo or Our suggestion; for an animal recorded as not good with children, places whose name or Qloo description mentions children are skipped, and the list says so
 
-   The `warm` and `classic` skins show the same information with Qloo's part and the AI's at the top, without story's "Behind this story" framing.
-4. **Refine** with one line ("less childish"), **edit**, **approve** (a result with no listing yet offers "Write her story with Namesake's AI" instead, or for a kitten, the litter's), and copy a block ready to paste into shelter software.
+   The `warm` and `classic` skins show the same listing, names, map, places and Why panel with Qloo's part and the AI's at the top, without story's "Behind this story" framing, the saved run's step log or the button that starts a run.
+4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software. A result with no listing yet also offers "Write her story with Namesake's AI" (for a member of a litter, naming the litter as a set).
 
 The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 18 to 20 Qloo calls (one more when the venues must be asked again) (fewer when titles are already cached; two or three more to check a typed area first), and each further animal at most two.
 

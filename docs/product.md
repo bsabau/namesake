@@ -82,7 +82,7 @@ The result screen must be legible in a single screenshot. It shows:
 - a "Why" drawer with two columns, "Qloo returned" and "How Namesake read it", the Qloo calls behind the result listed under Qloo's
 - in the story skin, the saved run's own step log, folded, each step marked by who did it; and, where the animal has no listing yet, a button that starts a run (for a litter member, the litter's) (decision 27)
 
-The skins that render this screen are a separate choice (`docs/decisions.md` #21 for warm and classic, #24 for story); each keeps every item above.
+The skins that render this screen are a separate choice (`docs/decisions.md` #21 for warm and classic, #24 for story); each keeps every item above, except the two marked as the story skin's.
 
 ## Measurement
 

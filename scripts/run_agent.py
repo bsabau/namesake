@@ -64,7 +64,7 @@ async def main() -> None:
             sys.exit(f"The main model is misconfigured: {exc}")
         except ModelNotConfigured:
             if not fallbacks:
-                sys.exit("No model is configured (AGENT_* or AGENT_FALLBACK_*).")
+                sys.exit("No model to run: the main model (AGENT_*) is not configured.")
             main_model = None  # the fallbacks only
     animal = load_roster(settings.animals_file).get(args.animal)
     location = next(x for x in load_locations(settings.locations_file) if x.id == args.location)

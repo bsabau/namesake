@@ -93,3 +93,22 @@ def test_finishing_a_profile_keeps_the_calls_behind_its_titles(roster):
     assert new is not None and any(c.purpose == "renamed" for c in new.calls)
     view = build_result_view(roster.get("dog-02"), LOCATION, new, result)
     assert not any("1 results" in i.detail for i in view.qloo_returned)
+
+
+def test_the_story_skin_renders_a_saved_runs_steps(monkeypatch, roster):
+    # Review of PR #45: only the absence of the log was tested.
+    from app import main
+    from app.store import Store
+
+    listing = ListingResult(
+        animal_id="dog-03",
+        location_id="park-slope",
+        checks_version=CHECKS_VERSION,
+        steps=[Step(kind="qloo", text="Asking Qloo which shows", at=0.0)],
+    )
+    Store(main.get_settings().cache_db).put_listing(listing)
+    html = (
+        TestClient(app).get("/result", params={"animal": "dog-03", "location": "park-slope"}).text
+    )
+    assert 'data-role="run-steps"' in html and "Asking Qloo which shows" in html
+    assert 'data-role="write"' not in html

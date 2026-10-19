@@ -149,7 +149,7 @@ sequenceDiagram
     end
 ```
 
-- **The step log** (`StepLog`) is what the Working page streams over server-sent events. Each step records who did it (`actor`: Qloo's calls and answers, a decision of Namesake's AI, the classifier, or the run's own code), given where it is logged. A follower gets every step exactly once, including those logged before it connected. A saved listing keeps its run's steps, and the story skin's result page shows them folded under "Behind this story" (`ResultView.run_steps`); a result with no listing yet offers a button that starts a run (`ResultView.write_label`, posting to `/runs`).
+- **The step log** (`StepLog`) is what the Working page streams over server-sent events. Each step records who did it (`actor`: Qloo's calls and answers, a decision of Namesake's AI, the classifier, or the run's own code), given where it is logged. A follower gets every step exactly once, including those logged before it connected. A saved listing keeps its run's steps (a litter member, the area's steps and its own, not its mates'), and the story skin's result page shows them folded under "Behind this story" (`ResultView.run_steps`); a result with no listing yet offers a button that starts a run (`ResultView.write_label`, posting to `/runs`; for a litter member `write_animal` names the litter, so it is named as a set).
 - **Refine** (`POST /refine`) reruns the listing with a volunteer's request, for that visitor only. **Approve** (`POST /approve`) records the chosen name and version for the measurement log. A listing for an animal a visitor added, and any refined listing, stays in their session and is never saved.
 
 ## Typed areas and the map pick
