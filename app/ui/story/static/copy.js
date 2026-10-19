@@ -16,15 +16,20 @@ document.addEventListener("click", (event) => {
     setTimeout(() => { button.textContent = label; }, 1500);
   };
   // Without the clipboard API (an insecure page) or when it refuses (no permission): copy
-  // through the textarea itself, shown for the moment it takes, then hidden again.
+  // through the textarea itself, unhidden to select it. If that fails too, the textarea
+  // stays shown and selected, for the visitor to copy.
   const byHand = () => {
     const hidden = target.hidden;
     target.hidden = false;
-    target.select();
+    if (typeof target.select === "function") target.select();
     let copied = false;
     try { copied = document.execCommand("copy"); } catch (error) { copied = false; }
-    target.hidden = hidden;
-    say(copied ? "Copied" : "Copy failed: select the text");
+    if (copied) {
+      target.hidden = hidden;
+      say("Copied");
+    } else {
+      say("Copy the selected text");
+    }
   };
   const text = (target.value || target.textContent).trim();
   if (!navigator.clipboard) return byHand();

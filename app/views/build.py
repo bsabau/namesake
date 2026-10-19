@@ -174,7 +174,7 @@ def location_option(
     option = LocationOption(
         id=location.id,
         label=location.label,
-        region=location.region,
+        region="" if location.region == OLD_TYPED_REGION else location.region,
         place=place_of(location),
         latitude=location.latitude,
         longitude=location.longitude,
@@ -941,11 +941,7 @@ def plan(
         )
     top = [v.name for v in venues[:VENUES_IN_PLAN]]
     picks = [v for v in venues[:VENUES_IN_PLAN] if v.chosen_reason]
-    picked_by = (
-        f" ({'each' if len(picks) > 1 else 'its'} pick by Namesake's AI from Qloo's list)"
-        if picks
-        else ""
-    )
+    picked_by = " (picked by Namesake's AI from Qloo's list)" if picks else ""
     if top:
         items.append(
             PlanItem(

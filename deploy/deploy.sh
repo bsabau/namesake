@@ -29,7 +29,8 @@ case "$DIR" in /*) ;; *) echo "✗ NAMESAKE_DIR must be an absolute path"; exit 
 # network name sits in this script.
 if [ -z "${PROXY_NETWORK:-}" ]; then
   ssh "$HOST" true </dev/null || { echo "✗ cannot reach $HOST over ssh"; exit 1; }
-  PROXY_NETWORK=$(ssh "$HOST" "sed -n 's/^PROXY_NETWORK=//p' $(printf %q "$DIR")/.env 2>/dev/null" </dev/null | head -n 1 | tr -d '[:space:]') || PROXY_NETWORK=""
+  # The first matching line only, read remotely (no local head to close the pipe early).
+  PROXY_NETWORK=$(ssh "$HOST" "sed -n '/^PROXY_NETWORK=/{s///p;q;}' $(printf %q "$DIR")/.env" </dev/null | tr -d '[:space:]' || true)
 fi
 [ -n "$PROXY_NETWORK" ] || { echo "✗ set PROXY_NETWORK to the Caddy container's Docker network: the server's .env does not name one (a first deploy, or one from before --env wrote it)"; exit 2; }
 cd "$(git rev-parse --show-toplevel)"
