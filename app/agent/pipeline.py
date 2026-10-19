@@ -8,11 +8,14 @@ Every failure has a fallback that is said out loud in the step log and on the pa
 
 import asyncio
 import json
+import logging
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable, Sequence
 
+import anthropic
+import openai
 from pydantic_ai import UnexpectedModelBehavior
-from pydantic_ai.exceptions import AgentRunError, ModelHTTPError
+from pydantic_ai.exceptions import AgentRunError, ModelAPIError, ModelHTTPError
 from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
 
@@ -22,6 +25,7 @@ from app.agent.listing_agent import (
     reference_for,
     shown_bio,
 )
+from app.agent.model import ModelChoice
 from app.agent.profile_agent import ProfileDeps, build_profile_agent, has_evidence, pet_lists
 from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import StepLog
@@ -51,6 +55,8 @@ PROFILE_LIMITS = UsageLimits(request_limit=20, tool_calls_limit=18)
 LISTING_LIMITS = UsageLimits(request_limit=6, tool_calls_limit=4)
 
 ModelFactory = Callable[[], Model]
+# Each run's model usage (requests and tokens) goes to the server log, to watch the cost.
+logger = logging.getLogger(__name__)
 
 # One profile build per location and species at a time; a second request waits and
 # then finds the saved profile instead of spending quota on the same work.
@@ -58,7 +64,49 @@ _profile_locks: defaultdict[tuple[int, str, str], asyncio.Lock] = defaultdict(as
 # One listing at a time per shelter, so the names already taken are read and the new
 # listing saved without another run giving out the same name in between.
 _listing_locks: defaultdict[tuple[int, str], asyncio.Lock] = defaultdict(asyncio.Lock)
-AGENT_FAILURES = (UnexpectedModelBehavior, AgentRunError, ModelHTTPError, OSError, ValueError)
+# The SDKs' own base errors too: an error inside a stream, after the HTTP 200, can surface
+# as one that PydanticAI does not wrap (Anthropic's, as of 2.56).
+SDK_ERRORS = (anthropic.APIError, openai.APIError)
+AGENT_FAILURES = (
+    UnexpectedModelBehavior, AgentRunError, ModelHTTPError, OSError, ValueError, *SDK_ERRORS
+)  # fmt: skip
+# What starts a run again on the next model: the model could not be reached, refused the
+# request, or ran out of time (TimeoutError is an OSError). A draft that fails its checks
+# is not one: it falls to the template as before.
+MODEL_FAILURES = (ModelAPIError, OSError, *SDK_ERRORS)
+# Seconds one model may spend on a whole run, its tool calls included, before the next
+# model is tried: room for a request that times out and succeeds on its retry
+# (app/agent/model.py), and for the slowest model measured (decision 25). A synchronous
+# tool already running when the cap lands (a `qloo` call with its retries: minutes, for a
+# refused `rank`) is not interrupted: its thread finishes in the background.
+PROFILE_TIMEOUT = 480.0
+LISTING_TIMEOUT = 300.0
+Fallbacks = Sequence[ModelChoice]
+
+
+def models_in_order(
+    model_factory: ModelFactory | None, output_mode: str, fallbacks: Fallbacks
+) -> list[ModelChoice]:
+    """The main model, then the fallbacks."""
+    main = [ModelChoice(model_factory, output_mode)] if model_factory is not None else []
+    return main + list(fallbacks)
+
+
+async def on_each_model[T](
+    models: list[ModelChoice], attempt: Callable[[ModelChoice], Awaitable[T]], log: StepLog
+) -> T:
+    """`attempt` on each model in turn until one is reached; the last one's failure is
+    raised. Saved Qloo answers are reused, so starting again costs no Qloo quota beyond
+    any call the earlier attempt had not finished."""
+    for i, choice in enumerate(models):
+        try:
+            return await attempt(choice)
+        except MODEL_FAILURES as exc:
+            if i == len(models) - 1:
+                raise
+            log.add("note", "Namesake's AI could not be reached; starting again on a backup model")
+            logger.warning("model %d of %d failed: %s", i + 1, len(models), type(exc).__name__)
+    raise ValueError("no model to run")
 
 
 async def agent_profile(
@@ -104,6 +152,7 @@ async def agent_profile(
         them = "them" if len(baselines) > 1 else "it"
         prompt += f" {names}: {what} for the comparison; do not propose {them} as pet titles."
     run = await agent.run(prompt, deps=deps, usage_limits=PROFILE_LIMITS)
+    logger.info("profile run for %s, %s: %s", location.id, species, run.usage)
     plan = run.output
 
     chosen = {t.entity_id: t for t in plan.titles}
@@ -161,6 +210,7 @@ async def get_profile(
     log: StepLog,
     output_mode: str,
     classifier: JevClassifier | None = None,
+    fallbacks: Fallbacks = (),
 ) -> LocationProfile:
     species = animal.species
     loop = id(asyncio.get_running_loop())
@@ -192,6 +242,7 @@ async def get_profile(
             log=log,
             output_mode=output_mode,
             classifier=classifier,
+            fallbacks=fallbacks,
         )
 
 
@@ -206,6 +257,7 @@ async def _build_profile(
     log: StepLog,
     output_mode: str,
     classifier: JevClassifier | None = None,
+    fallbacks: Fallbacks = (),
 ) -> LocationProfile:
     species = animal.species
     log.add("start", f"Building the profile for {species}s in {location.label}")
@@ -216,19 +268,25 @@ async def _build_profile(
     prepared = await asyncio.to_thread(baseline_for, qloo, location, seeds)
 
     profile = None
-    if model_factory is not None:
-        try:
-            profile = await agent_profile(
+    models = models_in_order(model_factory, output_mode, fallbacks)
+    if models:
+
+        def attempt(choice: ModelChoice) -> Awaitable[LocationProfile]:
+            run = agent_profile(
                 qloo,
                 location,
                 species,
                 seeds,
-                model_factory(),
+                choice.make(),
                 log,
-                output_mode,
+                choice.output_mode,
                 prepared,
                 classifier,
             )
+            return asyncio.wait_for(run, PROFILE_TIMEOUT)
+
+        try:
+            profile = await on_each_model(models, attempt, log)
         except AGENT_FAILURES as exc:
             log.add(
                 "error", f"Namesake's AI did not finish the area profile ({type(exc).__name__})"
@@ -288,6 +346,7 @@ async def write_listing(
     theme: str | None = None,
     first_of_litter: bool = False,
     qloo: QlooClient | None = None,
+    fallbacks: Fallbacks = (),
 ) -> ListingResult:
     """One listing. `request` is a volunteer's refine request. For a litter named as a
     set, `theme` limits the names to the litter's title, and the first member's names
@@ -296,7 +355,8 @@ async def write_listing(
     result = ListingResult(
         animal_id=animal.id, location_id=location.id, checks_version=CHECKS_VERSION
     )
-    if model_factory is None:
+    models = models_in_order(model_factory, output_mode, fallbacks)
+    if not models:
         result.fallback_reason = "No model is configured, so this is the templated listing."
         return result
     titles: dict[str, tuple[Entity, str]] = {e.id: (e, "pet") for e in profile.pet_entities}
@@ -309,21 +369,27 @@ async def write_listing(
         return result
 
     log.add("start", f"Writing the listing and name options for the {animal.species}")
-    agent = build_listing_agent(model_factory(), output_mode)
-    deps = ListingDeps(
-        animal=animal,
-        titles=titles,
-        log=log,
-        taken_names=taken,
-        request=request,
-        litter_title=titles[theme][0].name if theme else None,
-        first_of_litter=first_of_litter,
-        qloo=qloo,
-    )
-    try:
+
+    async def attempt(choice: ModelChoice):
+        agent = build_listing_agent(choice.make(), choice.output_mode)
+        deps = ListingDeps(
+            animal=animal,
+            titles=dict(titles),
+            log=log,
+            taken_names=taken,
+            request=request,
+            litter_title=titles[theme][0].name if theme else None,
+            first_of_litter=first_of_litter,
+            qloo=qloo,
+        )
         # The lookup tool is synchronous and runs `qloo` as a subprocess; PydanticAI
         # runs sync tools in a worker thread.
-        run = await agent.run("Write the listing.", deps=deps, usage_limits=LISTING_LIMITS)
+        run = agent.run("Write the listing.", deps=deps, usage_limits=LISTING_LIMITS)
+        return await asyncio.wait_for(run, LISTING_TIMEOUT), deps
+
+    try:
+        run, deps = await on_each_model(models, attempt, log)
+        logger.info("listing run for %s at %s: %s", animal.id, location.id, run.usage)
         result.draft = run.output
         result.bio = shown_bio(animal, run.output)
         # deps.titles now includes any lookalike titles the agent found.
@@ -333,6 +399,12 @@ async def write_listing(
         result.hook = f"Named after {result.references[0]}."
         used = {o.entity_id for o in run.output.names}
         result.lookalikes = [v for k, v in deps.lookalikes.items() if k in used]
+    except MODEL_FAILURES as exc:
+        # No model answered: there was no draft to check (Flash review, PR #42).
+        log.add("error", f"Namesake's AI could not be reached ({type(exc).__name__})")
+        result.fallback_reason = (
+            "Namesake's AI could not be reached, so this is the templated listing."
+        )
     except AGENT_FAILURES as exc:
         log.add("error", f"The listing did not pass its checks ({type(exc).__name__})")
         result.fallback_reason = (
@@ -360,6 +432,7 @@ async def run_pipeline(
     save: Save | None = None,
     also_taken: frozenset[str] = frozenset(),
     classifier: JevClassifier | None = None,
+    fallbacks: Fallbacks = (),
 ) -> ListingResult:
     """Profile, then listing. The caller finishes the log, after reporting any error.
 
@@ -376,6 +449,7 @@ async def run_pipeline(
         log=log,
         output_mode=output_mode,
         classifier=classifier,
+        fallbacks=fallbacks,
     )
     async with _listing_locks[(id(asyncio.get_running_loop()), location.id)]:
         theme = litter_theme(location, store, litter_mates or set())
@@ -393,6 +467,7 @@ async def run_pipeline(
             theme=theme,
             first_of_litter=bool(litter_mates) and theme is None,
             qloo=qloo,
+            fallbacks=fallbacks,
         )
         result.steps = list(log.steps)
         (save or store.put_listing)(result)
@@ -412,6 +487,7 @@ async def run_litter(
     output_mode: str = "native",
     force: bool = False,
     classifier: JevClassifier | None = None,
+    fallbacks: Fallbacks = (),
 ) -> list[ListingResult]:
     """A litter named as a set. The first member's names all come from one title, which
     becomes the litter's; the others draw from it without repeating a name.
@@ -429,6 +505,7 @@ async def run_litter(
         log=log,
         output_mode=output_mode,
         classifier=classifier,
+        fallbacks=fallbacks,
     )
     ids = {m.id for m in members}
     results: list[ListingResult] = []
@@ -454,6 +531,7 @@ async def run_litter(
                 taken=taken_names(animal, location, store),
                 theme=theme,
                 first_of_litter=theme is None,
+                fallbacks=fallbacks,
             )
             if result.draft is not None and theme is None:
                 theme = result.draft.names[0].entity_id

@@ -35,6 +35,19 @@ class Settings(BaseSettings):
     # How the model returns structured output: "native" (JSON schema), "prompted" or "tool".
     # The free development model only allows tool_choice "auto", so "tool" fails there.
     agent_output_mode: str = "native"
+    # Up to two fallbacks, tried in order when a run cannot reach the model before them
+    # (an error, a refused request, a timeout). Each takes the same five settings; "api"
+    # may also be "anthropic" (Anthropic's own API; no base URL needed). Empty: none.
+    agent_fallback_1_base_url: str | None = None
+    agent_fallback_1_api_key: SecretStr | None = None
+    agent_fallback_1_model: str | None = None
+    agent_fallback_1_api: str = "chat"
+    agent_fallback_1_output_mode: str = "native"
+    agent_fallback_2_base_url: str | None = None
+    agent_fallback_2_api_key: SecretStr | None = None
+    agent_fallback_2_model: str | None = None
+    agent_fallback_2_api: str = "chat"
+    agent_fallback_2_output_mode: str = "native"
 
     # The classifier that sorts titles into pet-themed or not (app/classify.py). Without
     # a key it is off, and Namesake's AI judges the titles from their descriptions.

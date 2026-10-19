@@ -129,7 +129,7 @@ Needs Python 3.12 with [uv](https://docs.astral.sh/uv/), Node 22.19+ with the Ql
 ```sh
 git clone https://github.com/bsabau/namesake && cd namesake
 npm install -g @qloo/qloo-harness@0.1.26
-cp .env.example .env      # fill in QLOO_API_KEY and the four AGENT_* values
+cp .env.example .env      # fill in QLOO_API_KEY and the four AGENT_* values (fallbacks optional)
 uv sync
 uv run uvicorn app.main:app --reload
 ```
@@ -141,7 +141,7 @@ uv run python scripts/precompute_examples.py          # live: Qloo and the model
 uv run python scripts/run_agent.py dog-02 park-slope  # one run, steps printed
 ```
 
-Set `ALLOW_LIVE_QLOO=false` to use only the cache. The model is configuration only (`AGENT_BASE_URL`, `AGENT_API_KEY`, `AGENT_MODEL`, `AGENT_API`); the demo runs a free model through [OpenCode Go](https://opencode.ai).
+Set `ALLOW_LIVE_QLOO=false` to use only the cache. The model is configuration only (`AGENT_BASE_URL`, `AGENT_API_KEY`, `AGENT_MODEL`, `AGENT_API`), with up to two fallbacks (`AGENT_FALLBACK_1_*`, `AGENT_FALLBACK_2_*`) that a run starts again on when it cannot reach the model before (decision 25). The demo runs Muse Spark through [OpenCode Go](https://opencode.ai), then Claude Opus 5.5, then DeepSeek Flash; `scripts/run_agent.py --model 1` runs one model alone.
 
 The same data is served as JSON (`/api/start`, `/api/results/dog-02@park-slope`, and the live step log at `/api/runs/{id}/events`), and `?ui=<name>` switches between interfaces in `app/ui/` (`story`, the default, which tells the result as a story; `warm`, the default before it; or `classic`, the first skin).
 
@@ -171,7 +171,7 @@ The image holds Python, Node and the pinned harness. The demo runs this image on
 - **Ranking is often unavailable.** Qloo's `rank` is the most rate-limited workflow and twice returned nothing; the order Namesake's AI chose is then kept and labelled.
 - **Venues have no coordinates in Qloo.** Qloo returns an address and a neighbourhood, so the app looks each suggested venue up in OpenStreetMap (Photon) once; a venue with no close match stays in the list without a pin, and a pin outside the mapped cells says so.
 - **Area data says nothing about individuals.** Results read "people in this area tend to like X". A shelter's adopters are not its neighbours, and tastes can stand in for demographics, which is one reason names are screened for identity-coded references.
-- **The demo model is a free one.** It sometimes needs its one repair round, and it judges lookalikes from its own knowledge, which Qloo cannot check; the page labels that match as the reading of Namesake's AI.
+- **The demo's first model is a coding-plan model.** Muse Spark through OpenCode Go sometimes needs its one repair round; when it cannot be reached, a run starts again on Claude Opus 5.5, then DeepSeek Flash. Each model judges lookalikes from its own knowledge, which Qloo cannot check; the page labels that match as the reading of Namesake's AI.
 
 ## Repository
 

@@ -22,7 +22,7 @@ flowchart LR
     end
     harness["qloo exec<br/>(pinned harness)"]
     qloo["Qloo API"]
-    model["Model<br/>OpenAI-compatible endpoint<br/>(AGENT_* settings)"]
+    model["Model, then up to two fallbacks<br/>OpenAI-compatible or Anthropic<br/>(AGENT_* settings)"]
     photon["Photon geocoder<br/>(OpenStreetMap)"]
     jev["TypeSafe's Jev<br/>(TYPESAFE_* settings)"]
 
@@ -261,8 +261,9 @@ Everything that differs between machines is an environment variable (`.env` loca
 | `QLOO_API_KEY`, `QLOO_BASE_URL`, `QLOO_TRUSTED_BASE_URL` | none | the hackathon key and its base URL, for the harness |
 | `QLOO_MIN_INTERVAL` | 5 s | the shortest gap between live Qloo calls, across processes |
 | `ALLOW_LIVE_QLOO` | true | off: runs use the cache and recordings only |
-| `AGENT_BASE_URL`, `AGENT_API_KEY`, `AGENT_MODEL`, `AGENT_API` | none, `chat` | the model, as configuration, never code |
+| `AGENT_BASE_URL`, `AGENT_API_KEY`, `AGENT_MODEL`, `AGENT_API` | none, `chat` | the model, as configuration, never code (`AGENT_API`: `chat`, `responses` or `anthropic`) |
 | `AGENT_OUTPUT_MODE` | `native` | how the model returns structured output (`native`, `prompted`, `tool`) |
+| `AGENT_FALLBACK_1_*`, `AGENT_FALLBACK_2_*` (`BASE_URL`, `API_KEY`, `MODEL`, `API`, `OUTPUT_MODE`) | none, `chat`, `native` | up to two fallback models, tried in order when a run cannot reach the one before (`API` may be `anthropic`; decision 25) |
 | `LIVE_RUNS_PER_VISITOR_PER_HOUR` | 6 | live runs per visitor per hour |
 | `LIVE_RUNS_PER_DAY` | 60 | live runs per day, everyone together |
 | `NEW_LOCATIONS_PER_DAY` | 10 | new typed areas checked per day |
@@ -276,7 +277,7 @@ Everything that differs between machines is an environment variable (`.env` loca
 - **Qloo**: the hackathon key was refused after about 12 calls in 20 minutes on 15 October (30 calls 10 seconds apart passed on 17 October), so every live call goes through `QlooClient`: cached in SQLite, spaced at least `QLOO_MIN_INTERVAL` apart across processes, with a 90-second timeout. An error is retried only when Qloo says it is retryable: once, after 5 seconds, or 20 after a rate limit; `rank`, which runs once per profile, gets a second retry with the wait doubled (40 seconds after a second rate limit) (decision 20). Pages read Qloo from the cache only; runs and the typed-area check call it live, within the caps.
 - **Visitors**: live runs are capped per visitor per hour, and per day for everyone together; new typed areas per day. Place lookups have their own allowance (30 a minute per visitor, 120 for everyone), and only calls that reach Photon count.
 - **Classifier**: a 10-second timeout per title; any failure of Jev or its cache leaves the title to the AI, and after the first failed call a run uses saved answers only, so a slow classifier costs one timeout.
-- **Model**: the per-run request and tool-call limits above, and one repair round. Then the profile falls back to a fixed lookup with the seed titles, and the listing to a templated one that says why.
+- **Model**: the per-run request and tool-call limits above, a 90-second timeout per request (one retry), 480 seconds per profile run and 300 per listing run, and one repair round. A run that cannot reach its model (an API error, a refused request, a timeout) starts again on the next configured fallback, with a step saying so (`on_each_model` in `app/agent/pipeline.py`; cached Qloo answers make the restart free of quota); a draft that fails its checks is not handed on. When no model is left, the profile falls back to a fixed lookup with the seed titles, and the listing to a templated one that says why. Each run's model usage (requests and tokens) goes to the server log.
 - **Secrets** live in environment variables (`SecretStr`, never logged) and, on the server, in a `.env` with mode 600 that CI never touches. The one exception that reaches the browser is the map tile key (`MAP_TILES_KEY`): tile requests come from the visitor's browser, so the page carries it in its map JSON; it is a public basemap key, restricted by domain, and still never committed.
 
 ## Testing and delivery

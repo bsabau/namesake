@@ -94,7 +94,7 @@ Check these first. Each one can sink the entry or leak something.
 - A per-animal venue filter that drops a venue without naming it, or reads anything but the animal's record and the venue's own name and description.
 - A UI folder that calls Qloo, the agent or the cache, or computes data that belongs in a view model.
 - An envelope status left unhandled (`ok`, `empty`, `needs_input`, `partial`, `degraded`, `error`), a retry when `retryable` is false, or a `needs_input` forced through as a match.
-- A model name, endpoint or key written into code instead of read from the four `AGENT_*` variables.
+- A model name, endpoint or key written into code instead of read from the `AGENT_*` settings.
 - Work that belongs to a later milestone than the current one.
 - A change that leaves `docs/architecture.md`, the README, `docs/decisions.md`, `docs/qloo-findings.md`, `docs/product.md` or this file describing something the code no longer does, or that adds something they should name (a route, a setting, a table, a Qloo call, a screen) without naming it.
 
@@ -195,18 +195,18 @@ The demo uses New York City because US coverage is likely to be deepest.
 
 ## Model configuration
 
-The agent's model is configuration, never code. Four variables, plus `AGENT_OUTPUT_MODE` (see `docs/decisions.md` #6):
+The agent's model is configuration, never code. Four variables, plus `AGENT_OUTPUT_MODE` (see `docs/decisions.md` #6), and up to two fallbacks with the same five settings each (`AGENT_FALLBACK_1_*`, `AGENT_FALLBACK_2_*`; decision 25):
 
 ```
 AGENT_BASE_URL=https://opencode.ai/zen/go/v1
 AGENT_API_KEY=...
 AGENT_MODEL=muse-spark-1.3-contributor
-AGENT_API=responses        # or "chat"
+AGENT_API=responses        # or "chat", or "anthropic" for Anthropic's own API
 ```
 
-Development uses a free model through OpenCode Go; the judged demo will switch to a paid one by changing these values. Some models speak the OpenAI "responses" format and others "chat completions", hence `AGENT_API`.
+The demo runs Muse Spark through OpenCode Go, then Claude Opus 5.5 (`AGENT_FALLBACK_1_API=anthropic`), then DeepSeek Flash (OpenAI-compatible, `prompted` output, since it refuses JSON-schema output). A run that cannot reach a model (an API error, a refused request, a timeout) starts again on the next; a draft that fails its checks still falls to the template. Some models speak the OpenAI "responses" format and others "chat completions", hence `AGENT_API`.
 
-`app/agent/model.py` builds the model from these settings, with the session header OpenCode Go requires. The agents' Qloo tools are function tools over `QlooClient`, not `qloo mcp` (`docs/decisions.md` #5). For reference, PydanticAI 2.x attaches an MCP server like this, checked against 2.53:
+`app/agent/model.py` builds the models from these settings, with the session header OpenCode Go requires and a 90-second request timeout; `app/agent/pipeline.py` tries them in order. The agents' Qloo tools are function tools over `QlooClient`, not `qloo mcp` (`docs/decisions.md` #5). For reference, PydanticAI 2.x attaches an MCP server like this, checked against 2.53:
 
 ```python
 import os
@@ -345,7 +345,7 @@ Work on one milestone at a time, in order, and stop at the end of each for revie
 Out of scope: accounts, an admin area, creating, editing or deleting stored animals, and reading or altering photos with a model.
 
 **5. Ship (28–29 October, with the 30th as a buffer).**
-- Deploy the container on a long-lived instance, with the cache database on a private volume, and switch to the paid model.
+- Deploy the container on a long-lived instance, with the cache database on a private volume, and switch to the paid model (done 19 October as fallbacks behind the coding-plan model, decision 25).
 - Finish the README:
   - the problem, with cited numbers
   - which Qloo workflows are used and why

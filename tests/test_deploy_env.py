@@ -87,3 +87,14 @@ def test_the_map_tiles_key_goes_to_the_host_and_is_optional(tmp_path):
     assert env["MAP_TILES_KEY"] == "fake-tiles-key"
     env = make_env.build_env(*files(tmp_path), "172.18.0.0/16", "proxy_default")
     assert "MAP_TILES_KEY" not in env
+
+
+def test_fallbacks_pass_through_and_an_anthropic_main_needs_no_base_url(tmp_path):
+    local = LOCAL + "AGENT_FALLBACK_1_API_KEY=fake-fallback-key\nAGENT_FALLBACK_1_API=anthropic\n"
+    env = make_env.build_env(*files(tmp_path, local=local), "172.18.0.0/16", "n")
+    assert env["AGENT_FALLBACK_1_API_KEY"] == "fake-fallback-key"
+    anthropic_main = LOCAL.replace("AGENT_BASE_URL=https://example.invalid/v1\n", "").replace(
+        "AGENT_API=responses", "AGENT_API=anthropic"
+    )
+    env = make_env.build_env(*files(tmp_path, local=anthropic_main), "172.18.0.0/16", "n")
+    assert "AGENT_BASE_URL" not in env

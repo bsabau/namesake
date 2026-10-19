@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from app.agent.model import fallback_models  # noqa: E402
 from app.agent.pipeline import run_litter, run_pipeline  # noqa: E402
 from app.agent.steps import StepLog  # noqa: E402
 from app.animals import load_roster  # noqa: E402
@@ -37,9 +38,9 @@ def echo_log() -> StepLog:
     log = StepLog()
     original = log.add
 
-    def echo(kind, text):
+    def echo(kind, text, **kwargs):
         print(f"  [{kind}] {text}", flush=True)
-        return original(kind, text)
+        return original(kind, text, **kwargs)
 
     log.add = echo
     return log
@@ -59,7 +60,8 @@ async def main() -> None:
     args = parser.parse_args()
     settings = get_settings()
     models = model_factory(settings)
-    if models is None:
+    fallbacks = fallback_models(settings)
+    if models is None and not fallbacks:
         sys.exit("No model is configured (AGENT_*); the examples need the agent.")
     roster = load_roster(settings.animals_file)
     litter = next(lit for lit in roster.litters if lit.id == LITTER)
@@ -73,6 +75,7 @@ async def main() -> None:
             store=store,
             seeds=seeds,
             model_factory=models,
+            fallbacks=fallbacks,
             output_mode=settings.agent_output_mode,
             classifier=classifier_from(settings),
         )

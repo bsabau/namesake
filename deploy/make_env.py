@@ -71,7 +71,11 @@ def build_env(local_env: Path, qloo_config: Path, subnet: str, network: str) -> 
         "FORWARDED_ALLOW_IPS": subnet,
         "PROXY_NETWORK": network,
     }
-    missing = [k for k in REQUIRED if not env.get(k, "").strip()]
+    # Anthropic's own API needs no base URL (decision 25).
+    required = [
+        k for k in REQUIRED if not (k == "AGENT_BASE_URL" and env.get("AGENT_API") == "anthropic")
+    ]
+    missing = [k for k in required if not env.get(k, "").strip()]
     if missing:
         raise MissingValue("missing or empty: " + ", ".join(missing))
     return env
