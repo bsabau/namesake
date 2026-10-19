@@ -45,7 +45,7 @@ def fake(**answers: Envelope) -> FakeQloo:
 def test_the_fixture_reads_as_a_title_audience():
     env = Envelope.parse(json.loads((FIXTURE / "audience_demographics__ok.json").read_text()))
     audience = ask_audience(fake(**{DOG_SHOW: env}), DOG_SHOW)
-    assert audience.age["45_to_54"] == 0.35 and audience.gender == {"male": -0.16, "female": 0.16}
+    assert audience.age["45_to_54"] == 0.4 and audience.gender == {"male": -0.2, "female": 0.2}
 
 
 def test_only_known_bands_and_numbers_are_kept():
@@ -64,6 +64,18 @@ def test_no_answer_means_no_audience():
     assert ask_audience(fake(**{DOG_SHOW: error}), DOG_SHOW) is None
     other = demographics(entity_id=CAT_SHOW, age={"35_to_44": 0.5})
     assert ask_audience(fake(**{DOG_SHOW: other}), DOG_SHOW) is None
+
+
+def test_an_answer_of_an_unknown_shape_is_no_answer():
+    # Codex: a `query` that was not a dict raised, and the run lost its listing; flash
+    # and muse: an answer with neither age nor gender was kept as if Qloo had answered.
+    for results in (
+        [{"entity_id": DOG_SHOW, "query": "unavailable"}],
+        [{"entity_id": DOG_SHOW, "age": {"35_to_44": 0.4}}],
+        [{"entity_id": DOG_SHOW, "query": {"age": {}, "gender": {}}}],
+    ):
+        env = envelope("audience_demographics", results=results)
+        assert ask_audience(fake(**{DOG_SHOW: env}), DOG_SHOW) is None, results
 
 
 def test_the_line_names_only_clear_leans_toward_a_group():
@@ -136,6 +148,58 @@ def test_a_run_saves_the_audiences_and_the_page_shows_them(roster):
     assert cat.audience is None and view.audience_note == NOTE
 
 
+class Failing(FakeQloo):
+    """Answers everything as scripted, except that the audience call fails oddly."""
+
+    def run(self, operation, input_):
+        if operation == "audience_demographics":
+            self.calls.append((operation, input_))
+            raise RuntimeError("database is locked")
+        return super().run(operation, input_)
+
+
+def test_a_failing_audience_call_never_costs_the_checked_listing(roster):
+    # muse and flash: an error other than ReplayMiss or QlooExecError escaped, and the
+    # listing, already written and checked, was never saved.
+    result, store, log = run(Script([PLAN], [DRAFT]), roster, qloo=Failing(full_script()))
+    assert result.draft is not None and result.audiences == {}
+    assert store.get_listing("dog-02", result.location_id).draft == result.draft
+    assert any(s.text.startswith("Qloo had no audience") for s in log.steps)
+
+
+def test_each_litter_member_keeps_its_titles_audience(roster):
+    # flash: the litter, one of the demo's two examples, had no test of this step.
+    import asyncio
+
+    from pydantic_ai.models.function import FunctionModel
+
+    from app.agent.pipeline import run_litter
+    from tests.qloo_fakes import LOCATION, SEEDS
+    from tests.test_product import _db, litter_answers
+
+    first = roster.get("dog-02")
+    members = [first, first.model_copy(update={"id": "dog-02b"})]
+    answers = full_script()
+    answers[key("audience_demographics", {"entity": DOG_SHOW})] = demographics(
+        age={"45_to_54": 0.35}
+    )
+    store = Store(_db())
+    script = Script([PLAN], litter_answers())
+    results = asyncio.run(
+        run_litter(
+            members,
+            LOCATION,
+            qloo=FakeQloo(answers),
+            store=store,
+            seeds=SEEDS,
+            model_factory=lambda: FunctionModel(script),
+            log=StepLog(),
+        )
+    )
+    assert all(DOG_SHOW in r.audiences for r in results)
+    assert DOG_SHOW in store.get_listing("dog-02b", LOCATION.id).audiences
+
+
 def test_without_audiences_the_page_says_nothing_about_them(roster):
     result, store, _ = run(Script([PLAN], [DRAFT]), roster)
     view = name_view(result, store.get_profile(result.location_id, "dog"), "text")
@@ -172,6 +236,50 @@ def test_the_backfill_fills_saved_listings_once(monkeypatch, capsys):
     monkeypatch.setattr("sys.argv", ["audience"])
     main()
     assert set(store.get_listing("dog-02", "park-slope").audiences) == {DOG_SHOW, CAT_SHOW}
-    assert "1 listings complete, 0 with a title Qloo had nothing for" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "Listings complete: 1; with a title Qloo had nothing for: 0" in out
     main()
     assert len(qloo.calls) == 2  # nothing asked twice
+
+
+def backfill(monkeypatch, qloo):
+    import app.runs
+    from app.audience import main
+
+    monkeypatch.setattr(app.runs, "qloo_client", lambda settings: qloo)
+    monkeypatch.setattr("sys.argv", ["audience"])
+    main()
+
+
+def test_the_backfill_leaves_a_listing_from_before_the_checks_changed(monkeypatch):
+    # muse and flash: its next visitor's run rewrites it, so asking would be wasted.
+    store = Store(app_main.get_settings().cache_db)
+    old = saved()
+    old.checks_version = CHECKS_VERSION - 1
+    store.put_listing(old)
+    qloo = fake(**{DOG_SHOW: demographics(age={"35_to_44": 0.4})})
+    backfill(monkeypatch, qloo)
+    assert qloo.calls == []
+    kept = store.get_listing("dog-02", "park-slope", current_only=False)
+    assert kept.checks_version == CHECKS_VERSION - 1 and kept.audiences == {}
+
+
+def test_the_backfill_never_writes_over_a_listing_rewritten_meanwhile(monkeypatch):
+    # Codex and flash: it read every listing first and wrote each back whole.
+    store = Store(app_main.get_settings().cache_db)
+    store.put_listing(saved())
+    newer = saved()
+    newer.draft = newer.draft.model_copy(update={"names": newer.draft.names[::-1]})
+
+    class Rewriting(FakeQloo):
+        def run(self, operation, input_):
+            store.put_listing(newer)  # a visitor's run lands while Qloo is asked
+            return super().run(operation, input_)
+
+    qloo = Rewriting(
+        {key("audience_demographics", {"entity": DOG_SHOW}): demographics(age={"35_to_44": 0.4})},
+        twins=False,
+    )
+    backfill(monkeypatch, qloo)
+    kept = store.get_listing("dog-02", "park-slope")
+    assert kept.draft == newer.draft and kept.audiences == {}

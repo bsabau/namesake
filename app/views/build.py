@@ -551,7 +551,11 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
                 version_choice=local_choice(o.name),
                 entity_id=o.entity_id,
                 character=o.character,
-                audience=audience_line(title, result.audiences.get(o.entity_id)),
+                # Only under the title's own name: a character's name in its place
+                # would put the app's reading inside Qloo's line.
+                audience=audience_line(title, result.audiences.get(o.entity_id))
+                if o.entity_id in titles
+                else None,
             )
         )
     return NameView(

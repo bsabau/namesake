@@ -66,7 +66,7 @@ Listings written since decision 31 carry Qloo's audience for each name's title. 
 ssh deploy@host 'cd /opt/namesake && docker compose exec -T app python -m app.audience'
 ```
 
-A title Qloo has nothing for is left out and asked again by a later run.
+It skips listings saved before the checks last changed (their next run rewrites them) and writes only onto a listing that no run has rewritten meanwhile. A title Qloo has nothing for is left out and asked again by a later run.
 
 ## Upgrading saved profiles
 

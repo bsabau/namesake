@@ -304,4 +304,4 @@ The question: could Qloo's tags for each chosen pet title show, in the Why panel
 
 **Venues** (7 calls): three of seven had no data. The others leaned mostly away from groups (Sip & Play: 35 to 44 −0.27) or by gender alone (one place in Astoria: men +0.75).
 
-**Adopted for titles only** (decision 31), shown beside each name option; not for the area or venues.
+**Adopted for titles only** (decision 31), shown with each name option; not for the area or venues.
