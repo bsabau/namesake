@@ -32,7 +32,7 @@
     </summary>
   <section class="where">
     <fieldset class="locations">
-      <legend><h2>{{ view.shelter.panel_heading }}</h2></legend>
+      <legend class="panel-heading">{{ view.shelter.panel_heading }}</legend>
       {% if view.location_form.message %}
       {# A failed area check: said where the visitor will see it, and no area stays chosen. #}
       <p class="location-alert" id="location-alert" role="alert">{{ view.location_form.message }}</p>

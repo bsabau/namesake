@@ -1,6 +1,6 @@
 // Working page: follow the run's server-sent events and show each step as it lands.
-// On "done", go to the result. The steps rendered by the server are replaced, since
-// the stream replays every step from the start.
+// On "done", go to the result. The stream replays every step from the start; the ones
+// the server already rendered are skipped, so only later steps are added.
 
 (function () {
   const root = document.querySelector('[data-role="working"]');

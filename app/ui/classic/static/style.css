@@ -81,7 +81,7 @@ main, .site-header, .site-footer {
 
 .location-map { margin: 0; }
 
-/* The legend's h2 sits above the cards, so drop the map by the same amount to line them up. */
+/* The legend's heading sits above the cards, so drop the map by the same amount to line them up. */
 @media (min-width: 721px) {
   .location-map { margin-top: calc(1.15rem * 1.5 + 12px); }
 }
@@ -106,6 +106,8 @@ main, .site-header, .site-footer {
 }
 
 .locations legend { padding: 0; }
+/* The panel's heading is the legend itself: a heading inside a legend is not valid HTML. */
+.locations legend.panel-heading { font-size: 1.15rem; font-weight: 700; margin: 0 0 12px; }
 
 .locations h2, .step-heading {
   font-size: 1.15rem;

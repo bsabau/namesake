@@ -157,6 +157,17 @@ def map_tiles(key: str | None = None) -> MapTiles:
     )
 
 
+# What a typed area's region said before 19 October (decision 29); areas stored then keep it.
+OLD_TYPED_REGION = "Typed location"
+
+
+def place_of(location: Location) -> str:
+    """The area as one phrase: "Park Slope, Brooklyn, New York", or a typed area's name."""
+    if location.region and location.region != OLD_TYPED_REGION:
+        return f"{location.label}, {location.region}"
+    return location.label
+
+
 def location_option(
     location: Location, selected: bool = False, pin: tuple[float, float] | None = None
 ) -> LocationOption:
@@ -164,7 +175,7 @@ def location_option(
         id=location.id,
         label=location.label,
         region=location.region,
-        place=f"{location.label}, {location.region}" if location.region else location.label,
+        place=place_of(location),
         latitude=location.latitude,
         longitude=location.longitude,
         zoom=location.zoom,
@@ -915,8 +926,8 @@ def plan(
             basis="Research",
         ),
         PlanItem(
-            text="Adoptions cluster on Saturdays and between 5 and 8 pm: time posts and events "
-            "for then.",
+            text="Adoptions cluster on Saturdays, where shelters open then, and between 5 and "
+            "8 pm: time posts and events for then.",
             basis="Research",
         ),
     ]
@@ -931,11 +942,10 @@ def plan(
     top = [v.name for v in venues[:VENUES_IN_PLAN]]
     picks = [v for v in venues[:VENUES_IN_PLAN] if v.chosen_reason]
     picked_by = (
-        (" (Namesake's AI's pick from Qloo's list)" if len(top) == 1
-         else " (Namesake's AI's picks from Qloo's list)")
+        f" ({'each' if len(picks) > 1 else 'its'} pick by Namesake's AI from Qloo's list)"
         if picks
         else ""
-    )  # fmt: skip
+    )
     if top:
         items.append(
             PlanItem(

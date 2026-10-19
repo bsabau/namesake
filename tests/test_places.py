@@ -236,7 +236,7 @@ def known_area(text="Example Slope, Exampleton") -> str:
         Location(
             id=location_id(text),
             label=text,
-            region="Typed location",
+            region="",
             query=text,
             city=text,
             latitude=HOME[0],

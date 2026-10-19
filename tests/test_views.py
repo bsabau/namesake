@@ -173,8 +173,8 @@ def test_an_agent_profile_suggests_only_the_agents_picks(roster):
     qloo_items = [i.text for i in view.plan if i.basis == "Qloo"]
     # Qloo's place, the AI's pick: the pill says Qloo, the words say who picked it.
     assert qloo_items == [
-        "Ask Community Hall (Namesake's AI's pick from Qloo's list) about hosting an adoption "
-        "event or a flyer."
+        "Ask Community Hall (its pick by Namesake's AI from Qloo's list) about hosting an "
+        "adoption event or a flyer."
     ]
 
 
@@ -924,3 +924,25 @@ def test_the_classifier_and_the_comparison_are_never_logged_as_qloos():
     assert '"qloo", f"{len(venues)} places' not in source
     pipeline = (pathlib.Path(__file__).parent.parent / "app" / "agent" / "pipeline.py").read_text()
     assert '"qloo", f"Finishing the saved profile' not in pipeline
+
+
+def test_a_typed_area_shows_its_name_alone():
+    # Decision 29: a typed area has no region; one stored before keeps "Typed location".
+    from app.views.build import location_option
+
+    assert location_option(LOCATION).place == f"{LOCATION.label}, {LOCATION.region}"
+    typed = LOCATION.model_copy(update={"label": "Williamsburg, Brooklyn", "region": ""})
+    assert location_option(typed).place == "Williamsburg, Brooklyn"
+    old = typed.model_copy(update={"region": "Typed location"})
+    assert location_option(old).place == "Williamsburg, Brooklyn"
+
+
+def test_the_plan_names_the_ais_picks_only_on_an_agent_profile(roster):
+    p = agent_profile()
+    for v in p.venues:
+        v.chosen_reason = v.chosen_reason or "a community place"
+    items = [i.text for i in build_result_view(roster.get("dog-02"), LOCATION, p).plan]
+    ask = next(t for t in items if t.startswith("Ask "))
+    assert "pick by Namesake's AI from Qloo's list" in ask
+    fixed = [i.text for i in build_result_view(roster.get("dog-02"), LOCATION, profile()).plan]
+    assert not any("Namesake's AI" in t for t in fixed if t.startswith("Ask "))

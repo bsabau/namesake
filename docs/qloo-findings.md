@@ -1,6 +1,6 @@
 # Qloo findings (milestone 1)
 
-What the hackathon key can tell us about pet interest near a shelter, and what that means for the agent. The milestone 1 numbers come from `scripts/probe_m1.py`, which replays the recorded responses in `var/qloo-recordings/` without spending quota; the later sections, each dated, come from the probes and runs they name. The recordings themselves stay out of the repo, as Qloo's terms require. Entity names and scores are quoted here; Qloo confirmed that is fine.
+What the hackathon key can tell us about pet interest near a shelter, and what that means for the agent. The milestone 1 numbers come from `scripts/probe_m1.py`, which replays the recorded responses in `var/qloo-recordings/` without spending quota; "Building the location profiles" comes from `scripts/build_profiles.py` (milestone 2); the later sections, each dated, come from the probes and runs they name. The recordings themselves stay out of the repo, as Qloo's terms require. Entity names and scores are quoted here; Qloo confirmed that is fine.
 
 Probed from 3 October 2026 (milestone 1 on 15 October) with harness 0.1.26, schemas read from `qloo_capabilities` (no quota); later sections carry their own dates.
 
