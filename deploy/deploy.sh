@@ -89,7 +89,8 @@ if [ -n "$ENV" ]; then
   (umask 077; uv run --quiet python deploy/make_env.py --subnet "$subnets" --network "$PROXY_NETWORK" > "$work/env")
   put .env.new "$work/env"
   # A cut-off transfer fails put() above, so a complete file is one with every key.
-  remote "for k in QLOO_API_KEY AGENT_BASE_URL AGENT_API_KEY AGENT_MODEL AGENT_API FORWARDED_ALLOW_IPS PROXY_NETWORK; do grep -q \"^\$k=.\" .env.new; done; chmod 600 .env.new"
+  # AGENT_BASE_URL is left out: Anthropic's own API needs none, and make_env.py checks it.
+  remote "for k in QLOO_API_KEY AGENT_API_KEY AGENT_MODEL AGENT_API FORWARDED_ALLOW_IPS PROXY_NETWORK; do grep -q \"^\$k=.\" .env.new; done; chmod 600 .env.new"
 fi
 remote "test -s .env || test -s .env.new" || { echo "✗ no .env on the server; run once with --env"; exit 1; }
 

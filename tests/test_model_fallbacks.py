@@ -165,3 +165,23 @@ def test_no_test_can_reach_a_configured_fallback():
         getattr(settings, f) is None for f in fields if f.endswith(("_api_key", "_model"))
     )
     assert fallback_models(settings) == ()
+
+
+def test_a_typo_in_the_main_models_settings_is_said_out_loud(caplog):
+    # Flash review, PR #42: a typo once dropped the main model silently, sending every run
+    # to the paid fallback.
+    from app.runs import model_factory
+
+    settings = Settings(
+        _env_file=None,
+        agent_base_url="https://models.example/v1",
+        agent_api_key="test-key",
+        agent_model="test-model",
+        agent_api="response",
+    )
+    assert model_factory(settings) is None
+    assert "AGENT_API must be one of" in caplog.text
+    settings.agent_api, settings.agent_output_mode = "chat", "json"
+    assert model_factory(settings) is None and "AGENT_OUTPUT_MODE" in caplog.text
+    settings.agent_output_mode = "native"
+    assert model_factory(settings) is not None

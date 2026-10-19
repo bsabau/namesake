@@ -10,12 +10,13 @@ visitor's session and is never saved to the store.
 """
 
 import asyncio
+import logging
 import uuid
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
 
-from app.agent.model import ModelNotConfigured, build_model, fallback_models
+from app.agent.model import ModelMisconfigured, ModelNotConfigured, build_model, fallback_models
 from app.agent.pipeline import run_litter, run_pipeline
 from app.agent.results import ListingResult
 from app.agent.steps import StepLog
@@ -31,6 +32,8 @@ from app.qloo.exec import QlooClient, harness_env
 from app.session import ADDED_PREFIX, Session
 from app.store import Store
 from app.venue_points import locate_saved
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -83,6 +86,10 @@ def roster_litter_mates(animal: Animal, settings: Settings) -> set[str]:
 def model_factory(settings: Settings):
     try:
         build_model(settings)
+    except ModelMisconfigured as exc:
+        # Filled in but wrong: say so, or every run would quietly go to the paid fallback.
+        logger.error("the main model is skipped: %s", exc)
+        return None
     except ModelNotConfigured:
         return None
     return lambda: build_model(settings, session_id=uuid.uuid4().hex)

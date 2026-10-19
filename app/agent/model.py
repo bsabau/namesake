@@ -83,8 +83,17 @@ def _build(
     return model_cls(model, provider=provider)
 
 
+class ModelMisconfigured(ModelNotConfigured):
+    """A model's settings are filled in but one is not a known value: a typo, which should
+    be said out loud rather than quietly hand every run to the next model."""
+
+
 def build_model(settings: Settings, session_id: str | None = None) -> Model:
     """The main model, for one agent run."""
+    if settings.agent_api not in APIS:
+        raise ModelMisconfigured(f"AGENT_API must be one of {', '.join(APIS)}")
+    if settings.agent_output_mode not in OUTPUT_MODES:
+        raise ModelMisconfigured(f"AGENT_OUTPUT_MODE must be one of {', '.join(OUTPUT_MODES)}")
     if not (settings.agent_base_url or settings.agent_api == "anthropic"):
         raise ModelNotConfigured("set AGENT_BASE_URL, AGENT_API_KEY and AGENT_MODEL")
     try:

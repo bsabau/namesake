@@ -88,12 +88,15 @@ UIS = sorted(p.name for p in UI_ROOT.iterdir() if (p / "templates").is_dir())
 mimetypes.add_type("font/woff2", ".woff2")
 mimetypes.add_type("font/woff", ".woff")
 
-# Each agent run's model usage, and a model handing a run on, go to the server log to watch
-# the cost (decision 25). Uvicorn configures only its own loggers, so this one gets a handler.
-_usage_log = logging.getLogger("app.agent.pipeline")
-_usage_log.setLevel(logging.INFO)
-if not _usage_log.handlers:
-    _usage_log.addHandler(logging.StreamHandler())
+# The app's own log lines (each agent run's model usage, a model handing a run on, a model
+# skipped for a bad setting) go to the server log, to watch the cost (decision 25).
+# Uvicorn configures only its own loggers, so the app's get a handler.
+_app_log = logging.getLogger("app")
+_app_log.setLevel(logging.INFO)
+if not _app_log.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+    _app_log.addHandler(_handler)
 
 app = FastAPI(title="Namesake")
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")

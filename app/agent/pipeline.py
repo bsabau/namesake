@@ -77,7 +77,8 @@ MODEL_FAILURES = (ModelAPIError, OSError, *SDK_ERRORS)
 # Seconds one model may spend on a whole run, its tool calls included, before the next
 # model is tried: room for a request that times out and succeeds on its retry
 # (app/agent/model.py), and for the slowest model measured (decision 25). A synchronous
-# tool already running (a `qloo` call, at most 90 seconds) finishes before the cancel lands.
+# tool already running when the cap lands (a `qloo` call with its retries: minutes, for a
+# refused `rank`) is not interrupted: its thread finishes in the background.
 PROFILE_TIMEOUT = 480.0
 LISTING_TIMEOUT = 300.0
 Fallbacks = Sequence[ModelChoice]
@@ -95,7 +96,8 @@ async def on_each_model[T](
     models: list[ModelChoice], attempt: Callable[[ModelChoice], Awaitable[T]], log: StepLog
 ) -> T:
     """`attempt` on each model in turn until one is reached; the last one's failure is
-    raised. Saved Qloo answers are reused, so starting again costs no Qloo quota."""
+    raised. Saved Qloo answers are reused, so starting again costs no Qloo quota beyond
+    any call the earlier attempt had not finished."""
     for i, choice in enumerate(models):
         try:
             return await attempt(choice)
