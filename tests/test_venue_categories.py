@@ -276,12 +276,17 @@ def test_national_chains_are_named_by_the_start_of_their_name():
         "Dunkin'",
         "Joe & The Juice",
         "Mc Donald's",
+        "Barnes & Noble",
+        "Barnes & Noble Café",
+        "Books-A-Million",
+        "Half Price Books",
     ):
         assert chain_name(name) == "a national chain", name
     # Independent places, pet-shop chains (they hold adoption events), everyday words, and
     # a chain's name inside another name pass.
     for name in ("BrownStone Bagels", "Petco", "PetSmart", "Target Practice Range",
-                 "Subway Inn", "Joe's Starbucks Lane", "The Shake Shack Bakery Co"):  # fmt: skip
+                 "Subway Inn", "Joe's Starbucks Lane", "The Shake Shack Bakery Co",
+                 "Community Bookstore", "Unleashed by Petco"):  # fmt: skip
         assert chain_name(name) is None, name
     # Fast food is told to the AI, unless the description says the place is not.
     assert fast_food_mention("A fast-food burger counter.")

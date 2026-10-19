@@ -67,7 +67,7 @@ CHAINS = (
     "tim hortons", "panda express", "jamba", "pret a manger", "le pain quotidien",
     "paris baguette", "tous les jours", "blank street", "gregorys coffee", "peets coffee",
     "joe and the juice", "blue bottle", "au bon pain", "arbys", "sonic drive in",
-    "auntie annes", "sbarro",
+    "auntie annes", "sbarro", "barnes and noble", "books a million", "half price books",
 )  # fmt: skip
 # Fast food is told to the AI from a place's description, never enforced: a description
 # may name it only to say the place is not ("an alternative to fast food").
