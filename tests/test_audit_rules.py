@@ -162,3 +162,96 @@ def test_find_venues_asks_qloo_with_the_dog_title_first():
     assert out["asked_for"][0]["name"] == "Example Dog Show"
     asked = [i for op, i in d.qloo.calls if op == "recommend"]
     assert asked[0]["signals"] == [DOG_SHOW, CAT_SHOW]
+
+
+def test_the_fixed_lookup_asks_with_the_animals_own_titles_first():
+    from app.profile import build_profile
+    from tests.qloo_fakes import standard_script
+
+    for species, first in (("dog", DOG_SHOW), ("cat", CAT_SHOW)):
+        p = build_profile(
+            FakeQloo(standard_script()), LOCATION.model_copy(), SEEDS, species=species
+        )
+        assert p.venue_signals[0] == first, species
+        assert sorted(p.venue_signals) == sorted([DOG_SHOW, CAT_SHOW])  # none dropped
+
+
+def test_a_description_says_which_animal_when_the_name_does_not():
+    from app.profile import about_other_species_only
+
+    aristocats = Entity(
+        id="a", name="The Aristocats", type="urn:entity:movie",
+        description="A family of aristocratic cats in Paris.",
+    )  # fmt: skip
+    assert about_other_species_only(aristocats, "dog")
+    assert not about_other_species_only(aristocats, "cat")
+    both = aristocats.model_copy(update={"description": "Cats and dogs share a house."})
+    assert not about_other_species_only(both, "dog")
+
+
+def test_a_recheck_rebuilds_the_hook_and_refuses_an_unfit_title(roster):
+    from app.agent.recheck import recheck
+    from app.animals import Roster
+    from app.profile import LocationProfile
+
+    store = Store(_tmp_db())
+    title = Entity(id=DOG_SHOW, name="Scooby Doo, Where Are You!", type="urn:entity:tv_show")
+    cat = Entity(id=CAT_SHOW, name="Example Cat Show", type="urn:entity:tv_show")
+    store.put_profile(
+        LocationProfile(location_id=LOCATION.id, species="dog", pet_entities=[title, cat])
+    )
+    # dog-02: the draft's bio is written from its record, so only the screen can fail.
+    old = saved("dog-02", "Bing", "Bingo", version=CHECKS_VERSION - 1)
+    old.references = ["Bingo, a dog in Scooby Doo, Where Are You!", "x", "y"]
+    old.hook = "Named after Bingo, a dog in Scooby Doo, Where Are You!."
+    store.put_listing(old)
+    kept, rerun = recheck(store, roster)
+    assert (kept, rerun) == (1, 0)
+    fresh = store.get_listing("dog-02", LOCATION.id)
+    assert fresh.hook == "Named after Bingo, a dog in Scooby Doo, Where Are You!"
+    # The same draft from a title whose own name does not suit a listing is left to rerun.
+    hell = title.model_copy(update={"name": "My Dog from Hell"})
+    store.put_profile(
+        LocationProfile(location_id=LOCATION.id, species="dog", pet_entities=[hell, cat])
+    )
+    store.put_listing(saved("dog-02", "Bing", "Bingo", version=CHECKS_VERSION - 1))
+    kept, rerun = recheck(store, Roster(animals=roster.animals, litters=roster.litters))
+    assert (kept, rerun) == (0, 1) and store.get_listing("dog-02", LOCATION.id) is None
+
+
+def test_one_draft_cannot_offer_one_character_twice(roster):
+    store = Store(_tmp_db())
+    twin = {**DRAFT, "names": [DRAFT["names"][0],
+                               {**DRAFT["names"][2], "name": "Bing", "character": "Bingo Dog"},
+                               DRAFT["names"][1]]}  # fmt: skip
+    log = StepLog()
+    from pydantic_ai.models.function import FunctionModel
+
+    asyncio.run(
+        run_pipeline(
+            roster.get("dog-02"),
+            LOCATION,
+            qloo=FakeQloo(full_script()),
+            store=store,
+            seeds=SEEDS,
+            model_factory=lambda: FunctionModel(Script([PLAN], [twin, DRAFT])),
+            log=log,
+        )
+    )
+    assert any("refer to one character" in s.text for s in log.steps)
+
+
+def test_more_bully_type_spellings_and_a_title_used_as_a_name(roster):
+    dog = roster.get("dog-02")
+    for look in ("Pit-bull mix", "A Stafford cross", "One of the bullies"):
+        assert checks.is_bully_type(dog.model_copy(update={"look": look})), look
+    assert checks.check_character("Wild", "title")
+    assert checks.check_character("Bluey", "title") == []
+
+
+def test_a_litter_mate_awaiting_a_rerun_still_holds_the_litters_title():
+    from app.agent.pipeline import litter_theme
+
+    store = Store(_tmp_db())
+    store.put_listing(saved("kitten-02", "Bing", "Bingo", version=CHECKS_VERSION - 1))
+    assert litter_theme(LOCATION, store, {"kitten-02"}) == DOG_SHOW

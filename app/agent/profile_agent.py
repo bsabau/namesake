@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent, ModelRetry, NativeOutput, PromptedOutput, RunContext, ToolOutput
 from pydantic_ai.models import Model
 
-from app.agent.checks import check_choice_reason, find_word, identity_coded
+from app.agent.checks import check_choice_reason, identity_coded
 from app.agent.steps import StepLog
 from app.classify import JevClassifier, bucket
 from app.locations import Location
@@ -20,11 +20,13 @@ from app.profile import (
     PET_TAGS,
     Entity,
     FoundIn,
+    about_other_species_only,
     chain_name,
     entity_type,
     fast_food_mention,
     rank_band,
     screen,
+    species_order,
     too_few,
     venue_input,
 )
@@ -517,35 +519,14 @@ def evidence_order(deps: ProfileDeps, entity_ids: list[str]) -> list[str]:
     return ranked + found + rest
 
 
-# Words in a title's name that say which animal it is about, for when the classifier gave
-# no verdict.
-SPECIES_WORDS = {
-    "dog": ("dog", "dogs", "puppy", "puppies", "pup", "pups", "doggy", "doggie"),
-    "cat": ("cat", "cats", "kitten", "kittens", "kitty", "kitties"),
-}
-
-
 def other_species_only(deps: ProfileDeps, entity_id: str) -> bool:
-    """A title about another animal and not this profile's: a cat show for a dog profile.
-    The classifier's answers decide; without them, the animal words in the title's name."""
-    entity = deps.titles_seen[entity_id]
-    other = "cat" if deps.species == "dog" else "dog"
-    if entity.verdict is not None:
-        mine = getattr(entity.verdict, f"{deps.species}s", 0.0)
-        theirs = getattr(entity.verdict, f"{other}s", 0.0)
-        return theirs >= 0.5 and mine < 0.5
-    return bool(find_word(entity.name, SPECIES_WORDS[other])) and not find_word(
-        entity.name, SPECIES_WORDS.get(deps.species, ())
-    )
+    return about_other_species_only(deps.titles_seen[entity_id], deps.species)
 
 
 def species_first(deps: ProfileDeps, entity_ids: list[str]) -> list[str]:
     """The same order, with titles only about another animal moved last (19 October audit:
-    the lead dog's places and map once rested on two cat shows). A dog's venues and map
-    then rest on dog and pet titles whenever Qloo backs any."""
-    return [i for i in entity_ids if not other_species_only(deps, i)] + [
-        i for i in entity_ids if other_species_only(deps, i)
-    ]
+    the lead dog's places and map once rested on two cat shows)."""
+    return species_order(entity_ids, deps.titles_seen, deps.species)
 
 
 def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str, Any]:

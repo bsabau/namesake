@@ -524,6 +524,8 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
                 hook=hook_text(reference),
                 copy_text=copy_block(o.name, hook_text(reference), text),
                 version_choice=local_choice(o.name),
+                entity_id=o.entity_id,
+                character=o.character,
             )
         )
     return NameView(value=draft.names[0].name, placeholder="", options=options)

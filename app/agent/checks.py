@@ -15,7 +15,7 @@ from app.listing import MAX_WORDS
 # which "spitz" contains (the shorthand forms added after the 19 October audit).
 BULLY_MARKERS = (
     "broad head", "blocky head", "boxy head", "pit bull", "pitbull", "pit mix", "pittie",
-    "pitty", "bully", "staffordshire", "staffy", "staffie", "amstaff", "bull terrier",
+    "pitty", "bully", "bullies", "stafford", "staffy", "staffie", "amstaff", "bull terrier",
     "american bulldog", "bulldog mix",
 )  # fmt: skip
 
@@ -159,7 +159,10 @@ def find_word(text: str, words: tuple[str, ...]) -> str | None:
 
 
 def is_bully_type(animal: Animal) -> bool:
-    return animal.species == "dog" and any(m in animal.look.lower() for m in BULLY_MARKERS)
+    # Hyphens as spaces, so "pit-bull mix" reads as "pit bull mix". "Bulldog mix" also
+    # catches a French bulldog mix: a stricter screen than needed, never a looser one.
+    look = animal.look.lower().replace("-", " ")
+    return animal.species == "dog" and any(m in look for m in BULLY_MARKERS)
 
 
 def syllables(word: str) -> int:
@@ -506,9 +509,17 @@ def reference_text(character: str, role: str, title: str) -> str:
 
 
 def check_character(character: str, role: str) -> list[str]:
-    """The character's or thing's own name: a few plain words, nothing descriptive."""
+    """The character's or thing's own name: a few plain words, nothing descriptive. A name
+    taken from the title itself is the model's choice too, so its words are screened."""
     problems = []
     if role == "title":
+        for words, what in (
+            (HOOK_TRAIT_WORDS, "temperament"),
+            (HOOK_CLAIMS, "a claim about tastes"),
+        ):
+            found = find_word(character, words)
+            if found:
+                problems.append(f"name from the title {character!r} suggests {what} ({found!r})")
         return problems
     if not re.fullmatch(r"[A-Za-z][A-Za-z'. -]{0,30}", character) or len(character.split()) > 4:
         problems.append(f"character {character!r} must be a name of up to four words, nothing else")

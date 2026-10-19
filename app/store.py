@@ -98,9 +98,11 @@ class Store:
             ]
         return [tuple(k.removeprefix("profile:").rsplit(":", 1)) for k in keys]
 
-    def get_listing(self, animal_id: str, location_id: str) -> ListingResult | None:
+    def get_listing(
+        self, animal_id: str, location_id: str, current_only: bool = True
+    ) -> ListingResult | None:
         result = self._load(ListingResult, f"listing:{animal_id}@{location_id}")
-        return result if result is not None and _current(result) else None
+        return result if result is not None and (_current(result) or not current_only) else None
 
     def put_listing(self, result: ListingResult) -> None:
         self._put(f"listing:{result.animal_id}@{result.location_id}", result)

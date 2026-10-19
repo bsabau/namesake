@@ -12,6 +12,7 @@ again when next opened. deploy/deploy.sh runs this on every deploy.
 
 from app.agent import checks
 from app.agent.listing_agent import (
+    hook_for,
     record_problems,
     repeated_titles,
     screen_names,
@@ -58,11 +59,19 @@ def screen_problems(store: Store, animal: Animal, result: ListingResult) -> list
     strict = checks.is_bully_type(animal)
     repeats = [] if animal.litter else repeated_titles(result.draft.names, offered, strict)
     looks = [shared_look_problem(animal.look, look.shared_look) for look in result.lookalikes]
+    first = result.draft.names[0]
+    title = titles[first.entity_id].name if first.entity_id in titles else None
+    hook = checks.check_hook(hook_for(first, title), title) if title else []
+    characters = [
+        p for o in result.draft.names for p in checks.check_character(o.character, o.role)
+    ]
     return (
         missing
         + repeats
         + [p for p in looks if p]
         + screen_names(result.draft.names, titles, strict)
+        + characters
+        + hook
     )
 
 
@@ -81,6 +90,10 @@ def recheck(store: Store, roster: Roster) -> tuple[int, int]:
             and not screen_problems(store, animal, result)
         ):
             update = {"checks_version": CHECKS_VERSION, "bio": shown_bio(animal, result.draft)}
+            if result.references:
+                # Built by code from the saved reference, so today's form (a title ending
+                # in "!" ends the sentence) replaces the saved one.
+                update["hook"] = checks.hook_text(result.references[0])
             store.put_listing(result.model_copy(update=update))
             kept += 1
         else:

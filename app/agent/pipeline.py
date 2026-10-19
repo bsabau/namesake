@@ -294,7 +294,7 @@ async def _build_profile(
             )
     if profile is None:
         log.add("note", "Falling back to the fixed lookup with the seed titles")
-        profile = await asyncio.to_thread(build_profile, qloo, location, seeds, prepared)
+        profile = await asyncio.to_thread(build_profile, qloo, location, seeds, prepared, species)
 
     profile.species = species
     # Saved even when unfinished, so a listing made now keeps its titles' evidence; the
@@ -351,7 +351,9 @@ def taken_references(
 def litter_theme(location: Location, store: Store, mates: set[str]) -> str | None:
     """The title a litter's saved members were named from, if any have been."""
     for mate in sorted(mates):
-        saved = store.get_listing(mate, location.id)
+        # Saved before the checks last changed too, as for the names taken: a mate whose
+        # listing awaits a rerun still holds the litter's title.
+        saved = store.get_listing(mate, location.id, current_only=False)
         if saved is not None and saved.draft is not None:
             return saved.draft.names[0].entity_id
     return None
