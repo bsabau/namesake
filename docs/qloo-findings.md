@@ -148,6 +148,8 @@ Reading:
 
 So it gives no recent signal and no local one. A "rising lately" badge was dropped (decision 18).
 
+**Checked again 20 October (1 call):** the same two titles, 1 September to 19 October 2026, `limit` 20: status `ok`, both resolved, and both series still empty. Still no recent data, so still not adopted.
+
 
 ## The area's own top lists as a source of pet titles (17 October, about 14 calls)
 
