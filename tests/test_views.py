@@ -383,7 +383,7 @@ def test_the_qloo_part_counts_what_qloo_returned_apart_from_the_ais_part(roster)
     p.order_source = "qloo_rank"
     part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
     assert part.qloo == (
-        f"2 titles with Qloo's evidence for {LOCATION.label} (2 ranked here); "
+        f"2 titles with Qloo's evidence for {LOCATION.label} (2 in its ranking here); "
         f"{len(p.venues)} places near the shelter, ranked for fans of Example Cat Show; "
         f"{len(p.cells)} map cell{'s' if len(p.cells) != 1 else ''} from its heatmaps."
     )
@@ -452,7 +452,7 @@ def test_a_title_both_ranked_and_listed_is_counted_once(roster):
     p.pet_entities[0].found_in = FoundIn(signal="x", kind="tv_show", position=2, out_of=20)
     part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
     assert part.qloo.startswith(
-        f"2 titles with Qloo's evidence for {LOCATION.label} (2 ranked here);"
+        f"2 titles with Qloo's evidence for {LOCATION.label} (2 in its ranking here);"
     )
 
 
@@ -494,7 +494,7 @@ def test_the_map_caption_counts_the_warm_cells():
 def test_a_tie_is_cool_in_the_count_and_the_key():
     view = map_with([(0.5, 0.5), (0.9, 0.5), (0.5, 0.9), (0.4, 0.8), (0.3, 0.7)])
     legend = map_view(LOCATION, view).legend
-    assert "in 1 of these 5 cells. " in legend and "Cool cells: lower, or level." in legend
+    assert "in 1 of these 5 cells. " in legend and "cool where lower, or level" in legend
 
 
 def test_grey_cells_are_left_out_of_the_count():
@@ -511,6 +511,10 @@ def test_no_warm_cell_says_so():
     assert (
         "do not stand out against fans of this area's top shows in any of these cells. " in legend
     )
+    # Review of PR #48: the colour key follows as a key, never as a second finding, and
+    # the shelter's circle is explained.
+    assert "Warm cells:" not in legend and "Colours: warm where" in legend
+    assert "dashed circle marks the area around the fictional shelter" in legend
 
 
 def test_one_compared_cell_among_grey_ones_reads_in_the_singular():

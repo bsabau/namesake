@@ -687,7 +687,7 @@ def map_view(
         )
     key = (
         f"Warm: fans of pet-themed titles stand out here more than {base}. Cool: less, or level. "
-        "Grey: no comparison."
+        "Grey: no comparison. Circle: the area around the fictional shelter."
         if any(c.lift is not None for c in cells)
         else "Grey: no cell was scored for both, so there is no comparison here."
         if cells
@@ -766,8 +766,10 @@ def map_view(
         + count
         + (
             (
-                f"Warm cells: {pets} rank this part of {location.label} higher than {base} do. "
-                "Cool cells: lower, or level. Grey: only the pet-themed titles have a score there. "
+                # A key, worded as one, so it never reads as a finding when no cell is warm.
+                f"Colours: warm where {pets} rank this part of {location.label} higher than "
+                f"{base} do; cool where lower, or level; grey where only the pet-themed titles "
+                "have a score. The dashed circle marks the area around the fictional shelter. "
                 "Where several "
                 "shows scored a cell, their scores are averaged. Scores are ranks within the "
                 "area, so they compare places here, not with other cities."
@@ -845,8 +847,11 @@ def cell_reading(
     base = compared_with(profile) or "the comparison shows"
     how = "higher than" if c.lift > 0 else "lower than" if c.lift < 0 else "as high as"
     return (
-        f"OpenStreetMap places it where fans of pet-themed titles rank this part of "
-        f"{location.label} {how} {base} do ({c.lift:+.2f}, worked out from Qloo's maps)."
+        # The map compares areas, the list places: said, so a place that stands out in the
+        # list but sits in a cool cell does not read as a contradiction.
+        f"On the map, which compares areas rather than places, OpenStreetMap places it where "
+        f"fans of pet-themed titles rank this part of {location.label} {how} {base} do "
+        f"({c.lift:+.2f}, worked out from Qloo's maps)."
     )
 
 
@@ -1304,7 +1309,7 @@ def qloo_part(
         # Each title counted once: ranked, else only in Qloo's lists for the area.
         only_listed = [e for e in listed if e not in ranked]
         how = and_list(
-            ([f"{len(ranked)} ranked here"] if ranked else [])
+            ([f"{len(ranked)} in its ranking here"] if ranked else [])
             + ([f"{len(only_listed)} only in its lists for the area"] if only_listed else [])
         )
         qloo.append(

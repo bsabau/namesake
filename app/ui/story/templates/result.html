@@ -261,13 +261,13 @@
   <div class="travel-inner">
     <div class="section-head">
       <h2 id="travel-heading">{{ view.travel_heading }}</h2>
-      <p class="lead">Where fans of pet-themed titles stand out around {{ view.location.label }}, and the places to ask.</p>
+      <p class="lead">How fans of pet-themed titles compare around {{ view.location.label }}, and the places to ask.</p>
     </div>
     <div class="travel-grid">
       <figure class="result-map">
         <h3>The map</h3>
         <div id="result-map" data-role="map" role="region"
-             aria-label="Map of where fans of pet-themed titles stand out around {{ view.location.label }}{% if view.map.venues %}, with the places to ask numbered as in the list{% endif %}"></div>
+             aria-label="Map of how fans of pet-themed titles compare around {{ view.location.label }}{% if view.map.venues %}, with the places to ask numbered as in the list{% endif %}"></div>
         <figcaption>{{ view.map.empty_message or view.map.legend }}</figcaption>
       </figure>
       <script type="application/json" id="map-data">{{ view.map|plain|tojson }}</script>

@@ -35,7 +35,7 @@ Namesake does **not** claim to get animals adopted faster, save lives or money, 
 
 ## How it uses Qloo
 
-The same dog, the same record, two neighbourhoods of one city: Park Slope gives Comet, Scooby and Hooch, Astoria gives Bluey, Moon and Scooby-Doo, from the titles Qloo backs in each area.
+The same dog, the same record, two neighbourhoods of one city: the local name comes from a pet-themed title Qloo ranks in each area (Comet, from *Dogs in Space*, in Park Slope; Bluey, from *Bluey*, in Astoria), and the other options from the area's titles or from lookalike titles Qloo found.
 
 ![The lead dog's result in Park Slope (left: Comet, from Dogs in Space) and in Astoria (right: Bluey, from Bluey), each with its own Qloo titles and its own strip of what Qloo returned and what Namesake's AI did](docs/img/two-neighbourhoods.png)
 
