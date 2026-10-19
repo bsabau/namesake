@@ -204,10 +204,11 @@ ADDED_PHOTO_CREDIT = (
 PLACEHOLDER_PHOTO = "/static/placeholder.svg"
 # The precomputed examples, in the order the start page offers them.
 EXAMPLES = (
-    ("dog-02", "park-slope", "The lead dog in Park Slope"),
-    ("dog-02", "astoria", "The same dog in Astoria"),
-    ("kitten-01", "park-slope", "The litter, named as a set, in Park Slope"),
-    ("kitten-01", "astoria", "The same litter in Astoria"),
+    # Each label says who and where, so the pairs read as one animal in two areas.
+    ("dog-02", "park-slope", "The brindle dog in Park Slope"),
+    ("dog-02", "astoria", "The brindle dog in Astoria"),
+    ("kitten-01", "park-slope", "Four kittens, named as a set, in Park Slope"),
+    ("kitten-01", "astoria", "Four kittens, named as a set, in Astoria"),
 )
 
 
