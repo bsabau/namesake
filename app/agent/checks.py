@@ -11,7 +11,13 @@ from app.listing import MAX_WORDS
 
 # Looks that mark a bully-type dog: these get the strictest name screen, because a
 # measured adoption penalty fell on names perceived as Black for pit-bull-type dogs.
-BULLY_MARKERS = ("broad head", "pit bull", "pitbull", "bully", "staffordshire", "amstaff")
+# Substrings of the look, so "pit bull mix" and "staffies" match; never a bare "pit",
+# which "spitz" contains (the shorthand forms added after the 19 October audit).
+BULLY_MARKERS = (
+    "broad head", "blocky head", "boxy head", "pit bull", "pitbull", "pit mix", "pittie",
+    "pitty", "bully", "staffordshire", "staffy", "staffie", "amstaff", "bull terrier",
+    "american bulldog", "bulldog mix",
+)  # fmt: skip
 
 # Whole words only, with their common forms: "Killer" is out, "Killian" and "Edward" are not.
 NAME_BLOCKLIST = (
@@ -34,6 +40,14 @@ UNFLATTERING = (
     "idiots", "loser", "losers", "freak", "freaks", "freaky", "rat", "rats",
     "roach", "roaches", "cockroach", "maggot", "maggots", "pest", "pests", "vermin",
     "leech", "leeches", "mangy", "flea", "fleas", "fleabag", "fleabags",
+)  # fmt: skip
+
+# Words that keep a title's own name off an adoption listing, beyond the name screen's
+# words (19 October audit: three kittens were introduced as "a cat in My Cat from Hell").
+# The hook names the title, so its words reach the listing even when the name is fine.
+TITLE_UNFIT = (
+    "hell", "hellish", "nightmare", "nightmares", "worst", "evil", "horror", "horrors",
+    "hate", "hates", "hated", "monstrous",
 )  # fmt: skip
 
 # Well-known villains and tragic animals: the model also declares each reference's role,
@@ -265,6 +279,12 @@ def check_title(
             f"name {name!r}: {title} is coded to a religion, race or political identity; "
             "use another title"
         )
+    # The title's own name only: a description may well mention a villain.
+    if find_word(title, NAME_BLOCKLIST + UNFLATTERING + TITLE_UNFIT):
+        problems.append(
+            f"name {name!r}: the title {title!r} would introduce the animal with a word that "
+            "does not suit an adoption listing; use another title"
+        )
     return problems
 
 
@@ -338,7 +358,9 @@ def unsupported_words(animal: Animal, sentence: str, keys: list[str]) -> list[st
 
 NEGATIONS = ("not", "no", "never", "nor", "without", "isn't", "doesn't", "won't", "can't")
 # Words a name's "why" may use on top of the facts.
-WHY_GLUE = ("suit", "suits", "fit", "fits", "name", "names", "named", "call", "calls")
+WHY_GLUE = (
+    "suit", "suits", "fit", "fits", "name", "names", "named", "call", "calls", "echo", "echoes",
+)  # fmt: skip
 # The one reason that needs no look words: "short" alone could claim a short coat.
 EASY_TO_SAY = re.compile(
     r"^\s*(a short name|(it is |it's )?short),? (and )?easy to say\.?\s*$", re.IGNORECASE
@@ -526,16 +548,34 @@ def check_choice_reason(reason: str, label: str) -> list[str]:
     return problems
 
 
-def check_hook(hook: str) -> list[str]:
+def reference_key(entity_id: str, character: str) -> tuple[str, str]:
+    """What a name refers to, for telling whether two animals share it: the title, and
+    the character's first word (19 October audit: "Scooby" and "Scooby-Doo" from one title
+    are one reference)."""
+    words = re.findall(r"[a-z0-9]+", character.lower())
+    return entity_id, words[0] if words else ""
+
+
+def hook_text(reference: str) -> str:
+    """The local version's one line. A title ending in "!" or "?" ends the sentence itself
+    (19 October audit: "…Where Are You!.")."""
+    return f"Named after {reference}" + ("" if reference.endswith(("!", "?", ".")) else ".")
+
+
+def check_hook(hook: str, title: str = "") -> list[str]:
+    """The hook's form, and no temperament or taste claim in what the model chose: the
+    character and its role. Qloo's `title` is left out of the word screens (19 October
+    audit: "The Call of the Wild" read as temperament), since the model did not write it."""
     problems = []
     if len(re.findall(r"[.!?](\s|$)", ABBREVIATIONS.sub(r"\1", hook.strip()))) > 1:
         problems.append("the hook must be one sentence")
     if len(hook.split()) > 25:
         problems.append("the hook must be 25 words or fewer")
-    trait = find_word(hook, HOOK_TRAIT_WORDS)
+    chosen = hook.replace(title, " ") if title else hook
+    trait = find_word(chosen, HOOK_TRAIT_WORDS)
     if trait:
         problems.append(f"the hook describes temperament ({trait!r}); keep it to the name")
-    claim = find_word(hook, HOOK_CLAIMS)
+    claim = find_word(chosen, HOOK_CLAIMS)
     if claim:
         problems.append(f"the hook makes a claim about tastes ({claim!r})")
     return problems
