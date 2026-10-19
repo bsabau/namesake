@@ -11,7 +11,7 @@ The review found no study showing that names or wording speed adoption. Being se
 ## Demo
 
 - **Lead animal:** `dog-02`, a large brindle adult with a broad head, eight months in the shelter. That's the profile the research names as the US bottleneck, and it exercises the strictest name screening.
-- **Second example:** the kitten litter, named as a set, in Park Slope. (Until 19 October also in Astoria; that slot is now the lead dog in Barcelona, decision 30.)
+- **Second example:** the kitten litter, named as a set, listed for two neighbourhoods side by side. (On 19 October the Astoria one briefly gave way to the lead dog in Barcelona, decision 30.)
 - **Locations:** two New York neighbourhoods and one other US city, from `data/locations.json`, confirmed in milestone 1, and Barcelona outside the US (decision 30).
 
 ## Output 1: the listing
