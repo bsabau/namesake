@@ -78,10 +78,12 @@
                           data-copy="{{ option.copy_text }}" data-choice="{{ option.version_choice }}" {% if option.name == view.chosen_name %}checked{% endif %}>
               <strong>{{ option.name }}</strong></label>
             <p class="evidence"><span>Qloo:</span> {{ option.title }}. {{ option.badge }}.</p>
+            {% if option.audience %}<p class="evidence"><span>Qloo:</span> {{ option.audience }}.</p>{% endif %}
             <p class="reading"><span>Namesake's AI:</span> {{ option.reference }}. {{ option.why }}</p>
           </li>
           {% endfor %}
         </ul>
+        {% if view.name.audience_note %}<p class="hint">{{ view.name.audience_note }}</p>{% endif %}
       </div>
       {% endif %}
 

@@ -58,6 +58,16 @@ NAMESAKE_HOST=deploy@host NAMESAKE_URL=https://namesake.example.com deploy/deplo
 
 Only committed changes are deployed. Every deploy re-checks the saved listings against today's checks (`app/agent/recheck.py`): one that passes stays, one that fails runs again when next opened. The source, `compose.yml`, `.env` and the image change together. If any step fails, the check through the proxy included, all four come back (the image as `namesake-app:prev`, the one the running container used): before the restart the running container is untouched, and after it the previous version is started again. To roll back on purpose, check out the earlier commit and deploy again.
 
+## Who tends to like each name's title
+
+Listings written since decision 31 carry Qloo's audience for each name's title. To add it to listings saved before, once, on the host (about one call per title not asked before, spaced 10 seconds apart; titles repeat across areas, so the examples take a few minutes):
+
+```sh
+ssh deploy@host 'cd /opt/namesake && docker compose exec -T app python -m app.audience'
+```
+
+It skips listings saved before the checks last changed (their next run rewrites them) and writes only onto a listing that no run has rewritten meanwhile. A title Qloo has nothing for is left out and asked again by a later run.
+
 ## Upgrading saved profiles
 
 When a change raises the profile version (`PROFILE_VERSION` in `app/profile.py`), or changes what a saved profile must have (`needs_finishing` in the same file, such as the comparison screen of decision 18), saved profiles keep working as they were until upgraded or until a visitor's run finishes them. Upgrade them on the host, paced under the key's limit, the examples' areas first:

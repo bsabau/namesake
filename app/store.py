@@ -107,6 +107,45 @@ class Store:
     def put_listing(self, result: ListingResult) -> None:
         self._put(f"listing:{result.animal_id}@{result.location_id}", result)
 
+    def merge_audiences(self, result: ListingResult) -> bool:
+        """Add `result`'s title audiences to the saved listing, in one transaction and
+        only while it still holds the same draft, so a run that rewrote it meanwhile
+        is never written over (app/audience.py's backfill). True when it wrote."""
+        key = f"listing:{result.animal_id}@{result.location_id}"
+        # The cache waits as long for the same cross-process write lock.
+        db = sqlite3.connect(self.path, isolation_level=None, timeout=30)
+        try:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT value_json FROM agent_results WHERE key = ?", (key,)
+            ).fetchone()
+            try:
+                saved = ListingResult.model_validate_json(row[0]) if row else None
+            except ValidationError:
+                saved = None
+            merged = {**saved.audiences, **result.audiences} if saved else {}
+            if (
+                saved is None
+                or not _current(saved)
+                or saved.draft != result.draft
+                or merged == saved.audiences
+            ):
+                db.execute("ROLLBACK")
+                return False
+            saved.audiences = merged
+            db.execute(
+                "INSERT OR REPLACE INTO agent_results VALUES (?, ?, ?)",
+                (key, saved.model_dump_json(), datetime.now(UTC).isoformat()),
+            )
+            db.execute("COMMIT")
+            return True
+        except BaseException:
+            if db.in_transaction:
+                db.execute("ROLLBACK")
+            raise
+        finally:
+            db.close()
+
     def delete_listing(self, animal_id: str, location_id: str) -> None:
         with sqlite3.connect(self.path) as db:
             db.execute(

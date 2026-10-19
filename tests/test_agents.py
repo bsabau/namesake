@@ -307,7 +307,10 @@ def test_a_saved_profile_is_reused_without_qloo(roster):
     first, store, _ = run(Script([PLAN], [DRAFT]), roster)
     qloo = FakeQloo({})
     second, _, log = run(Script([], [DRAFT]), roster, store=store, qloo=qloo)
-    assert second.draft is not None and qloo.calls == []
+    # Only the listing's own call, who tends to like its titles (decision 31).
+    assert second.draft is not None
+    titles = dict.fromkeys(o["entity_id"] for o in DRAFT["names"])
+    assert qloo.calls == [("audience_demographics", {"entity": i}) for i in titles]
     assert any("saved profile" in s.text for s in log.steps)
 
 

@@ -212,12 +212,17 @@ class NameOptionView(BaseModel):
     # shelter is named after it (decision 26): Qloo's title ID and the character.
     entity_id: str = ""
     character: str = ""
+    # Who tends to like the title, from Qloo's demographics (app/audience.py); None when
+    # Qloo gave no clear lean or was not asked.
+    audience: str | None = None
 
 
 class NameView(BaseModel):
     value: str | None
     placeholder: str
     options: list[NameOptionView] = []
+    # What the options' audience lines mean; empty when no option has one.
+    audience_note: str = ""
 
 
 class ListingSentence(BaseModel):

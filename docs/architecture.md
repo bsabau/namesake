@@ -82,7 +82,8 @@ flowchart TD
     lookalike["Up to two lookalike titles, as the AI asks:<br/>describe"]:::qloo --> listing
     listing["Names from the pet titles and the area's top shows,<br/>and the bio from the record"]:::ai --> screen
     screen{"Facts traced, names screened,<br/>no shared name, length?"}:::code -- "no, once" --> listing
-    screen -- yes --> pins
+    screen -- yes --> audience
+    audience["Who tends to like each name's title, for the volunteer to read:<br/>audience_demographics"]:::qloo --> pins
     pins["After the run: place the suggested venues not yet tried,<br/>with OpenStreetMap, and keep the points"]:::code --> page(["The result: Qloo's part and the AI's, kept apart"])
 
     classDef qloo fill:#fbe3d9,stroke:#a84526,color:#3a1a10
@@ -218,6 +219,8 @@ The listing agent may make at most 6 model requests and 4 tool calls. What code 
 - **Hook and the names' reasons**: the hook is assembled by code from the name, its role and Qloo's title (a title ending in "!" or "?" ends the sentence); the character and role say nothing about temperament, and Qloo's title is left out of that screen, since the model did not write it. A name's reason may use only the record's look words (or be "A short name, easy to say." or a near form of it), so a cultural reference never implies how the animal behaves.
 - **Lookalikes**: the shared look must be quoted from the record as whole phrases, each ending where a part of the look ends ("brindle coat", not "short"), and the name must be that animal's own (decision 14).
 
+After a listing passes, code asks Qloo's `audience_demographics` for each of its names' titles not asked before (`app/audience.py`, decision 31) and saves the answers on the listing; the page words the clear leans with each option (beside it in warm and classic, in "Why this name?" in story), and only under the title's own name. It is shown only and plays no part in the checks or in choosing names. A failed or oddly shaped answer is left out and never costs the listing (a failure is logged, and either is counted in the step log as a title Qloo had no audience for); a title Qloo has nothing for shows nothing. The call runs inside the area's listing lock, which costs little: every live Qloo call is spaced across processes anyway, and saving once, under the lock, means nothing can write over a newer listing. `python -m app.audience` fills in current listings saved before, writing only onto a listing whose draft has not changed since it was read, in one transaction (`Store.merge_audiences`).
+
 Saved listings carry the version of the checks they passed. When the checks change, every deploy rechecks the saved ones it can with today's rules (`app/agent/recheck.py`); one that fails, or one older than a change the recheck cannot cover, runs again when next opened (decision 16).
 
 ## Data: what is kept where
@@ -226,7 +229,7 @@ Saved listings carry the version of the checks they passed. When the checks chan
 |---|---|---|
 | `var/cache.sqlite`, `qloo_cache` | every Qloo answer that is not an error, keyed by operation and canonical input | server only, never committed |
 | `qloo_meta` | the time of the last live Qloo call, for spacing across processes | server only |
-| `agent_results` | area profiles, listings, typed areas | server only |
+| `agent_results` | area profiles, listings (with each name title's audience from Qloo), typed areas | server only |
 | `approvals` | approved names and versions, for the measurement log | server only |
 | `classifier_answers` | the classifier's answers per title, keyed by the title as described (name, kind and description), the questions and the model | server only |
 | `usage` | live runs and new typed areas per day (UTC), for the daily caps | server only |

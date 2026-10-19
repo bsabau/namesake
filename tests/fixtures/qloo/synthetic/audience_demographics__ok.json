@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0-preview.1",
+  "operation": "audience_demographics",
+  "status": "ok",
+  "interpretation": {
+    "entity": {
+      "input": "00000000-0000-4000-8000-000000000101",
+      "entityId": "00000000-0000-4000-8000-000000000101",
+      "name": "Example Dog Show",
+      "type": "urn:entity:tv_show",
+      "match": "identifier"
+    }
+  },
+  "result_count": 1,
+  "results": [
+    {
+      "entity_id": "00000000-0000-4000-8000-000000000101",
+      "query": {
+        "age": {
+          "24_and_younger": 0.05,
+          "25_to_29": -0.3,
+          "30_to_34": -0.45,
+          "35_to_44": 0.25,
+          "45_to_54": 0.4,
+          "55_and_older": -0.5
+        },
+        "gender": {"male": -0.2, "female": 0.2}
+      }
+    }
+  ],
+  "execution": {
+    "transport": "direct",
+    "transport_name": "Qloo API",
+    "correlation_id": "exec-synthetic-audience-demographics-ok",
+    "duration_ms": 700
+  }
+}

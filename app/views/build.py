@@ -7,6 +7,8 @@ from app.agent.checks import hook_text, mentions_identity
 from app.agent.listing_agent import Lookalike, NameOption
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
+from app.audience import NOTE as AUDIENCE_NOTE
+from app.audience import audience_line
 from app.classify import bucket
 from app.config import get_settings
 from app.custom_location import MIN_CELLS
@@ -549,9 +551,19 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
                 version_choice=local_choice(o.name),
                 entity_id=o.entity_id,
                 character=o.character,
+                # Only under the title's own name: a character's name in its place
+                # would put the app's reading inside Qloo's line.
+                audience=audience_line(title, result.audiences.get(o.entity_id))
+                if o.entity_id in titles
+                else None,
             )
         )
-    return NameView(value=draft.names[0].name, placeholder="", options=options)
+    return NameView(
+        value=draft.names[0].name,
+        placeholder="",
+        options=options,
+        audience_note=AUDIENCE_NOTE if any(o.audience for o in options) else "",
+    )
 
 
 # What decision 23's chain rule enforces: listed chains are never suggested; fast food is

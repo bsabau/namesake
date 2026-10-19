@@ -288,3 +288,21 @@ The question: could Qloo's tags for each chosen pet title show, in the Why panel
 **Together, as Qloo's "descriptive taste" of a combination** (1 more call): Park Slope's three pet TV shows in one call (*My Cat from Hell*, Bluey, *Dogs in Space*). The 20 tags are mostly the single titles' tags merged (Infants, Motherhood, Toddlers, Doctors, Professionals, the screamo genre). Two are new and fit a pet theme, Human-Animal Bond and Light-Hearted; all score between 0.9986 and 1, so affinity cannot pick them out. A line built from them would be the app choosing what it wants Qloo to have said.
 
 **Not adopted.** The tags would not back the "pet-themed" call. Some would also read badly beside a shelter animal, and some come close to inferring traits about people (parenthood). The pet titles stay as they are: found with the pet tags as signals (decision 22), sorted by the classifier.
+
+## Audience demographics (20 October, 14 calls)
+
+`audience_demographics` takes one entity (a name or an ID; with an ID, no type is needed) and returns, for it, a skew from −1 to +1 against Qloo's average audience for six age bands (24 and under, 25 to 29, 30 to 34, 35 to 44, 45 to 54, 55 and over) and for gender.
+
+**Titles** (5 calls): the leans differ by title.
+- Bluey: 35 to 44 (+0.19) and 45 to 54 (+0.35), away from 30 to 34 (−0.63) and 55 and over (−0.75); women +0.16.
+- *Dogs in Space*: 24 and under (+0.39) and 45 to 54 (+0.50), away from 35 to 44 and 55 and over; women +0.39.
+- *101 Dalmatians*: 24 and under (+0.16); women +0.26.
+- *My Cat from Hell*: 55 and over (+0.42); gender even (+0.01).
+- Bluey by its ID alone gave the same answer as with `entity_type`.
+- The shape, read from a recording: each result is `{entity_id, query}`, with `query.age` keyed `24_and_younger`, `25_to_29`, `30_to_34`, `35_to_44`, `45_to_54`, `55_and_older` and `query.gender` keyed `male`, `female`.
+
+**The area** (2 calls): "Park Slope, Brooklyn" as a locality came back `needs_input` (Park Slope first among Brooklyn Park, Sunset Park and others); by Park Slope's locality ID, status `ok` with no results.
+
+**Venues** (7 calls): three of seven had no data. The others leaned mostly away from groups (Sip & Play: 35 to 44 −0.27) or by gender alone (one place in Astoria: men +0.75).
+
+**Adopted for titles only** (decision 31), shown with each name option; not for the area or venues.
