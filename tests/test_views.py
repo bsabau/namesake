@@ -265,6 +265,10 @@ def test_the_children_words_match_whole_words_in_the_name_or_description():
     assert for_children(None, "A family-friendly brewery.") == "family-friendly"
     assert for_children(None, "A soft play centre.") == "soft play"
     assert for_children(None, "Classes for babies and an elementary school club.") == "babies"
+    # Spanish and Catalan venue names (Barcelona).
+    assert for_children("Ludoteca Infantil El Drac") == "ludoteca"
+    assert for_children("Espai per a nens i famílies") == "nens"
+    assert for_children("Parque de niños") == "niños"
     # Other common meanings in venue text are not about children.
     for text in (
         "A plant nursery.",

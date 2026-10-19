@@ -935,8 +935,9 @@ def plan(
             basis="Research",
         ),
         PlanItem(
-            text="Adoptions cluster on Saturdays, where shelters open then, and between 5 and "
-            "8 pm: time posts and events for then.",
+            # US shelters' data (adoption-evidence-review.md), said so for an area elsewhere.
+            text="In US shelter data, adoptions cluster on Saturdays, where shelters open then, "
+            "and between 5 and 8 pm: time posts and events for then.",
             basis="Research",
         ),
     ]
@@ -978,11 +979,13 @@ def plan(
 # "kid-friendly", "child care" and "Childrens Museum" count; words with other common
 # meanings in venue text ("nursery" for plants, "daycare" for dogs, "baby back ribs",
 # "youth hostel", a dog park's "play area") are not on the list. A venue with no
-# description is judged by its name.
+# description is judged by its name. Venue names outside the US may be in Spanish or
+# Catalan (Barcelona, decision 30), so those languages' plain words count too.
 FOR_CHILDREN = re.compile(
     r"\b(child|children|childrens|kid|kids|toddlers?|babies|playgrounds?|playgroups?"
     r"|preschools?|kindergartens?|elementary[- ]schools?|childcare|family[- ]friendly"
-    r"|families|storytime|soft[- ]play)\b"
+    r"|families|storytime|soft[- ]play"
+    r"|infantil|infantiles|infantils|niños|niñas|nens|nenes|ludotecas?|ludoteques?)\b"
 )
 
 

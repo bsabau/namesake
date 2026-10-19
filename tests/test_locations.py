@@ -111,9 +111,12 @@ def test_without_place_lookups_there_is_no_map_search():
     assert 'id="map-search-text"' not in client.get("/").text
 
 
-def test_every_example_is_at_a_preset_area():
+def test_every_example_is_a_known_animal_at_a_preset_area():
     # The examples script builds only presets; a typed area would not be there to build.
+    from app.animals import load_roster
     from app.views.build import EXAMPLES
 
     ids = {loc.id for loc in load_locations(get_settings().locations_file)}
     assert {loc for _, loc, _ in EXAMPLES} <= ids
+    roster = load_roster(get_settings().animals_file)
+    assert all(roster.get(a) is not None for a, _, _ in EXAMPLES)

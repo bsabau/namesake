@@ -71,6 +71,7 @@ from app.session import (
 )
 from app.store import Approval, Store
 from app.views.build import (
+    EXAMPLES,
     added_photo_url,
     animal_card,
     build_add_animal_view,
@@ -406,7 +407,7 @@ def start_view(
     selected = next((loc for loc in locations if loc.id == location), locations[0])
     ready = {
         (a, loc.id)
-        for a in ("dog-02", "kitten-01")
+        for a in {animal for animal, _, _ in EXAMPLES}
         for loc in locations
         if store.get_listing(a, loc.id) is not None
     }

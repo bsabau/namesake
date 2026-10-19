@@ -19,7 +19,8 @@ class Location(BaseModel):
     city: str
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
-    zoom: int = Field(default=13, ge=1, le=18)  # map zoom: ~14 for a neighbourhood, ~11 for a city
+    # Map zoom: ~14 for a neighbourhood, ~11 for a city as wide as Austin, ~13 for a compact one.
+    zoom: int = Field(default=13, ge=1, le=18)
 
 
 def load_locations(path: Path) -> list[Location]:

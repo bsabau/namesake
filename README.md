@@ -174,8 +174,9 @@ The image holds Python, Node and the pinned harness. The demo runs this image on
 ## Known limitations
 
 - **No outcome evidence yet.** The tool is built to measure whether local taste data helps, and nothing has been measured.
-- **Coverage is uneven.** The demo uses New York and Austin, where US coverage is deepest, and Barcelona, to show it is not a US-only effect. Thin areas are refused with a message instead of answered weakly.
+- **Coverage is uneven.** The demo uses New York and Austin, where US coverage is deepest, and Barcelona, to test whether it holds outside the US. Thin areas are refused with a message instead of answered weakly.
 - **Affinity scores saturate.** Raw scores sit near 1.0 for broad entities, so Namesake uses order within a call and lift against the area's own top shows, never raw affinity. The baseline is the area's own top two shows, so "stands out" means "more than this area's usual tastes", not more than everyone's.
+- **US-centred screens.** The list of national chains left out is mostly American, and the plan's research items come from US shelters (the posting-time item says so). The screen for venues that mention children reads English, Spanish and Catalan words.
 - **Ranking is often unavailable.** Qloo's `rank` is the most rate-limited workflow and twice returned nothing; the order Namesake's AI chose is then kept and labelled.
 - **Venues have no coordinates in Qloo.** Qloo returns an address and a neighbourhood, so the app looks each suggested venue up in OpenStreetMap (Photon) once; a venue with no close match stays in the list without a pin, and a pin outside the mapped cells says so.
 - **Area data says nothing about individuals.** Results read "people in this area tend to like X". A shelter's adopters are not its neighbours, and tastes can stand in for demographics, which is one reason names are screened for identity-coded references.

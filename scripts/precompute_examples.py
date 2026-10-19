@@ -2,9 +2,10 @@
 
     uv run python scripts/precompute_examples.py            # only what is missing
     uv run python scripts/precompute_examples.py --force    # rewrite the listings
+    uv run python scripts/precompute_examples.py --only barcelona   # one area's examples
 
 The examples are `EXAMPLES` in `app/views/build.py`: `dog-02` in Park Slope, Astoria and
-Barcelona, and the kitten litter in Park Slope; `--only barcelona` builds one area's.
+Barcelona, and the kitten litter in Park Slope.
 The results hold Qloo data and model output, so they stay in `var/`, which is never committed; the
 deployed demo gets them on its private volume. Qloo calls are cached, recorded and
 spaced; the model is the one in AGENT_*.
@@ -80,12 +81,22 @@ async def main() -> None:
         classifier=classifier_from(settings),
     )
     places = {x.id: x for x in load_locations(settings.locations_file)}
+    only = {x.strip() for x in args.only.split(",") if x.strip()}
+    unknown = ({loc for _, loc, _ in EXAMPLES} | only) - places.keys()
+    if unknown:
+        sys.exit(f"Not a preset area: {', '.join(sorted(unknown))}")
+    strangers = sorted(a for a, _, _ in EXAMPLES if roster.get(a) is None)
+    if strangers:
+        sys.exit(f"Not in the roster: {', '.join(strangers)}")
+    built = []
     # The start page's examples (EXAMPLES in app/views/build.py): an animal in a litter
     # is built with its litter, named as a set.
     for animal_id, location_id, label in EXAMPLES:
-        if args.only and location_id not in args.only.split(","):
+        if only and location_id not in only:
             continue
         location = places[location_id]
+        if location not in built:
+            built.append(location)
         animal = roster.get(animal_id)
         if animal.litter is not None:
             if args.force or any(store.get_listing(k.id, location.id) is None for k in kittens):
@@ -99,10 +110,13 @@ async def main() -> None:
             log = echo_log()
             show(await run_pipeline(animal, location, log=log, **common))
             log.finish()
-        # The example pages show the places as pins too (decision 4, revised).
-        placed = locate_saved(store, location, animal.species, places_for(settings.geocoder_url))
-        if placed:
-            print(f"{location.label} {animal.species}s: {placed} places pinned")
+    # The example pages show the places as pins too (decision 4, revised): both species'
+    # profiles in each example's area, as before.
+    for location in built:
+        for species in ("dog", "cat"):
+            placed = locate_saved(store, location, species, places_for(settings.geocoder_url))
+            if placed:
+                print(f"{location.label} {species}s: {placed} places pinned")
     print(f"live Qloo calls: {qloo.live_calls}")
 
 
