@@ -222,12 +222,14 @@
       <h4>{{ option.name }}<span class="picked-mark">picked</span></h4>
       <div class="why-qloo">
         <p class="evidence"><span>Qloo returned</span> {{ option.title }}: {{ option.badge }}.</p>
+        {% if option.audience %}<p class="evidence"><span>Qloo returned</span> {{ option.audience }}.</p>{% endif %}
       </div>
       <div class="why-ours">
         <p class="reading"><span>Namesake selected</span> {{ option.name }}, after {{ option.reference }}. {{ option.why }}</p>
       </div>
     </div>
     {% endfor %}
+    {% if view.name.audience_note %}<p class="hint">{{ view.name.audience_note }}</p>{% endif %}
   </section>
   {% endif %}
 

@@ -31,6 +31,7 @@ from app.agent.profile_agent import ProfileDeps, build_profile_agent, has_eviden
 from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import StepLog
 from app.animals import ADDED_PREFIX, Animal
+from app.audience import add_audiences
 from app.classify import JevClassifier
 from app.locations import Location
 from app.profile import (
@@ -503,6 +504,7 @@ async def run_pipeline(
             qloo=qloo,
             fallbacks=fallbacks,
         )
+        await asyncio.to_thread(add_audiences, result, qloo, log)
         result.steps = list(log.steps)
         (save or store.put_listing)(result)
     log.add("done", "Done")
@@ -578,6 +580,7 @@ async def run_litter(
                     e.name for e in profile.pet_entities + profile.local_tastes if e.id == theme
                 )
                 log.add("decision", f"The litter's names will all come from {title}")
+            await asyncio.to_thread(add_audiences, result, qloo, log)
             result.steps = log.steps[:shared_steps] + log.steps[own_steps:]
             store.put_listing(result)
             results.append(result)

@@ -159,7 +159,7 @@ A child process only sees these if the parent passes its environment through.
 - Keys are deactivated after the hackathon closes.
 - To raise a quota, ask in `#api-help` on Discord.
 
-**Workflows.** Confirmed working from the command line: `find_tags`, `where_popular`, `recommend`, `rank`. The MCP server exposes these tools: `qloo_capabilities`, `qloo_find_tags`, `qloo_describe`, `qloo_recommend`, `qloo_rank`, `qloo_where_popular`, `qloo_compare_audiences`, `qloo_audience_demographics`, `qloo_entity_tags`, `qloo_trends`. Read exact input schemas from the harness (`qloo exec --help`, or the `qloo_capabilities` tool, which costs no quota) instead of guessing field names. Inputs are validated before Qloo is called, so a wrong field costs nothing.
+**Workflows.** Confirmed working from the command line: `find_tags`, `where_popular`, `recommend`, `rank`, `audience_demographics` (with a title's ID alone; `docs/qloo-findings.md`). The MCP server exposes these tools: `qloo_capabilities`, `qloo_find_tags`, `qloo_describe`, `qloo_recommend`, `qloo_rank`, `qloo_where_popular`, `qloo_compare_audiences`, `qloo_audience_demographics`, `qloo_entity_tags`, `qloo_trends`. Read exact input schemas from the harness (`qloo exec --help`, or the `qloo_capabilities` tool, which costs no quota) instead of guessing field names. Inputs are validated before Qloo is called, so a wrong field costs nothing.
 
 Qloo silently ignores parameters it does not recognise and then returns empty results. After a call, check `interpretation` to confirm what was actually sent. Tags and audiences must be passed as IDs, not free text.
 
@@ -247,7 +247,7 @@ The shelter is fictional too. Do not use real shelter names, logos or photos.
 
 1. **Start:** a grid of the animals, a choice of four preset locations, a custom location field, and "Read a finished story" links that load precomputed results instantly. There is no tone setting: the listing rules fix the voice, and the refine line takes follow-ups (`docs/decisions.md` #15).
 2. **Working:** a live log of the agent's steps, streamed as they happen: entities proposed, each one checked against Qloo, which were kept and which dropped.
-3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges; a map of local lift; the venues as a list with their evidence, under a note on which kinds of place were asked for and why, and that listed national chains are left out (`docs/decisions.md` #23), and as numbered pins on the map from OpenStreetMap (`docs/decisions.md` #4, revised), skipping those that mention children for an animal recorded as not good with them (`docs/decisions.md` #2); the exposure checklist; in the story skin, the saved run's step log and, with no listing yet, a button that starts a run (`docs/decisions.md` #27).
+3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges, and who tends to like each one's title, from Qloo's audience demographics (`docs/decisions.md` #31); a map of local lift; the venues as a list with their evidence, under a note on which kinds of place were asked for and why, and that listed national chains are left out (`docs/decisions.md` #23), and as numbered pins on the map from OpenStreetMap (`docs/decisions.md` #4, revised), skipping those that mention children for an animal recorded as not good with them (`docs/decisions.md` #2); the exposure checklist; in the story skin, the saved run's step log and, with no listing yet, a button that starts a run (`docs/decisions.md` #27).
 4. **Why:** for each choice, the Qloo result behind it, separate from the app's reading of it.
 5. **Refine:** one text line for follow-ups such as "less childish". When Qloo returns `needs_input` for a typed area, its candidates show as buttons on the start page; an ambiguous title is settled by the agent with a stated reason.
 
@@ -283,6 +283,7 @@ app/
   places.py          area names and venue pins from OpenStreetMap (Photon)
   venue_points.py    pins a saved profile's venues once
   upgrade_profiles.py brings saved profiles to the current version
+  audience.py        who tends to like each name's title (Qloo's demographics), and its backfill
   agent/             the two PydanticAI agents, their checks, the step log and the run pipeline
   runs.py, store.py  web runs (background task + step log), saved agent results, approvals
   session.py         per-visitor state in memory: added animals, photos, refined listings
@@ -316,6 +317,7 @@ uv run python scripts/run_agent.py dog-02 park-slope   # one live agent run (Qlo
 uv run python scripts/precompute_examples.py  # the start page's examples into var/cache.sqlite, live
 uv run python -m app.venue_points             # pin saved profiles' venues from OpenStreetMap, once
 uv run python -m app.limits                   # live runs and new areas per day, against the caps
+uv run python -m app.audience                 # who tends to like each saved listing's titles, live, once
 python3 deploy/watch.py https://namesake.bogdansabau.eu --examples 4   # the hourly check of the live demo
 uv run pytest
 uv run pytest tests/test_app.py::test_health   # one test (-k <expr> also works)

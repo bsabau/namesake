@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 from app.agent.listing_agent import BioSentence, ListingDraft, Lookalike
 from app.agent.steps import Step
+from app.audience import TitleAudience
 
 # Raised whenever the listing checks change. A saved result from an older version is
 # never shown as it is: app/agent/recheck.py holds it to today's record checks (the bio
@@ -51,3 +52,6 @@ class ListingResult(BaseModel):
     lookalikes: list[Lookalike] = []
     fallback_reason: str | None = None
     steps: list[Step] = []
+    # Who tends to like each name's title, by Qloo's title ID (app/audience.py). Shown
+    # only; added after the run, and by `python -m app.audience` to older listings.
+    audiences: dict[str, TitleAudience] = {}
