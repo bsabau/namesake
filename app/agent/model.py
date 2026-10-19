@@ -24,8 +24,10 @@ USER_AGENT = "namesake/0.1"
 # Seconds a single model request may take, and retries of a failed one. Without a
 # timeout a hung endpoint holds a run for the SDK's ten minutes per try, and the run
 # never fails over to the next model.
-REQUEST_TIMEOUT = 120.0
+REQUEST_TIMEOUT = 90.0
 REQUEST_RETRIES = 1
+APIS = ("chat", "responses", "anthropic")
+OUTPUT_MODES = ("native", "prompted", "tool")
 
 
 class ModelNotConfigured(RuntimeError):
@@ -38,6 +40,7 @@ class ModelChoice:
 
     make: Callable[[], Model]
     output_mode: str
+    label: str = "main"
 
 
 def _build(
@@ -51,6 +54,10 @@ def _build(
     (Anthropic's own API, through its SDK; no base URL needed)."""
     if not (api_key and model and (base_url or api == "anthropic")):
         raise ModelNotConfigured("set the base URL, API key and model")
+    if api not in APIS:
+        # A typo would otherwise send the request in the wrong format, and the refusal
+        # would quietly hand every run to the next model.
+        raise ModelNotConfigured(f"the API must be one of {', '.join(APIS)}")
     if api == "anthropic":
         client = AsyncAnthropic(
             api_key=api_key.get_secret_value(),
@@ -100,13 +107,16 @@ def fallback_models(settings: Settings) -> tuple[ModelChoice, ...]:
         api_key = getattr(settings, f"agent_fallback_{n}_api_key")
         model = getattr(settings, f"agent_fallback_{n}_model")
         api = getattr(settings, f"agent_fallback_{n}_api")
+        mode = getattr(settings, f"agent_fallback_{n}_output_mode")
         try:
             _build(base_url, api_key, model, api, None)
         except ModelNotConfigured:
+            continue
+        if mode not in OUTPUT_MODES:
             continue
 
         def make(base_url=base_url, api_key=api_key, model=model, api=api) -> Model:
             return _build(base_url, api_key, model, api, uuid.uuid4().hex)
 
-        choices.append(ModelChoice(make, getattr(settings, f"agent_fallback_{n}_output_mode")))
+        choices.append(ModelChoice(make, mode, label=str(n)))
     return tuple(choices)

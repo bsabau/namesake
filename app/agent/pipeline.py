@@ -12,6 +12,8 @@ import logging
 from collections import defaultdict
 from collections.abc import Awaitable, Callable, Sequence
 
+import anthropic
+import openai
 from pydantic_ai import UnexpectedModelBehavior
 from pydantic_ai.exceptions import AgentRunError, ModelAPIError, ModelHTTPError
 from pydantic_ai.models import Model
@@ -62,15 +64,22 @@ _profile_locks: defaultdict[tuple[int, str, str], asyncio.Lock] = defaultdict(as
 # One listing at a time per shelter, so the names already taken are read and the new
 # listing saved without another run giving out the same name in between.
 _listing_locks: defaultdict[tuple[int, str], asyncio.Lock] = defaultdict(asyncio.Lock)
-AGENT_FAILURES = (UnexpectedModelBehavior, AgentRunError, ModelHTTPError, OSError, ValueError)
+# The SDKs' own base errors too: an error inside a stream, after the HTTP 200, can surface
+# as one that PydanticAI does not wrap (Anthropic's, as of 2.56).
+SDK_ERRORS = (anthropic.APIError, openai.APIError)
+AGENT_FAILURES = (
+    UnexpectedModelBehavior, AgentRunError, ModelHTTPError, OSError, ValueError, *SDK_ERRORS
+)  # fmt: skip
 # What starts a run again on the next model: the model could not be reached, refused the
 # request, or ran out of time (TimeoutError is an OSError). A draft that fails its checks
 # is not one: it falls to the template as before.
-MODEL_FAILURES = (ModelAPIError, OSError)
+MODEL_FAILURES = (ModelAPIError, OSError, *SDK_ERRORS)
 # Seconds one model may spend on a whole run, its tool calls included, before the next
-# model is tried.
-PROFILE_TIMEOUT = 300.0
-LISTING_TIMEOUT = 180.0
+# model is tried: room for a request that times out and succeeds on its retry
+# (app/agent/model.py), and for the slowest model measured (decision 25). A synchronous
+# tool already running (a `qloo` call, at most 90 seconds) finishes before the cancel lands.
+PROFILE_TIMEOUT = 480.0
+LISTING_TIMEOUT = 300.0
 Fallbacks = Sequence[ModelChoice]
 
 
@@ -93,11 +102,8 @@ async def on_each_model[T](
         except MODEL_FAILURES as exc:
             if i == len(models) - 1:
                 raise
-            log.add(
-                "note",
-                f"Namesake's AI could not be reached ({type(exc).__name__}); "
-                "starting again on a backup model",
-            )
+            log.add("note", "Namesake's AI could not be reached; starting again on a backup model")
+            logger.warning("model %d of %d failed: %s", i + 1, len(models), type(exc).__name__)
     raise ValueError("no model to run")
 
 
@@ -391,6 +397,12 @@ async def write_listing(
         result.hook = f"Named after {result.references[0]}."
         used = {o.entity_id for o in run.output.names}
         result.lookalikes = [v for k, v in deps.lookalikes.items() if k in used]
+    except MODEL_FAILURES as exc:
+        # No model answered: there was no draft to check (Flash review, PR #42).
+        log.add("error", f"Namesake's AI could not be reached ({type(exc).__name__})")
+        result.fallback_reason = (
+            "Namesake's AI could not be reached, so this is the templated listing."
+        )
     except AGENT_FAILURES as exc:
         log.add("error", f"The listing did not pass its checks ({type(exc).__name__})")
         result.fallback_reason = (

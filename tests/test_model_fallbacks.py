@@ -48,7 +48,7 @@ def test_an_unreachable_model_hands_the_run_to_the_backup(roster):
     assert result.draft is not None and result.fallback_reason is None
     notes = [s.text for s in log.steps if "backup model" in s.text]
     # Once for the profile, once for the listing: each run starts again on the backup.
-    assert len(notes) == 2 and "ModelHTTPError" in notes[0]
+    assert len(notes) == 2
 
 
 def test_the_backups_are_tried_in_order(roster):
@@ -60,7 +60,11 @@ def test_the_backups_are_tried_in_order(roster):
 def test_with_every_model_unreachable_the_fallbacks_are_the_old_ones(roster):
     result, store, log = run(roster, unreachable, [unreachable])
     assert store.get_profile(LOCATION.id, "dog").made_by != "agent"
-    assert result.draft is None and "templated listing" in result.fallback_reason
+    # No model answered, so no draft failed: the reason says so (Flash review, PR #42).
+    assert result.draft is None
+    assert result.fallback_reason == (
+        "Namesake's AI could not be reached, so this is the templated listing."
+    )
 
 
 def test_a_draft_that_fails_its_checks_is_not_handed_on(roster):
@@ -77,7 +81,7 @@ def test_a_draft_that_fails_its_checks_is_not_handed_on(roster):
     assert not called and not any("backup model" in s.text for s in log.steps)
 
 
-def test_a_model_that_takes_too_long_hands_the_run_on(roster, monkeypatch):
+def test_a_model_that_takes_too_long_hands_the_run_on(roster, monkeypatch, caplog):
     monkeypatch.setattr(pipeline, "PROFILE_TIMEOUT", 0.05)
     monkeypatch.setattr(pipeline, "LISTING_TIMEOUT", 0.05)
 
@@ -98,11 +102,18 @@ def test_a_model_that_takes_too_long_hands_the_run_on(roster, monkeypatch):
         )
     )
     assert store.get_profile(LOCATION.id, "dog").made_by == "agent"
-    assert sum("TimeoutError" in s.text for s in log.steps) == 2
+    assert sum("backup model" in s.text for s in log.steps) == 2
+    # The step says it plainly; the server log names the failure.
+    assert "TimeoutError" in caplog.text
     assert result.draft is not None
 
 
-def test_only_configured_fallbacks_are_used_each_with_its_output_mode():
+def test_only_configured_fallbacks_are_used_each_with_its_output_mode(monkeypatch):
+    # Settings read the process environment too: clear any fallback set there.
+    import os
+
+    for name in [k for k in os.environ if k.startswith("AGENT_FALLBACK_")]:
+        monkeypatch.delenv(name)
     settings = Settings(
         _env_file=None,
         agent_fallback_1_model="some-model",  # no key: skipped
@@ -122,10 +133,20 @@ def test_only_configured_fallbacks_are_used_each_with_its_output_mode():
     (only,) = fallback_models(settings)
     assert only.output_mode == "native" and isinstance(only.make(), OpenAIChatModel)
     assert fallback_models(Settings(_env_file=None)) == ()
+    # A typo in the API or the output mode skips that fallback instead of misrouting it.
+    for typo in ({"agent_fallback_1_api": "chats"}, {"agent_fallback_1_output_mode": "json"}):
+        broken = Settings(
+            _env_file=None,
+            agent_fallback_1_base_url="https://models.example/v1",
+            agent_fallback_1_api_key="test-key",
+            agent_fallback_1_model="test-model",
+            **typo,
+        )
+        assert fallback_models(broken) == ()
 
 
 def test_the_example_scripts_echo_a_steps_actor():
-    # Flash audit D6: the wrapper took no actor, so the classifier's step crashed it.
+    # The final audit, 19 October: the wrapper took no actor, so the classifier's step crashed it.
     from scripts.precompute_examples import echo_log
 
     log = echo_log()
@@ -134,7 +155,13 @@ def test_the_example_scripts_echo_a_steps_actor():
 
 
 def test_no_test_can_reach_a_configured_fallback():
-    # A local .env with fallback keys once let four tests call real models.
+    # A local .env with fallback keys once let four tests call real models; the conftest
+    # clears every fallback's key and model, whatever fallbacks the settings grow.
     from app.config import get_settings
 
-    assert fallback_models(get_settings()) == ()
+    settings = get_settings()
+    fields = [f for f in type(settings).model_fields if f.startswith("agent_fallback_")]
+    assert fields and all(
+        getattr(settings, f) is None for f in fields if f.endswith(("_api_key", "_model"))
+    )
+    assert fallback_models(settings) == ()

@@ -8,6 +8,7 @@ profile comes from the cache and recordings, built ahead by
 
 import hashlib
 import json
+import logging
 import mimetypes
 import re
 import uuid
@@ -86,6 +87,13 @@ UIS = sorted(p.name for p in UI_ROOT.iterdir() if (p / "templates").is_dir())
 # so without this the files go out as application/octet-stream.
 mimetypes.add_type("font/woff2", ".woff2")
 mimetypes.add_type("font/woff", ".woff")
+
+# Each agent run's model usage, and a model handing a run on, go to the server log to watch
+# the cost (decision 25). Uvicorn configures only its own loggers, so this one gets a handler.
+_usage_log = logging.getLogger("app.agent.pipeline")
+_usage_log.setLevel(logging.INFO)
+if not _usage_log.handlers:
+    _usage_log.addHandler(logging.StreamHandler())
 
 app = FastAPI(title="Namesake")
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")

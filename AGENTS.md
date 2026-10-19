@@ -206,7 +206,7 @@ AGENT_API=responses        # or "chat", or "anthropic" for Anthropic's own API
 
 The demo runs Muse Spark through OpenCode Go, then Claude Opus 5.5 (`AGENT_FALLBACK_1_API=anthropic`), then DeepSeek Flash (OpenAI-compatible, `prompted` output, since it refuses JSON-schema output). A run that cannot reach a model (an API error, a refused request, a timeout) starts again on the next; a draft that fails its checks still falls to the template. Some models speak the OpenAI "responses" format and others "chat completions", hence `AGENT_API`.
 
-`app/agent/model.py` builds the models from these settings, with the session header OpenCode Go requires and a 120-second request timeout; `app/agent/pipeline.py` tries them in order. The agents' Qloo tools are function tools over `QlooClient`, not `qloo mcp` (`docs/decisions.md` #5). For reference, PydanticAI 2.x attaches an MCP server like this, checked against 2.53:
+`app/agent/model.py` builds the models from these settings, with the session header OpenCode Go requires and a 90-second request timeout; `app/agent/pipeline.py` tries them in order. The agents' Qloo tools are function tools over `QlooClient`, not `qloo mcp` (`docs/decisions.md` #5). For reference, PydanticAI 2.x attaches an MCP server like this, checked against 2.53:
 
 ```python
 import os

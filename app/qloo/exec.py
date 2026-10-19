@@ -36,9 +36,15 @@ class ReplayMiss(LookupError):
     """Replay mode was asked for a call that was never recorded."""
 
 
+# Settings the Qloo harness never needs: the model and classifier keys stay out of the
+# child process's environment (Flash review, PR #42).
+NOT_FOR_HARNESS = ("AGENT_", "TYPESAFE_", "MAP_TILES_")
+
+
 def harness_env(settings: Settings) -> dict[str, str]:
-    """The parent environment plus any Qloo settings from `.env`, for the child process."""
-    env = dict(os.environ)
+    """The parent environment, without other services' settings, plus any Qloo settings
+    from `.env`, for the child process."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith(NOT_FOR_HARNESS)}
     if settings.qloo_api_key is not None:
         env["QLOO_API_KEY"] = settings.qloo_api_key.get_secret_value()
     if settings.qloo_base_url:

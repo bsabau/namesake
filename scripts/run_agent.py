@@ -44,14 +44,14 @@ async def main() -> None:
     fallbacks = fallback_models(settings)
     main_model = lambda: build_model(settings)  # noqa: E731
     if args.model in ("1", "2"):
-        configured = getattr(settings, f"agent_fallback_{args.model}_model")
-        if configured is None:
-            sys.exit(f"Fallback {args.model} is not configured.")
-        # fallback_models skips unconfigured ones, so fallback 2 alone sits at index 0
-        index = 0 if args.model == "1" or len(fallbacks) == 1 else 1
-        main_model, fallbacks = None, (fallbacks[index],)
+        chosen = [c for c in fallbacks if c.label == args.model]
+        if not chosen:
+            sys.exit(f"Fallback {args.model} is not configured (key, model, API, output mode).")
+        main_model, fallbacks = None, tuple(chosen)
     elif args.model == "main":
         fallbacks = ()
+    if args.model == "main" and not (settings.agent_model and settings.agent_api_key):
+        sys.exit("The main model is not configured (AGENT_*).")
     animal = load_roster(settings.animals_file).get(args.animal)
     location = next(x for x in load_locations(settings.locations_file) if x.id == args.location)
     qloo = QlooClient(

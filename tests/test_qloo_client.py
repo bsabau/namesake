@@ -255,3 +255,13 @@ def test_rank_waits_by_kind_of_error_on_each_retry(cache):
     )
     env = qloo.run("rank", {"options": ["y"], "option_type": "tv_show"})
     assert env.status == "error" and len(runner.calls) == 3 and slept == [3, 6]
+
+
+def test_the_harness_never_sees_the_model_or_classifier_keys(monkeypatch):
+    # Flash review, PR #42: every variable in the container's .env reached the qloo process.
+    for name in ("AGENT_API_KEY", "AGENT_FALLBACK_1_API_KEY", "TYPESAFE_API_KEY", "MAP_TILES_KEY"):
+        monkeypatch.setenv(name, "fake")
+    monkeypatch.setenv("PATH_FOR_TEST", "kept")
+    env = harness_env(Settings(_env_file=None))
+    assert not any(k.startswith(("AGENT_", "TYPESAFE_", "MAP_TILES_")) for k in env)
+    assert env["PATH_FOR_TEST"] == "kept"
