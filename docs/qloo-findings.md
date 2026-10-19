@@ -265,7 +265,7 @@ Reading:
 
 ## The lead dog in Barcelona (19 October, 13 calls)
 
-The fourth example (decision 30), built live on the server with `precompute_examples.py --only barcelona`, "Barcelona, Spain" as the area.
+The fourth example for an evening (decision 30; the litter in Astoria came back the same day), built live on the server with `precompute_examples.py --only barcelona`, "Barcelona, Spain" as the area.
 
 - **Titles:** Qloo's area lists gave almost nothing pet-themed. Of the TV shows, films and books that people around Barcelona who like *Dogs in Space* also like (20 each), the classifier found no pet title, and left one film to Namesake's AI. `rank` ordered *Dogs in Space*, *My Cat from Hell*, *Bluey* and *It's Me or the Dog*. *My Cat from Hell* is about cats, and its own name rules it out for names (decision 26); the dog's saved profile holds the other three, as its titles and its venue signals.
 - **Places:** Qloo returned 15 places for fans of those three titles, and 11 stand out against the area's top two shows (*Crims*, *BricoHeroes*). The ones Namesake's AI picked are tourist landmarks rather than neighbourhood spots: Park Güell (1st), La Pedrera's bookshop (6th) and Illa Fantasia (9th), a water park in Vilassar de Dalt outside the city. Two places were found in OpenStreetMap and placed on the map.

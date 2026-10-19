@@ -2,10 +2,10 @@
 
     uv run python scripts/precompute_examples.py            # only what is missing
     uv run python scripts/precompute_examples.py --force    # rewrite the listings
-    uv run python scripts/precompute_examples.py --only barcelona   # one area's examples
+    uv run python scripts/precompute_examples.py --only astoria   # one area's examples
 
-The examples are `EXAMPLES` in `app/views/build.py`: `dog-02` in Park Slope, Astoria and
-Barcelona, and the kitten litter in Park Slope.
+The examples are `EXAMPLES` in `app/views/build.py`: `dog-02` and the kitten litter, each
+in Park Slope and Astoria.
 The results hold Qloo data and model output, so they stay in `var/`, which is never committed; the
 deployed demo gets them on its private volume. Qloo calls are cached, recorded and
 spaced; the model is the one in AGENT_*.
