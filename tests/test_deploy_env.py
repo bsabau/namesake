@@ -109,3 +109,17 @@ def test_the_limits_on_live_work_go_to_the_host_when_set(tmp_path):
     env = make_env.build_env(*files(tmp_path, local), "172.18.0.0/16", "proxy_default")
     assert env["LIVE_RUNS_PER_DAY"] == "90" and env["LIVE_RUNS_PER_VISITOR_PER_HOUR"] == "8"
     assert env["NEW_LOCATIONS_PER_DAY"] == "12"
+    # muse: an empty cap would stop the app from starting; the host keeps its default.
+    env = make_env.build_env(
+        *files(tmp_path, LOCAL + "LIVE_RUNS_PER_DAY=\n"), "172.18.0.0/16", "proxy_default"
+    )
+    assert "LIVE_RUNS_PER_DAY" not in env
+
+
+def test_a_cap_that_is_not_a_positive_number_stops_the_deploy(tmp_path):
+    # Flash: text would stop the app starting, and 0 would switch live runs off.
+    for value in ("abc", "0", "-3", "1.5"):
+        local, qloo = files(tmp_path, LOCAL + f"LIVE_RUNS_PER_DAY={value}\n")
+        with pytest.raises(make_env.MissingValue, match="LIVE_RUNS_PER_DAY") as err:
+            make_env.build_env(local, qloo, "172.18.0.0/16", "proxy_default")
+        assert value not in str(err.value).replace("LIVE_RUNS_PER_DAY", "")

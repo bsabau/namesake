@@ -19,8 +19,9 @@ QLOO_BASE = "https://hackathon.api.qloo.com"
 # Settings from the local .env that the host takes as they are, besides the AGENT_* ones.
 # TYPESAFE_API_KEY is optional: without it the classifier is off (decision 20).
 # MAP_TILES_KEY is optional: without it the maps use OpenStreetMap's tiles (decision 24).
-# The limits on live work are optional too: without them the host keeps the defaults in
-# app/config.py.
+# The limits on live work are optional too: without them, or left empty, the host keeps
+# the defaults in app/config.py. Any other value must be a whole number above zero: text
+# would stop the app from starting, and zero would quietly switch live runs off.
 SHARED = (
     "GEOCODER_URL",
     "QLOO_MIN_INTERVAL",
@@ -32,6 +33,7 @@ SHARED = (
     "TYPESAFE_BASE_URL",
     "MAP_TILES_KEY",
 )
+NUMBERS = ("LIVE_RUNS_PER_VISITOR_PER_HOUR", "LIVE_RUNS_PER_DAY", "NEW_LOCATIONS_PER_DAY")
 REQUIRED = ("QLOO_API_KEY", "AGENT_BASE_URL", "AGENT_API_KEY", "AGENT_MODEL", "AGENT_API")
 
 
@@ -64,7 +66,11 @@ def proxy_subnet(subnets: str) -> str:
 
 def build_env(local_env: Path, qloo_config: Path, subnet: str, network: str) -> dict[str, str]:
     subnet = proxy_subnet(subnet)
-    local = {k: v for k, v in dotenv_values(local_env).items() if v is not None}
+    local = {
+        k: v
+        for k, v in dotenv_values(local_env).items()
+        if v is not None and not (k in NUMBERS and not v.strip())
+    }
     env = {
         "QLOO_API_KEY": qloo_key(qloo_config),
         "QLOO_BASE_URL": QLOO_BASE,
@@ -80,6 +86,9 @@ def build_env(local_env: Path, qloo_config: Path, subnet: str, network: str) -> 
     required = [
         k for k in REQUIRED if not (k == "AGENT_BASE_URL" and env.get("AGENT_API") == "anthropic")
     ]
+    bad = [k for k in NUMBERS if k in env and not (env[k].strip().isdigit() and int(env[k]) > 0)]
+    if bad:
+        raise MissingValue("not a whole number above zero: " + ", ".join(bad))
     missing = [k for k in required if not env.get(k, "").strip()]
     if missing:
         raise MissingValue("missing or empty: " + ", ".join(missing))

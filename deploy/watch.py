@@ -1,10 +1,13 @@
-"""Check the live demo from outside, as a judge would reach it.
+"""Check from outside that the live demo is up and its saved pages open.
 
 Run every hour by .github/workflows/watch.yml. Checks the health route, that the start
-page lists every example, and that each example opens a saved result (name options and
-the saved run's steps), which costs no Qloo or model call. A failure is checked once
-more a minute later, so a deploy's restart does not raise an alarm; if it fails again,
-the run fails and GitHub emails the author.
+page (its JSON and the page itself) lists every example, and that each example opens a
+saved result (name options and the saved run's steps), which costs no Qloo or model
+call. A failure is checked once more a minute later, so a deploy's restart does not
+raise an alarm; if it fails again, the run fails and GitHub emails the author.
+
+It never starts a run, so a dead Qloo key or model outage leaves it green: those show
+in the run's own step log and fallbacks, and in `python -m app.limits`.
 
 Standard library only, so the workflow needs no install step.
 
@@ -12,6 +15,7 @@ Standard library only, so the workflow needs no install step.
 """
 
 import argparse
+import html
 import json
 import sys
 import time
@@ -19,7 +23,8 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 
-# Markers of a saved result: the story skin draws these only when a run was saved.
+# Markers of a saved result: the story skin draws these only when a run was saved, so
+# results are opened in the story skin whatever the host's default.
 SAVED = ('data-role="name-options"', 'data-role="run-steps"')
 
 Fetch = Callable[[str], tuple[int, str]]
@@ -48,12 +53,18 @@ def problems(base: str, examples: int, get: Fetch = fetch) -> list[str]:
         found = []
         if len(links) != examples:
             found.append(f"the start page lists {len(links)} examples, not {examples}")
+        status, start = get(f"{base}/")
+        if status != 200:
+            found.append(f"the start page answered {status}")
         for link in links:
-            status, page = get(base + link["url"])
+            url, label = link.get("url", ""), link.get("label", "an example")
+            if f'href="{html.escape(url)}"' not in start:
+                found.append(f"{label}: not on the start page")
+            status, page = get(f"{base}{url}{'&' if '?' in url else '?'}ui=story")
             if status != 200:
-                found.append(f"{link['label']}: answered {status}")
+                found.append(f"{label}: answered {status}")
             elif not all(marker in page for marker in SAVED):
-                found.append(f"{link['label']}: no saved result")
+                found.append(f"{label}: no saved result")
         return found
     except (OSError, ValueError, KeyError, TypeError) as exc:
         # OSError covers timeouts, refused connections and certificate errors.
