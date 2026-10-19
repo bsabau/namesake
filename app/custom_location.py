@@ -104,7 +104,8 @@ def check_location(qloo: QlooClient, typed: str, seeds: Seeds) -> LocationCheck:
     probe = Location(
         id=location_id(text),
         label=text,
-        region="Typed location",
+        # A typed area has no region of its own: the page shows its name alone.
+        region="",
         query=text,
         city=text,
         latitude=0,

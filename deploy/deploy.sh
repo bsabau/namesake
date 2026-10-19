@@ -6,7 +6,8 @@
 #   NAMESAKE_HOST=user@host deploy/deploy.sh --seed   also install the local cache
 #
 # Optional: NAMESAKE_DIR (default /opt/namesake), PROXY_NETWORK (the Caddy container's
-# Docker network), NAMESAKE_URL (checked over HTTPS at the end, once Caddy has the site),
+# Docker network; needed on the first deploy, read from the server's .env after),
+# NAMESAKE_URL (checked over HTTPS at the end, once Caddy has the site),
 # NAMESAKE_PREV_FROM_TAG=1 (see the swap below).
 # First-time setup, the Caddy site block and rolling back are in deploy/README.md.
 #
@@ -22,8 +23,16 @@
 set -euo pipefail
 HOST=${NAMESAKE_HOST:?set NAMESAKE_HOST=user@host}
 DIR=${NAMESAKE_DIR:-/opt/namesake}
-PROXY_NETWORK=${PROXY_NETWORK:-mexicoproj_default}
 case "$DIR" in /*) ;; *) echo "✗ NAMESAKE_DIR must be an absolute path"; exit 2 ;; esac
+# The Caddy container's Docker network: as given, else the one the server's .env names
+# (written there by the first --env deploy), so CI never needs it and no project's
+# network name sits in this script.
+if [ -z "${PROXY_NETWORK:-}" ]; then
+  ssh "$HOST" true </dev/null || { echo "✗ cannot reach $HOST over ssh"; exit 1; }
+  # The first matching line only, read remotely (no local head to close the pipe early).
+  PROXY_NETWORK=$(ssh "$HOST" "sed -n '/^PROXY_NETWORK=/{s///p;q;}' $(printf %q "$DIR")/.env" </dev/null | tr -d '[:space:]' || true)
+fi
+[ -n "$PROXY_NETWORK" ] || { echo "✗ set PROXY_NETWORK to the Caddy container's Docker network: the server's .env does not name one (a first deploy, or one from before --env wrote it)"; exit 2; }
 cd "$(git rev-parse --show-toplevel)"
 
 ENV=""; SEED=""

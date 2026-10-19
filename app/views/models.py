@@ -61,6 +61,8 @@ class LocationOption(BaseModel):
     zoom: int
     shelter_radius_m: float
     selected: bool = False
+    # The area as one phrase: "Park Slope, Brooklyn, New York", or a typed area's name alone.
+    place: str = ""
     # The spot this visitor picked for the shelter, if any, and what the map says about it.
     pin: Pin | None = None
     map_note: str = "The circle marks the area around the fictional shelter, not a real address."
@@ -143,7 +145,7 @@ class ShelterBar(BaseModel):
 class StartView(BaseModel):
     title: str
     intro: str
-    examples_heading: str = "Try an example: these open instantly"
+    examples_heading: str = "Read a finished story"
     examples: list[ExampleLink] = []
     locations: list[LocationOption]
     shelter: ShelterBar

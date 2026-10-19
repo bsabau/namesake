@@ -22,3 +22,6 @@ __pycache__/
 
 # Real Qloo responses: never in the public repo (Qloo hackathon guide)
 var/
+
+# Claude Code agent worktrees: full copies of the checkout, never part of the repo
+.claude/worktrees/

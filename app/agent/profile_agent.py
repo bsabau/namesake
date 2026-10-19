@@ -814,7 +814,10 @@ def build_profile_agent(
     @agent.instructions
     def instructions(ctx: RunContext[ProfileDeps]) -> str:
         loc = ctx.deps.location
-        return INSTRUCTIONS.format(species=ctx.deps.species, place=f"{loc.label}, {loc.region}")
+        # A typed area has no region (one stored before 19 October says "Typed location").
+        typed = not loc.region or loc.region == "Typed location"
+        place = loc.label if typed else f"{loc.label}, {loc.region}"
+        return INSTRUCTIONS.format(species=ctx.deps.species, place=place)
 
     agent.output_validator(check_plan)
     return agent

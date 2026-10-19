@@ -157,13 +157,25 @@ def map_tiles(key: str | None = None) -> MapTiles:
     )
 
 
+# What a typed area's region said before 19 October (decision 29); areas stored then keep it.
+OLD_TYPED_REGION = "Typed location"
+
+
+def place_of(location: Location) -> str:
+    """The area as one phrase: "Park Slope, Brooklyn, New York", or a typed area's name."""
+    if location.region and location.region != OLD_TYPED_REGION:
+        return f"{location.label}, {location.region}"
+    return location.label
+
+
 def location_option(
     location: Location, selected: bool = False, pin: tuple[float, float] | None = None
 ) -> LocationOption:
     option = LocationOption(
         id=location.id,
         label=location.label,
-        region=location.region,
+        region="" if location.region == OLD_TYPED_REGION else location.region,
+        place=place_of(location),
         latitude=location.latitude,
         longitude=location.longitude,
         zoom=location.zoom,
@@ -913,7 +925,11 @@ def plan(
             ),
             basis="Research",
         ),
-        PlanItem(text="Post on Friday or Saturday, or in the early evening.", basis="Research"),
+        PlanItem(
+            text="Adoptions cluster on Saturdays, where shelters open then, and between 5 and "
+            "8 pm: time posts and events for then.",
+            basis="Research",
+        ),
     ]
     if animal.species == "dog" and location.city == "New York City":
         items.append(
@@ -924,10 +940,14 @@ def plan(
             )
         )
     top = [v.name for v in venues[:VENUES_IN_PLAN]]
+    picks = [v for v in venues[:VENUES_IN_PLAN] if v.chosen_reason]
+    picked_by = " (picked by Namesake's AI from Qloo's list)" if picks else ""
     if top:
         items.append(
             PlanItem(
-                text=f"Ask {and_list(top)} about hosting an adoption event or a flyer.",
+                # The places are Qloo's; which of them to ask is the AI's pick when it gave
+                # reasons (an agent profile), said in words beside the Qloo pill.
+                text=f"Ask {and_list(top)}{picked_by} about hosting an adoption event or a flyer.",
                 basis="Qloo",
             )
         )

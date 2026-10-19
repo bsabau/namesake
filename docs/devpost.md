@@ -25,7 +25,7 @@ A volunteer picks an animal and the shelter's area. In about a minute Namesake's
 
 - **An accurate listing**, written only from the facts the shelter recorded. Third person, behaviour toward people first, plain words. A bite history is always stated, and anything the shelter marked unknown is left out. Code checks each bio sentence against the facts and sends back content words they don't contain.
 - **Name options from Qloo taste data**, each with what Qloo returned for its title: a pet-themed title strong in the area, or something the area tends to watch. A title with an animal that looks like this one is also offered; Qloo finds the title (or offers candidates when it is ambiguous), and the match is labelled as the reading of Namesake's AI. Every name is screened for villains, tragic or violent characters, aggression words, real people and identity-coded references, with the strictest screen for bully-breed dogs.
-- **A plan to get the animal seen**: foster and volunteer networks, outings in an "Adopt Me" vest, Friday and Saturday timing, rescue partners for New York dogs, and up to three local venues that fans of pet-themed shows and films favour, each with Qloo's rank and its comparison against the shows the area watches most.
+- **A plan to get the animal seen**: foster and volunteer networks, outings in an "Adopt Me" vest, timing for Saturdays and early evenings, rescue partners for New York dogs, and up to three local venues that fans of pet-themed shows and films favour, each with Qloo's rank and its comparison against the shows the area watches most.
 
 A **Generic / Local, with Qloo** toggle shows both versions of the listing, each button carrying its version's name. They share the same bio; the local one adds a name from Qloo's titles and one line saying where it comes from. That is exactly what Qloo contributes, visible in one click.
 
@@ -38,7 +38,7 @@ A **Why** drawer separates "Qloo returned" from "How Namesake read it" for every
 - **The official Qloo harness** (`qloo exec`), wrapped in a typed client that handles every envelope status, caches every answer in SQLite, and spaces calls 5 seconds apart, because the hackathon key is rate-limited.
 - **FastAPI, Jinja and a little JavaScript**, with server-sent events for the live step log, Leaflet and OpenStreetMap for the map, and view models also served as JSON so the interface is replaceable.
 - **One Docker image** with Python, Node and the pinned harness, on a long-lived VM behind Caddy, with the cache on a private volume.
-- **Tests that never touch Qloo or a model**: 280+ of them, on hand-written envelopes with invented IDs, plus a test that fails if real Qloo data ever enters the repo.
+- **Tests that never touch Qloo or a model**: over 650 of them, on hand-written envelopes with invented IDs, plus a test that fails if real Qloo data ever enters the repo.
 
 ## Challenges I ran into
 

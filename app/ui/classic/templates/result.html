@@ -54,7 +54,7 @@
             <textarea id="copy-{{ version.variant }}" hidden>{{ version.copy_text }}</textarea>
           </div>
           {% endfor %}
-          <p class="where-label">Shelter area: {{ view.location.label }}, {{ view.location.region }}</p>
+          <p class="where-label">Shelter area: {{ view.location.place }}</p>
         </div>
       </div>
       <p class="toggle-note">{{ view.listing.toggle_note }}</p>
@@ -145,7 +145,7 @@
 
   <section class="result-local">
     <figure class="result-map">
-      <div id="result-map" data-role="map" role="img"
+      <div id="result-map" data-role="map" role="region"
            aria-label="Map of where fans of pet-themed titles stand out around {{ view.location.label }}{% if view.map.venues %}, with the places to ask numbered as in the list{% endif %}"></div>
       <figcaption>{{ view.map.empty_message or view.map.legend }}</figcaption>
     </figure>

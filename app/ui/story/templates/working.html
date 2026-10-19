@@ -22,7 +22,7 @@
       <p class="animal-meta">{{ view.animal.meta }}
         {% for badge in view.animal.badges %}<span class="badge">{{ badge }}</span>{% endfor %}</p>
       <h1 class="headline working-title">{{ view.headline or view.title }}</h1>
-      <p class="lead">{{ view.location.label }}, {{ view.location.region }}.</p>
+      <p class="lead">{{ view.location.place }}.</p>
       <p class="where-label" data-role="status">
         {{ 'Finished.' if view.finished else 'Working. Each step appears as it happens.' }}</p>
       <ul class="step-key" aria-label="Who did each step">

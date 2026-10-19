@@ -1,8 +1,8 @@
 # Qloo findings (milestone 1)
 
-What the hackathon key can tell us about pet interest near a shelter, and what that means for the agent. Every number below comes from `scripts/probe_m1.py`, which replays the recorded responses in `var/qloo-recordings/` without spending quota. The recordings themselves stay out of the repo, as Qloo's terms require. Entity names and scores are quoted here; Qloo confirmed that is fine.
+What the hackathon key can tell us about pet interest near a shelter, and what that means for the agent. The milestone 1 numbers come from `scripts/probe_m1.py`, which replays the recorded responses in `var/qloo-recordings/` without spending quota; "Building the location profiles" comes from `scripts/build_profiles.py` (milestone 2); the later sections, each dated, come from the probes and runs they name. The recordings themselves stay out of the repo, as Qloo's terms require. Entity names and scores are quoted here; Qloo confirmed that is fine.
 
-Probed 3 October and 15 October 2026 with harness 0.1.26, schemas read from `qloo_capabilities` (no quota).
+Probed from 3 October 2026 (milestone 1 on 15 October) with harness 0.1.26, schemas read from `qloo_capabilities` (no quota); later sections carry their own dates.
 
 ## Summary
 
@@ -63,18 +63,7 @@ Entities tied to a place show real taste: the Mets' top cells are mostly in Quee
 
 Within the neighbourhood (`within: "Park Slope, Brooklyn"`) the heatmap behaves differently: 15 cells for *Bluey* and 12 for *Yellowstone*, each about 150 m across (7-character geohashes, against 6 citywide). Scores are ranks spread evenly from 0 to 1 inside the area, so they compare within one map, not with citywide scores. As ranks (each cell's place within its own map), two maps of the same area can be set side by side: the lift is one map's rank minus the other's in the same cell, and since decision 18 the map averages the ranks of two pet titles and of two baseline shows per cell.
 
-Eight cells appear in both. The difference in score is the lift for the pet show:
-
-| Cell | Lift for *Bluey* over *Yellowstone* | Distance from the shelter |
-|---|---|---|
-| dr5rk66 | +0.48 | 1.4 km |
-| dr5rkk2 | +0.28 | 1.2 km |
-| dr5rks5 | +0.11 | 0.1 km |
-| dr5rkmk | +0.08 | 1.1 km |
-| dr5rkwh | 0.00 | 1.2 km |
-| dr5rke2 | −0.37 | 0.5 km |
-| dr5rku2 | −0.46 | 0.7 km |
-| dr5rkmq | −0.62 | 0.9 km |
+Eight cells appear in both. The difference in score is the lift for the pet show: from +0.48 to −0.62, four cells above zero, one level and three below, between 0.1 and 1.4 km from the shelter. (The cells themselves, Qloo's response data, stay in the git-ignored recordings.)
 
 That is a usable map layer: where in the neighbourhood the pet show's fans stand out against the baseline. Eight cells is a small sample, and the reading is relative, so the map labels it as such.
 
