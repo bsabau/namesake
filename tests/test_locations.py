@@ -101,7 +101,7 @@ def test_the_start_map_has_a_search_that_only_moves_it(monkeypatch):
     assert 'form="map-search-form"' in tag and " name=" not in tag
     assert '<form id="map-search-form" method="dialog" hidden></form>' in html
     assert 'aria-controls="map-search-suggestions"' in tag
-    script = client.get("/ui/warm/static/place-suggest.js").text
+    script = client.get(f"/ui/{get_settings().ui}/static/place-suggest.js").text
     assert 'new CustomEvent("namesake:fly"' in script
 
 
