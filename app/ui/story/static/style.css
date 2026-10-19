@@ -675,6 +675,8 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
   box-shadow: var(--shadow);
 }
 .run-button:hover { filter: brightness(1.08); }
+/* The ring in ink, so focus shows against the button's own teal. */
+.run-button:focus-visible { outline-color: var(--text); }
 /* The saved run's log under "Behind this story": folded, the working page's timeline. */
 .run-log { margin: 18px 0 6px; }
 .run-log > summary { cursor: pointer; font-weight: 800; color: var(--primary-ink); }

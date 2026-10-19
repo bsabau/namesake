@@ -367,7 +367,7 @@ def result_view(animal_id: str, location_id: str | None, session: Session | None
     visit = visit_names(session, animal.id, location.id, store)
     taken = taken_names(animal, location, store, visit) | own
     added = animal.id.startswith(ADDED_PREFIX)
-    return build_result_view(
+    view = build_result_view(
         animal,
         location,
         location_profile(location, animal.species),
@@ -378,6 +378,19 @@ def result_view(animal_id: str, location_id: str | None, session: Session | None
         image_url=added_photo_url(animal, animal.id in session.photos) if added else None,
         pin=session.pins.get(location.id) if session else None,
     )
+    litter = next(
+        (
+            lit
+            for lit in load_roster(get_settings().animals_file).litters
+            if animal.id in lit.members
+        ),
+        None,
+    )
+    if view.write_label and litter is not None:
+        # A litter is named as a set: the button runs the litter, whose members already
+        # named keep their names (decision 13).
+        view.write_label, view.write_animal = "Name the litter with Namesake's AI", litter.id
+    return view
 
 
 def find_run(run_id: str, request: Request):

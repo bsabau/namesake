@@ -71,3 +71,25 @@ def test_the_ais_own_qloo_calls_reach_the_why_panel(roster):
     assert any(c.operation == "rank" for c in profile.calls)
     view = build_result_view(roster.get("dog-02"), LOCATION, profile, result)
     assert any(i.title == "qloo describe" for i in view.qloo_returned)
+
+
+def test_a_step_saved_before_actors_gets_the_one_its_kind_implies():
+    old = {"at": 0.0, "kind": "qloo", "text": "Asking Qloo"}
+    assert Step.model_validate(old).actor == "qloo"
+    assert Step.model_validate({**old, "kind": "decision"}).actor == "ai"
+    assert Step.model_validate({**old, "kind": "note"}).actor == "code"
+    assert Step.model_validate({**old, "actor": "classifier"}).actor == "classifier"
+
+
+def test_finishing_a_profile_keeps_the_calls_behind_its_titles(roster):
+    from app.profile import QlooCall, finish_profile
+    from tests.qloo_fakes import SEEDS, FakeQloo, standard_script
+
+    result, store, log = run_pipeline_with(Script([PLAN], [DRAFT]), roster)
+    old = store.get_profile(LOCATION.id, "dog")
+    old.calls.append(QlooCall(operation="recommend", purpose="renamed", status="ok", results=3,
+                              behind_titles=True))  # fmt: skip
+    new = finish_profile(old, LOCATION.model_copy(), FakeQloo(standard_script()), SEEDS)
+    assert new is not None and any(c.purpose == "renamed" for c in new.calls)
+    view = build_result_view(roster.get("dog-02"), LOCATION, new, result)
+    assert not any("1 results" in i.detail for i in view.qloo_returned)

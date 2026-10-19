@@ -172,7 +172,11 @@ def qloo_call(
     if purpose and hasattr(deps, "calls"):
         deps.calls.append(
             QlooCall(
-                operation=operation, purpose=purpose, status=env.status, results=len(env.results)
+                operation=operation,
+                purpose=purpose,
+                status=env.status,
+                results=len(env.results),
+                behind_titles=True,
             )
         )
     if env.status == "error":
@@ -490,7 +494,7 @@ def rank_titles(
         deps,
         "rank",
         {"option_type": kind, "options": ids, "signal_location": deps.location.query},
-        f"rank {len(ids)} titles for {deps.location.label}",
+        f"rank {len(ids)} titles for {deps.location.label} (titles Namesake's AI chose)",
     )
     if isinstance(env, str) or not env.has_results or env.status != "ok":
         if isinstance(env, str):

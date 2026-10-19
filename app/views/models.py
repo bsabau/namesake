@@ -418,8 +418,10 @@ class ResultView(BaseModel):
     # showed it: judges who open a saved result never see a live run (decision 27).
     run_steps: list[StepView] = []
     run_steps_heading: str = ""
-    # With no listing yet for this animal here: the button that starts a run.
+    # With no listing yet for this animal here: the button that starts a run, and what it
+    # runs (the animal, or for a litter member the litter, named as a set).
     write_label: str | None = None
+    write_animal: str = ""
     qloo_returned: list[WhyItem]
     our_reading: list[WhyItem]
     notes: list[str]

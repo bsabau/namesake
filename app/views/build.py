@@ -1208,7 +1208,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         returned.append(
             WhyItem(
                 title=f"qloo {call.operation}",
-                detail=f"{cap(call.purpose)}: {call.status}, {call.results} results.",
+                detail=f"{cap(call.purpose)}: {call.status}, {plural(call.results, 'result')}.",
             )
         )
     return returned, reading
@@ -1258,8 +1258,10 @@ def plural(n: int, word: str) -> str:
 
 
 def ai_searches(profile: LocationProfile) -> list[str]:
-    """The titles Namesake's AI chose to search Qloo's lists with (find_local_titles), in
-    the order the kept titles were found by them. Qloo's pet-tag lists are code's own."""
+    """Titles Namesake's AI chose to search Qloo's lists with (find_local_titles) that a
+    kept title was found by, in the kept titles' order: the searches behind this result,
+    not every search it made (each is in the Why panel's call list). Qloo's pet-tag lists
+    are code's own."""
     found = [f for e in profile.pet_entities for f in (e.found_in, e.listed_in) if f]
     return list(dict.fromkeys(f.signal for f in found if not f.by_tags))
 

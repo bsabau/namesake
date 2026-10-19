@@ -12,7 +12,7 @@ import time
 from collections.abc import AsyncIterator
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 StepKind = Literal["start", "qloo", "decision", "check", "note", "done", "error"]
 # Who did a step: Qloo (its calls and its answers: Qloo's part of the work), Namesake's AI
@@ -33,6 +33,15 @@ class Step(BaseModel):
     kind: StepKind
     text: str
     actor: Actor = "code"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _actor_from_kind(cls, data):
+        """A step saved before steps carried an actor gets the one its kind implies, so a
+        saved run's log never shows Qloo's calls or the AI's decisions as code's."""
+        if isinstance(data, dict) and not data.get("actor"):
+            data = {**data, "actor": actor_for(str(data.get("kind", "")))}
+        return data
 
 
 class StepLog:

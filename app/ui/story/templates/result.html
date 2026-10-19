@@ -176,7 +176,7 @@
 </form>
 {% if view.write_label %}
 <form id="write-form" method="post" action="/runs" data-role="write">
-  <input type="hidden" name="animal" value="{{ view.animal.id }}">
+  <input type="hidden" name="animal" value="{{ view.write_animal or view.animal.id }}">
   <input type="hidden" name="location" value="{{ view.location.id }}">
   {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
 </form>
