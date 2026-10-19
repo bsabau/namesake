@@ -1,0 +1,28 @@
+# Checks the live demo every hour with deploy/watch.py: the health route, and that every
+# example opens its saved result. It needs no secrets and opens only public pages, which
+# cost no Qloo or model call. A failed run is emailed to whoever last edited this
+# schedule (GitHub's default for failed workflows). "Run workflow" checks now.
+name: Watch
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: watch
+  cancel-in-progress: true
+
+jobs:
+  watch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # --examples matches EXAMPLES in app/views/build.py (tests/test_watch.py checks it).
+      - run: python3 deploy/watch.py https://namesake.bogdansabau.eu --examples 4

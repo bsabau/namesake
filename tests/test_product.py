@@ -2,6 +2,7 @@
 named as a set, and the "try your own" paths. No test reaches Qloo or a model."""
 
 import asyncio
+import sqlite3
 import time
 
 import pytest
@@ -17,7 +18,7 @@ from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import StepLog
 from app.animals import Animal, Checks
 from app.custom_location import check_location, clean, location_id, zoom_for
-from app.limits import LimitReached, Limits
+from app.limits import LimitReached, Limits, usage_report
 from app.listing import GENERIC_NAMES, cautions, generic_name, missing_cautions
 from app.profile import build_profile, local_tastes
 from app.session import Sessions, photo_type
@@ -406,6 +407,21 @@ def test_the_daily_cap_holds_across_restarts(tmp_path):
         again.charge("c", "run")
     # A refused run is not counted against the visitor.
     again.charge("c", "location")
+
+
+def test_the_usage_report_shows_each_day_against_its_caps(tmp_path):
+    db = tmp_path / "db.sqlite"
+    assert usage_report(db, 60, 10) == "No live work recorded yet."
+    limits = Limits(db, per_visitor_per_hour=10, runs_per_day=60, locations_per_day=10)
+    limits.charge("a", "run")
+    limits.charge("b", "run")
+    limits.charge("b", "location")
+    with sqlite3.connect(db) as conn:
+        conn.execute("INSERT INTO usage VALUES ('2026-10-01', 'run', 59)")
+    header, today, earlier = usage_report(db, 60, 10).splitlines()
+    assert "runs" in header and "new areas" in header
+    assert today.split()[1:] == ["2/60", "1/10"]
+    assert earlier.split() == ["2026-10-01", "59/60", "0/10"]
 
 
 def test_saved_results_are_free_and_live_runs_are_limited(client, monkeypatch):

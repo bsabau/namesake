@@ -19,9 +19,14 @@ QLOO_BASE = "https://hackathon.api.qloo.com"
 # Settings from the local .env that the host takes as they are, besides the AGENT_* ones.
 # TYPESAFE_API_KEY is optional: without it the classifier is off (decision 20).
 # MAP_TILES_KEY is optional: without it the maps use OpenStreetMap's tiles (decision 24).
+# The limits on live work are optional too: without them the host keeps the defaults in
+# app/config.py.
 SHARED = (
     "GEOCODER_URL",
     "QLOO_MIN_INTERVAL",
+    "LIVE_RUNS_PER_VISITOR_PER_HOUR",
+    "LIVE_RUNS_PER_DAY",
+    "NEW_LOCATIONS_PER_DAY",
     "TYPESAFE_API_KEY",
     "TYPESAFE_MODEL",
     "TYPESAFE_BASE_URL",

@@ -98,3 +98,14 @@ def test_fallbacks_pass_through_and_an_anthropic_main_needs_no_base_url(tmp_path
     )
     env = make_env.build_env(*files(tmp_path, local=anthropic_main), "172.18.0.0/16", "n")
     assert "AGENT_BASE_URL" not in env
+
+
+def test_the_limits_on_live_work_go_to_the_host_when_set(tmp_path):
+    env = make_env.build_env(*files(tmp_path), "172.18.0.0/16", "proxy_default")
+    assert "LIVE_RUNS_PER_DAY" not in env
+    local = (
+        LOCAL + "LIVE_RUNS_PER_DAY=90\nLIVE_RUNS_PER_VISITOR_PER_HOUR=8\nNEW_LOCATIONS_PER_DAY=12\n"
+    )
+    env = make_env.build_env(*files(tmp_path, local), "172.18.0.0/16", "proxy_default")
+    assert env["LIVE_RUNS_PER_DAY"] == "90" and env["LIVE_RUNS_PER_VISITOR_PER_HOUR"] == "8"
+    assert env["NEW_LOCATIONS_PER_DAY"] == "12"
