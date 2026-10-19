@@ -185,3 +185,9 @@ def test_a_typo_in_the_main_models_settings_is_said_out_loud(caplog):
     assert model_factory(settings) is None and "AGENT_OUTPUT_MODE" in caplog.text
     settings.agent_output_mode = "native"
     assert model_factory(settings) is not None
+
+
+def test_an_empty_api_or_output_mode_line_means_the_default():
+    settings = Settings(_env_file=None, agent_api="", agent_output_mode="", agent_fallback_2_api="")
+    assert settings.agent_api == "chat" and settings.agent_output_mode == "native"
+    assert settings.agent_fallback_2_api == "chat"

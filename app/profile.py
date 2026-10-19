@@ -298,6 +298,9 @@ class QlooCall(BaseModel):
     purpose: str
     status: str
     results: int
+    # Made while choosing the titles (Qloo's pet-tag lists and the AI's own lookups,
+    # searches and ranking), not by the assembly: kept when a saved profile is finished.
+    behind_titles: bool = False
 
 
 class ThinMap(BaseModel):
@@ -838,7 +841,11 @@ def finish_profile(
     new.local_tastes, new.baseline_source = tastes, source
     new.notes = notes + new.notes
     # The lookups behind the titles stay on the record; the rest was asked again.
-    new.calls = [c for c in old.calls if c.operation in ("describe", "rank")] + new.calls
+    # The calls behind the titles stay; the assembly's are made again. Profiles saved
+    # before calls were marked keep their lookups and rankings, as before.
+    new.calls = [
+        c for c in old.calls if c.behind_titles or c.operation in ("describe", "rank")
+    ] + new.calls
     return new
 
 

@@ -20,6 +20,7 @@ from app.profile import (
     PET_TAGS,
     Entity,
     FoundIn,
+    QlooCall,
     about_other_species_only,
     chain_name,
     entity_type,
@@ -71,6 +72,8 @@ class ProfileDeps:
     # Sorts the titles find_local_titles returns; None leaves them all to the AI.
     classifier: JevClassifier | None = None
     local_searches: int = 0
+    # The calls the AI's tools made, for the Why panel's list beside the assembly's own.
+    calls: list[QlooCall] = field(default_factory=list)
 
 
 class TitleChoice(BaseModel):
@@ -155,14 +158,27 @@ def _short(text: str | None, limit: int = 160) -> str | None:
     return text if len(text) <= limit else text[:limit].rsplit(" ", 1)[0] + "…"
 
 
-def qloo_call(deps: Any, operation: str, input_: dict[str, Any]) -> Envelope | str:
-    """Run a Qloo call; a failure comes back as text the model can read and adapt to."""
+def qloo_call(
+    deps: Any, operation: str, input_: dict[str, Any], purpose: str = ""
+) -> Envelope | str:
+    """Run a Qloo call; a failure comes back as text the model can read and adapt to. With
+    a `purpose`, an answered call is kept for the Why panel (when the deps keep calls)."""
     try:
         env = deps.qloo.run(operation, input_)
     except ReplayMiss:
         return "unavailable: this call is not in the cache and live calls are off"
     except QlooExecError as exc:
         return f"unavailable: {exc}"
+    if purpose and hasattr(deps, "calls"):
+        deps.calls.append(
+            QlooCall(
+                operation=operation,
+                purpose=purpose,
+                status=env.status,
+                results=len(env.results),
+                behind_titles=True,
+            )
+        )
     if env.status == "error":
         code = env.error.code if env.error else "unknown"
         return f"unavailable: Qloo error {code}"
@@ -183,7 +199,12 @@ def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> d
     """Find a title in Qloo by name. Returns the entity, or candidates to choose from."""
     deps = ctx.deps
     deps.log.add("qloo", f"Looking up “{name}” ({kind.replace('_', ' ')}) in Qloo")
-    env = qloo_call(deps, "describe", {"entity": name, "type": kind})
+    env = qloo_call(
+        deps,
+        "describe",
+        {"entity": name, "type": kind},
+        f"look up {name}, a title Namesake's AI proposed",
+    )
     if isinstance(env, str):
         deps.log.add("note", f"“{name}”: {env}")
         return {"status": env}
@@ -277,6 +298,8 @@ def find_local_titles(
             "signal_location": deps.location.query,
             "limit": LOCAL_LIMIT,
         },
+        f"{what} people around {deps.location.label} who like {signal.name} also like "
+        "(a search Namesake's AI chose)",
     )
     if status := list_failure(deps, env):
         deps.log.add("note", f"Local {what}: {status}")
@@ -309,6 +332,7 @@ def pet_lists(deps: ProfileDeps) -> dict[str, Any]:
                 "signal_location": deps.location.query,
                 "limit": LOCAL_LIMIT,
             },
+            f"{what} people around {deps.location.label} tend to like, with its pet tags",
         )
         status = list_failure(deps, env)
         echo = getattr(env, "interpretation", None)
@@ -470,6 +494,7 @@ def rank_titles(
         deps,
         "rank",
         {"option_type": kind, "options": ids, "signal_location": deps.location.query},
+        f"rank {len(ids)} titles for {deps.location.label} (titles Namesake's AI chose)",
     )
     if isinstance(env, str) or not env.has_results or env.status != "ok":
         if isinstance(env, str):

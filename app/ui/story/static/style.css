@@ -661,6 +661,27 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
   cursor: pointer;
 }
 .copy.primary { background: var(--primary-ink); color: var(--on-primary); box-shadow: var(--shadow); }
+/* "Write her story": the one action on a result with no listing yet. */
+.write-run { margin: 14px 0 0; }
+.run-button {
+  padding: 11px 18px;
+  border: 2px solid var(--primary-ink);
+  border-radius: 10px;
+  background: var(--primary-ink);
+  color: var(--on-primary);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.run-button:hover { filter: brightness(1.08); }
+/* On a button filled with the teal, the focus ring is ink rather than teal, so it shows
+   against the button itself. */
+.run-button:focus-visible, .copy.primary:focus-visible { outline-color: var(--text); }
+/* The saved run's log under "Behind this story": folded, the working page's timeline. */
+.run-log { margin: 18px 0 6px; }
+.run-log > summary { cursor: pointer; font-weight: 800; color: var(--primary-ink); }
+.run-log .steps.timeline { margin-top: 12px; }
 .copy.primary:hover { filter: brightness(1.08); }
 .approve { margin: 0; }
 .approve > summary { background: var(--surface); color: var(--primary-ink); list-style: none; }

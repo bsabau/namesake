@@ -1010,3 +1010,17 @@ def test_a_reference_taken_since_the_page_loaded_cannot_be_approved(client):
     response = approve(client, variant="local", local_name="Biscuit", text="Hi.")
     assert response.status_code == 409 and "now named after" in response.text
     assert approve(client, variant="local", local_name="Scout", text="Hi.").status_code == 200
+
+
+def test_a_litter_members_result_offers_the_litter_and_shows_its_own_steps(client, roster):
+    # Review of PR #45: the button named one kitten, and a member's log held its mates'.
+    members = next(lit for lit in roster.litters if lit.id == "litter-group").members
+    page = client.get("/result", params={"animal": members[1], "location": "park-slope"}).text
+    assert 'name="animal" value="litter-group"' in page
+    assert "Name the litter with Namesake" in page
+    response = client.post("/runs", data={"animal": "litter-group", "location": "park-slope"})
+    asyncio.run(_wait(main.RUNS[response.url.path.rsplit("/", 1)[1]]))
+    store = Store(main.get_settings().cache_db)
+    second = store.get_listing(members[1], "park-slope")
+    starts = [s.text for s in second.steps if s.text.startswith("Litter member")]
+    assert starts == [f"Litter member 2 of {len(members)}"]

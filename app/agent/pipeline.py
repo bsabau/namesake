@@ -187,6 +187,9 @@ async def agent_profile(
     )
     profile.local_tastes, profile.baseline_source = tastes, source
     profile.notes = notes + profile.notes
+    # The calls behind the titles first (Qloo's pet-tag lists, then the AI's own lookups,
+    # searches and ranking), then the assembly's.
+    profile.calls = deps.calls + profile.calls
     picks = {v.entity_id: v.reason for v in plan.venues}
     rejects = {v.entity_id: v.reason for v in plan.rejected_venues}
     for venue in profile.venues:
@@ -538,6 +541,9 @@ async def run_litter(
     )
     ids = {m.id for m in members}
     results: list[ListingResult] = []
+    # The area's steps belong to every member's result; each member's own steps only to
+    # its own (review of PR #45: member N showed members 1 to N-1's steps too).
+    shared_steps = len(log.steps)
     async with _listing_locks[(id(asyncio.get_running_loop()), location.id)]:
         if force:
             for m in members:
@@ -549,6 +555,7 @@ async def run_litter(
                 log.add("note", f"Litter member {i} of {len(members)} is already named")
                 results.append(saved)
                 continue
+            own_steps = len(log.steps)
             log.add("start", f"Litter member {i} of {len(members)}")
             result = await write_listing(
                 animal,
@@ -569,7 +576,7 @@ async def run_litter(
                     e.name for e in profile.pet_entities + profile.local_tastes if e.id == theme
                 )
                 log.add("decision", f"The litter's names will all come from {title}")
-            result.steps = list(log.steps)
+            result.steps = log.steps[:shared_steps] + log.steps[own_steps:]
             store.put_listing(result)
             results.append(result)
     log.add("done", "Done")

@@ -447,6 +447,15 @@ def name_badge(
     if source == "lookalike":
         return "Offered as a candidate" if look and look.chosen else "Title found"
     if source == "local":
+        # Its place in Qloo's list of what people around the area tend to watch, the one
+        # the area's names come from when no pet title gives one.
+        ids = [e.id for e in profile.local_tastes]
+        if entity_id in ids:
+            place = ids.index(entity_id) + 1
+            return (
+                f"Watched locally: {ordinal(place)} of {len(ids)} in Qloo's list of what "
+                "people here tend to watch"
+            )
         return "Watched locally"
     entity = next((e for e in profile.pet_entities if e.id == entity_id), None)
     found = (entity.found_in or entity.listed_in) if entity else None
@@ -1199,7 +1208,7 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         returned.append(
             WhyItem(
                 title=f"qloo {call.operation}",
-                detail=f"{cap(call.purpose)}: {call.status}, {call.results} results.",
+                detail=f"{cap(call.purpose)}: {call.status}, {plural(call.results, 'result')}.",
             )
         )
     return returned, reading
@@ -1248,6 +1257,15 @@ def plural(n: int, word: str) -> str:
     return f"{n} {word}" + ("" if n == 1 else "s")
 
 
+def ai_searches(profile: LocationProfile) -> list[str]:
+    """Titles Namesake's AI chose to search Qloo's lists with (find_local_titles) that a
+    kept title was found by, in the kept titles' order: the searches behind this result,
+    not every search it made (each is in the Why panel's call list). Qloo's pet-tag lists
+    are code's own."""
+    found = [f for e in profile.pet_entities for f in (e.found_in, e.listed_in) if f]
+    return list(dict.fromkeys(f.signal for f in found if not f.by_tags))
+
+
 def qloo_part(
     location: Location,
     profile: LocationProfile,
@@ -1286,6 +1304,9 @@ def qloo_part(
     ai = []
     agent = profile.made_by == "agent"
     if agent:
+        searches = ai_searches(profile)
+        if searches:
+            ai.append(f"searched Qloo's lists with {and_list(searches)}")
         own = [e for e in pets if not e.found_in]
         judged = [e for e in pets if e.found_in and bucket(e.verdict) != "kept"]
         # As the cards show them: a screened pick or a listed chain is left out (decision 23).
@@ -1384,6 +1405,8 @@ def process_steps(
         # screened out or skipped for this animal.
         picked = len(venue_order(profile)) if places_shown is None else places_shown
         ai = []
+        if searches := ai_searches(profile):
+            ai.append(f"searched Qloo's lists with {and_list(searches)}")
         if judged:
             ai.append(f"judged {plural(len(judged), 'unclear title')}")
         if own:
@@ -1525,6 +1548,16 @@ def build_result_view(
         introduction_heading=f"{cap(POSSESSIVE.get(animal.sex or '', 'their'))} introduction",
         travel_heading=f"Help {POSSESSIVE.get(animal.sex or '', 'their')} story travel",
         process=process_steps(location, profile, listing, len(shown)),
+        run_steps=[
+            StepView(kind=s.kind, text=s.text, actor=s.actor, label=actor_label(s.actor))
+            for s in (listing.steps if listing else [])
+        ],
+        run_steps_heading="How this run went, step by step",
+        write_label=(
+            None
+            if listing
+            else f"Write {POSSESSIVE.get(animal.sex or '', 'their')} story with Namesake's AI"
+        ),
         qloo_returned=returned,
         our_reading=reading,
         notes=profile.notes,

@@ -100,14 +100,14 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
 3. **Result**, legible as one screen, told as the animal's story:
    - a **Generic / Local, with Qloo** toggle whose buttons show each version's name; both share the same bio, and the local one adds a name from Qloo's titles and one line saying where it comes from
    - the **name options**, each with its Qloo title under it
-   - **Qloo's part and the AI's**, apart: what Qloo returned for this result (titles with Qloo's evidence for the area, the places near the shelter, the heatmaps' map cells) and what Namesake's AI did with it (titles it proposed or judged, places it picked, the names and bio)
+   - **Qloo's part and the AI's**, apart: what Qloo returned for this result (titles with Qloo's evidence for the area, the places near the shelter, the heatmaps' map cells) and what Namesake's AI did with it (the titles it searched Qloo's lists with, titles it proposed or judged, places it picked, the names and bio)
    - the **introduction**, the listing written from the shelter's records
-   - **Behind this story**: the facts, Qloo's local context, and the interpretation and checks; then for each name what Qloo returned beside what Namesake selected, and a **Why** drawer with two columns, "Qloo returned" and "How Namesake read it" (Namesake's AI and its code)
+   - **Behind this story**: the facts, Qloo's local context, and the interpretation and checks; the saved run's own step log, folded, each step marked Qloo, Namesake's AI, Classifier or Code; then for each name what Qloo returned beside what Namesake selected, and a **Why** drawer with two columns, "Qloo returned" (the Qloo calls behind the result: Qloo's pet-tag lists and the AI's own lookups, searches and ranking, then the assembly's) and "How Namesake read it" (Namesake's AI and its code)
    - a **map** of where fans of pet-themed titles stand out within the area, and the **places to ask**, under a note on which kinds of place were asked for and why, each with Qloo's description, its rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline on one Qloo line, numbered on the map, with the cell it sits in and its distance from the shelter (points from OpenStreetMap)
    - the **other ways to help**, each labelled Research, Qloo or Our suggestion; for an animal recorded as not good with children, places whose name or Qloo description mentions children are skipped, and the list says so
 
-   The `warm` and `classic` skins show the same information with Qloo's part and the AI's at the top, without story's "Behind this story" framing.
-4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software.
+   The `warm` and `classic` skins show the same listing, names, map, places and Why panel with Qloo's part and the AI's at the top, without story's "Behind this story" framing, the saved run's step log or the button that starts a run.
+4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software. A result with no listing yet also offers "Write her story with Namesake's AI" (for a member of a litter, naming the litter as a set).
 
 The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 18 to 20 Qloo calls (one more when the venues must be asked again) (fewer when titles are already cached; two or three more to check a typed area first), and each further animal at most two.
 
