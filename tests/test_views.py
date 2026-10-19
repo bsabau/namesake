@@ -40,7 +40,7 @@ def test_start_view_leads_with_the_featured_animal(roster):
     locations = load_locations(get_settings().locations_file)
     view = build_start_view(roster, locations, locations[1].id)
     assert view.animals[0].id == FEATURED
-    assert [loc.selected for loc in view.locations] == [False, True, False]
+    assert [loc.selected for loc in view.locations] == [False, True, False, False]
     assert "long stay" in view.animals[0].badges
 
 

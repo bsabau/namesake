@@ -207,7 +207,8 @@ EXAMPLES = (
     ("dog-02", "park-slope", "The lead dog in Park Slope"),
     ("dog-02", "astoria", "The same dog in Astoria"),
     ("kitten-01", "park-slope", "The litter, named as a set, in Park Slope"),
-    ("kitten-01", "astoria", "The litter in Astoria"),
+    # Outside the US (decision 30): the same record, another country's tastes.
+    ("dog-02", "barcelona", "The same dog in Barcelona"),
 )
 
 

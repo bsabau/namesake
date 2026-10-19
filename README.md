@@ -101,7 +101,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
 
 ## From request to result
 
-1. **Start.** Pick one of twelve fictional animals, or the litter of four kittens, or add your own animal for this visit only. Pick a shelter area: Park Slope or Astoria in New York, Austin, or type one.
+1. **Start.** Pick one of twelve fictional animals, or the litter of four kittens, or add your own animal for this visit only. Pick a shelter area: Park Slope or Astoria in New York, Austin, Barcelona, or type one.
 2. **Working.** A live log streams each step: Qloo's pet-themed lists for the area, titles proposed, each one looked up in Qloo, which were ambiguous and how they were settled, the venues found and how many stand out against the baseline, and the checks on the answer from Namesake's AI.
 3. **Result**, legible as one screen, told as the animal's story:
    - a **Generic / Local, with Qloo** toggle whose buttons show each version's name; both share the same bio, and the local one adds a name from Qloo's titles and one line saying where it comes from
@@ -174,7 +174,7 @@ The image holds Python, Node and the pinned harness. The demo runs this image on
 ## Known limitations
 
 - **No outcome evidence yet.** The tool is built to measure whether local taste data helps, and nothing has been measured.
-- **Coverage is uneven.** The demo uses New York and Austin, where US coverage is deepest. Thin areas are refused with a message instead of answered weakly.
+- **Coverage is uneven.** The demo uses New York and Austin, where US coverage is deepest, and Barcelona, to show it is not a US-only effect. Thin areas are refused with a message instead of answered weakly.
 - **Affinity scores saturate.** Raw scores sit near 1.0 for broad entities, so Namesake uses order within a call and lift against the area's own top shows, never raw affinity. The baseline is the area's own top two shows, so "stands out" means "more than this area's usual tastes", not more than everyone's.
 - **Ranking is often unavailable.** Qloo's `rank` is the most rate-limited workflow and twice returned nothing; the order Namesake's AI chose is then kept and labelled.
 - **Venues have no coordinates in Qloo.** Qloo returns an address and a neighbourhood, so the app looks each suggested venue up in OpenStreetMap (Photon) once; a venue with no close match stays in the list without a pin, and a pin outside the mapped cells says so.
