@@ -25,7 +25,7 @@ The review found no study showing that names or wording speed adoption. Being se
 - Third person, behaviour toward people first, plain wording, 75 to 150 words.
 - Every sentence traces to a fact. Code checks this after the model writes.
 - A fact about what the animal needs from an adopter gets its own sentence, never joined to a fact about what the animal does, so the animal's behaviour is never read as the adopter's.
-- Difficult behaviour is stated plainly with a management suggestion.
+- Difficult behaviour is stated plainly, as recorded. (No management suggestion is added: the bio may only restate the shelter's facts.)
 
 **Generic and local versions** share the same bio. The generic version takes a common pet name from a fixed list; the local version takes the chosen name from Qloo's titles and adds one hook line. The toggle therefore shows exactly what Qloo contributed (`docs/decisions.md` #8).
 
@@ -41,7 +41,7 @@ Name options come from three sources. Each option carries a badge with what Qloo
 | Loved here generally | The area's top tastes by type (step E). Screened harder, because these lists lean on national hits and identity-coded titles. |
 | Title found, or Offered as a candidate (a lookalike) | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Qloo's line says only that it found the title, or offered it among candidates when it asked which was meant; the match ("A lookalike, matched on this animal's recorded look (brindle coat).", after the reference that names the character) is on the AI's line. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
 
-Each option shows the Qloo title, its kind and Qloo's evidence for the area (its rank here, or its place in one of the area's lists); a lookalike has no area evidence, only the title. Our reading, how the name fits the animal's recorded look, is shown separately; it never mentions temperament, so the reference cannot imply how the animal behaves. Each option comes from a different title while another of the area's open titles is unused (lookalike titles never count), except a litter named as a set. The volunteer picks one. Ranking uses both affinity and popularity, so a recognisable reference beats a niche one.
+Each option shows the Qloo title, its kind and Qloo's evidence for the area (its rank here, or its place in one of the area's lists); a lookalike has no area evidence, only the title. Our reading, how the name fits the animal's recorded look, is shown separately; it never mentions temperament, so the reference cannot imply how the animal behaves. Each option comes from a different title while another of the area's open titles is unused (lookalike titles never count), except a litter named as a set. The volunteer picks one. The titles come in the order Qloo's `rank` gave them for the area, or the AI's when ranking is unavailable; raw affinity is never used to order them.
 
 ## Output 3: the exposure plan
 
@@ -61,10 +61,10 @@ The plan's success measure is adoptions and returns; likes and reach are left ou
 |---|---|---|---|
 | A. Pet-themed titles the area likes | `recommend` per type with the four pet tags as signals plus `signal_location` (decision 22). As filters the tags returned almost nothing (milestone 1) | code asks; a classifier sorts; agent judges the unclear ones | location |
 | B. More pet-themed entities strong here | `describe` for titles the agent adds; then `recommend` with one of them as the signal plus `signal_location`, per type (decision 20) | agent adds and searches; a classifier sorts the search results; agent judges the unclear ones; code keeps only titles Qloo ranks or lists here | location |
-| C. Local lift against a baseline | `where_popular` for the top two entities (a thin first one gives way to the next) and the area's top two shows (decision 18); lift = the entities' averaged score in a cell minus the baseline shows' | code computes; agent drops entities with no lift | entity and city |
+| C. Local lift against a baseline | `where_popular` for the top two entities (a thin first one gives way to the next) and the area's top two shows (decision 18); lift = the entities' averaged score in a cell minus the baseline shows' | code computes; nothing is dropped by lift: the map shows it | entity and city |
 | D. Venues fans favour | `recommend` for places, up to three entities with the strongest evidence as signals, titles about another animal only last, never an identity-coded one (code picks them), location near the shelter | agent picks about three venues, with reasons | location |
-| E. General local tastes | `recommend` with `signal_location` per type | agent proposes, screens, keeps | location |
-| F. Check each name's reference | resolve and `describe`; `needs_input` goes to candidate buttons or a pick with a stated reason | agent | entity |
+| E. General local tastes | `recommend` with `signal_location` per type | code asks; they are the names' second source, screened like the rest | location |
+| F. Check each name's reference | resolve and `describe`; on `needs_input` the agent picks a candidate with a stated reason (candidate buttons are for typed areas only) | agent | entity |
 
 Steps A to E run once per location and every animal reuses them, so quota cost grows with locations, not animals. Fixed calls, such as the heatmap, use `qloo exec` from code. Calls the agent chooses go through function tools over the same client, so they are cached and spaced too (`docs/decisions.md` #5).
 

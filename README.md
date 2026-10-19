@@ -2,7 +2,7 @@
 
 **Namesake's AI writes accurate adoption listings for shelter animals, offers screened name options, and plans where to get each animal seen, using Qloo taste data near the shelter.**
 
-**Live demo:** https://namesake.bogdansabau.eu (the four "Try an example" links open instantly)
+**Live demo:** https://namesake.bogdansabau.eu (the four "Read a finished story" links open instantly)
 
 A volunteer picks an animal and the shelter's area. In about a minute Namesake produces:
 
@@ -109,7 +109,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
    The `warm` and `classic` skins show the same information with Qloo's part and the AI's at the top, without story's "Behind this story" framing.
 4. **Refine** with one line ("less childish"), **edit**, **approve** (a result with no listing yet offers "Write her story with Namesake's AI" instead, or for a kitten, the litter's), and copy a block ready to paste into shelter software.
 
-The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 18 to 20 Qloo calls (one more when the venues must be asked again) (fewer when titles are already cached; two or three more to check a typed area first), and each further animal at most two.
+The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 18 to 20 Qloo calls: one more when the venues must be asked again, fewer when titles are already cached, and two or three more to check a typed area first. Each further animal costs at most two.
 
 ## Measuring whether it works
 

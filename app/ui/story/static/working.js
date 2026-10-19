@@ -8,7 +8,6 @@
   const list = root.querySelector('[data-role="steps"]');
   const status = root.querySelector('[data-role="status"]');
   const source = new EventSource(root.dataset.eventsUrl);
-  let first = true;
 
   // A sign of life between steps: a word that changes every few seconds, and the time
   // since the last step. The words come from the view model (data-words).
@@ -45,8 +44,10 @@
 
   source.addEventListener("step", (event) => {
     streamed += 1;
-    if (streamed > shown) lastStep = Date.now();
-    if (first) { list.innerHTML = ""; first = false; }
+    // The steps already on the page come first: skip them rather than rebuild the list,
+    // so a screen reader does not hear them again.
+    if (streamed <= shown) return;
+    lastStep = Date.now();
     const step = JSON.parse(event.data);
     const item = document.createElement("li");
     const actor = step.actor || "code";

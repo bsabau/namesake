@@ -10,9 +10,21 @@ document.addEventListener("click", (event) => {
   }
   const target = document.getElementById(id);
   if (!target) return;
-  navigator.clipboard.writeText((target.value || target.textContent).trim()).then(() => {
-    const label = button.textContent;
-    button.textContent = "Copied";
+  const label = button.textContent;
+  const say = (word) => {
+    button.textContent = word;
     setTimeout(() => { button.textContent = label; }, 1500);
-  });
+  };
+  navigator.clipboard.writeText((target.value || target.textContent).trim()).then(
+    () => say("Copied"),
+    // Refused (no permission, an insecure page): select the text to copy by hand.
+    () => {
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      say("Selected: copy it");
+    },
+  );
 });

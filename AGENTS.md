@@ -134,7 +134,7 @@ One container serves everything. There is no separate front-end build step, whic
 The author wants to try more than one interface, so no screen's logic lives in a template.
 
 - **View models.** Each screen has a typed view model in `app/views/`, such as `StartView` or `ResultView`. Routes build it from domain objects. It holds everything the screen shows, already worded and in display order, and it contains no HTML.
-- **JSON API.** The same view models are served as JSON under `/api/` (`/api/start`, `/api/results/{id}`, and the SSE step log at `/api/runs/{id}/events`). A different interface, even a single static HTML page with a script, can be built on the API alone.
+- **JSON API.** The same view models are served as JSON under `/api/` (`/api/start`, `/api/results/{id}`, and the SSE step log at `/api/runs/{id}/events`). A different interface, even a single static HTML page with a script, can read every screen's data from the API; starting a run, refining and approving are form routes (`/runs`, `/refine`, `/approve`), not JSON.
 - **UIs.** Each UI is a folder of templates and static files: `app/ui/<name>/templates/` and `app/ui/<name>/static/`. A UI only renders view models. It never calls Qloo, the agent or the cache, and it never re-derives data. The `UI` setting picks the default UI (`story`, which tells the result as a story; `warm`, the default before it, and `classic`, the first skin, are kept for comparison), and `?ui=<name>` switches UI per request so two can be compared side by side. See `docs/decisions.md` #21 and #24.
 - **Shared test contract.** Tests check the view models and the API. One smoke test, run against every UI, checks that each screen renders the elements that must be there, found by `data-role` attributes: the name, the provenance split, the map, the photo credit and the Qloo credit. A new UI passes that test or isn't finished.
 
@@ -163,7 +163,7 @@ A child process only sees these if the parent passes its environment through.
 
 Qloo silently ignores parameters it does not recognise and then returns empty results. After a call, check `interpretation` to confirm what was actually sent. Tags and audiences must be passed as IDs, not free text.
 
-**A call that is known to work:** `where_popular` for the TV show Bluey within New York City. The input, with Bluey's entity ID, is recorded in `var/qloo-recordings/where_popular__bluey__nyc.json`. Passing the name "Bluey" instead returns `needs_input`, because an author has the same name.
+**A call that is known to work:** `where_popular` for the TV show Bluey within New York City. The input, with Bluey's entity ID, is recorded in `var/qloo-recordings/` (recordings are named `<operation>__<hash>.json`). Passing the name "Bluey" instead returns `needs_input`, because an author has the same name.
 
 **Result envelope.** Every workflow returns one JSON object:
 
@@ -231,7 +231,7 @@ Install with `uv add "pydantic-ai-slim[openai,mcp]"`.
 
 Twelve fictional animals plus one group photo of a litter, all AI-generated. The source of truth is `data/animals/animals.json`; the photos sit beside it as `<id>.jpg`.
 
-- Fields per animal: `id`, `species`, `group`, `sex`, `age`, `look`, `temperament`, `facts` (a list), `image`. The four kittens share `litter: "litter-a"`. The `litter-group` entry has `members` and no profile. Milestone 2 adds the `yes`/`no`/`unknown` fields listed in `docs/product.md`.
+- Fields per animal: `id`, `species`, `group`, `sex`, `age`, `look`, `temperament`, `facts` (a list), `history`, `checks` (the five `yes`/`no`/`unknown` answers listed in `docs/product.md`), `image`. The four kittens share `litter: "litter-a"`. The `litter-group` entry has `members` and no profile.
 - Animals have no names on purpose. Naming them is the app's job.
 - `dog-02` leads the demo and the litter is the second example; `docs/product.md` says why.
 - The photos and JSON were produced by a separate project outside this repo (`../image_generation`, which also holds `ANIMALS.md` with each animal's role in the demo). It is not part of this app; do not import from it or run it.
@@ -251,7 +251,7 @@ The shelter is fictional too. Do not use real shelter names, logos or photos.
 4. **Why:** for each choice, the Qloo result behind it, separate from the app's reading of it.
 5. **Refine:** one text line for follow-ups such as "less childish". When Qloo returns `needs_input`, show the candidates here as buttons.
 
-**Preset locations.** The start screen offers three: two New York City neighbourhoods and one other US city. Two neighbourhoods in the same city show that results change at fine detail; the third shows it is not only a New York effect. Do not choose them by reputation. Milestone 1 keeps the three that Qloo resolves cleanly and whose results differ most. Candidates: Park Slope, Bushwick, Astoria, Harlem and the Upper West Side in New York; Tampa, Austin and Portland elsewhere. Each preset is a place name plus a centre point for the fictional shelter, never a real shelter or a street address. The presets live in `data/locations.json`: `query` is the text sent to Qloo as the location signal, and `city` is the wider area for the heatmap. The current three (Park Slope, Astoria, Austin) are provisional, and Astoria is untested.
+**Preset locations.** The start screen offers three: two New York City neighbourhoods and one other US city. Two neighbourhoods in the same city show that results change at fine detail; the third shows it is not only a New York effect. Do not choose them by reputation. Milestone 1 keeps the three that Qloo resolves cleanly and whose results differ most. Candidates: Park Slope, Bushwick, Astoria, Harlem and the Upper West Side in New York; Tampa, Austin and Portland elsewhere. Each preset is a place name plus a centre point for the fictional shelter, never a real shelter or a street address. The presets live in `data/locations.json`: `query` is the text sent to Qloo as the location signal, and `city` is the wider area for the heatmap. The current three are Park Slope, Astoria and Austin; Park Slope and Astoria hold the precomputed examples.
 
 **The agent's job.** Given an animal's facts and a location:
 1. Find pet-themed entities that are strong locally, and check each one's lift against a baseline. Keep the strong ones, and try again once if too few survive.
@@ -275,6 +275,14 @@ The steps where the model reads results and decides what to try next are what ma
 app/
   main.py            FastAPI app and routes
   config.py          settings from the environment
+  animals.py         the roster: animals, litters, their recorded facts
+  locations.py       the preset shelter areas
+  profile.py         the area profile: titles, baseline, venues, map cells (fixed lookup and assembly)
+  listing.py         the templated listing and the confirmed answers' fixed sentences
+  classify.py        the title classifier (TypeSafe's Jev), its answers cached
+  places.py          area names and venue pins from OpenStreetMap (Photon)
+  venue_points.py    pins a saved profile's venues once
+  upgrade_profiles.py brings saved profiles to the current version
   agent/             the two PydanticAI agents, their checks, the step log and the run pipeline
   runs.py, store.py  web runs (background task + step log), saved agent results, approvals
   session.py         per-visitor state in memory: added animals, photos, refined listings
@@ -283,7 +291,7 @@ app/
   qloo/              exec wrapper, envelope types, cache, geohash helpers
   views/             UI-neutral view models, one per screen, also served as JSON
   ui/<name>/         one folder per UI: templates/ and static/ (story is the default; warm and classic are kept)
-  static/            shared assets: web-sized animal photos
+  static/            shared assets: web-sized animal photos, the favicon
 data/animals/        animals.json and original photos
 data/locations.json  the preset shelter locations
 docs/                architecture.md, decisions.md, product.md, qloo-findings.md, research/, img/

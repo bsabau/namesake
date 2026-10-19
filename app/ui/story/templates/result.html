@@ -12,7 +12,7 @@
 {% block content %}
 <div class="topline">
   <p class="back"><a href="/?location={{ view.location.id }}{{ ui_query }}">&larr; Pick another animal</a></p>
-  <p class="topline-place"><span class="pin-mark" aria-hidden="true">{% include "_pin.html" %}</span>Shelter area: <strong>{{ view.location.label }}, {{ view.location.region }}</strong> <a href="/?location={{ view.location.id }}{{ ui_query }}">Change</a></p>
+  <p class="topline-place"><span class="pin-mark" aria-hidden="true">{% include "_pin.html" %}</span>Shelter area: <strong>{{ view.location.place }}</strong> <a href="/?location={{ view.location.id }}{{ ui_query }}">Change</a></p>
 </div>
 
 <form id="listing-form" class="listing-form story" method="post" action="{{ view.approve_url }}" data-role="listing">
@@ -266,7 +266,7 @@
     <div class="travel-grid">
       <figure class="result-map">
         <h3>The map</h3>
-        <div id="result-map" data-role="map" role="img"
+        <div id="result-map" data-role="map" role="region"
              aria-label="Map of where fans of pet-themed titles stand out around {{ view.location.label }}{% if view.map.venues %}, with the places to ask numbered as in the list{% endif %}"></div>
         <figcaption>{{ view.map.empty_message or view.map.legend }}</figcaption>
       </figure>

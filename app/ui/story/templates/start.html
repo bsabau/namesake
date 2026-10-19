@@ -27,7 +27,7 @@
   {% if view.examples %}
   {# Finished stories first: they open at once, from saved runs. #}
   <section class="examples band" data-role="examples">
-    <h2>Read a finished story</h2>
+    <h2>{{ view.examples_heading }}</h2>
     <ul>
       {% for example in view.examples %}<li><a class="example" href="{{ example.url }}">{{ example.label }}</a></li>{% endfor %}
     </ul>
@@ -44,7 +44,7 @@
     </summary>
   <section class="where">
     <fieldset class="locations">
-      <legend><h3>{{ view.shelter.panel_heading }}</h3></legend>
+      <legend class="panel-heading">{{ view.shelter.panel_heading }}</legend>
       {% if view.location_form.message %}
       {# A failed area check: said where the visitor will see it, and no area stays chosen. #}
       <p class="location-alert" id="location-alert" role="alert">{{ view.location_form.message }}</p>
@@ -98,7 +98,7 @@
         <ul id="map-search-suggestions" class="suggestions" role="listbox" hidden></ul>
       </div>
       {% endif %}
-      <div id="location-map" data-role="map" role="img"
+      <div id="location-map" data-role="map" role="region"
            aria-label="Map of the area around the shelter"
            data-pick-url="{{ view.location_form.pick_url }}"></div>
       <figcaption id="map-note">{{ view.map_note }}</figcaption>

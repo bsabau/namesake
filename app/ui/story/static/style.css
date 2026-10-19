@@ -241,6 +241,8 @@ main, .site-header, .site-footer {
 }
 
 .locations legend { padding: 0; }
+/* The panel's heading, as a legend: a heading inside a legend is not valid HTML. */
+.locations legend.panel-heading { font-family: var(--display); font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; color: var(--heading); margin: 0 0 12px; }
 
 .locations h2, .step-heading { font-size: 1.15rem; margin: 0 0 12px; }
 
@@ -455,6 +457,11 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
 }
 .portrait::before { top: -10px; left: 24px; transform: rotate(-8deg); }
 .portrait::after { bottom: 34px; right: 18px; transform: rotate(10deg); }
+/* On a phone the caption wraps to two lines, and the lower tape would cover it: tape the
+   top right corner instead. */
+@media (max-width: 480px) {
+  .portrait::after { top: -8px; bottom: auto; right: 18px; }
+}
 .portrait figcaption { margin-top: 10px; color: var(--muted); font-size: 0.8rem; }
 .doodle { color: var(--highlight); pointer-events: none; }
 .doodle-heart { position: absolute; right: -4px; top: 46%; font-size: 2.2rem; transform: rotate(14deg); }

@@ -22,8 +22,14 @@
 set -euo pipefail
 HOST=${NAMESAKE_HOST:?set NAMESAKE_HOST=user@host}
 DIR=${NAMESAKE_DIR:-/opt/namesake}
-PROXY_NETWORK=${PROXY_NETWORK:-mexicoproj_default}
 case "$DIR" in /*) ;; *) echo "✗ NAMESAKE_DIR must be an absolute path"; exit 2 ;; esac
+# The Caddy container's Docker network: as given, else the one the server's .env names
+# (written there by the first --env deploy), so CI never needs it and no project's
+# network name sits in this script.
+if [ -z "${PROXY_NETWORK:-}" ]; then
+  PROXY_NETWORK=$(ssh "$HOST" "sed -n 's/^PROXY_NETWORK=//p' $(printf %q "$DIR")/.env" 2>/dev/null | head -n 1) || PROXY_NETWORK=""
+fi
+[ -n "$PROXY_NETWORK" ] || { echo "✗ set PROXY_NETWORK to the Caddy container's Docker network (the first deploy needs it)"; exit 2; }
 cd "$(git rev-parse --show-toplevel)"
 
 ENV=""; SEED=""

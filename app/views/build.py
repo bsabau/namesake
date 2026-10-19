@@ -164,6 +164,7 @@ def location_option(
         id=location.id,
         label=location.label,
         region=location.region,
+        place=f"{location.label}, {location.region}" if location.region else location.label,
         latitude=location.latitude,
         longitude=location.longitude,
         zoom=location.zoom,
@@ -913,7 +914,11 @@ def plan(
             ),
             basis="Research",
         ),
-        PlanItem(text="Post on Friday or Saturday, or in the early evening.", basis="Research"),
+        PlanItem(
+            text="Adoptions cluster on Saturdays and between 5 and 8 pm: time posts and events "
+            "for then.",
+            basis="Research",
+        ),
     ]
     if animal.species == "dog" and location.city == "New York City":
         items.append(
@@ -924,10 +929,19 @@ def plan(
             )
         )
     top = [v.name for v in venues[:VENUES_IN_PLAN]]
+    picks = [v for v in venues[:VENUES_IN_PLAN] if v.chosen_reason]
+    picked_by = (
+        (" (Namesake's AI's pick from Qloo's list)" if len(top) == 1
+         else " (Namesake's AI's picks from Qloo's list)")
+        if picks
+        else ""
+    )  # fmt: skip
     if top:
         items.append(
             PlanItem(
-                text=f"Ask {and_list(top)} about hosting an adoption event or a flyer.",
+                # The places are Qloo's; which of them to ask is the AI's pick when it gave
+                # reasons (an agent profile), said in words beside the Qloo pill.
+                text=f"Ask {and_list(top)}{picked_by} about hosting an adoption event or a flyer.",
                 basis="Qloo",
             )
         )

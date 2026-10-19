@@ -171,7 +171,11 @@ def test_an_agent_profile_suggests_only_the_agents_picks(roster):
     assert [v.name for v in view.venues] == ["Community Hall"]
     assert view.venues[0].reason == "a community arts centre"
     qloo_items = [i.text for i in view.plan if i.basis == "Qloo"]
-    assert qloo_items == ["Ask Community Hall about hosting an adoption event or a flyer."]
+    # Qloo's place, the AI's pick: the pill says Qloo, the words say who picked it.
+    assert qloo_items == [
+        "Ask Community Hall (Namesake's AI's pick from Qloo's list) about hosting an adoption "
+        "event or a flyer."
+    ]
 
 
 def test_venue_evidence_names_only_the_titles_searched(roster):

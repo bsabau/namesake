@@ -38,7 +38,7 @@ A **Why** drawer separates "Qloo returned" from "How Namesake read it" for every
 - **The official Qloo harness** (`qloo exec`), wrapped in a typed client that handles every envelope status, caches every answer in SQLite, and spaces calls 5 seconds apart, because the hackathon key is rate-limited.
 - **FastAPI, Jinja and a little JavaScript**, with server-sent events for the live step log, Leaflet and OpenStreetMap for the map, and view models also served as JSON so the interface is replaceable.
 - **One Docker image** with Python, Node and the pinned harness, on a long-lived VM behind Caddy, with the cache on a private volume.
-- **Tests that never touch Qloo or a model**: 280+ of them, on hand-written envelopes with invented IDs, plus a test that fails if real Qloo data ever enters the repo.
+- **Tests that never touch Qloo or a model**: over 650 of them, on hand-written envelopes with invented IDs, plus a test that fails if real Qloo data ever enters the repo.
 
 ## Challenges I ran into
 
