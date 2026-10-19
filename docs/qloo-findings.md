@@ -299,6 +299,7 @@ The question: could Qloo's tags for each chosen pet title show, in the Why panel
 - *101 Dalmatians*: 24 and under (+0.16); women +0.26.
 - *My Cat from Hell*: 55 and over (+0.42); gender even (+0.01).
 - Bluey by its ID alone gave the same answer as with `entity_type`.
+- The shape, read from a recording: each result is `{entity_id, query}`, with `query.age` keyed `24_and_younger`, `25_to_29`, `30_to_34`, `35_to_44`, `45_to_54`, `55_and_older` and `query.gender` keyed `male`, `female`.
 
 **The area** (2 calls): "Park Slope, Brooklyn" as a locality came back `needs_input` (Park Slope first among Brooklyn Park, Sunset Park and others); by Park Slope's locality ID, status `ok` with no results.
 

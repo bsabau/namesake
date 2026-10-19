@@ -200,6 +200,31 @@ def test_each_litter_member_keeps_its_titles_audience(roster):
     assert DOG_SHOW in store.get_listing("dog-02b", LOCATION.id).audiences
 
 
+def test_no_line_without_the_titles_own_name(roster):
+    # flash: with the title unknown, the line would have named a character as the title.
+    result, store, _ = run(Script([PLAN], [DRAFT]), roster)
+    unknown = "00000000-0000-4000-8000-000000000999"
+    first = result.draft.names[0].model_copy(update={"entity_id": unknown})
+    result.draft = result.draft.model_copy(update={"names": [first, *result.draft.names[1:]]})
+    result.audiences = {unknown: TitleAudience(entity_id=unknown, age={"45_to_54": 0.4})}
+    view = name_view(result, store.get_profile(result.location_id, "dog"), "text")
+    assert view.options[0].audience is None and view.audience_note == ""
+
+
+def test_the_store_merges_audiences_only_onto_the_same_draft():
+    # Codex: reading the latest listing and saving it were separate steps.
+    store = Store(app_main.get_settings().cache_db)
+    store.put_listing(saved())
+    asked = saved({DOG_SHOW: TitleAudience(entity_id=DOG_SHOW, age={"35_to_44": 0.4})})
+    assert store.merge_audiences(asked)
+    assert not store.merge_audiences(asked)  # nothing new
+    other = asked.model_copy(update={"draft": asked.draft.model_copy(
+        update={"names": asked.draft.names[::-1]})})  # fmt: skip
+    other.audiences = {CAT_SHOW: TitleAudience(entity_id=CAT_SHOW, gender={"female": 0.3})}
+    assert not store.merge_audiences(other)
+    assert set(store.get_listing("dog-02", "park-slope").audiences) == {DOG_SHOW}
+
+
 def test_without_audiences_the_page_says_nothing_about_them(roster):
     result, store, _ = run(Script([PLAN], [DRAFT]), roster)
     view = name_view(result, store.get_profile(result.location_id, "dog"), "text")

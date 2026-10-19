@@ -170,11 +170,7 @@ def main() -> None:
         complete = add_audiences(result, qloo)
         # The calls take a while; a run may have rewritten this listing meanwhile, so
         # the answers go only onto the same draft, never over a newer one.
-        latest = store.get_listing(result.animal_id, result.location_id)
-        fresh = {**(latest.audiences if latest else {}), **result.audiences}
-        if latest is not None and latest.draft == result.draft and latest.audiences != fresh:
-            latest.audiences = fresh
-            store.put_listing(latest)
+        store.merge_audiences(result)
         done += complete
         left += not complete
         print(f"{result.animal_id} at {result.location_id}: {len(result.audiences)} titles")
