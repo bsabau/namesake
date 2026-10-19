@@ -306,3 +306,15 @@ The question: could Qloo's tags for each chosen pet title show, in the Why panel
 **Venues** (7 calls): three of seven had no data. The others leaned mostly away from groups (Sip & Play: 35 to 44 −0.27) or by gender alone (one place in Astoria: men +0.75).
 
 **Adopted for titles only** (decision 31), shown with each name option; not for the area or venues.
+
+## The animal's look as tags (20 October, 20 calls)
+
+Could the recorded look find lookalike titles inside Qloo, in place of the AI proposing them (decision 14)? Temperament was not tried: a reference must never imply behaviour, and places matched to temperament were tried on 19 October and not adopted.
+
+**The tags exist** (`find_tags`, 6 calls): "black cat", "orange tabby", "tuxedo cat", "calico", "brindle" and "border collie" each resolve to a clean keyword tag (`keyword:media:black_cat`, `orange_tabby_cat`, `tuxedo_cat`, `calico_cat`, `border_collie`; brindle only as `keyword:qloo:brindle`).
+
+**As signals with Park Slope** (`recommend`, 4 calls) they change nothing: films for black cat, orange tabby and tuxedo cat were all the area's usual favourites (*Black Panther*, *Crazy Rich Asians*, *Deadpool*), and TV for black cat the same, as milestone 1 found for lifestyle tags.
+
+**As filters** (`include_tags`, 10 calls): with no signal at all Qloo asks for one (`needs_input`, "Provide at least one entity, tag, location, or demographic taste signal"). With Park Slope as the signal, orange tabby and border collie films and black-cat TV came back empty, and black-cat films gave one title, *Lords of Chaos*, a black-metal film. With the black-cat tag as its own signal and no area, the list was witchcraft and horror (*Night of the Eagle*, *The Tingler*, *Sabrina the Teenage Witch*), which the name screen would refuse and which ties a shelter's black cat to superstition.
+
+**Not adopted.** Qloo knows the looks but cannot tie them to an area, and what it returns without one is wrong or unsuitable. The lookalike step stays as decision 14 has it: the AI proposes a title with an animal that looks like this one, and Qloo confirms the title.
