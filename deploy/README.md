@@ -61,6 +61,14 @@ ssh deploy@host 'cd /opt/namesake && docker compose exec -T app python -m app.up
 
 It prints each profile it upgraded or left as it was; run it again later without `--only` for the rest, including Austin and the areas visitors typed.
 
+## Building the examples
+
+The start page's "Read a finished story" links (`EXAMPLES` in `app/views/build.py`) show once their results are saved in the host's cache. A new example is built on the host, live (Qloo and the model), paced under the key's limit, after backing up the cache; `--only` takes the areas to build. The image holds no `scripts/`, so the source's copy is mounted into a one-off container:
+
+```sh
+ssh deploy@host 'cd /opt/namesake && docker compose run --rm --no-deps -e QLOO_MIN_INTERVAL=10 -v /opt/namesake/src/scripts:/app/scripts:ro app python scripts/precompute_examples.py --only barcelona'
+```
+
 ## Placing saved profiles' venues on the map
 
 Each new run places its profile's suggested venues once, from OpenStreetMap (Photon), after the profile is saved (decision 4, revised). Profiles saved before that are placed on the host, about a second a lookup, with no Qloo call:

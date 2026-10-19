@@ -2,9 +2,11 @@
 
     uv run python scripts/precompute_examples.py            # only what is missing
     uv run python scripts/precompute_examples.py --force    # rewrite the listings
+    uv run python scripts/precompute_examples.py --only barcelona   # one area's examples
 
-`dog-02` and the kitten litter, each in Park Slope and Astoria. The results hold
-Qloo data and model output, so they stay in `var/`, which is never committed; the
+The examples are `EXAMPLES` in `app/views/build.py`: `dog-02` in Park Slope, Astoria and
+Barcelona, and the kitten litter in Park Slope.
+The results hold Qloo data and model output, so they stay in `var/`, which is never committed; the
 deployed demo gets them on its private volume. Qloo calls are cached, recorded and
 spaced; the model is the one in AGENT_*.
 """
@@ -28,9 +30,8 @@ from app.profile import load_seeds  # noqa: E402
 from app.runs import model_factory, qloo_client  # noqa: E402
 from app.store import Store  # noqa: E402
 from app.venue_points import locate_saved  # noqa: E402
+from app.views.build import EXAMPLES  # noqa: E402
 
-LOCATIONS = ("park-slope", "astoria")
-DOG = "dog-02"
 LITTER = "litter-group"
 
 
@@ -57,6 +58,7 @@ def show(result) -> None:
 async def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", action="store_true", help="rewrite saved listings")
+    parser.add_argument("--only", default="", help="location IDs, comma-separated")
     args = parser.parse_args()
     settings = get_settings()
     models = model_factory(settings)
@@ -69,28 +71,48 @@ async def main() -> None:
     store = Store(settings.cache_db)
     qloo = qloo_client(settings)
     seeds = load_seeds(settings.seeds_file)
-    for location in (x for x in load_locations(settings.locations_file) if x.id in LOCATIONS):
-        common = dict(
-            qloo=qloo,
-            store=store,
-            seeds=seeds,
-            model_factory=models,
-            fallbacks=fallbacks,
-            output_mode=settings.agent_output_mode,
-            classifier=classifier_from(settings),
-        )
-        if args.force or store.get_listing(DOG, location.id) is None:
-            print(f"{DOG} in {location.label}")
+    common = dict(
+        qloo=qloo,
+        store=store,
+        seeds=seeds,
+        model_factory=models,
+        fallbacks=fallbacks,
+        output_mode=settings.agent_output_mode,
+        classifier=classifier_from(settings),
+    )
+    places = {x.id: x for x in load_locations(settings.locations_file)}
+    only = {x.strip() for x in args.only.split(",") if x.strip()}
+    unknown = ({loc for _, loc, _ in EXAMPLES} | only) - places.keys()
+    if unknown:
+        sys.exit(f"Not a preset area: {', '.join(sorted(unknown))}")
+    strangers = sorted(a for a, _, _ in EXAMPLES if roster.get(a) is None)
+    if strangers:
+        sys.exit(f"Not in the roster: {', '.join(strangers)}")
+    built = []
+    # The start page's examples (EXAMPLES in app/views/build.py): an animal in a litter
+    # is built with its litter, named as a set.
+    for animal_id, location_id, label in EXAMPLES:
+        if only and location_id not in only:
+            continue
+        location = places[location_id]
+        if location not in built:
+            built.append(location)
+        animal = roster.get(animal_id)
+        if animal.litter is not None:
+            if args.force or any(store.get_listing(k.id, location.id) is None for k in kittens):
+                print(label)
+                log = echo_log()
+                for r in await run_litter(kittens, location, log=log, force=args.force, **common):
+                    show(r)
+                log.finish()
+        elif args.force or store.get_listing(animal.id, location.id) is None:
+            print(label)
             log = echo_log()
-            show(await run_pipeline(roster.get(DOG), location, log=log, **common))
+            show(await run_pipeline(animal, location, log=log, **common))
             log.finish()
-        if args.force or any(store.get_listing(k.id, location.id) is None for k in kittens):
-            print(f"The litter in {location.label}")
-            log = echo_log()
-            for result in await run_litter(kittens, location, log=log, force=args.force, **common):
-                show(result)
-            log.finish()
-        # The example pages show the places as pins too (decision 4, revised).
+    # The example pages show the places as pins too (decision 4, revised): both species'
+    # profiles in each example's area, as before.
+    for location in built:
         for species in ("dog", "cat"):
             placed = locate_saved(store, location, species, places_for(settings.geocoder_url))
             if placed:

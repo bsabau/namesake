@@ -40,7 +40,7 @@ def test_start_view_leads_with_the_featured_animal(roster):
     locations = load_locations(get_settings().locations_file)
     view = build_start_view(roster, locations, locations[1].id)
     assert view.animals[0].id == FEATURED
-    assert [loc.selected for loc in view.locations] == [False, True, False]
+    assert [loc.selected for loc in view.locations] == [False, True, False, False]
     assert "long stay" in view.animals[0].badges
 
 
@@ -265,6 +265,12 @@ def test_the_children_words_match_whole_words_in_the_name_or_description():
     assert for_children(None, "A family-friendly brewery.") == "family-friendly"
     assert for_children(None, "A soft play centre.") == "soft play"
     assert for_children(None, "Classes for babies and an elementary school club.") == "babies"
+    # Spanish and Catalan venue names (Barcelona).
+    assert for_children("Ludoteca Infantil El Drac") == "ludoteca"
+    assert for_children("Espai per a nens i famílies") == "nens"
+    assert for_children("Parque de niños") == "niños"
+    assert for_children(None, "Un espai per a famílies.") == "famílies"
+    assert for_children(None, "Un café para familias.") == "familias"
     # Other common meanings in venue text are not about children.
     for text in (
         "A plant nursery.",

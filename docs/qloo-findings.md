@@ -116,7 +116,7 @@ Most Qloo work depends on the location and the species, not the individual anima
 9. *Code:* the name screen, with the stricter screen for bully-type dogs, and the duplicate check.
 10. *Agent:* write the bio and the hook from the facts. *Code:* check that every sentence traces to a fact, the length, and that the hook says nothing about temperament.
 
-The agentic steps are 1, 2, 3, 5 and 8: the model reads Qloo's answers and decides what to try next. The three presets are precomputed, so the demo spends no quota. A custom location costs about 8 calls, roughly a minute with the spacing, shown in the live log.
+The agentic steps are 1, 2, 3, 5 and 8: the model reads Qloo's answers and decides what to try next. The examples are precomputed, so opening them spends no quota. A custom location costs about 8 calls, roughly a minute with the spacing, shown in the live log.
 
 **Decided:** see `docs/decisions.md`, entries 1 to 5 (15 October 2026).
 

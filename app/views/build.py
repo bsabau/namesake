@@ -207,7 +207,8 @@ EXAMPLES = (
     ("dog-02", "park-slope", "The lead dog in Park Slope"),
     ("dog-02", "astoria", "The same dog in Astoria"),
     ("kitten-01", "park-slope", "The litter, named as a set, in Park Slope"),
-    ("kitten-01", "astoria", "The litter in Astoria"),
+    # Outside the US (decision 30): the same record, another country's tastes.
+    ("dog-02", "barcelona", "The same dog in Barcelona"),
 )
 
 
@@ -934,8 +935,10 @@ def plan(
             basis="Research",
         ),
         PlanItem(
-            text="Adoptions cluster on Saturdays, where shelters open then, and between 5 and "
-            "8 pm: time posts and events for then.",
+            # Measured in US shelters (adoption-evidence-review.md); said so on every page,
+            # since an area may be elsewhere (Barcelona, decision 30).
+            text="In US shelter data, adoptions cluster on Saturdays, where shelters open then, "
+            "and between 5 and 8 pm: time posts and events for then.",
             basis="Research",
         ),
     ]
@@ -977,11 +980,14 @@ def plan(
 # "kid-friendly", "child care" and "Childrens Museum" count; words with other common
 # meanings in venue text ("nursery" for plants, "daycare" for dogs, "baby back ribs",
 # "youth hostel", a dog park's "play area") are not on the list. A venue with no
-# description is judged by its name.
+# description is judged by its name. Venue names outside the US may be in Spanish or
+# Catalan (Barcelona, decision 30), so those languages' plain words count too.
 FOR_CHILDREN = re.compile(
     r"\b(child|children|childrens|kid|kids|toddlers?|babies|playgrounds?|playgroups?"
     r"|preschools?|kindergartens?|elementary[- ]schools?|childcare|family[- ]friendly"
-    r"|families|storytime|soft[- ]play)\b"
+    r"|families|storytime|soft[- ]play"
+    r"|infantil|infantiles|infantils|niños|niñas|nens|nenes|ludotecas?|ludoteques?"
+    r"|familias|famílies)\b"
 )
 
 

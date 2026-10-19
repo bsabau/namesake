@@ -10,10 +10,12 @@ from app.main import app
 client = TestClient(app)
 
 
-def test_three_presets_with_unique_ids():
+def test_four_presets_with_unique_ids():
+    # Two New York neighbourhoods, another US city, and one outside the US (decision 30).
     locations = load_locations(get_settings().locations_file)
-    assert len(locations) == 3
-    assert len({loc.id for loc in locations}) == 3
+    assert len(locations) == 4
+    assert len({loc.id for loc in locations}) == 4
+    assert "barcelona" in {loc.id for loc in locations}
 
 
 def test_start_page_offers_every_preset_with_the_first_selected():
@@ -107,3 +109,14 @@ def test_the_start_map_has_a_search_that_only_moves_it(monkeypatch):
 
 def test_without_place_lookups_there_is_no_map_search():
     assert 'id="map-search-text"' not in client.get("/").text
+
+
+def test_every_example_is_a_known_animal_at_a_preset_area():
+    # The examples script builds only presets; a typed area would not be there to build.
+    from app.animals import load_roster
+    from app.views.build import EXAMPLES
+
+    ids = {loc.id for loc in load_locations(get_settings().locations_file)}
+    assert {loc for _, loc, _ in EXAMPLES} <= ids
+    roster = load_roster(get_settings().animals_file)
+    assert all(roster.get(a) is not None for a, _, _ in EXAMPLES)
