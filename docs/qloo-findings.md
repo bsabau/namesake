@@ -311,7 +311,7 @@ The question: could Qloo's tags for each chosen pet title show, in the Why panel
 
 Could the recorded look find lookalike titles inside Qloo, in place of the AI proposing them (decision 14)? Temperament was not tried: a reference must never imply behaviour, and places matched to temperament were tried on 19 October and not adopted.
 
-**The tags exist** (`find_tags`, 6 calls): "black cat", "orange tabby", "tuxedo cat", "calico", "brindle" and "border collie" each resolve to a clean keyword tag (`keyword:media:black_cat`, `orange_tabby_cat`, `tuxedo_cat`, `calico_cat`, `border_collie`; brindle only as `keyword:qloo:brindle`).
+**The tags exist** (`find_tags`, 6 calls): "black cat", "orange tabby", "tuxedo cat", "calico", "brindle" and "border collie" each resolve to a clean keyword tag (`urn:tag:keyword:media:black_cat`, `urn:tag:keyword:media:orange_tabby_cat`, `urn:tag:keyword:media:tuxedo_cat`, `urn:tag:keyword:media:calico_cat`, `urn:tag:keyword:media:border_collie`; brindle only as `urn:tag:keyword:qloo:brindle`).
 
 **As signals with Park Slope** (`recommend`, 4 calls) they change nothing: films for black cat, orange tabby and tuxedo cat were all the area's usual favourites (*Black Panther*, *Crazy Rich Asians*, *Deadpool*), and TV for black cat the same, as milestone 1 found for lifestyle tags.
 
