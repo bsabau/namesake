@@ -83,7 +83,7 @@ Colours: **Qloo** answers (terracotta), **the classifier**, TypeSafe's Jev (viol
 | A map of where fans of pet-themed titles stand out | `where_popular` within the neighbourhood, for the two pet titles the venues were asked for first (by evidence) and the top two baseline shows; a first pet title with fewer than five cells there gives way once to the next, when that makes a better map (more cells with a comparison) | Code | Raw affinity saturates near 1.0, so the map shows **lift**: the pet titles' cell score minus the baseline shows', each averaged over the maps that scored the cell. A key on the map says what the colours mean, and the caption counts the cells where fans of pet-themed titles stand out against fans of the area's top shows (not on a thin map of fewer than five cells, or one with no comparison). |
 | What the area tends to watch | `recommend` TV shows with `signal_location` | Code | A second, labelled source of name options. |
 | Titles with an animal that looks like this one | `describe` | **Namesake's AI**, per animal, at most two | A personal name option: Qloo's line says only that it found the title (or offered it among candidates, when it asked which was meant), and the lookalike match is on the line of Namesake's AI. The shared look must be quoted from the animal's record as whole phrases ("brindle coat", not "short"). |
-| A volunteer types their own area, or right-clicks the shelter's spot on the map (in the warm skin, a search above the map moves it to any city first) | `recommend` for the area's own top TV show, then `where_popular` for that show within the area's name (a widely watched seed show as well when the list is not a plain answer or its show is thin there) | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". Passing says Qloo has data for the area; when its pet titles still map thinly, the result page says so. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
+| A volunteer types their own area, or right-clicks the shelter's spot on the map (in the story and warm skins, a search above the map moves it to any city first) | `recommend` for the area's own top TV show, then `where_popular` for that show within the area's name (a widely watched seed show as well when the list is not a plain answer or its show is thin there) | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". Passing says Qloo has data for the area; when its pet titles still map thinly, the result page says so. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
 
 The decisions behind each row, with their evidence, are in [`docs/decisions.md`](docs/decisions.md) and [`docs/qloo-findings.md`](docs/qloo-findings.md).
 
@@ -140,7 +140,7 @@ uv run python scripts/run_agent.py dog-02 park-slope  # one run, steps printed
 
 Set `ALLOW_LIVE_QLOO=false` to use only the cache. The model is configuration only (`AGENT_BASE_URL`, `AGENT_API_KEY`, `AGENT_MODEL`, `AGENT_API`); the demo runs a free model through [OpenCode Go](https://opencode.ai).
 
-The same data is served as JSON (`/api/start`, `/api/results/dog-02@park-slope`, and the live step log at `/api/runs/{id}/events`), and `?ui=<name>` switches between interfaces in `app/ui/` (`warm`, the default; `story`, which tells the result as a story; or `classic`, the first skin).
+The same data is served as JSON (`/api/start`, `/api/results/dog-02@park-slope`, and the live step log at `/api/runs/{id}/events`), and `?ui=<name>` switches between interfaces in `app/ui/` (`story`, the default, which tells the result as a story; `warm`, the default before it; or `classic`, the first skin).
 
 Tests never call Qloo or a model; they use hand-written envelopes with invented IDs:
 
@@ -178,7 +178,7 @@ How it works inside, with diagrams: [`docs/architecture.md`](docs/architecture.m
 |---|---|
 | `app/agent/` | the two PydanticAI agents (area profile, listing), their Qloo tools, the plain-code checks, the run pipeline |
 | `app/qloo/` | the typed wrapper around `qloo exec`: envelope parsing, cache, spacing, replay |
-| `app/views/`, `app/ui/warm/` | view models (also served as JSON) and the default interface; `app/ui/story/` tells the result as a story (`?ui=story`), and `app/ui/classic/` is the first skin, kept for `?ui=classic` |
+| `app/views/`, `app/ui/story/` | view models (also served as JSON) and the default interface, which tells the result as a story; `app/ui/warm/` (the default before it, `?ui=warm`) and `app/ui/classic/` (the first skin, `?ui=classic`) are kept for comparison |
 | `docs/` | [architecture](docs/architecture.md), [decisions](docs/decisions.md), [Qloo findings](docs/qloo-findings.md), [product design](docs/product.md), [evidence review](docs/research/adoption-evidence-review.md) |
 | `tests/` | about 600 tests, all offline; `tests/test_no_qloo_data.py` keeps Qloo data out of the repo |
 

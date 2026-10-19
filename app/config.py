@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     geocoder_url: str = "https://photon.komoot.io"
 
     # Default interface: a folder under app/ui/. `?ui=<name>` overrides it per request.
-    ui: str = "warm"
+    ui: str = "story"
     # CARTO basemap key for the story skin's maps (Positron in light mode, Dark Matter in
     # dark mode). Empty: OpenStreetMap's standard tiles. The one key that reaches the
     # browser, because tile requests come from the visitor's browser (AGENTS.md, Secrets):

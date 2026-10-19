@@ -45,7 +45,7 @@ def test_map_gets_every_preset_point():
 
 
 def test_map_scripts_are_served_and_credit_openstreetmap():
-    for ui in ["classic", "warm"]:
+    for ui in ["classic", "warm", "story"]:
         for name in ["location-map.js", "result-map.js"]:
             js = client.get(f"/ui/{ui}/static/{name}")
             assert js.status_code == 200
@@ -66,7 +66,7 @@ def test_the_shelter_bar_names_the_chosen_area_and_stays_closed():
     bar = page[page.index('id="shelter"') : page.index("</summary>")]
     assert "Astoria" in bar and "Queens, New York" in bar and "Change" in bar
     assert 'data-role="shelter">' in page  # closed: no "open" attribute
-    assert page.index('id="shelter"') < page.index('class="animal-grid"')
+    assert page.index('id="shelter"') < page.index('class="animal-grid')
 
 
 def test_the_api_carries_the_bar_and_the_map_caption():
@@ -87,7 +87,7 @@ def test_with_no_area_chosen_the_bar_asks_for_one():
 
 def test_the_shelter_bar_script_is_served():
     # Flash: without it, a closed panel with no area chosen strands the visitor again.
-    for ui in ["classic", "warm"]:
+    for ui in ["classic", "warm", "story"]:
         assert client.get(f"/ui/{ui}/static/shelter-bar.js").status_code == 200
 
 

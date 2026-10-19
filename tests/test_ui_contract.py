@@ -51,9 +51,9 @@ def test_every_skin_is_found():
     assert {"classic", "warm", "story"} <= set(main.UIS)
 
 
-def test_the_default_ui_is_warm():
+def test_the_default_ui_is_story():
     # The declared default, not the effective one: a UI=classic override is allowed.
-    assert type(get_settings()).model_fields["ui"].default == "warm"
+    assert type(get_settings()).model_fields["ui"].default == "story"
     assert main.pick_ui(None) == get_settings().ui
 
 
