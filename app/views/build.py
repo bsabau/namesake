@@ -204,11 +204,12 @@ ADDED_PHOTO_CREDIT = (
 PLACEHOLDER_PHOTO = "/static/placeholder.svg"
 # The precomputed examples, in the order the start page offers them.
 EXAMPLES = (
-    # Each label says who and where, so the pairs read as one animal in two areas.
+    # Each label says who and where; the second of a pair says "the same", so it reads as
+    # one animal in two areas, not a second one.
     ("dog-02", "park-slope", "The brindle dog in Park Slope"),
-    ("dog-02", "astoria", "The brindle dog in Astoria"),
+    ("dog-02", "astoria", "The same brindle dog in Astoria"),
     ("kitten-01", "park-slope", "Four kittens, named as a set, in Park Slope"),
-    ("kitten-01", "astoria", "Four kittens, named as a set, in Astoria"),
+    ("kitten-01", "astoria", "The same four kittens in Astoria"),
 )
 
 
