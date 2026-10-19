@@ -14,7 +14,9 @@ A **generic version** of the listing sits beside the **local version**, so you c
 
 Built for the [Qloo Agentic Hackathon](https://qloo-hackathon.devpost.com/). Taste data from the Qloo API; not affiliated with Qloo.
 
-![The result page for the lead dog in Park Slope, in the story skin: the photo and recorded facts on the left; "Let's tell her story" with the Generic and Local version toggle; three name options (Bingo, Scooby-Doo, Comet), each with its Qloo title under it; a strip with what Qloo returned beside what Namesake's AI did; the introduction written from the shelter's records; "Behind this story" with Qloo's answer and Namesake's choice side by side for each name; a map of where fans of pet-themed titles stand out against fans of the area's top shows, with the places to ask as numbered pins; three places with Qloo's description and rank; and the other ways to help, each labelled by its basis](docs/img/result.png)
+![The first screen of the result for the lead dog in Park Slope, in the story skin: the photo and recorded facts on the left; "Let's tell her story" with the Generic and Local version toggle; three name options (Comet, Scooby, Hooch), each with its Qloo title under it; a strip with what Qloo returned beside what Namesake's AI did, including the title it searched Qloo's lists with; and the start of her introduction](docs/img/result-first-screen.png)
+
+The whole result page, with "Behind this story", the map and the places to ask: [`docs/img/result.png`](docs/img/result.png).
 
 ## The problem
 
@@ -32,6 +34,10 @@ What the research does and does not support shaped the design ([full review](doc
 Namesake does **not** claim to get animals adopted faster, save lives or money, or match animals to adopters.
 
 ## How it uses Qloo
+
+The same dog, the same record, two neighbourhoods of one city: Park Slope gives Comet, Scooby and Hooch, Astoria gives Bluey, Moon and Scooby-Doo, from the titles Qloo backs in each area.
+
+![The lead dog's result in Park Slope (left: Comet, from Dogs in Space) and in Astoria (right: Bluey, from Bluey), each with its own Qloo titles and its own strip of what Qloo returned and what Namesake's AI did](docs/img/two-neighbourhoods.png)
 
 Namesake's AI (two agents, one per area and one per animal) and some plain code call Qloo through the official harness (`qloo exec`, pinned at 0.1.26). Every call is cached in SQLite and spaced at least 5 seconds apart, because the hackathon key is rate-limited; a refused ranking is retried after a longer wait.
 
