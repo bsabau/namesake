@@ -3,7 +3,7 @@
 import re
 import time
 
-from app.agent.checks import mentions_identity
+from app.agent.checks import hook_text, mentions_identity
 from app.agent.listing_agent import Lookalike, NameOption
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
@@ -521,9 +521,11 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
                 approved_source=approved_source(o, badge, title, look),
                 reference=reference,
                 why=look_line(o, look) + o.why,
-                hook=f"Named after {reference}.",
-                copy_text=copy_block(o.name, f"Named after {reference}.", text),
+                hook=hook_text(reference),
+                copy_text=copy_block(o.name, hook_text(reference), text),
                 version_choice=local_choice(o.name),
+                entity_id=o.entity_id,
+                character=o.character,
             )
         )
     return NameView(value=draft.names[0].name, placeholder="", options=options)

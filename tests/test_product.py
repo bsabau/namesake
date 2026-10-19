@@ -997,3 +997,16 @@ def test_each_name_option_carries_its_toggle_text(client, ui):
     toggle = page.split('data-role="version-toggle"')[1].split("</fieldset>")[0]
     assert "Local, with Qloo · Bingo" in toggle and "Generic · " in toggle
     assert 'data-choice="Local, with Qloo · Biscuit"' in page
+
+
+def test_a_reference_taken_since_the_page_loaded_cannot_be_approved(client):
+    # Review of PR #44: the approve route refused a taken name, not a taken reference.
+    save(saved_listing())
+    other = saved_listing("dog-03")
+    biscuit = other.draft.names[1].model_copy(update={"name": "Bisc"})
+    other.draft.names = [biscuit, other.draft.names[0], other.draft.names[2]]
+    other.references = ["Biscuit, a cat in Example Cat Show", *other.references[:1], "x"]
+    save(other)  # dog-03 is now Bisc, after Biscuit in the cat show
+    response = approve(client, variant="local", local_name="Biscuit", text="Hi.")
+    assert response.status_code == 409 and "now named after" in response.text
+    assert approve(client, variant="local", local_name="Scout", text="Hi.").status_code == 200

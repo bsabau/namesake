@@ -98,9 +98,11 @@ class Store:
             ]
         return [tuple(k.removeprefix("profile:").rsplit(":", 1)) for k in keys]
 
-    def get_listing(self, animal_id: str, location_id: str) -> ListingResult | None:
+    def get_listing(
+        self, animal_id: str, location_id: str, current_only: bool = True
+    ) -> ListingResult | None:
         result = self._load(ListingResult, f"listing:{animal_id}@{location_id}")
-        return result if result is not None and _current(result) else None
+        return result if result is not None and (_current(result) or not current_only) else None
 
     def put_listing(self, result: ListingResult) -> None:
         self._put(f"listing:{result.animal_id}@{result.location_id}", result)
@@ -111,8 +113,9 @@ class Store:
                 "DELETE FROM agent_results WHERE key = ?", (f"listing:{animal_id}@{location_id}",)
             )
 
-    def listings_at(self, location_id: str) -> list[ListingResult]:
-        """Every saved listing for one shelter location."""
+    def listings_at(self, location_id: str, current_only: bool = True) -> list[ListingResult]:
+        """Every saved listing for one shelter location; with `current_only` False, also
+        those saved before the checks last changed, whose names are still in use."""
         with sqlite3.connect(self.path) as db:
             keys = [
                 row[0]
@@ -121,7 +124,7 @@ class Store:
                 )
             ]
         results = (self._load(ListingResult, k) for k in keys)
-        return [r for r in results if r is not None and _current(r)]
+        return [r for r in results if r is not None and (_current(r) or not current_only)]
 
     def saved_listings(self) -> list[ListingResult]:
         """Every saved listing, current or not, for app/agent/recheck.py."""

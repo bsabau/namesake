@@ -204,6 +204,10 @@ class NameOptionView(BaseModel):
     hook: str
     copy_text: str
     version_choice: str
+    # What the name refers to, for the approve route's check that no other animal at the
+    # shelter is named after it (decision 26): Qloo's title ID and the character.
+    entity_id: str = ""
+    character: str = ""
 
 
 class NameView(BaseModel):

@@ -646,12 +646,51 @@ def rank_band(rank: int, total: int) -> str:
 
 Prepared = tuple[list[Entity], list[Entity], str, list[str]]  # baseline_for's answer
 
+# Words that say which animal a title is about, for when the classifier gave no verdict.
+SPECIES_WORDS = {
+    "dog": ("dog", "dogs", "puppy", "puppies", "pup", "pups", "doggy", "doggie"),
+    "cat": ("cat", "cats", "kitten", "kittens", "kitty", "kitties"),
+}
+
+
+def _animal_word(text: str, species: str) -> bool:
+    return any(re.search(rf"(?<![a-z]){w}(?![a-z])", text) for w in SPECIES_WORDS.get(species, ()))
+
+
+def about_other_species_only(entity: "Entity", species: str) -> bool:
+    """A title about another animal and not this one: a cat show for a dog. The classifier's
+    answers decide; without them, the animal words in the title's name, Qloo's description
+    and the seed's own reason ("The Aristocats": a family of cats; Bluey's seed: a family
+    of dogs). A general pet title whose description mentions only cats goes last for a
+    dog too: stricter, never dropped."""
+    other = "cat" if species == "dog" else "dog"
+    if entity.verdict is not None:
+        mine = getattr(entity.verdict, f"{species}s", 0.0)
+        theirs = getattr(entity.verdict, f"{other}s", 0.0)
+        return theirs >= 0.5 and mine < 0.5
+    text = f"{entity.name} {entity.description or ''} {entity.why}".lower()
+    return _animal_word(text, other) and not _animal_word(text, species)
+
+
+def species_order(ids: list[str], entities: dict[str, "Entity"], species: str | None) -> list[str]:
+    """The same order, titles only about another animal last, so a dog's venues and map
+    rest on dog and pet titles whenever there are any (decision 26). Never drops a title."""
+    if species not in SPECIES_WORDS:
+        return list(ids)
+    other = [i for i in ids if i in entities and about_other_species_only(entities[i], species)]
+    return [i for i in ids if i not in other] + other
+
 
 def build_profile(
-    qloo: QlooClient, location: Location, seeds: Seeds, prepared: Prepared | None = None
+    qloo: QlooClient,
+    location: Location,
+    seeds: Seeds,
+    prepared: Prepared | None = None,
+    species: str | None = None,
 ) -> LocationProfile:
     """The fixed lookup: seed titles, resolved by name, then the shared assembly.
-    `prepared` is a baseline already looked up for this run, so it is not asked twice."""
+    `prepared` is a baseline already looked up for this run, so it is not asked twice.
+    With `species`, the venues and the map ask with titles of that species first."""
     b = _Builder(qloo, location)
     pets = [e for e in (b.resolve(s) for s in seeds.pet) if e is not None]
     if not pets:
@@ -665,7 +704,9 @@ def build_profile(
         tastes, baselines, source, notes = prepared
         if source == "area":
             baselines, source = choose_baseline(b, location, seeds, tastes, True, pets)
-    profile = assemble_profile(b, location, pets, baselines)
+    by_id = {e.id: e for e in pets}
+    signals = species_order([e.id for e in pets], by_id, species)
+    profile = assemble_profile(b, location, pets, baselines, signals)
     profile.local_tastes, profile.baseline_source = tastes, source
     profile.notes = notes + profile.notes
     return profile

@@ -24,7 +24,8 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
 from starlette.formparsers import MultiPartParser
 
-from app.agent.pipeline import taken_names
+from app.agent.checks import reference_key, same_reference
+from app.agent.pipeline import taken_names, taken_references
 from app.animals import Animal, Checks, load_roster
 from app.config import get_settings
 from app.custom_location import PREFIX as CUSTOM_PREFIX
@@ -270,7 +271,9 @@ def location_profile(location: Location, species: str) -> LocationProfile:
         return saved
     # No agent run yet: the fixed lookup, in replay only, so a page never spends
     # quota. A missing profile shows as notes.
-    return build_profile(replay_client(settings), location, load_seeds(settings.seeds_file))
+    return build_profile(
+        replay_client(settings), location, load_seeds(settings.seeds_file), species=species
+    )
 
 
 def ui_suffix(request: Request, ui: str | None) -> str:
@@ -566,6 +569,16 @@ def approve(
     )
     if name.lower() in taken:
         raise HTTPException(409, f"{name} is now used by another animal here")
+    if variant == "local" and not animal.startswith(ADDED_PREFIX):
+        # Nor what the name refers to (decision 26): another animal may have been named
+        # after the same character since this listing was written.
+        mine = reference_key(option.entity_id, option.character)
+        refs = taken_references(find_animal(animal, session), find_location(location), store)
+        shared = next((label for key, label in refs.items() if same_reference(key, mine)), None)
+        if shared:
+            raise HTTPException(
+                409, f"{name} refers to {shared}, which another animal here is now named after"
+            )
 
     missing = missing_cautions(find_animal(animal, session), edited)
     if missing:

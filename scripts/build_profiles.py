@@ -37,6 +37,8 @@ def main() -> None:
     for location in load_locations(settings.locations_file):
         if args.location and location.id != args.location:
             continue
+        # Species-agnostic: a dog's or a cat's run asks its venues with its own titles
+        # first (decision 26), so those cache keys are filled by the runs themselves.
         p = build_profile(qloo, location, seeds)
         print(f"\n## {location.label}  complete={p.complete}")
         print("   pet:", [f"{e.name} ({e.resolution})" for e in p.pet_entities])
