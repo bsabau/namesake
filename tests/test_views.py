@@ -400,10 +400,11 @@ def test_the_qloo_part_names_the_ais_order_and_titles_found_in_lists(roster):
     assert part.qloo.startswith(
         f"1 title with Qloo's evidence for {LOCATION.label} (1 only in its lists"
     )
+    # The search the AI chose comes first (Fable audit, 19 October: it was invisible).
     assert part.ai == (
-        "Proposed 1 title for Qloo to check; judged 1 unclear title; picked 1 of the places "
-        "to ask; set the order, as Qloo's ranking was unavailable. The names and bio are the "
-        "fixed template."
+        "Searched Qloo's lists with x; proposed 1 title for Qloo to check; judged 1 unclear "
+        "title; picked 1 of the places to ask; set the order, as Qloo's ranking was "
+        "unavailable. The names and bio are the fixed template."
     )
 
 
@@ -432,6 +433,10 @@ def test_an_agent_profile_with_nothing_else_to_say_still_credits_the_ai(roster):
         e.verdict = kept
     for v in p.venues:
         v.chosen_reason = None
+    part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
+    assert part.ai == "Searched Qloo's lists with x. The names and bio are the fixed template."
+    for e in p.pet_entities:
+        e.found_in.by_tags = True  # Qloo's pet-tag lists are code's, not a search
     part = build_result_view(roster.get("dog-02"), LOCATION, p).qloo_part
     assert part.ai == "Kept the titles above; the names and bio are the fixed template."
 
@@ -848,9 +853,14 @@ def test_an_ais_own_title_qloo_listed_later_stays_the_ais_own(roster):
         if not e.found_in:
             e.listed_in = FoundIn(signal="x", kind="movie", position=4, out_of=20)
     after = build_result_view(roster.get("dog-02"), LOCATION, p)
-    # The same "added N of its own" in the steps and the strip.
-    assert after.process[2].detail == before.process[2].detail
-    assert after.qloo_part.ai == before.qloo_part.ai
+    # The same "added N of its own" in the steps and the strip; the search that listed the
+    # title later is the AI's too, and is said first.
+    assert after.process[2].detail == before.process[2].detail.replace(
+        "Namesake's AI ", "Namesake's AI searched Qloo's lists with x, ", 1
+    )
+    assert after.qloo_part.ai == "Searched Qloo's lists with x; " + (
+        before.qloo_part.ai[0].lower() + before.qloo_part.ai[1:]
+    )
 
 
 def test_the_working_view_names_who_did_each_step(roster):

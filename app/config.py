@@ -6,7 +6,7 @@ Secrets are `SecretStr` so they never show up in a repr or a log line.
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -48,6 +48,22 @@ class Settings(BaseSettings):
     agent_fallback_2_model: str | None = None
     agent_fallback_2_api: str = "chat"
     agent_fallback_2_output_mode: str = "native"
+
+    @field_validator("agent_api", "agent_fallback_1_api", "agent_fallback_2_api", mode="before")
+    @classmethod
+    def _api_default(cls, value: str | None) -> str:
+        """An empty `API=` line means the default, like a missing one, not a typo."""
+        return value or "chat"
+
+    @field_validator(
+        "agent_output_mode",
+        "agent_fallback_1_output_mode",
+        "agent_fallback_2_output_mode",
+        mode="before",
+    )
+    @classmethod
+    def _output_mode_default(cls, value: str | None) -> str:
+        return value or "native"
 
     # The classifier that sorts titles into pet-themed or not (app/classify.py). Without
     # a key it is off, and Namesake's AI judges the titles from their descriptions.

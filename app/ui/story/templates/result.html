@@ -72,6 +72,10 @@
         {# One lead per version, so the picked version's lead is the true one. #}
         <p class="lead version-local">{{ view.story_lead }}</p>
         <p class="lead version-generic">{{ view.story_lead_generic }}</p>
+        {% if view.write_label %}
+        {# No listing yet for this animal here: start a run (its own form, below). #}
+        <p class="write-run"><button type="submit" form="write-form" class="run-button">{{ view.write_label }}</button></p>
+        {% endif %}
       </div>
       <fieldset class="version-toggle" data-role="version-toggle">
         <legend>Version</legend>
@@ -170,6 +174,13 @@
   <input type="hidden" name="location" value="{{ view.location.id }}">
   {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
 </form>
+{% if view.write_label %}
+<form id="write-form" method="post" action="/runs" data-role="write">
+  <input type="hidden" name="animal" value="{{ view.animal.id }}">
+  <input type="hidden" name="location" value="{{ view.location.id }}">
+  {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
+</form>
+{% endif %}
 <form id="reset-form" method="post" action="/refine/reset" hidden>
   <input type="hidden" name="animal" value="{{ view.animal.id }}">
   <input type="hidden" name="location" value="{{ view.location.id }}">
@@ -190,6 +201,17 @@
     </li>
     {% endfor %}
   </ol>
+
+  {% if view.run_steps %}
+  {# The saved run's own log, as the working page showed it, each step marked by who did
+     it: a saved result is otherwise all a visitor sees of the run. #}
+  <details class="run-log" data-role="run-steps">
+    <summary>{{ view.run_steps_heading }} ({{ view.run_steps|length }})</summary>
+    <ol class="steps timeline">
+      {% for step in view.run_steps %}<li class="step step-{{ step.kind }} actor-{{ step.actor }}"><span class="step-actor">{{ step.label }}</span> {{ step.text }}</li>{% endfor %}
+    </ol>
+  </details>
+  {% endif %}
 
   {% if view.name.options %}
   <section class="why-name" aria-labelledby="why-name-heading">

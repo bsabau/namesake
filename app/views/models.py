@@ -414,6 +414,12 @@ class ResultView(BaseModel):
     travel_heading: str = ""
     # "Behind this story": three steps from the actual profile and listing (decision 24).
     process: list[ProcessStep] = []
+    # The saved run's own step log, each step marked by who did it, as the working page
+    # showed it: judges who open a saved result never see a live run (decision 27).
+    run_steps: list[StepView] = []
+    run_steps_heading: str = ""
+    # With no listing yet for this animal here: the button that starts a run.
+    write_label: str | None = None
     qloo_returned: list[WhyItem]
     our_reading: list[WhyItem]
     notes: list[str]

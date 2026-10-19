@@ -836,7 +836,14 @@ def finish_profile(
     new.local_tastes, new.baseline_source = tastes, source
     new.notes = notes + new.notes
     # The lookups behind the titles stay on the record; the rest was asked again.
-    new.calls = [c for c in old.calls if c.operation in ("describe", "rank")] + new.calls
+    # The calls behind the titles (lookups, rankings, the area's lists and the AI's own
+    # searches) stay; the assembly's are made again.
+    behind_titles = ("Namesake's AI", "pet tags")
+    new.calls = [
+        c
+        for c in old.calls
+        if c.operation in ("describe", "rank") or any(w in c.purpose for w in behind_titles)
+    ] + new.calls
     return new
 
 

@@ -187,6 +187,8 @@ async def agent_profile(
     )
     profile.local_tastes, profile.baseline_source = tastes, source
     profile.notes = notes + profile.notes
+    # The AI's own calls first (its lookups, searches and ranking), then the assembly's.
+    profile.calls = deps.calls + profile.calls
     picks = {v.entity_id: v.reason for v in plan.venues}
     rejects = {v.entity_id: v.reason for v in plan.rejected_venues}
     for venue in profile.venues:

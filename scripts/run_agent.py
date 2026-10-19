@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.agent.model import build_model, fallback_models  # noqa: E402
+from app.agent.model import ModelMisconfigured, build_model, fallback_models  # noqa: E402
 from app.agent.pipeline import run_pipeline  # noqa: E402
 from app.agent.steps import StepLog  # noqa: E402
 from app.animals import load_roster  # noqa: E402
@@ -52,6 +52,11 @@ async def main() -> None:
         fallbacks = ()
     if args.model == "main" and not (settings.agent_model and settings.agent_api_key):
         sys.exit("The main model is not configured (AGENT_*).")
+    if main_model is not None:
+        try:
+            build_model(settings)
+        except ModelMisconfigured as exc:
+            sys.exit(f"The main model is misconfigured: {exc}")
     animal = load_roster(settings.animals_file).get(args.animal)
     location = next(x for x in load_locations(settings.locations_file) if x.id == args.location)
     qloo = QlooClient(
