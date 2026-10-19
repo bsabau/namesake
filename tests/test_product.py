@@ -727,7 +727,7 @@ def test_the_start_page_offers_only_examples_that_are_ready(client):
     save(saved_listing())
     page = client.get("/").text
     assert 'data-role="examples"' in page and "The brindle dog in Park Slope" in page
-    assert "The brindle dog in Astoria" not in page
+    assert "The same brindle dog in Astoria" not in page
 
 
 def test_the_litter_button_runs_every_member_and_opens_the_first(client, roster):
