@@ -253,3 +253,23 @@ Decision 23 follows from this.
 ## Chains within the kinds of place (18 October, from the example rebuild)
 
 With the venues asked within decision 23's kinds and standing-out places preferred, Astoria's dog profile picked McDonald's: Qloo tagged it as a cafe, and it was not among the places for the area's top shows, so it stood out. Park Slope's list held a beauty salon and vintage shop under the same tags. Qloo's category tags are broad: chains and loosely tagged places come through any kind filter, so the app leaves out listed chains by name and leaves the rest to Namesake's AI (decision 23, revised).
+
+## Places matched to the animal's temperament (19 October, 6 calls)
+
+Question: an animal recorded as active might suit a park, a shy one a bookshop or library. Does asking Qloo for places of the kind that fits each animal's record give a list worth tailoring? Each call was `recommend` place with the profile's pet titles as signals and `include_tags` set to the kinds that fit the record (union), 15 places asked for.
+
+| Animal (record) | Area | Kinds asked for | What Qloo returned |
+|---|---|---|---|
+| Active dog | Park Slope | parks, dog parks | nothing, not even Prospect Park |
+| Active dog | Astoria | parks, dog parks | 1: Socrates Sculpture Park, already among the area's places |
+| Shy cat | Park Slope | bookshops, libraries | 3: Community Bookstore, Barnes & Noble, Central Library (Grand Army Plaza) |
+| Calm dog | Astoria | bookshops, libraries | nothing |
+| Confident cat | Park Slope | cafes, breweries, community centres | 15, nearly the same places as the area's list today (Starbucks among them) |
+| Kittens | Park Slope | pet shops | 1: Unleashed by Petco |
+
+Reading:
+- Narrowed to a few kinds near a neighbourhood, Qloo's place data is thin: 0 to 3 places, often ones the page already shows. The wide kinds give back the area's usual list.
+- Parks are the weakest kind: Prospect Park never appears, so "active dog, so a park" would give nothing in Park Slope.
+- The quiet kinds found the one new place worth having (the Central Library for a shy cat), and a bookshop chain the chain list did not yet name.
+
+**Not adopted.** The places stay the same for every animal of a species at a shelter, as the venue note says. A call or two per animal would mostly return empty lists or repeat the page, and tailoring would promise more than the data backs. Barnes & Noble and the other bookshop chains join the chain list (decision 23, revised 19 October).
