@@ -8,7 +8,7 @@ Paste-ready sections for the Devpost form. Same claim rules as the README: no "a
 
 **Demo:** https://namesake.bogdansabau.eu
 **Code:** https://github.com/bsabau/namesake (MIT)
-**Images for the gallery:** `docs/img/result-first-screen.png` (the first screen, 1440 × 900), `docs/img/two-neighbourhoods.png` (the same dog in Park Slope and Astoria), `docs/img/result.png` (the whole result page).
+**Images for the gallery:** `docs/img/result-first-screen.png` (the first screen, 1440 × 900), `docs/img/two-neighbourhoods.png` (the same dog in Park Slope and Astoria), `docs/img/result-map.png` (the map and the places to ask), `docs/img/result.png` (the whole result page).
 
 ---
 
