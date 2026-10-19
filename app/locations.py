@@ -1,8 +1,8 @@
 """The preset shelter locations, loaded from `data/locations.json`.
 
-`query` is the text sent to Qloo as the location signal. `city` is the wider
-area for the heatmap, and the point is the fictional shelter's centre, never a
-real shelter or street address.
+`query` is the text sent to Qloo as the location signal and the heatmap's area.
+`city` names the wider city (only New York's rescue-partner plan item reads it), and
+the point is the fictional shelter's centre, never a real shelter or street address.
 """
 
 import json

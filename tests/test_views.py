@@ -269,6 +269,8 @@ def test_the_children_words_match_whole_words_in_the_name_or_description():
     assert for_children("Ludoteca Infantil El Drac") == "ludoteca"
     assert for_children("Espai per a nens i famílies") == "nens"
     assert for_children("Parque de niños") == "niños"
+    assert for_children(None, "Un espai per a famílies.") == "famílies"
+    assert for_children(None, "Un café para familias.") == "familias"
     # Other common meanings in venue text are not about children.
     for text in (
         "A plant nursery.",

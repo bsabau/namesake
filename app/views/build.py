@@ -935,7 +935,8 @@ def plan(
             basis="Research",
         ),
         PlanItem(
-            # US shelters' data (adoption-evidence-review.md), said so for an area elsewhere.
+            # Measured in US shelters (adoption-evidence-review.md); said so on every page,
+            # since an area may be elsewhere (Barcelona, decision 30).
             text="In US shelter data, adoptions cluster on Saturdays, where shelters open then, "
             "and between 5 and 8 pm: time posts and events for then.",
             basis="Research",
@@ -985,7 +986,8 @@ FOR_CHILDREN = re.compile(
     r"\b(child|children|childrens|kid|kids|toddlers?|babies|playgrounds?|playgroups?"
     r"|preschools?|kindergartens?|elementary[- ]schools?|childcare|family[- ]friendly"
     r"|families|storytime|soft[- ]play"
-    r"|infantil|infantiles|infantils|niños|niñas|nens|nenes|ludotecas?|ludoteques?)\b"
+    r"|infantil|infantiles|infantils|niños|niñas|nens|nenes|ludotecas?|ludoteques?"
+    r"|familias|famílies)\b"
 )
 
 
