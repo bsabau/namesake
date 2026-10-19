@@ -273,3 +273,14 @@ The fourth example for an evening (decision 30; the litter in Astoria came back 
 - **Names:** Bluey (the general pet title), Hooch and Scooby (titles with a dog that shares this one's broad head). Both lookalike titles came back ambiguous. Namesake's AI chose a candidate for each and was sent back once to give its reason.
 
 **Reading:** Qloo answers for Barcelona, but the pet-themed layer is thin. The titles are the US ones again, the map is flat, and the places are the city's best-known sights. The built result shows the uneven coverage the README names; it stays saved for a visitor who picks Barcelona, which remains a preset.
+
+## A title's own tags (`entity_tags`, 20 October, 2 calls)
+
+The question: could Qloo's tags for each chosen pet title show, in the Why panel, why it counts as pet-themed, in place of Namesake's AI and the classifier saying so?
+
+`entity_tags` with one title's ID and `limit` 20 (the most), for Bluey and *Dogs in Space*: status `ok`, 20 tags each, every affinity between 0.998 and 1.
+- **No pet tag in either list.** Not `genre:media:dogs`, `keyword:media:pet_dogs` or any of the pet tags the profile uses as signals (P1, P2).
+- The tags describe the people who like the title, not what it is about. Bluey's include Motherhood, Infants, Parenting and Baby Clothing. *Dogs in Space*'s include Professionals, Incarceration, Drug Trafficking and a screamo music genre, next to Space Exploration and Best Friends.
+- Only a few are content tags (Bluey: three `keyword:media` animation tags), and affinity does not set them apart.
+
+**Not adopted.** The tags would not back the "pet-themed" call. Some would also read badly beside a shelter animal, and some come close to inferring traits about people (parenthood). The pet titles stay as they are: found with the pet tags as signals (decision 22), sorted by the classifier.

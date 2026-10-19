@@ -2,7 +2,11 @@
 named as a set, and the "try your own" paths. No test reaches Qloo or a model."""
 
 import asyncio
+import html
+import sqlite3
 import time
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,10 +18,10 @@ from app.agent import checks
 from app.agent.listing_agent import ListingDraft
 from app.agent.pipeline import run_litter, run_pipeline
 from app.agent.results import CHECKS_VERSION, ListingResult
-from app.agent.steps import StepLog
+from app.agent.steps import Step, StepLog
 from app.animals import Animal, Checks
 from app.custom_location import check_location, clean, location_id, zoom_for
-from app.limits import LimitReached, Limits
+from app.limits import LimitReached, Limits, usage_report
 from app.listing import GENERIC_NAMES, cautions, generic_name, missing_cautions
 from app.profile import build_profile, local_tastes
 from app.session import Sessions, photo_type
@@ -406,6 +410,56 @@ def test_the_daily_cap_holds_across_restarts(tmp_path):
         again.charge("c", "run")
     # A refused run is not counted against the visitor.
     again.charge("c", "location")
+
+
+def test_the_usage_report_shows_each_day_against_its_caps(tmp_path):
+    db = tmp_path / "db.sqlite"
+    assert usage_report(db, 60, 10, 6).startswith("No live work recorded yet")
+    assert not db.exists()
+    sqlite3.connect(db).close()
+    assert usage_report(db, 60, 10, 6) == "No live work recorded yet."
+    db.unlink()
+    limits = Limits(db, per_visitor_per_hour=10, runs_per_day=60, locations_per_day=10)
+    limits.charge("a", "run")
+    limits.charge("b", "run")
+    limits.charge("b", "location")
+    two_days_ago = (datetime.now(UTC).date() - timedelta(days=2)).isoformat()
+    with sqlite3.connect(db) as conn:
+        conn.execute("INSERT INTO usage VALUES (?, 'run', 59)", (two_days_ago,))
+        conn.execute("INSERT INTO usage VALUES ('2000-01-01', 'run', 5)")
+    visitor, header, *days = usage_report(db, 60, 10, 6).splitlines()
+    assert "6 live runs an hour" in visitor
+    assert "runs" in header and "new areas" in header and len(days) == 14
+    # Every calendar day, quiet ones as zero, and nothing older than the 14.
+    assert days[0].split()[1:] == ["2/60", "1/10"]
+    assert days[1].split()[1:] == ["0/60", "0/10"]
+    assert days[2].split() == [two_days_ago, "59/60", "0/10"]
+    assert "2000-01-01" not in "\n".join(days)
+
+
+def test_a_saved_result_carries_the_markers_the_watcher_looks_for(client):
+    # Flash: deploy/watch.py's markers were tied to no template.
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "watch", Path(__file__).parent.parent / "deploy" / "watch.py"
+    )
+    watch = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(watch)
+    listing = saved_listing()
+    save(listing.model_copy(update={"steps": [Step(kind="qloo", text="Asked", at=0.0)]}))
+    # The watcher opens examples in the story skin, whatever the host's default.
+    page = client.get(
+        "/result", params={"animal": "dog-02", "location": "park-slope", "ui": "story"}
+    ).text
+    assert all(marker in page for marker in watch.SAVED)
+    # muse: the start page's links have the form the watcher looks for.
+    start = client.get("/").text
+    examples = client.get("/api/start").json()["examples"]
+    assert examples and all(f'href="{html.escape(e["url"])}"' in start for e in examples)
+    # An animal with no saved listing does not pass for one.
+    unsaved = client.get("/result", params={"animal": "dog-03", "location": "park-slope"}).text
+    assert not all(marker in unsaved for marker in watch.SAVED)
 
 
 def test_saved_results_are_free_and_live_runs_are_limited(client, monkeypatch):

@@ -7,6 +7,9 @@ the cache database so a restart does not reset it. Results that were made before
 cost nothing and are never limited.
 
 The lock makes check-and-count atomic within the one web process the app runs as.
+
+`python -m app.limits` prints each of the last 14 days' counts against the caps, to see how
+close the demo comes to them (deploy/README.md, "Watching the demo").
 """
 
 import sqlite3
@@ -14,7 +17,7 @@ import threading
 import time
 from collections import deque
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -136,3 +139,50 @@ class Limits:
 
 def _today() -> str:
     return datetime.now(UTC).date().isoformat()
+
+
+def usage_report(
+    db: Path, runs_per_day: int, locations_per_day: int, per_visitor: int, days: int = 14
+) -> str:
+    """The last `days` days (UTC), newest first, each against its cap; read-only."""
+    if not db.is_file():
+        return f"No live work recorded yet: {db} does not exist."
+    try:
+        with sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=10) as conn:
+            rows = conn.execute(
+                "SELECT day, kind, count FROM usage WHERE day > date('now', ?)",
+                (f"-{days} days",),
+            ).fetchall()
+    except sqlite3.OperationalError as exc:
+        # A locked or damaged database is raised: that is what needs seeing.
+        if "no such table" not in str(exc):
+            raise
+        return "No live work recorded yet."
+    counts: dict[str, dict[str, int]] = {}
+    for day, kind, count in rows:
+        counts.setdefault(day, {})[kind] = count
+    today = datetime.now(UTC).date()
+    lines = [
+        f"Each visitor may start {per_visitor} live runs an hour (counted in memory only).",
+        f"{'day (UTC)':<12}{'runs':>12}{'new areas':>14}",
+    ]
+    for back in range(days):
+        day = (today - timedelta(days=back)).isoformat()
+        runs = f"{counts.get(day, {}).get('run', 0)}/{runs_per_day}"
+        locations = f"{counts.get(day, {}).get('location', 0)}/{locations_per_day}"
+        lines.append(f"{day:<12}{runs:>12}{locations:>14}")
+    return "\n".join(lines)
+
+
+if __name__ == "__main__":
+    from app.config import get_settings
+
+    settings = get_settings()
+    print(
+        usage_report(
+            settings.cache_db,
+            settings.live_runs_per_day,
+            settings.new_locations_per_day,
+            settings.live_runs_per_visitor_per_hour,
+        )
+    )

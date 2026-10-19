@@ -305,3 +305,4 @@ flowchart LR
 
 - **Hosting**: one Docker container on a VM, behind an existing Caddy (TLS), with the SQLite cache on a private volume. `deploy/README.md` covers first setup, the deploy user, upgrading profiles, and rolling back.
 - **Auto-deploy**: a merge to `main` that passes CI runs the deploy from GitHub Actions, with a dedicated SSH key for a `deploy` user and the host key pinned. Only `main`'s newest commit is deployed, one deploy at a time. The server's `.env` is replaced only by a manual deploy with `--env`, never from CI.
+- **Watching**: every hour a workflow (`.github/workflows/watch.yml`, `deploy/watch.py`) opens the live site's health route and each example's saved result, with no secrets and no Qloo or model call; a failure that holds a minute later fails the run, which GitHub emails to the author. `python -m app.limits` on the host prints each day's live work against the caps.

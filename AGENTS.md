@@ -315,6 +315,8 @@ uv run python scripts/build_profiles.py       # fixed-lookup profiles from the c
 uv run python scripts/run_agent.py dog-02 park-slope   # one live agent run (Qloo and the model), steps printed
 uv run python scripts/precompute_examples.py  # the start page's examples into var/cache.sqlite, live
 uv run python -m app.venue_points             # pin saved profiles' venues from OpenStreetMap, once
+uv run python -m app.limits                   # live runs and new areas per day, against the caps
+python3 deploy/watch.py https://namesake.bogdansabau.eu --examples 4   # the hourly check of the live demo
 uv run pytest
 uv run pytest tests/test_app.py::test_health   # one test (-k <expr> also works)
 uv run ruff check . && uv run ruff format --check .
