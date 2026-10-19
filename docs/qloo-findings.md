@@ -272,4 +272,4 @@ The fourth example for an evening (decision 30; the litter in Astoria came back 
 - **Map:** 20 cells for *Dogs in Space* and *Bluey*. Their fans stand out against fans of the area's top shows in none of the cells with a comparison, and the page says so.
 - **Names:** Bluey (the general pet title), Hooch and Scooby (titles with a dog that shares this one's broad head). Both lookalike titles came back ambiguous. Namesake's AI chose a candidate for each and was sent back once to give its reason.
 
-**Reading:** Qloo answers for Barcelona, but the pet-themed layer is thin. The titles are the US ones again, the map is flat, and the places are the city's best-known sights. The example shows the uneven coverage the README names, which is what it is there for.
+**Reading:** Qloo answers for Barcelona, but the pet-themed layer is thin. The titles are the US ones again, the map is flat, and the places are the city's best-known sights. The built result shows the uneven coverage the README names; it stays saved for a visitor who picks Barcelona, which remains a preset.
