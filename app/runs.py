@@ -68,7 +68,11 @@ MAX_RUNS = 300
 
 def prune_runs(now: float | None = None) -> None:
     now = time.monotonic() if now is None else now
-    for run_id in [i for i, r in RUNS.items() if r.log.finished and r.created < now - RUN_TTL]:
+    # An hour from when the run finished, not when it started: a slow run's page stays.
+    old = [
+        i for i, r in RUNS.items() if r.log.finished and (r.log.finished_at or 0) < now - RUN_TTL
+    ]
+    for run_id in old:
         del RUNS[run_id]
     finished = [i for i, r in RUNS.items() if r.log.finished]
     while len(RUNS) > MAX_RUNS and finished:

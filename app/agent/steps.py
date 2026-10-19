@@ -48,6 +48,8 @@ class StepLog:
     def __init__(self, loop: asyncio.AbstractEventLoop | None = None):
         self.steps: list[Step] = []
         self.finished = False
+        # When the run finished (time.monotonic), for how long a finished run is kept.
+        self.finished_at: float | None = None
         self._loop = loop
         self._lock = threading.Lock()
         self._listeners: list[asyncio.Queue[Step | None]] = []
@@ -64,6 +66,7 @@ class StepLog:
             if self.finished:
                 return
             self.finished = True
+            self.finished_at = time.monotonic()
             self._notify(None)
 
     def _notify(self, item: Step | None) -> None:

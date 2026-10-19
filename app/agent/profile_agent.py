@@ -200,9 +200,9 @@ def keep_found(deps: ProfileDeps, entity: Entity) -> None:
         entity.listed_in = seen.listed_in
 
 
-# Per run: up to four titles of its own plus a second try or two (the instructions), and
+# Per run: up to four titles of its own, each perhaps looked up twice (the instructions), and
 # venues asked once, again after a fix, and once more.
-MAX_LOOKUPS = 8
+MAX_LOOKUPS = 10
 MAX_VENUE_SEARCHES = 3
 
 
@@ -602,14 +602,15 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
             f"titles Qloo backs, such as {names}"
         }
     ids = (backed or eligible)[:MAX_VENUE_SIGNALS]
+    if not ids:
+        return {"status": "no title here can be a venue signal; send titles you keep"}
+    # Counted only when the call goes to Qloo (review of PR #46).
     if deps.venue_searches >= MAX_VENUE_SEARCHES:
         deps.log.add(
             "note", f"Venues not asked again: this run's {MAX_VENUE_SEARCHES} searches are used"
         )
         return {"status": f"limit reached: venues may be asked {MAX_VENUE_SEARCHES} times per run"}
     deps.venue_searches += 1
-    if not ids:
-        return {"status": "no title here can be a venue signal; send titles you keep"}
     names = [deps.titles_seen[i].name for i in ids]
     deps.log.add(
         "qloo", f"Finding places near {deps.location.label} for fans of {', '.join(names)}"

@@ -65,12 +65,13 @@ def test_finished_runs_are_dropped_after_an_hour_and_the_list_is_bounded(monkeyp
     def run(i, finished, age):
         log = StepLog()
         log.finished = finished
+        log.finished_at = time.monotonic() - age if finished else None
         r = runs.Run(id=str(i), animal_id="dog-02", location_id="x", log=log)
-        r.created = time.monotonic() - age
+        r.created = time.monotonic() - 9000  # started long ago: only the finish counts
         runs.RUNS[r.id] = r
 
     run(0, True, 4000)  # finished over an hour ago: dropped
-    run(1, False, 9000)  # still working: kept, however old
+    run(1, False, 0)  # still working: kept, however old
     for i in range(2, 6):
         run(i, True, 10)
     runs.prune_runs()
@@ -99,9 +100,16 @@ def test_photos_beyond_the_memory_budget_are_refused(client, monkeypatch):  # no
 
 
 def test_adding_animals_has_a_per_minute_allowance(client):  # noqa: F811
-    codes = [add(client).status_code for _ in range(6)]
-    # Three animals per visit, then refusals; the sixth in a minute is the allowance's.
-    assert codes[-1] == 429
+    # Refused attempts do not count (review of PR #46): five, then a valid one is added.
+    for _ in range(5):
+        assert add(client, species="bird").status_code == 400
+    assert add(client).status_code == 303
+    # Five added from one address in a minute (three per visit, so two visits), then 429,
+    # with what was typed kept on the form.
+    for _ in range(2):
+        add(client)
+    other = TestClient(main.app)
+    assert [add(other).status_code for _ in range(3)] == [303, 303, 429]
 
 
 def test_robots_and_the_favicon_are_served(plain):
@@ -139,3 +147,44 @@ def test_the_ais_own_lookups_and_venue_searches_are_capped():
     d.venue_searches = MAX_VENUE_SEARCHES
     out = find_venues(SimpleNamespace(deps=d), [DOG_SHOW])
     assert out["status"].startswith("limit reached") and d.qloo.calls == []
+
+
+@pytest.mark.parametrize("ui", ["story", "warm", "classic"])
+def test_no_page_needs_an_exception_to_the_content_security_policy(plain, ui):
+    # Review of PR #46: the policy allows no inline script or style; this keeps it true.
+    import re
+
+    for path in (
+        "/",
+        "/result?animal=dog-02&location=park-slope",
+        "/animals/new?location=park-slope",
+    ):
+        sep = "&" if "?" in path else "?"
+        html = plain.get(f"{path}{sep}ui={ui}").text
+        scripts = re.findall(r"<script(?![^>]*\bsrc=)(?![^>]*application/json)[^>]*>", html)
+        assert scripts == [], (path, scripts)
+        assert not re.search(r"\sstyle=", html), path
+        assert not re.search(r"\son[a-z]+=", html), path
+
+
+def test_a_post_whose_origin_is_this_host_goes_through(plain):
+    data = {"animal": "dog-02", "location": "park-slope"}
+    same = {"origin": "http://testserver"}
+    assert plain.post("/runs", data=data, headers=same, follow_redirects=False).status_code != 403
+
+
+def test_the_api_docs_pages_are_off_and_the_schema_stays(plain):
+    assert plain.get("/docs").status_code == 404 and plain.get("/redoc").status_code == 404
+    assert plain.get("/openapi.json").status_code == 200
+
+
+def test_a_partial_title_lookup_is_kept_with_a_note():
+    answer = envelope(
+        "describe",
+        "partial",
+        results=[{"entity_id": DOG_SHOW, "name": "Example Dog Show", "type": "urn:entity:tv_show"}],
+    )
+    d = deps({key("describe", {"entity": "Example Dog Show", "type": "tv_show"}): answer})
+    out = look_up_title(SimpleNamespace(deps=d), "Example Dog Show", "tv_show")
+    assert out == {"status": "found", "entity_id": DOG_SHOW, "name": "Example Dog Show"}
+    assert any("was partial" in s.text for s in d.log.steps)

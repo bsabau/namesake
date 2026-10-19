@@ -111,7 +111,9 @@ if not _app_log.handlers:
     _handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
     _app_log.addHandler(_handler)
 
-app = FastAPI(title="Namesake")
+# No interactive API docs: their pages load scripts from a CDN and inline, which the
+# Content-Security-Policy below refuses, so they would be blank. /openapi.json stays.
+app = FastAPI(title="Namesake", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 for _ui in UIS:
     app.mount(
@@ -201,7 +203,8 @@ async def upload_size(request: Request, call_next):
 
 def cross_site(request: Request) -> bool:
     """A request another site's page sent: by the browser's Sec-Fetch-Site, or, from a
-    browser that sends none, by an Origin naming another host."""
+    browser that sends none, by an Origin naming another host. "same-site" counts as
+    another site: every form is on this one host."""
     site = request.headers.get("sec-fetch-site")
     if site is not None:
         return site not in ("same-origin", "none")
@@ -795,15 +798,6 @@ async def add_animal(
     """Add one animal for this visit only: kept in memory, never stored."""
     chosen_ui = pick_ui(ui)
     place = find_location(location)
-    if not ADD_ALLOWANCE.take(visitor(request)):
-        return notice(
-            request,
-            chosen_ui,
-            "Not right now",
-            "Too many animals added from here in the last minute; try again shortly.",
-            429,
-            [("Back to the start", "/" + (f"?ui={ui}" if ui else ""))],
-        )
     session = own_session(request)
     entered = {
         "species": species, "sex": sex, "age": age, "look": look,
@@ -813,14 +807,14 @@ async def add_animal(
         "bite_history": bite_history,
     }  # fmt: skip
 
-    def refuse(message: str) -> HTMLResponse:
+    def refuse(message: str, status: int = 400) -> HTMLResponse:
         # What was entered comes back, so only the fix is needed; a photo cannot be kept
         # in the form, so the message says to add it again.
         if photo is not None and photo.filename:
             message += " Add the photo again."
         view = build_add_animal_view(place.id, MAX_FACTS, error=message, values=entered)
         response = render(request, chosen_ui, "add_animal.html", view)
-        response.status_code = 400
+        response.status_code = status
         return response
 
     if len(session.animals) >= MAX_ANIMALS:
@@ -862,12 +856,23 @@ async def add_animal(
         content_type = photo_type(data)
         if content_type is None:
             return refuse("The photo must be a JPEG, PNG or WebP image.")
-        if SESSIONS.photo_bytes() + len(data) > PHOTO_BUDGET:
-            return refuse(
-                "The demo is holding too many photos right now; add the animal without one, "
-                "or try again later."
-            )
-        session.photos[animal.id] = Photo(content_type=content_type, data=data)
+        photo_kept = Photo(content_type=content_type, data=data)
+    else:
+        photo_kept = None
+    # Only an animal actually added counts against the allowance, so refused attempts
+    # never lock a visitor out of the corrected one (review of PR #46).
+    if not ADD_ALLOWANCE.take(visitor(request)):
+        return refuse(
+            "Too many animals added from here in the last minute; try again shortly.", 429
+        )
+    if photo_kept is not None and not SESSIONS.add_photo(
+        session, animal.id, photo_kept, PHOTO_BUDGET
+    ):
+        ADD_ALLOWANCE.refund(visitor(request))
+        return refuse(
+            "The demo is holding too many photos right now; add the animal without one, "
+            "or try again later."
+        )
     session.animals[animal.id] = animal
     return RedirectResponse(
         f"/?location={place.id}{ui_suffix(request, ui)}#{animal.id}", status_code=303
