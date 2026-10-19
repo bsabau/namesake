@@ -67,7 +67,6 @@ def test_finished_runs_are_dropped_after_an_hour_and_the_list_is_bounded(monkeyp
         log.finished = finished
         log.finished_at = time.monotonic() - age if finished else None
         r = runs.Run(id=str(i), animal_id="dog-02", location_id="x", log=log)
-        r.created = time.monotonic() - 9000  # started long ago: only the finish counts
         runs.RUNS[r.id] = r
 
     run(0, True, 4000)  # finished over an hour ago: dropped
@@ -139,6 +138,20 @@ def test_a_partial_list_of_places_is_not_picked_from():
     assert out["status"] == "unavailable: Qloo's list of places was partial"
 
 
+def test_a_venue_search_with_no_usable_title_is_not_counted():
+    d = deps({})
+    find_venues(SimpleNamespace(deps=d), [])
+    assert d.venue_searches == 0 and d.qloo.calls == []
+
+
+def test_a_photo_refused_for_the_budget_gives_back_the_allowance(client, monkeypatch):  # noqa: F811
+    monkeypatch.setattr(main, "PHOTO_BUDGET", 10)
+    for _ in range(6):
+        add(client, photo=b"\xff\xd8\xff\xe0 a photo of more than ten bytes")
+    # Six adds refused for the budget, and the allowance (5 added a minute) is untouched.
+    assert add(client).status_code == 303
+
+
 def test_the_ais_own_lookups_and_venue_searches_are_capped():
     d = deps({})
     d.lookups = MAX_LOOKUPS
@@ -154,11 +167,13 @@ def test_no_page_needs_an_exception_to_the_content_security_policy(plain, ui):
     # Review of PR #46: the policy allows no inline script or style; this keeps it true.
     import re
 
-    for path in (
-        "/",
-        "/result?animal=dog-02&location=park-slope",
-        "/animals/new?location=park-slope",
-    ):
+    pages = ["/", "/result?animal=dog-02&location=park-slope", "/animals/new?location=park-slope"]
+    started = plain.post(
+        "/runs", data={"animal": "dog-02", "location": "park-slope"}, follow_redirects=False
+    )
+    # The working page too (a run with no model or Qloo in tests ends on the template).
+    pages.append(started.headers["location"])
+    for path in pages:
         sep = "&" if "?" in path else "?"
         html = plain.get(f"{path}{sep}ui={ui}").text
         scripts = re.findall(r"<script(?![^>]*\bsrc=)(?![^>]*application/json)[^>]*>", html)

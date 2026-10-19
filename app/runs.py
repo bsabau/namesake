@@ -47,7 +47,6 @@ class Run:
     error: str | None = field(default=None)
     # The visitor's session, for runs over an added animal or a refined listing.
     session_id: str | None = None
-    created: float = field(default_factory=time.monotonic)
 
     @property
     def failed(self) -> bool:

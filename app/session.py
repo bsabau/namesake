@@ -108,12 +108,6 @@ class Sessions:
             self._items.move_to_end(session_id)
             return session
 
-    def photo_bytes(self) -> int:
-        """Every live session's photos, in bytes."""
-        with self._lock:
-            self._expire()
-            return self._photo_bytes()
-
     def _photo_bytes(self) -> int:
         return sum(len(p.data) for s in self._items.values() for p in s.photos.values())
 
