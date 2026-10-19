@@ -56,6 +56,9 @@ class ListingDeps:
     # Names already given to other animals at this shelter (lower case); a litter's own
     # members are left out, since a litter is named as a set.
     taken_names: frozenset[str] = frozenset()
+    # What other animals at this shelter are named after (checks.reference_key), with a
+    # label for the instructions: two animals never share a reference (AGENTS.md).
+    taken_references: dict[tuple[str, str], str] = field(default_factory=dict)
     # The volunteer's refine request, if any: followed only within the rules.
     request: str | None = None
     # For a litter named as a set: the litter's title for later members, or, for the
@@ -155,10 +158,15 @@ Rules:
 - Take each option from a different title; repeat a title only once every title you may
   name from is used, since a listing needs three names. A litter named as a set is the
   exception.
-- Each name's reason says how the name fits the animal's recorded look, in the look's own
-  words (for a "grey tabby": "It suits a grey tabby."), or is exactly "A short name, easy
-  to say." Never its temperament or behaviour: a cultural reference must not imply how
-  the animal behaves. Never repeat a name already used at this shelter: {taken}.
+- Never take a name from a title whose own name would sound wrong introducing an animal
+  for adoption ("My Cat from Hell", anything with hell, nightmare, worst, evil or horror).
+- Each name's reason is exactly "A short name, easy to say." unless the name itself
+  echoes the recorded look (Smokey for a grey coat, Patch for a patched one); then say
+  so in the look's own words ("It echoes her grey coat.").
+  Never its temperament or behaviour: a cultural reference must not imply how the animal
+  behaves.
+- Never repeat a name already used at this shelter: {taken}. Never name after what
+  another animal here is named after: {taken_references}.
 {lookalike}{strict}{litter}{request}
 The animal ({they}):
 {facts}
@@ -429,6 +437,13 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
             problems.append(f"name {option.name!r} is offered twice")
         if option.name.lower() in deps.taken_names:
             problems.append(f"name {option.name!r} is already used at this shelter")
+        elif (ref := checks.reference_key(option.entity_id, option.character)) in (
+            deps.taken_references
+        ):
+            problems.append(
+                f"name {option.name!r} refers to {deps.taken_references[ref]}, which another "
+                "animal at this shelter is named after; use another character or title"
+            )
         seen_names.add(option.name.lower())
     problems += screen_names(draft.names, {k: e for k, (e, _) in deps.titles.items()}, deps.strict)
     if draft.names[0].source == "lookalike":
@@ -444,7 +459,8 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
     problems += record_problems(deps.animal, draft)
     first = draft.names[0]
     if first.entity_id in deps.titles:
-        problems += checks.check_hook(hook_for(first, deps.titles[first.entity_id][0].name))
+        title = deps.titles[first.entity_id][0].name
+        problems += checks.check_hook(hook_for(first, title), title)
     if problems:
         deps.log.add("check", "Sent back for a fix: " + "; ".join(problems))
         raise ModelRetry("Fix these and answer again: " + "; ".join(problems))
@@ -569,6 +585,7 @@ def build_listing_agent(
             ),
             request=REQUEST.format(text=ctx.deps.request) if ctx.deps.request else "",
             taken=", ".join(sorted(ctx.deps.taken_names)) or "none yet",
+            taken_references="; ".join(sorted(ctx.deps.taken_references.values())) or "none yet",
             they=pronouns(a.sex)["they"],
             facts=facts_block(a),
             titles=titles_block(ctx.deps.titles),
@@ -585,4 +602,4 @@ def reference_for(option: NameOption, title: str) -> str:
 def hook_for(option: NameOption, title: str) -> str:
     """The local version's one line, assembled by code from a name, a fixed role and
     Qloo's title, so it carries no text the model wrote beyond the character's name."""
-    return f"Named after {reference_for(option, title)}."
+    return checks.hook_text(reference_for(option, title))

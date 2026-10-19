@@ -19,6 +19,7 @@ from pydantic_ai.exceptions import AgentRunError, ModelAPIError, ModelHTTPError
 from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
 
+from app.agent.checks import hook_text, reference_key
 from app.agent.listing_agent import (
     ListingDeps,
     build_listing_agent,
@@ -315,13 +316,35 @@ def taken_names(
     a title, never a name. Names approved for animals a visitor added stay private to
     that visit (decision 9); the caller passes the visit's own names as `also`."""
     names = set(also)
-    for other in store.listings_at(location.id):
+    # Listings saved before the checks last changed too: their names stay in use until
+    # they are written again (19 October audit).
+    for other in store.listings_at(location.id, current_only=False):
         if other.animal_id != animal.id and other.draft is not None:
             names.add(other.draft.names[0].name.lower())
     for animal_id, approved in store.approved_names(location.id).items():
         if animal_id != animal.id and not animal_id.startswith(ADDED_PREFIX):
             names |= approved
     return frozenset(names)
+
+
+def taken_references(
+    animal: Animal, location: Location, store: Store
+) -> dict[tuple[str, str], str]:
+    """What other animals at this shelter are named after: the reference of each saved
+    listing's first name and of every name approved for that animal, keyed by title and
+    character (checks.reference_key), with a label for the instructions. Two animals never
+    share a reference; a litter's mates share a title, never a character."""
+    approved = store.approved_names(location.id)
+    refs: dict[tuple[str, str], str] = {}
+    for other in store.listings_at(location.id, current_only=False):
+        if other.animal_id == animal.id or other.draft is None:
+            continue
+        used = {other.draft.names[0].name.lower()} | approved.get(other.animal_id, set())
+        for i, option in enumerate(other.draft.names):
+            if option.name.lower() in used:
+                label = other.references[i] if i < len(other.references) else option.character
+                refs[reference_key(option.entity_id, option.character)] = label
+    return refs
 
 
 def litter_theme(location: Location, store: Store, mates: set[str]) -> str | None:
@@ -342,6 +365,7 @@ async def write_listing(
     log: StepLog,
     output_mode: str,
     taken: frozenset[str] = frozenset(),
+    taken_refs: dict[tuple[str, str], str] | None = None,
     request: str | None = None,
     theme: str | None = None,
     first_of_litter: bool = False,
@@ -377,6 +401,7 @@ async def write_listing(
             titles=dict(titles),
             log=log,
             taken_names=taken,
+            taken_references=taken_refs or {},
             request=request,
             litter_title=titles[theme][0].name if theme else None,
             first_of_litter=first_of_litter,
@@ -396,7 +421,7 @@ async def write_listing(
         result.references = [
             reference_for(o, deps.titles[o.entity_id][0].name) for o in run.output.names
         ]
-        result.hook = f"Named after {result.references[0]}."
+        result.hook = hook_text(result.references[0])
         used = {o.entity_id for o in run.output.names}
         result.lookalikes = [v for k, v in deps.lookalikes.items() if k in used]
     except MODEL_FAILURES as exc:
@@ -461,6 +486,7 @@ async def run_pipeline(
             log=log,
             output_mode=output_mode,
             taken=taken_names(animal, location, store, also_taken),
+            taken_refs=taken_references(animal, location, store),
             request=request,
             # A litter member written on its own keeps to the title its mates share,
             # or, as the first one named, takes all its names from one title.
@@ -529,6 +555,7 @@ async def run_litter(
                 log=log,
                 output_mode=output_mode,
                 taken=taken_names(animal, location, store),
+                taken_refs=taken_references(animal, location, store),
                 theme=theme,
                 first_of_litter=theme is None,
                 fallbacks=fallbacks,

@@ -8,7 +8,7 @@ from app.agent.steps import Step
 # Raised whenever the listing checks change. A saved result from an older version is
 # never shown as it is: app/agent/recheck.py holds it to today's record checks (the bio
 # and the names' reasons) and name screen, and anything it cannot recheck is rerun.
-CHECKS_VERSION = 12
+CHECKS_VERSION = 13
 # What changed since, so which saved drafts a recheck of the record is enough for:
 # - 12 refused unflattering names (rechecked with the name screen) and reads a bare "0"
 #   as "fact:0" in a bio sentence's keys (a loading change, nothing to recheck);
