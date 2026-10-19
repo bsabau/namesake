@@ -548,12 +548,17 @@ def check_choice_reason(reason: str, label: str) -> list[str]:
     return problems
 
 
-def reference_key(entity_id: str, character: str) -> tuple[str, str]:
-    """What a name refers to, for telling whether two animals share it: the title, and
-    the character's first word (19 October audit: "Scooby" and "Scooby-Doo" from one title
-    are one reference)."""
-    words = re.findall(r"[a-z0-9]+", character.lower())
-    return entity_id, words[0] if words else ""
+def reference_key(entity_id: str, character: str) -> tuple[str, tuple[str, ...]]:
+    """What a name refers to: the title, and the character's words."""
+    return entity_id, tuple(re.findall(r"[a-z0-9]+", character.lower()))
+
+
+def same_reference(a: tuple[str, tuple[str, ...]], b: tuple[str, tuple[str, ...]]) -> bool:
+    """One title, and one character's words start the other's (19 October audit: "Scooby"
+    and "Scooby-Doo" are one reference; "Mr Peanutbutter" and "Mr Pickles" are two)."""
+    (title_a, words_a), (title_b, words_b) = a, b
+    n = min(len(words_a), len(words_b))
+    return title_a == title_b and n > 0 and words_a[:n] == words_b[:n]
 
 
 def hook_text(reference: str) -> str:

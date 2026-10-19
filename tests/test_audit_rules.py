@@ -98,7 +98,7 @@ def test_a_reference_another_animal_is_named_after_is_sent_back(roster):
     store = Store(_tmp_db())
     store.put_listing(saved("dog-01", "Bing", "Bingo"))
     refs = taken_references(roster.get("dog-02"), LOCATION, store)
-    assert refs == {(DOG_SHOW, "bingo"): "Bingo, a dog in Example Dog Show"}
+    assert refs == {(DOG_SHOW, ("bingo",)): "Bingo, a dog in Example Dog Show"}
     fixed = {**DRAFT, "names": [{**DRAFT["names"][0], "name": "Rex", "character": "Rex"},
                                 *DRAFT["names"][1:]]}  # fmt: skip
     log = StepLog()
@@ -124,7 +124,15 @@ def test_a_name_from_a_listing_saved_before_the_checks_changed_stays_taken(roste
     store.put_listing(saved("dog-01", "Bing", "Bingo", version=CHECKS_VERSION - 1))
     assert store.get_listing("dog-01", LOCATION.id) is None  # not current
     assert "bing" in taken_names(roster.get("dog-02"), LOCATION, store)
-    assert (DOG_SHOW, "bingo") in taken_references(roster.get("dog-02"), LOCATION, store)
+    assert (DOG_SHOW, ("bingo",)) in taken_references(roster.get("dog-02"), LOCATION, store)
+
+
+def test_a_reference_is_one_character_not_a_shared_first_word():
+    key = checks.reference_key
+    assert checks.same_reference(key("t", "Scooby"), key("t", "Scooby-Doo"))
+    assert not checks.same_reference(key("t", "Mr Peanutbutter"), key("t", "Mr Pickles"))
+    assert not checks.same_reference(key("t", "Bingo"), key("u", "Bingo"))
+    assert not checks.same_reference(key("t", ""), key("t", "Bingo"))
 
 
 def test_find_venues_asks_qloo_with_the_dog_title_first():

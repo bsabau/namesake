@@ -58,7 +58,7 @@ class ListingDeps:
     taken_names: frozenset[str] = frozenset()
     # What other animals at this shelter are named after (checks.reference_key), with a
     # label for the instructions: two animals never share a reference (AGENTS.md).
-    taken_references: dict[tuple[str, str], str] = field(default_factory=dict)
+    taken_references: dict[tuple[str, tuple[str, ...]], str] = field(default_factory=dict)
     # The volunteer's refine request, if any: followed only within the rules.
     request: str | None = None
     # For a litter named as a set: the litter's title for later members, or, for the
@@ -437,12 +437,19 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
             problems.append(f"name {option.name!r} is offered twice")
         if option.name.lower() in deps.taken_names:
             problems.append(f"name {option.name!r} is already used at this shelter")
-        elif (ref := checks.reference_key(option.entity_id, option.character)) in (
-            deps.taken_references
+        elif shared := next(
+            (
+                label
+                for key, label in deps.taken_references.items()
+                if checks.same_reference(
+                    key, checks.reference_key(option.entity_id, option.character)
+                )
+            ),
+            None,
         ):
             problems.append(
-                f"name {option.name!r} refers to {deps.taken_references[ref]}, which another "
-                "animal at this shelter is named after; use another character or title"
+                f"name {option.name!r} refers to {shared}, which another animal at this "
+                "shelter is named after; use another character or title"
             )
         seen_names.add(option.name.lower())
     problems += screen_names(draft.names, {k: e for k, (e, _) in deps.titles.items()}, deps.strict)

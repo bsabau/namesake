@@ -329,13 +329,14 @@ def taken_names(
 
 def taken_references(
     animal: Animal, location: Location, store: Store
-) -> dict[tuple[str, str], str]:
+) -> dict[tuple[str, tuple[str, ...]], str]:
     """What other animals at this shelter are named after: the reference of each saved
     listing's first name and of every name approved for that animal, keyed by title and
-    character (checks.reference_key), with a label for the instructions. Two animals never
+    character (checks.reference_key, compared with checks.same_reference), with a label
+    for the instructions. Two animals never
     share a reference; a litter's mates share a title, never a character."""
     approved = store.approved_names(location.id)
-    refs: dict[tuple[str, str], str] = {}
+    refs: dict[tuple[str, tuple[str, ...]], str] = {}
     for other in store.listings_at(location.id, current_only=False):
         if other.animal_id == animal.id or other.draft is None:
             continue
@@ -365,7 +366,7 @@ async def write_listing(
     log: StepLog,
     output_mode: str,
     taken: frozenset[str] = frozenset(),
-    taken_refs: dict[tuple[str, str], str] | None = None,
+    taken_refs: dict[tuple[str, tuple[str, ...]], str] | None = None,
     request: str | None = None,
     theme: str | None = None,
     first_of_litter: bool = False,
