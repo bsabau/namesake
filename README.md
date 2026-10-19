@@ -14,7 +14,7 @@ A **generic version** of the listing sits beside the **local version**, so you c
 
 Built for the [Qloo Agentic Hackathon](https://qloo-hackathon.devpost.com/). Taste data from the Qloo API; not affiliated with Qloo.
 
-![The first screen of the result for the lead dog in Park Slope, in the story skin: the photo and recorded facts on the left; "Let's tell her story" with the Generic and Local version toggle; three name options (Comet, Scooby, Hooch), each with its Qloo title under it; a strip with what Qloo returned beside what Namesake's AI did, including the title it searched Qloo's lists with; and the start of her introduction](docs/img/result-first-screen.png)
+![The first screen of the result for the lead dog in Park Slope, in the story skin: her photo, the local name Comet with its line "Named after Comet in Dogs in Space." and the start of what the shelter recorded on the left; "Let's tell her story" with the Generic and Local version toggle; three name options (Comet, Scooby, Hooch), each with its Qloo title under it; a strip with what Qloo returned beside what Namesake's AI did, including the title it searched Qloo's lists with; and the start of her introduction](docs/img/result-first-screen.png)
 
 The whole result page, with "Behind this story", the map and the places to ask: [`docs/img/result.png`](docs/img/result.png).
 
@@ -35,9 +35,9 @@ Namesake does **not** claim to get animals adopted faster, save lives or money, 
 
 ## How it uses Qloo
 
-The same dog, the same record, two neighbourhoods of one city. Park Slope offers Comet, Scooby and Hooch; Astoria offers Bluey, Moon and Scooby-Doo. The local name comes from a pet-themed title Qloo ranks in each area (Comet from *Dogs in Space*, Bluey from *Bluey*); the other options come from the area's titles (Moon) or from lookalike titles Namesake's AI proposed and Qloo confirmed (Scooby, Hooch, Scooby-Doo).
+The same dog, the same record, two neighbourhoods of one city. Park Slope offers Comet, Scooby and Hooch; Astoria offers Bluey, Moon and Scooby-Doo. The local name comes from a pet-themed title Qloo ranks in each area (Comet from *Dogs in Space*, Bluey from *Bluey*); the other options come from the area's titles (Moon) or from lookalike titles Namesake's AI proposed and found in Qloo (Scooby, Hooch, Scooby-Doo).
 
-![The lead dog's result in Park Slope (left: Comet, from Dogs in Space) and in Astoria (right: Bluey, from Bluey), each with its own Qloo titles and its own strip of what Qloo returned and what Namesake's AI did](docs/img/two-neighbourhoods.png)
+![The lead dog's result in Park Slope, Brooklyn (top: Comet, Scooby and Hooch) and in Astoria, Queens (bottom: Bluey, Moon and Scooby-Doo): each with its version toggle, its name options with their Qloo titles, and its own strip of what Qloo returned and what Namesake's AI did](docs/img/two-neighbourhoods.png)
 
 Namesake's AI (two agents, one per area and one per animal) and some plain code call Qloo through the official harness (`qloo exec`, pinned at 0.1.26). Every call is cached in SQLite and spaced at least 5 seconds apart, because the hackathon key is rate-limited; a refused ranking is retried after a longer wait.
 
@@ -109,8 +109,10 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
    - **Qloo's part and the AI's**, apart: what Qloo returned for this result (titles with Qloo's evidence for the area, the places near the shelter, the heatmaps' map cells) and what Namesake's AI did with it (the titles it searched Qloo's lists with, titles it proposed or judged, places it picked, the names and bio)
    - the **introduction**, the listing written from the shelter's records
    - **Behind this story**: the facts, Qloo's local context, and the interpretation and checks; the saved run's own step log, folded, each step marked Qloo, Namesake's AI, Classifier or Code; then for each name what Qloo returned beside what Namesake selected, and a **Why** drawer with two columns, "Qloo returned" (the Qloo calls behind the result: Qloo's pet-tag lists and the AI's own lookups, searches and ranking, then the assembly's) and "How Namesake read it" (Namesake's AI and its code)
-   - a **map** of where fans of pet-themed titles stand out within the area, and the **places to ask**, under a note on which kinds of place were asked for and why, each with Qloo's description, its rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline on one Qloo line, numbered on the map, with the cell it sits in and its distance from the shelter (points from OpenStreetMap)
+   - a **map** of how fans of pet-themed titles compare within the area, and the **places to ask**, under a note on which kinds of place were asked for and why, each with Qloo's description, its rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline on one Qloo line, numbered on the map, with the cell it sits in and its distance from the shelter (points from OpenStreetMap)
    - the **other ways to help**, each labelled Research, Qloo or Our suggestion; for an animal recorded as not good with children, places whose name or Qloo description mentions children are skipped, and the list says so
+
+   ![The Park Slope result's "Help her story travel" band: the map of how fans of pet-themed titles compare with fans of the area's top shows, with its key, the dashed circle around the fictional shelter and the places numbered; and the three places to ask, each with Qloo's description and rank, Namesake's reading and the reason Namesake's AI gives](docs/img/result-map.png)
 
    The `warm` and `classic` skins show the same listing, names, map, places and Why panel with Qloo's part and the AI's at the top, without story's "Behind this story" framing, the saved run's step log or the button that starts a run.
 4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software. A result with no listing yet also offers "Write her story with Namesake's AI" (for a member of a litter, naming the litter as a set).
