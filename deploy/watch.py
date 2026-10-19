@@ -7,7 +7,7 @@ call. A failure is checked once more a minute later, so a deploy's restart does 
 raise an alarm; if it fails again, the run fails and GitHub emails the author.
 
 It never starts a run, so a dead Qloo key or model outage leaves it green: those show
-in the run's own step log and fallbacks, and in `python -m app.limits`.
+in the app's log (`docker compose logs app` on the host).
 
 Standard library only, so the workflow needs no install step.
 
@@ -66,7 +66,7 @@ def problems(base: str, examples: int, get: Fetch = fetch) -> list[str]:
             elif not all(marker in page for marker in SAVED):
                 found.append(f"{label}: no saved result")
         return found
-    except (OSError, ValueError, KeyError, TypeError) as exc:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         # OSError covers timeouts, refused connections and certificate errors.
         return [f"could not check: {type(exc).__name__}: {exc}"]
 

@@ -73,6 +73,10 @@ def test_a_down_site_stops_at_the_first_failure():
 
     (problem,) = watch.problems("https://demo.invalid", 2, refused)
     assert problem.startswith("could not check: ConnectionRefusedError")
+    # muse: a wrongly shaped example list is reported, not a traceback.
+    odd = site(**{"/api/start": (200, '{"examples": ["x", "y"]}')})
+    (problem,) = watch.problems("https://demo.invalid", 2, odd)
+    assert problem.startswith("could not check: AttributeError")
 
 
 def test_the_workflow_expects_every_example():

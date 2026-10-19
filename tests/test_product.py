@@ -2,6 +2,7 @@
 named as a set, and the "try your own" paths. No test reaches Qloo or a model."""
 
 import asyncio
+import html
 import sqlite3
 import time
 from datetime import UTC, datetime, timedelta
@@ -452,6 +453,10 @@ def test_a_saved_result_carries_the_markers_the_watcher_looks_for(client):
         "/result", params={"animal": "dog-02", "location": "park-slope", "ui": "story"}
     ).text
     assert all(marker in page for marker in watch.SAVED)
+    # muse: the start page's links have the form the watcher looks for.
+    start = client.get("/").text
+    examples = client.get("/api/start").json()["examples"]
+    assert examples and all(f'href="{html.escape(e["url"])}"' in start for e in examples)
     # An animal with no saved listing does not pass for one.
     unsaved = client.get("/result", params={"animal": "dog-03", "location": "park-slope"}).text
     assert not all(marker in unsaved for marker in watch.SAVED)
