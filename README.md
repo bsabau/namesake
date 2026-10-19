@@ -14,7 +14,7 @@ A **generic version** of the listing sits beside the **local version**, so you c
 
 Built for the [Qloo Agentic Hackathon](https://qloo-hackathon.devpost.com/). Taste data from the Qloo API; not affiliated with Qloo.
 
-![The result screen for the lead dog in Park Slope: a strip at the top with what Qloo returned and what Namesake's AI did, side by side; the local listing with its Qloo-sourced name; name options with Qloo's answer and the reading of Namesake's AI kept apart; a map of where fans of pet-themed titles stand out against fans of the area's top shows, with the places to ask as numbered pins; three places with Qloo's description and rank; and the exposure checklist](docs/img/result.png)
+![The result page for the lead dog in Park Slope, in the story skin: the photo and recorded facts on the left; "Let's tell her story" with the Generic and Local version toggle; three name options (Bingo, Scooby-Doo, Comet), each with its Qloo title under it; a strip with what Qloo returned beside what Namesake's AI did; the introduction written from the shelter's records; "Behind this story" with Qloo's answer and Namesake's choice side by side for each name; a map of where fans of pet-themed titles stand out against fans of the area's top shows, with the places to ask as numbered pins; three places with Qloo's description and rank; and the other ways to help, each labelled by its basis](docs/img/result.png)
 
 ## The problem
 
@@ -83,7 +83,7 @@ Colours: **Qloo** answers (terracotta), **the classifier**, TypeSafe's Jev (viol
 | A map of where fans of pet-themed titles stand out | `where_popular` within the neighbourhood, for the two pet titles the venues were asked for first (by evidence) and the top two baseline shows; a first pet title with fewer than five cells there gives way once to the next, when that makes a better map (more cells with a comparison) | Code | Raw affinity saturates near 1.0, so the map shows **lift**: the pet titles' cell score minus the baseline shows', each averaged over the maps that scored the cell. A key on the map says what the colours mean, and the caption counts the cells where fans of pet-themed titles stand out against fans of the area's top shows (not on a thin map of fewer than five cells, or one with no comparison). |
 | What the area tends to watch | `recommend` TV shows with `signal_location` | Code | A second, labelled source of name options. |
 | Titles with an animal that looks like this one | `describe` | **Namesake's AI**, per animal, at most two | A personal name option: Qloo's line says only that it found the title (or offered it among candidates, when it asked which was meant), and the lookalike match is on the line of Namesake's AI. The shared look must be quoted from the animal's record as whole phrases ("brindle coat", not "short"). |
-| A volunteer types their own area, or right-clicks the shelter's spot on the map (in the warm skin, a search above the map moves it to any city first) | `recommend` for the area's own top TV show, then `where_popular` for that show within the area's name (a widely watched seed show as well when the list is not a plain answer or its show is thin there) | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". Passing says Qloo has data for the area; when its pet titles still map thinly, the result page says so. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
+| A volunteer types their own area, or right-clicks the shelter's spot on the map (in the story and warm skins, a search above the map moves it to any city first) | `recommend` for the area's own top TV show, then `where_popular` for that show within the area's name (a widely watched seed show as well when the list is not a plain answer or its show is thin there) | Code | Five or more cells: accepted, and the map centres on them. Fewer: "too little data here". Passing says Qloo has data for the area; when its pet titles still map thinly, the result page says so. `needs_input` becomes candidate buttons. A spot picked on the map becomes the area's name before Qloo sees it (suggestions and names from OpenStreetMap via Photon); the spot itself is a pin for that visit only. |
 
 The decisions behind each row, with their evidence, are in [`docs/decisions.md`](docs/decisions.md) and [`docs/qloo-findings.md`](docs/qloo-findings.md).
 
@@ -97,13 +97,16 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
 
 1. **Start.** Pick one of twelve fictional animals, or the litter of four kittens, or add your own animal for this visit only. Pick a shelter area: Park Slope or Astoria in New York, Austin, or type one.
 2. **Working.** A live log streams each step: Qloo's pet-themed lists for the area, titles proposed, each one looked up in Qloo, which were ambiguous and how they were settled, the venues found and how many stand out against the baseline, and the checks on the answer from Namesake's AI.
-3. **Result**, legible as one screen:
-   - at the top, **Qloo's part and the AI's**, apart: what Qloo returned for this result (titles with Qloo's evidence for the area, the places near the shelter, the heatmaps' map cells) and what Namesake's AI did with it (titles it proposed or judged, places it picked, the names and bio)
-   - the listing, with a **Generic / Local, with Qloo** toggle whose buttons show each version's name; both share the same bio, and the local one adds a name from Qloo's titles and one line saying where it comes from
-   - the **name options**, each with what Qloo returned for its title and the reason Namesake's AI gives, kept apart
+3. **Result**, legible as one screen, told as the animal's story:
+   - a **Generic / Local, with Qloo** toggle whose buttons show each version's name; both share the same bio, and the local one adds a name from Qloo's titles and one line saying where it comes from
+   - the **name options**, each with its Qloo title under it
+   - **Qloo's part and the AI's**, apart: what Qloo returned for this result (titles with Qloo's evidence for the area, the places near the shelter, the heatmaps' map cells) and what Namesake's AI did with it (titles it proposed or judged, places it picked, the names and bio)
+   - the **introduction**, the listing written from the shelter's records
+   - **Behind this story**: the facts, Qloo's local context, and the interpretation and checks; then for each name what Qloo returned beside what Namesake selected, and a **Why** drawer with two columns, "Qloo returned" and "How Namesake read it" (Namesake's AI and its code)
    - a **map** of where fans of pet-themed titles stand out within the area, and the **places to ask**, under a note on which kinds of place were asked for and why, each with Qloo's description, its rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline on one Qloo line, numbered on the map, with the cell it sits in and its distance from the shelter (points from OpenStreetMap)
-   - the **exposure checklist**, each item labelled Research, Qloo or Our suggestion; for an animal recorded as not good with children, places whose name or Qloo description mentions children are skipped, and the checklist says so
-   - a **Why** drawer with two columns, "Qloo returned" and "How Namesake read it" (Namesake's AI and its code)
+   - the **other ways to help**, each labelled Research, Qloo or Our suggestion; for an animal recorded as not good with children, places whose name or Qloo description mentions children are skipped, and the list says so
+
+   The `warm` and `classic` skins show the same information with Qloo's part and the AI's at the top, without story's "Behind this story" framing.
 4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software.
 
 The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 18 to 20 Qloo calls (one more when the venues must be asked again) (fewer when titles are already cached; two or three more to check a typed area first), and each further animal at most two.
@@ -140,7 +143,7 @@ uv run python scripts/run_agent.py dog-02 park-slope  # one run, steps printed
 
 Set `ALLOW_LIVE_QLOO=false` to use only the cache. The model is configuration only (`AGENT_BASE_URL`, `AGENT_API_KEY`, `AGENT_MODEL`, `AGENT_API`); the demo runs a free model through [OpenCode Go](https://opencode.ai).
 
-The same data is served as JSON (`/api/start`, `/api/results/dog-02@park-slope`, and the live step log at `/api/runs/{id}/events`), and `?ui=<name>` switches between interfaces in `app/ui/` (`warm`, the default; `story`, which tells the result as a story; or `classic`, the first skin).
+The same data is served as JSON (`/api/start`, `/api/results/dog-02@park-slope`, and the live step log at `/api/runs/{id}/events`), and `?ui=<name>` switches between interfaces in `app/ui/` (`story`, the default, which tells the result as a story; `warm`, the default before it; or `classic`, the first skin).
 
 Tests never call Qloo or a model; they use hand-written envelopes with invented IDs:
 
@@ -178,7 +181,7 @@ How it works inside, with diagrams: [`docs/architecture.md`](docs/architecture.m
 |---|---|
 | `app/agent/` | the two PydanticAI agents (area profile, listing), their Qloo tools, the plain-code checks, the run pipeline |
 | `app/qloo/` | the typed wrapper around `qloo exec`: envelope parsing, cache, spacing, replay |
-| `app/views/`, `app/ui/warm/` | view models (also served as JSON) and the default interface; `app/ui/story/` tells the result as a story (`?ui=story`), and `app/ui/classic/` is the first skin, kept for `?ui=classic` |
+| `app/views/`, `app/ui/story/` | view models (also served as JSON) and the default interface, which tells the result as a story; `app/ui/warm/` (the default before it, `?ui=warm`) and `app/ui/classic/` (the first skin, `?ui=classic`) are kept for comparison |
 | `docs/` | [architecture](docs/architecture.md), [decisions](docs/decisions.md), [Qloo findings](docs/qloo-findings.md), [product design](docs/product.md), [evidence review](docs/research/adoption-evidence-review.md) |
 | `tests/` | about 600 tests, all offline; `tests/test_no_qloo_data.py` keeps Qloo data out of the repo |
 
