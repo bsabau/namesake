@@ -24,6 +24,9 @@ TTL = 2 * 3600
 MAX_SESSIONS = 500
 MAX_ANIMALS = 3
 MAX_PHOTO_BYTES = 3 * 1024 * 1024
+# All visitors' photos together, in memory (19 October audit: 500 sessions of three 3 MB
+# photos could take the demo down). Past it, an animal is added without its photo.
+PHOTO_BUDGET = 64 * 1024 * 1024
 
 # Only these formats, recognised from their first bytes, never from a name or a header.
 PHOTO_TYPES = {
@@ -103,6 +106,12 @@ class Sessions:
             session.last_seen = time.monotonic()
             self._items.move_to_end(session_id)
             return session
+
+    def photo_bytes(self) -> int:
+        """Every live session's photos, in bytes."""
+        with self._lock:
+            self._expire()
+            return sum(len(p.data) for s in self._items.values() for p in s.photos.values())
 
     def _expire(self) -> None:
         cutoff = time.monotonic() - self.ttl

@@ -16,12 +16,15 @@ import zlib
 from datetime import UTC, datetime
 from functools import cache
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.formparsers import MultiPartParser
 
 from app.agent.checks import reference_key, same_reference
@@ -33,7 +36,15 @@ from app.custom_location import check_location, clean, location_id
 from app.limits import LimitReached
 from app.listing import generic_name, missing_cautions, stage_for
 from app.locations import Location, load_locations
-from app.places import MAX_PIN_KM, PIN_DECIMALS, Places, Throttled, distance_km, places_for
+from app.places import (
+    MAX_PIN_KM,
+    PIN_DECIMALS,
+    Allowance,
+    Places,
+    Throttled,
+    distance_km,
+    places_for,
+)
 from app.profile import LocationProfile, build_profile, load_seeds
 from app.qloo.cache import Cache
 from app.qloo.exec import QlooClient
@@ -50,6 +61,7 @@ from app.session import (
     COOKIE,
     MAX_ANIMALS,
     MAX_PHOTO_BYTES,
+    PHOTO_BUDGET,
     SECURE_COOKIE,
     SESSIONS,
     TTL,
@@ -162,15 +174,105 @@ MAX_UPLOAD_REQUEST = MAX_PHOTO_BYTES + 64 * 1024
 MultiPartParser.spool_max_size = MAX_UPLOAD_REQUEST
 
 
+# Animals added per visitor per minute: a few to fix a mistake, too few to fill memory.
+ADD_ALLOWANCE = Allowance(per_minute=5)
+
+# Any other request body (a form, a refine line, an edited listing of up to 3000
+# characters) is far smaller; a larger one is refused before it is read (19 October audit:
+# the form parser read any size into memory before the length checks ran).
+MAX_FORM_REQUEST = 64 * 1024
+
+
 @app.middleware("http")
 async def upload_size(request: Request, call_next):
+    length = request.headers.get("content-length")
     if request.headers.get("content-type", "").startswith("multipart/"):
-        length = request.headers.get("content-length")
         if length is None:
             return Response("A content length is required.", status_code=411)
         if not length.isdigit() or int(length) > MAX_UPLOAD_REQUEST:
             return Response("The upload is too large: photos are up to 3 MB.", status_code=413)
+    elif request.method in ("POST", "PUT", "PATCH"):
+        if length is None and request.headers.get("transfer-encoding"):
+            return Response("A content length is required.", status_code=411)
+        if length is not None and (not length.isdigit() or int(length) > MAX_FORM_REQUEST):
+            return Response("The request is too large.", status_code=413)
     return await call_next(request)
+
+
+def cross_site(request: Request) -> bool:
+    """A request another site's page sent: by the browser's Sec-Fetch-Site, or, from a
+    browser that sends none, by an Origin naming another host."""
+    site = request.headers.get("sec-fetch-site")
+    if site is not None:
+        return site not in ("same-origin", "none")
+    origin = request.headers.get("origin")
+    if not origin:
+        return False
+    hosts = {request.headers.get("host"), request.headers.get("x-forwarded-host")}
+    return urlsplit(origin).netloc not in hosts
+
+
+@app.middleware("http")
+async def same_site_posts(request: Request, call_next):
+    """Every POST starts live work or records something, so one sent by another site's
+    page (which could spend a judge's run allowance) is refused (19 October audit)."""
+    if request.method == "POST" and cross_site(request):
+        return Response("Requests from other sites are refused.", status_code=403)
+    return await call_next(request)
+
+
+# The pages load scripts and styles only from here and Leaflet's pinned copy on unpkg,
+# map tiles from CARTO and OpenStreetMap, and talk only to this server (19 October audit:
+# only HSTS was set). No skin uses an inline script or style attribute.
+CONTENT_SECURITY_POLICY = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self' https://unpkg.com",
+        "style-src 'self' https://unpkg.com",
+        "img-src 'self' data: blob: https://*.basemaps.cartocdn.com "
+        "https://tile.openstreetmap.org https://unpkg.com",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "object-src 'none'",
+    ]
+)
+SECURITY_HEADERS = {
+    "Content-Security-Policy": CONTENT_SECURITY_POLICY,
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "X-Frame-Options": "DENY",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
+
+
+@app.exception_handler(StarletteHTTPException)
+async def page_not_found(request: Request, exc: StarletteHTTPException):
+    """A missing page, for a browser, as the skin's notice with a way back (19 October
+    audit: a judge who mistyped a link saw raw JSON). The API and files keep their JSON."""
+    wants_page = "text/html" in request.headers.get("accept", "")
+    api_or_file = request.url.path.startswith(("/api/", "/static/", "/ui/", "/photos/"))
+    if exc.status_code == 404 and wants_page and not api_or_file:
+        ui = request.query_params.get("ui")
+        ui = ui if ui in UIS else None  # an unknown skin is itself a 404: use the default
+        return notice(
+            request,
+            pick_ui(ui),
+            "Not found",
+            str(exc.detail) if exc.detail and exc.detail != "Not Found" else "No such page.",
+            404,
+            [("Back to the start", "/" + (f"?ui={ui}" if ui else ""))],
+        )
+    return await http_exception_handler(request, exc)
 
 
 def cookie_name(request: Request) -> str:
@@ -398,7 +500,7 @@ def find_run(run_id: str, request: Request):
     listing belongs to the session that started it."""
     run = RUNS.get(run_id)
     if run is None or (run.session_id and run.session_id != request.state.session_id):
-        raise HTTPException(404, "no such run; runs are kept until the server restarts")
+        raise HTTPException(404, "No such run: a run is kept for an hour after it finishes.")
     return run
 
 
@@ -409,6 +511,12 @@ def working_view(run, ui_query: str = "") -> WorkingView:
     if animal.id.startswith(ADDED_PREFIX):
         image_url = added_photo_url(animal, animal.id in session.photos)
     return build_working_view(run, animal, find_location(run.location_id), ui_query, image_url)
+
+
+@app.get("/robots.txt", response_class=Response)
+def robots() -> Response:
+    """Crawlers may read the pages, not start runs or walk the API."""
+    return Response("User-agent: *\nDisallow: /api/\nDisallow: /runs\n", media_type="text/plain")
 
 
 @app.get("/health")
@@ -687,10 +795,30 @@ async def add_animal(
     """Add one animal for this visit only: kept in memory, never stored."""
     chosen_ui = pick_ui(ui)
     place = find_location(location)
+    if not ADD_ALLOWANCE.take(visitor(request)):
+        return notice(
+            request,
+            chosen_ui,
+            "Not right now",
+            "Too many animals added from here in the last minute; try again shortly.",
+            429,
+            [("Back to the start", "/" + (f"?ui={ui}" if ui else ""))],
+        )
     session = own_session(request)
+    entered = {
+        "species": species, "sex": sex, "age": age, "look": look,
+        "temperament": temperament, "facts": facts,
+        "good_with_children": good_with_children, "good_with_dogs": good_with_dogs,
+        "good_with_cats": good_with_cats, "house_trained": house_trained,
+        "bite_history": bite_history,
+    }  # fmt: skip
 
     def refuse(message: str) -> HTMLResponse:
-        view = build_add_animal_view(place.id, MAX_FACTS, error=message)
+        # What was entered comes back, so only the fix is needed; a photo cannot be kept
+        # in the form, so the message says to add it again.
+        if photo is not None and photo.filename:
+            message += " Add the photo again."
+        view = build_add_animal_view(place.id, MAX_FACTS, error=message, values=entered)
         response = render(request, chosen_ui, "add_animal.html", view)
         response.status_code = 400
         return response
@@ -734,6 +862,11 @@ async def add_animal(
         content_type = photo_type(data)
         if content_type is None:
             return refuse("The photo must be a JPEG, PNG or WebP image.")
+        if SESSIONS.photo_bytes() + len(data) > PHOTO_BUDGET:
+            return refuse(
+                "The demo is holding too many photos right now; add the animal without one, "
+                "or try again later."
+            )
         session.photos[animal.id] = Photo(content_type=content_type, data=data)
     session.animals[animal.id] = animal
     return RedirectResponse(

@@ -25,6 +25,11 @@ def isolated_settings(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "agent_api_key", None)
     monkeypatch.setattr(settings, "agent_model", None)
     # The fallbacks too: a key in a local .env would otherwise reach a real model.
+    # A fresh allowance for adding animals, so one test's additions never count in another.
+    from app import main
+    from app.places import Allowance
+
+    monkeypatch.setattr(main, "ADD_ALLOWANCE", Allowance(per_minute=5))
     for name in type(settings).model_fields:
         if name.startswith("agent_fallback_") and name.endswith(("_api_key", "_model")):
             monkeypatch.setattr(settings, name, None)
