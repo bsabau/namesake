@@ -75,6 +75,7 @@ def test_the_api_carries_the_bar_and_the_map_caption():
     view = client.get("/api/start", params={"location": "austin"}).json()
     assert view["shelter"]["name"] == "Austin" and view["shelter"]["open"] is False
     assert view["map_note"] == next(o for o in view["locations"] if o["selected"])["map_note"]
+    assert "shelter the animals are adopted from" in view["map_note"]
 
 
 def test_with_no_area_chosen_the_bar_asks_for_one():
