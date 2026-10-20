@@ -14,13 +14,6 @@
 </section>
 
 
-<form id="custom-location" action="{{ view.location_form.action }}" method="post">
-  {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
-  {# The spot picked on the map, set by location-map.js; Qloo only ever gets the text. #}
-  <input type="hidden" id="pin-lat" name="pin_lat" value="{{ view.location_form.pin_lat }}">
-  <input type="hidden" id="pin-lon" name="pin_lon" value="{{ view.location_form.pin_lon }}">
-</form>
-
 <form id="pick" action="/runs" method="post">
   {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
   {# The chosen area as a slim bar; its panel holds everything for changing it. #}
@@ -34,7 +27,7 @@
     <fieldset class="locations">
       <legend><h2>{{ view.shelter.panel_heading }}</h2></legend>
       {% if view.location_form.message %}
-      {# A failed area check: said where the visitor will see it, and no area stays chosen. #}
+      {# A typed area the field refuses: said where the visitor will see it. #}
       <p class="location-alert" id="location-alert" role="alert">{{ view.location_form.message }}</p>
       {% endif %}
       <div class="location-options">
@@ -49,27 +42,27 @@
       </div>
 
       <div class="custom-location" data-role="custom-location">
-        <label for="custom-location-text">{{ view.location_form.label }}</label>
-        <div class="inline-field">
-          <div class="suggest-wrap">
-          <input id="custom-location-text" form="custom-location" type="text" name="text"
+        {# The typed area: one more choice, checked with Qloo as the run's first step. #}
+        <label class="location-option typed-option">
+          <input type="radio" name="location" value="{{ view.location_form.typed_value }}"
+                 id="location-typed" required{% if view.location_form.typed %} checked{% endif %}>
+          <span class="location-label">{{ view.location_form.label }}</span>
+        </label>
+        <div class="suggest-wrap">
+          <input id="custom-location-text" type="text" name="area"
                  maxlength="80" value="{{ view.location_form.value }}"
+                 aria-label="{{ view.location_form.field_label }}"
                  placeholder="{{ view.location_form.placeholder }}"
                  role="combobox" aria-autocomplete="list" aria-expanded="false"
                  aria-controls="place-suggestions" autocomplete="off"
-                 data-suggest-url="{{ view.location_form.suggestions_url }}">
+                 data-suggest-url="{{ view.location_form.suggestions_url }}"
+                 data-picked-note="{{ view.location_form.picked_note }}">
           <ul id="place-suggestions" class="suggestions" role="listbox" hidden></ul>
-          </div>
-          <button type="submit" form="custom-location">Check with Qloo</button>
         </div>
+        {# The spot picked on the map, set by location-map.js; Qloo only ever gets the name. #}
+        <input type="hidden" id="pin-lat" name="pin_lat" value="{{ view.location_form.pin_lat }}">
+        <input type="hidden" id="pin-lon" name="pin_lon" value="{{ view.location_form.pin_lon }}">
         <p class="hint">{{ view.location_form.hint }}</p>
-        {% if view.location_form.candidates %}
-        <div class="candidates" data-role="candidates">
-          {% for candidate in view.location_form.candidates %}
-          <button type="submit" form="custom-location" name="text" value="{{ candidate }}">{{ candidate }}</button>
-          {% endfor %}
-        </div>
-        {% endif %}
       </div>
     </fieldset>
 

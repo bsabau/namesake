@@ -16,7 +16,7 @@ import zlib
 from datetime import UTC, datetime
 from functools import cache
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.exception_handlers import http_exception_handler
@@ -31,8 +31,8 @@ from app.agent.checks import reference_key, same_reference
 from app.agent.pipeline import taken_names, taken_references
 from app.animals import Animal, Checks, load_roster
 from app.config import get_settings
+from app.custom_location import INVALID, clean, location_id
 from app.custom_location import PREFIX as CUSTOM_PREFIX
-from app.custom_location import check_location, clean, location_id
 from app.limits import LimitReached
 from app.listing import generic_name, missing_cautions, stage_for
 from app.locations import Location, load_locations
@@ -50,9 +50,9 @@ from app.profile import LocationProfile, build_profile, load_seeds
 from app.qloo.cache import Cache
 from app.qloo.exec import QlooClient
 from app.runs import (
+    FAR_PIN,
     RUNS,
-    limits_for,
-    qloo_client,
+    start_area_run,
     start_litter_run,
     start_run,
     visit_names,
@@ -75,6 +75,7 @@ from app.views.build import (
     EXAMPLES,
     added_photo_url,
     animal_card,
+    area_check_view,
     build_add_animal_view,
     build_approved_view,
     build_result_view,
@@ -84,6 +85,7 @@ from app.views.build import (
     example_links,
 )
 from app.views.models import (
+    TYPED_AREA,
     LitterMateView,
     LocationForm,
     NoticeView,
@@ -392,11 +394,9 @@ def start_view(
     session: Session | None = None,
     form: LocationForm | None = None,
     ui_query: str = "",
-    pin_far: bool = False,
     select_none: bool = False,
 ) -> StartView:
-    """`select_none` after a failed area check: no area stays selected, so the visitor
-    cannot go on with a preset they did not choose."""
+    """`select_none` when the typed area is chosen (`form.typed`), so no preset is."""
     settings = get_settings()
     store = Store(settings.cache_db)
     locations = load_locations(settings.locations_file)
@@ -423,15 +423,17 @@ def start_view(
         examples=example_links(ready, ui_query),
         added=added,
         pins=session.pins if session else None,
-        pin_far=pin_far,
     )
     if form is not None:
         view.location_form = form
     # The search on the map needs place lookups; without them it would be a dead field.
     view.location_form.map_search = places().enabled
-    if form is not None:
-        # A check that needs the visitor (an alert or Qloo's candidates) opens the panel.
-        view.shelter.open = view.shelter.open or bool(form.message or form.candidates)
+    if form is not None and form.typed:
+        # The typed area is the choice, shown in the bar as typed; the panel opens on it.
+        view.shelter = view.shelter.model_copy(
+            update={"name": form.value or view.shelter.name, "chosen": bool(form.value),
+                    "open": True}
+        )  # fmt: skip
     return view
 
 
@@ -515,7 +517,11 @@ def working_view(run, ui_query: str = "") -> WorkingView:
     image_url = None
     if animal.id.startswith(ADDED_PREFIX):
         image_url = added_photo_url(animal, animal.id in session.photos)
-    return build_working_view(run, animal, find_location(run.location_id), ui_query, image_url)
+    place = run.place or find_location(run.location_id)
+    view = build_working_view(run, animal, place, ui_query, image_url)
+    if run.area_failed:
+        view.area = area_check_view(run.area, ui_query)
+    return view
 
 
 @app.get("/robots.txt", response_class=Response)
@@ -531,11 +537,22 @@ def health() -> dict[str, str]:
 
 @app.get("/", response_class=HTMLResponse)
 def start(
-    request: Request, location: str | None = None, pin: str | None = None, ui: str | None = None
+    request: Request,
+    location: str | None = None,
+    area: str | None = Query(None, max_length=200),
+    ui: str | None = None,
 ) -> HTMLResponse:
+    """With `area`, back from a typed area Qloo could not check: the area stays typed and
+    chosen in the open panel, to change it."""
     chosen = pick_ui(ui)
+    typed = " ".join((area or "").split())
+    form = LocationForm(value=typed, typed=True) if typed else None
     view = start_view(
-        location, session_of(request), ui_query=ui_suffix(request, ui), pin_far=pin == "far"
+        location,
+        session_of(request),
+        form,
+        ui_query=ui_suffix(request, ui),
+        select_none=form is not None,
     )
     return render(request, chosen, "start.html", view)
 
@@ -549,8 +566,8 @@ def result(
 
 
 @app.get("/api/start")
-def api_start(request: Request, location: str | None = None, pin: str | None = None) -> StartView:
-    return start_view(location, session_of(request), pin_far=pin == "far")
+def api_start(request: Request, location: str | None = None) -> StartView:
+    return start_view(location, session_of(request))
 
 
 @app.get("/api/results/{result_id}")
@@ -582,21 +599,69 @@ async def create_run(
     request: Request,
     animal: str = Form(...),
     location: str = Form(...),
+    area: str = Form("", max_length=200),
+    pin_lat: str = Form(""),
+    pin_lon: str = Form(""),
     ui: str | None = Form(None),
 ) -> Response:
+    """An animal (or a litter) at a preset or saved area, or at the area typed in the
+    panel (`location` is TYPED_AREA): one Qloo has not checked before is checked as the
+    run's first step (decision 32). Qloo only ever gets the typed name, never the spot."""
     settings = get_settings()
-    place = find_location(location)
     litter = next(
         (lit for lit in load_roster(settings.animals_file).litters if lit.id == animal), None
     )
+    note = None
+    if location == TYPED_AREA:
+        typed = " ".join(area.split())
+        cleaned = clean(typed)
+        pin = pin_from(pin_lat, pin_lon)
+        if cleaned is None:
+            form = LocationForm(message=INVALID, value=typed, typed=True)
+            if pin:
+                form.pin_lat, form.pin_lon = str(pin[0]), str(pin[1])
+            view = start_view(
+                None, session_of(request), form, ui_suffix(request, ui), select_none=True
+            )
+            response = render(request, pick_ui(ui), "start.html", view)
+            response.status_code = 400
+            return response
+        known = Store(settings.cache_db).get_location(location_id(cleaned))
+        if known is None:
+            # The spot, or an added animal, needs the visit's session.
+            needs_session = pin is not None or animal.startswith(ADDED_PREFIX)
+            session = own_session(request) if needs_session else session_of(request)
+            chosen = None if litter is not None else find_animal(animal, session)
+            try:
+                run = await start_area_run(
+                    cleaned,
+                    animal,
+                    settings,
+                    animal=chosen,
+                    litter=litter,
+                    pin=pin,
+                    keep_pin=lambda loc: keep_pin(session, loc, pin),
+                    visitor=visitor(request),
+                    session=session,
+                )
+            except LimitReached as exc:
+                return limit_notice(request, ui, exc)
+            return run_redirect(run, ui)
+        if pin and not keep_pin(own_session(request), known, pin):
+            note = FAR_PIN
+        place = known
+    else:
+        place = find_location(location)
     try:
         if litter is not None:
-            run = await start_litter_run(litter, place, settings, visitor=visitor(request))
+            run = await start_litter_run(
+                litter, place, settings, visitor=visitor(request), note=note
+            )
         else:
             session = session_of(request)
             chosen = find_animal(animal, session)
             run = await start_run(
-                chosen, place, settings, visitor=visitor(request), session=session
+                chosen, place, settings, visitor=visitor(request), session=session, note=note
             )
     except LimitReached as exc:
         return limit_notice(request, ui, exc)
@@ -765,8 +830,16 @@ FIELD_MAX = 120
 
 
 @app.get("/animals/new", response_class=HTMLResponse)
-def new_animal(request: Request, location: str | None = None, ui: str | None = None):
-    view = build_add_animal_view(find_location(location).id, MAX_FACTS)
+def new_animal(
+    request: Request,
+    location: str | None = None,
+    area: str = Query("", max_length=200),
+    ui: str | None = None,
+):
+    """The form for one animal, opened from the start page with its chosen area, which
+    may be the typed one (its name in `area`)."""
+    location_id, typed = chosen_area(location, area)
+    view = build_add_animal_view(location_id, MAX_FACTS, area=typed)
     return render(request, pick_ui(ui), "add_animal.html", view)
 
 
@@ -783,6 +856,7 @@ def _short(value: str, label: str, required: bool = True) -> str:
 async def add_animal(
     request: Request,
     location: str = Form(...),
+    area: str = Form("", max_length=200),
     species: str = Form(...),
     sex: str = Form(...),
     age: str = Form(...),
@@ -799,7 +873,7 @@ async def add_animal(
 ):
     """Add one animal for this visit only: kept in memory, never stored."""
     chosen_ui = pick_ui(ui)
-    place = find_location(location)
+    location_id, typed = chosen_area(location, area)
     session = own_session(request)
     entered = {
         "species": species, "sex": sex, "age": age, "look": look,
@@ -814,7 +888,9 @@ async def add_animal(
         # in the form, so the message says to add it again.
         if photo is not None and photo.filename and "without one" not in message:
             message += " Add the photo again."
-        view = build_add_animal_view(place.id, MAX_FACTS, error=message, values=entered)
+        view = build_add_animal_view(
+            location_id, MAX_FACTS, error=message, values=entered, area=typed
+        )
         response = render(request, chosen_ui, "add_animal.html", view)
         response.status_code = status
         return response
@@ -876,9 +952,16 @@ async def add_animal(
             "or try again later."
         )
     session.animals[animal.id] = animal
-    return RedirectResponse(
-        f"/?location={place.id}{ui_suffix(request, ui)}#{animal.id}", status_code=303
-    )
+    back = urlencode({"area": typed} if location_id == TYPED_AREA else {"location": location_id})
+    return RedirectResponse(f"/?{back}{ui_suffix(request, ui)}#{animal.id}", status_code=303)
+
+
+def chosen_area(location: str | None, area: str) -> tuple[str, str]:
+    """The area chosen on the start page: a preset's or saved area's ID, or the typed
+    area with its name (checked only when a run starts)."""
+    if location == TYPED_AREA:
+        return TYPED_AREA, " ".join(area.split())
+    return find_location(location).id, ""
 
 
 def place_lookup() -> Places:
@@ -944,77 +1027,17 @@ def pin_from(latitude: str, longitude: str) -> tuple[float, float] | None:
     return round(lat, PIN_DECIMALS), round(lon, PIN_DECIMALS)
 
 
-def keep_pin(request: Request, location: Location, pin: tuple[float, float] | None) -> str:
-    """Remember the picked spot for this visit, if it lies in the area Qloo checked. The
-    redirect's query says when a spot was given but is too far to show."""
+def keep_pin(session: Session, location: Location, pin: tuple[float, float] | None) -> bool:
+    """Remember the picked spot for this visit, if it lies in the area Qloo checked; False
+    when a spot was given but is too far to show."""
     if not pin:
-        return ""
+        return True
     if distance_km(pin, (location.latitude, location.longitude)) > MAX_PIN_KM:
         # The visitor picked again: an earlier pin for this area no longer stands.
-        if (session := session_of(request)) is not None:
-            session.pins.pop(location.id, None)
-        return "&pin=far"
-    own_session(request).pins[location.id] = pin
-    return ""
-
-
-@app.post("/locations", response_class=HTMLResponse)
-def add_location(
-    request: Request,
-    text: str = Form(""),
-    pin_lat: str = Form(""),
-    pin_lon: str = Form(""),
-    ui: str | None = Form(None),
-):
-    """A typed shelter area: checked with Qloo once, then offered like a preset. With a
-    spot picked on the map, the spot is kept for this visit's maps; Qloo gets the text."""
-    chosen_ui = pick_ui(ui)
-    settings = get_settings()
-    store = Store(settings.cache_db)
-    typed = " ".join(text.split())
-    pin = pin_from(pin_lat, pin_lon)
-    # Sent back with the form when Qloo asks to pick among candidates, so the pin survives.
-    kept = {"pin_lat": str(pin[0]), "pin_lon": str(pin[1])} if pin else {}
-
-    def back(form: LocationForm, status: int) -> HTMLResponse:
-        view = start_view(None, session_of(request), form, ui_suffix(request, ui), select_none=True)
-        response = render(request, chosen_ui, "start.html", view)
-        response.status_code = status
-        return response
-
-    cleaned = clean(typed)
-    if cleaned is not None:
-        known = store.get_location(location_id(cleaned))
-        if known is not None:
-            far = keep_pin(request, known, pin)
-            return RedirectResponse(
-                f"/?location={known.id}{far}{ui_suffix(request, ui)}", status_code=303
-            )
-    seeds = load_seeds(settings.seeds_file)
-    # First from the cache and recordings only: an answer Qloo gave before is free.
-    checked = check_location(replay_client(settings), typed, seeds)
-    if checked.status == "unavailable" and settings.allow_live_qloo:
-        limits = limits_for(settings)
-        try:
-            # Reserved before the call, so two checks at once cannot both pass a cap.
-            limits.charge(visitor(request), "location")
-        except LimitReached as exc:
-            return back(LocationForm(message=str(exc), value=typed, **kept), 429)
-        qloo = qloo_client(settings)
-        checked = check_location(qloo, typed, seeds)
-        if not getattr(qloo, "live_calls", 0):
-            limits.refund(visitor(request), "location")
-    if checked.status != "ok" or checked.location is None:
-        status = 400 if checked.status in ("invalid", "thin", "needs_input") else 503
-        form = LocationForm(
-            message=checked.message, value=typed, candidates=checked.candidates, **kept
-        )
-        return back(form, status)
-    store.put_location(checked.location)
-    far = keep_pin(request, checked.location, pin)
-    return RedirectResponse(
-        f"/?location={checked.location.id}{far}{ui_suffix(request, ui)}", status_code=303
-    )
+        session.pins.pop(location.id, None)
+        return False
+    session.pins[location.id] = pin
+    return True
 
 
 @app.get("/runs/{run_id}", response_class=HTMLResponse)
@@ -1039,7 +1062,13 @@ async def run_events(request: Request, run_id: str) -> StreamingResponse:
         async for step in run.log.follow():
             payload = json.dumps({"kind": step.kind, "text": step.text, "actor": step.actor})
             yield f"event: step\ndata: {payload}\n\n"
-        payload = {"result_url": run.result_url, "failed": run.failed, "error": run.error}
+        payload = {
+            "result_url": run.result_url,
+            "failed": run.failed,
+            "error": run.error,
+            # A typed area Qloo could not check: the page reloads to offer what it said.
+            "area": run.area_failed,
+        }
         yield f"event: done\ndata: {json.dumps(payload)}\n\n"
 
     return StreamingResponse(stream(), media_type="text/event-stream")

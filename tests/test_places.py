@@ -3,19 +3,22 @@
 The answers below are invented, in Photon's shape (GeoJSON features).
 """
 
+import asyncio
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app import main
+from app import main, runs
 from app.custom_location import location_id
 from app.locations import Location
 from app.places import Allowance, LookupFailed, Places, Throttled, areas_around, label_for
 from app.store import Store
+from app.views.models import TYPED_AREA
 from tests.qloo_fakes import FakeQloo
 from tests.test_product import (  # noqa: F401 - fixtures
     SEEDS,
+    _wait,
     cells,
     client,
     location_script,
@@ -279,11 +282,19 @@ def option(client, loc_id):  # noqa: F811
     return next(o for o in start["locations"] if o["id"] == loc_id)
 
 
+def pick(client, text, lat, lon, animal="dog-02"):  # noqa: F811
+    """A run at the area typed (or picked on the map) with a spot: the working page."""
+    data = {"animal": animal, "location": TYPED_AREA, "area": text, "pin_lat": lat, "pin_lon": lon}
+    response = client.post("/runs", data=data)
+    run = main.RUNS.get(response.url.path.rsplit("/", 1)[1])
+    if run is not None:
+        asyncio.run(_wait(run))
+    return run, client.get(response.url.path).text if run is not None else response.text
+
+
 def test_a_picked_spot_is_this_visits_pin_and_qloo_gets_the_name(client):  # noqa: F811
     text = known_area()
-    form = {"text": text, "pin_lat": "40.6712", "pin_lon": "-73.9819"}
-    response = client.post("/locations", data=form, follow_redirects=False)
-    assert response.status_code == 303
+    pick(client, text, "40.6712", "-73.9819")
     loc_id = location_id(text)
     picked = option(client, loc_id)
     assert picked["pin"] == {"latitude": 40.6712, "longitude": -73.9819}
@@ -297,7 +308,7 @@ def test_a_picked_spot_is_this_visits_pin_and_qloo_gets_the_name(client):  # noq
 
 def test_the_pin_is_kept_to_about_10_m_and_pages_with_it_are_never_cached(client):  # noqa: F811
     text = known_area()
-    client.post("/locations", data={"text": text, "pin_lat": "40.671234", "pin_lon": "-73.98199"})
+    pick(client, text, "40.671234", "-73.98199")
     assert option(client, location_id(text))["pin"] == {"latitude": 40.6712, "longitude": -73.982}
     page = client.get("/", params={"location": location_id(text)})
     assert page.headers["cache-control"] == "private, no-store"
@@ -308,75 +319,77 @@ def test_the_pin_is_kept_to_about_10_m_and_pages_with_it_are_never_cached(client
 
 def test_qloo_gets_the_area_name_alone_and_candidates_keep_the_pin(client, monkeypatch):  # noqa: F811
     # Codex, Flash: Qloo's candidate buttons dropped the pin.
-    monkeypatch.setattr(main, "load_seeds", lambda path: SEEDS)
+    monkeypatch.setattr(runs, "load_seeds", lambda path: SEEDS)
     text, script = location_script(
         "needs_input",
         resolution={"issues": [{"input": "x", "kind": "ambiguous", "candidates": [
             {"id": "00000000-0000-4000-8000-000000000301", "name": "Example Heights, North",
              "type": "urn:x"}]}]},
     )  # fmt: skip
-    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo(script))
-    page = client.post("/locations", data={"text": text, "pin_lat": "40.6", "pin_lon": "-73.9"})
-    assert page.status_code == 400
-    assert 'name="pin_lat" value="40.6"' in page.text and "Example Heights, North" in page.text
-    # muse: Qloo's candidates live in the panel, so it opens for them too.
-    assert 'data-role="shelter" open>' in page.text
+    monkeypatch.setattr(runs, "replay_client", lambda settings: FakeQloo(script))
+    run, page = pick(client, text, "40.6", "-73.9")
+    assert run.area_failed
+    # The candidates start the same animal again, the spot riding in the form.
+    assert 'data-role="candidates" action="/runs" method="post"' in page
+    assert 'name="pin_lat" value="40.6"' in page and 'name="animal" value="dog-02"' in page
+    assert 'name="area" value="Example Heights, North"' in page
+    assert "40.6" not in page.split('data-role="area-check"')[1].split("href=")[1].split(">")[0]
 
     # Flash: nothing showed what Qloo received for a picked spot.
     text, script = location_script(results=cells(6))
     qloo = FakeQloo(script)
-    monkeypatch.setattr(main, "replay_client", lambda settings: qloo)
-    client.post("/locations", data={"text": text, "pin_lat": "40.6801", "pin_lon": "-73.9801"})
+    monkeypatch.setattr(runs, "replay_client", lambda settings: qloo)
+    pick(client, text, "40.6801", "-73.9801")
     sent = repr(qloo.calls)
     assert any(c[1].get("within") == text for c in qloo.calls)
     assert "40.68" not in sent and "-73.98" not in sent
     assert option(client, location_id(text))["pin"] == {"latitude": 40.6801, "longitude": -73.9801}
 
 
-def test_a_pin_too_far_from_the_area_is_dropped_with_a_word(client):  # noqa: F811
+def test_a_pin_too_far_from_the_area_is_dropped_with_a_word(client, monkeypatch):  # noqa: F811
     # muse, Flash: the drop was silent.
-    text = known_area()
-    response = client.post(
-        "/locations", data={"text": text, "pin_lat": "40.9", "pin_lon": "-73.98"},
-        follow_redirects=False,
-    )  # fmt: skip
-    assert response.headers["location"].endswith("&pin=far")
-    start = client.get("/api/start", params={"location": location_id(text), "pin": "far"}).json()
-    picked = next(o for o in start["locations"] if o["id"] == location_id(text))
-    assert picked["pin"] is None and "more than 15 km" in picked["map_note"]
-    # Codex: the note is in the panel, so it opens.
-    page = client.get("/", params={"location": location_id(text), "pin": "far"}).text
-    assert 'data-role="shelter" open>' in page
-    # Flash: a far pick after a near one replaces it, rather than seeming to work.
-    client.post("/locations", data={"text": text, "pin_lat": "40.67", "pin_lon": "-73.98"})
-    assert option(client, location_id(text))["pin"] is not None
-    client.post("/locations", data={"text": text, "pin_lat": "40.9", "pin_lon": "-73.98"})
+    monkeypatch.setattr(runs, "load_seeds", lambda path: SEEDS)
+    text, script = location_script(results=cells(6))
+    monkeypatch.setattr(runs, "replay_client", lambda settings: FakeQloo(script))
+    run, page = pick(client, text, "41.6", "-73.98")
+    assert not run.failed and "more than 15 km" in page
     assert option(client, location_id(text))["pin"] is None
+    # Flash: a far pick after a near one replaces it, rather than seeming to work; at an
+    # area already saved, the run says so too (Codex, muse, Flash: it was silent).
+    near = cells(6)[0]["location"]
+    pick(client, text, str(near["latitude"]), str(near["longitude"]))
+    assert option(client, location_id(text))["pin"] is not None
+    _, page = pick(client, text, "41.6", "-73.98")
+    assert option(client, location_id(text))["pin"] is None and "more than 15 km" in page
+
+
+def test_a_run_carrying_a_spot_is_the_visitors_alone(client, monkeypatch):  # noqa: F811
+    # Codex, Flash: a failed check's page can offer the spot back, in its candidates' form.
+    monkeypatch.setattr(runs, "load_seeds", lambda path: SEEDS)
+    text, script = location_script(results=cells(1))
+    monkeypatch.setattr(runs, "replay_client", lambda settings: FakeQloo(script))
+    run, page = pick(client, text, "40.6", "-73.9")
+    assert run.area_failed and 'data-role="area-check"' in page
+    other = TestClient(main.app)
+    assert other.get(f"/runs/{run.id}").status_code == 404
+    assert other.get(f"/api/runs/{run.id}").status_code == 404
 
 
 def test_a_pin_far_from_the_area_or_not_a_number_is_dropped(client):  # noqa: F811
     text = known_area()
     loc_id = location_id(text)
     for lat, lon in [("51.5", "-0.12"), ("nan", "nan"), ("", ""), ("x", "1")]:
-        client.post("/locations", data={"text": text, "pin_lat": lat, "pin_lon": lon})
+        pick(client, text, lat, lon)
         assert option(client, loc_id)["pin"] is None
 
 
-def test_a_failed_area_check_leaves_no_area_chosen(client, monkeypatch):  # noqa: F811
+def test_back_from_a_failed_check_the_typed_area_stays_chosen(client):  # noqa: F811
     # The author: whatever was chosen on the map, Park Slope was still checked, since a
     # failed check came back with the first preset selected and the message out of view.
-    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo({}))
-    page = client.post(
-        "/locations", data={"text": "Example Gardens", "pin_lat": "40.6", "pin_lon": "-73.9"}
-    )
-    assert page.status_code == 503
-    assert 'id="location-alert" role="alert"' in page.text
-    # The panel holding the alert and the required choice opens by itself.
-    assert 'data-role="shelter" open>' in page.text and "not chosen yet" in page.text
-    assert 'class="shelter unchosen"' in page.text
-    assert (
-        " checked>" not in page.text and 'name="location" value="park-slope" required' in page.text
-    )
-    assert 'name="pin_lat" value="40.6"' in page.text
+    page = client.get("/", params={"area": "Example Gardens"}).text
+    # The panel holding the area opens by itself, with no preset chosen.
+    assert 'data-role="shelter" open>' in page and 'value="Example Gardens"' in page
+    assert 'id="location-typed" required checked>' in page
+    assert page.count(" checked>") == 1
     # Codex: "Add your own animal" skipped the check and fell back to the first preset.
-    assert "formnovalidate" not in page.text
+    assert "formnovalidate" not in page
