@@ -523,7 +523,9 @@ def test_no_warm_cell_says_so():
     note = map_view(
         LOCATION, map_with([(0.5, 0.9), (0.4, 0.8), (0.3, 0.7), (0.2, 0.6), (0.1, 0.5)])
     ).note
-    assert note.endswith("Circle: the area around the fictional shelter.")
+    assert note.endswith(
+        "Circle: the area around the adoption centre, a made-up spot for this demo."
+    )
 
 
 def test_one_compared_cell_among_grey_ones_reads_in_the_singular():

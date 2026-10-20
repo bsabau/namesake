@@ -168,7 +168,11 @@ def test_a_far_pin_is_not_drawn_and_the_key_counts_only_drawn_ones():
     assert view.venues == [] and "Numbers:" not in (view.note or "")
     shown[1].latitude, shown[1].longitude = NEAR[0] + 0.001, NEAR[1]
     view = map_view(LOCATION, p, None, shown)
-    assert [x.number for x in view.venues] == [2] and "Numbers: the places to ask" in view.note
+    assert (
+        [x.number for x in view.venues] == [2]
+        and "Numbers: the places to ask" in view.note
+        and "need not sit in a warm square" in view.note
+    )
 
 
 def test_points_placed_meanwhile_survive_a_finished_profile_and_the_reverse():

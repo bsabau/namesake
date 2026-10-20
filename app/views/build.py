@@ -707,7 +707,7 @@ def map_view(
             else "Grey: no cell was scored for both, so there is no comparison here."
         )
         # The circle is drawn on every map with cells, so it is explained on every one.
-        + " Circle: the area around the fictional shelter."
+        + " Circle: the area around the adoption centre, a made-up spot for this demo."
         if cells
         else None
     )
@@ -751,9 +751,12 @@ def map_view(
             f"{cap(pets)} stand out against {base} in {warm} of {some} "
             f"{len(compared)} cells{which}. "
         )
+    # The places answer a separate Qloo question from the squares, so a reader should
+    # not look for them inside warm squares (the author's question, 20 October).
     numbers = (
         " Numbers: the places to ask plotted here, as numbered in the list (points from "
-        "OpenStreetMap)."
+        "OpenStreetMap). They come from a separate Qloo question, which places these fans "
+        "favour, so they need not sit in a warm square."
         if placed
         else ""
     )

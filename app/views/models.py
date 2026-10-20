@@ -65,7 +65,10 @@ class LocationOption(BaseModel):
     place: str = ""
     # The spot this visitor picked for the shelter, if any, and what the map says about it.
     pin: Pin | None = None
-    map_note: str = "The circle marks the area around the fictional shelter, not a real address."
+    map_note: str = (
+        "The circle marks the area around the adoption centre, a made-up spot for this demo, "
+        "not a real address."
+    )
 
 
 class AnimalCard(BaseModel):
