@@ -1,6 +1,7 @@
 """Venue pins (decision 4, revised): points from a fake geocoder only, never Photon, and
 the result view's numbered pins, cell readings and distances."""
 
+import time
 from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
@@ -29,6 +30,23 @@ def lookup(*answers, per_minute=30):
     places = Places("https://geocoder.example", fake, per_visitor=Allowance(per_minute))
     places.pause = 0
     return places, fake
+
+
+def test_venue_lookups_are_paced_and_a_picked_spot_is_not():
+    times = []
+    fake = FakeGeocoder()
+    places = Places(
+        "https://geocoder.example",
+        lambda url: times.append(time.monotonic()) or fake(url),
+        per_visitor=Allowance(30),
+    )
+    places.pause = 0.2
+    near = (40.67, -73.98)
+    places.venue_point("Example Cafe", None, near)
+    places.at(40.68, -73.98)
+    places.venue_point("Example Books", None, near)
+    assert times[1] - times[0] < 0.1  # the spot did not wait
+    assert times[2] - times[0] >= 0.2  # the second venue did
 
 
 def test_a_venue_is_found_by_name_and_address_near_the_shelter():
