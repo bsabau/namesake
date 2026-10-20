@@ -706,8 +706,14 @@ def map_view(
             if any(c.lift is not None for c in cells)
             else "Grey: no cell was scored for both, so there is no comparison here."
         )
-        # The circle is drawn on every map with cells, so it is explained on every one.
-        + " Circle: the area around the adoption centre, a made-up spot for this demo."
+        # The circle is drawn on every map with cells, so it is explained on every one;
+        # it centres on the visitor's own spot when they picked one.
+        + (
+            " Circle: the area around the spot you picked for the shelter."
+            if pin
+            else " Circle: the area around the shelter the animals are adopted from, a "
+            "made-up spot for this demo."
+        )
         if cells
         else None
     )
@@ -751,12 +757,12 @@ def map_view(
             f"{cap(pets)} stand out against {base} in {warm} of {some} "
             f"{len(compared)} cells{which}. "
         )
-    # The places answer a separate Qloo question from the squares, so a reader should
-    # not look for them inside warm squares (the author's question, 20 October).
+    # Qloo ranks places in a separate answer from the cells, so a reader should not look
+    # for them inside warm cells (the author's question, 20 October).
     numbers = (
-        " Numbers: the places to ask plotted here, as numbered in the list (points from "
-        "OpenStreetMap). They come from a separate Qloo question, which places these fans "
-        "favour, so they need not sit in a warm square."
+        " Numbers: the places to ask, as in the list (points from OpenStreetMap). Qloo "
+        "ranks places in a separate answer from the cells, so they need not sit in a "
+        "warm one."
         if placed
         else ""
     )
