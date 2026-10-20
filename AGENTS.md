@@ -249,7 +249,7 @@ The shelter is fictional too. Do not use real shelter names, logos or photos.
 2. **Working:** a live log of the agent's steps, streamed as they happen: entities proposed, each one checked against Qloo, which were kept and which dropped.
 3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges, and who tends to like each one's title, from Qloo's audience demographics (`docs/decisions.md` #31); a map of local lift; the venues as a list with their evidence, under a note on which kinds of place were asked for and why, and that listed national chains are left out (`docs/decisions.md` #23), and as numbered pins on the map from OpenStreetMap (`docs/decisions.md` #4, revised), skipping those that mention children for an animal recorded as not good with them (`docs/decisions.md` #2); the exposure checklist; in the story skin, the saved run's step log and, with no listing yet, a button that starts a run (`docs/decisions.md` #27).
 4. **Why:** for each choice, the Qloo result behind it, separate from the app's reading of it.
-5. **Refine:** one text line for follow-ups such as "less childish". When Qloo returns `needs_input` for a typed area, its candidates show as buttons on the start page; an ambiguous title is settled by the agent with a stated reason.
+5. **Refine:** one text line for follow-ups such as "less childish". When Qloo returns `needs_input` for a typed area, the run stops there and its candidates show as buttons on the working page (`docs/decisions.md` #32); an ambiguous title is settled by the agent with a stated reason.
 
 **Preset locations.** The start screen offers four: two New York City neighbourhoods, one other US city, and one city outside the US (Barcelona, decision 30). Two neighbourhoods in the same city show that results change at fine detail; the third shows it is not only a New York effect, and the fourth that it is not only a US one. Do not choose them by reputation. Milestone 1 kept the three that Qloo resolves cleanly and whose results differ most. Candidates: Park Slope, Bushwick, Astoria, Harlem and the Upper West Side in New York; Tampa, Austin and Portland elsewhere. Each preset is a place name plus a centre point for the fictional shelter, never a real shelter or a street address. The presets live in `data/locations.json`: `query` is the text sent to Qloo as the location signal and the heatmap's area, and `city` names the wider city (only New York's rescue-partner plan item reads it). The current four are Park Slope, Astoria, Austin and Barcelona; the precomputed examples (`EXAMPLES` in `app/views/build.py`) are the lead dog and the litter, each in Park Slope and Astoria.
 
@@ -288,7 +288,7 @@ app/
   runs.py, store.py  web runs (background task + step log), saved agent results, approvals
   session.py         per-visitor state in memory: added animals, photos, refined listings
   limits.py          per-visitor and daily limits on live runs and new locations
-  custom_location.py checks a typed shelter area with Qloo before any run
+  custom_location.py checks a typed shelter area with Qloo, as the run's first step
   qloo/              exec wrapper, envelope types, cache, geohash helpers
   views/             UI-neutral view models, one per screen, also served as JSON
   ui/<name>/         one folder per UI: templates/ and static/ (story is the default; warm and classic are kept)

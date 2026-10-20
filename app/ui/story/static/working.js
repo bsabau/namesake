@@ -63,6 +63,12 @@
     source.close();
     stopBusy();
     const outcome = JSON.parse(event.data);
+    // A typed area Qloo did not pass: the page, rebuilt, shows what Qloo said and its
+    // candidates. Once shown, the stream's replay ends here.
+    if (outcome.area) {
+      if (!document.querySelector('[data-role="area-check"]')) window.location.reload();
+      return; // the page's own status says it already
+    }
     if (outcome.failed) {
       status.textContent = "The run stopped before it finished. The steps above show where.";
       return;

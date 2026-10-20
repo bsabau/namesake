@@ -1,8 +1,8 @@
 // Map of the selected shelter location: Leaflet with OpenStreetMap tiles.
 // The preset locations come from the page (#map-points, the view model's list);
 // picking a location card moves the map there. Right-click (long-press on a phone)
-// asks the view model's pick_url (/api/places/at) for the areas around that spot; choosing one sends its
-// name to the location form, with the spot as the visit's pin.
+// asks the view model's pick_url (/api/places/at) for the areas around that spot; choosing one makes it
+// the typed area, with the spot as the visit's pin; Qloo checks it when an animal is picked.
 
 (function () {
   const container = document.getElementById("location-map");
@@ -15,10 +15,13 @@
   const pinLat = document.getElementById("pin-lat");
   const pinLon = document.getElementById("pin-lon");
   const first = points[Object.keys(points)[0]];
-  const pending = !checked && pinLat && pinLat.value
+  // The typed area has no point of its own until Qloo checks it: stay on the spot the
+  // visitor picked, if any, else on the first area.
+  const known = checked && points[checked.value] ? checked.value : null;
+  const pending = !known && pinLat && pinLat.value
     ? { ...first, label: "the spot you picked", pin: { latitude: Number(pinLat.value), longitude: Number(pinLon.value) } }
     : null;
-  const start = pending || points[checked ? checked.value : Object.keys(points)[0]];
+  const start = pending || points[known || Object.keys(points)[0]];
   const alert = document.getElementById("location-alert");
   if (alert) alert.scrollIntoView({ block: "center" });
   const note = document.getElementById("map-note");
@@ -105,8 +108,8 @@
   // Picking the shelter's spot.
   const pickUrl = container.dataset.pickUrl;
   const field = document.getElementById("custom-location-text");
-  const form = document.getElementById("custom-location");
-  if (!pickUrl || !field || !form || !pinLat || !pinLon) return;
+  const typed = document.getElementById("location-typed");
+  if (!pickUrl || !field || !typed || !pinLat || !pinLon) return;
 
   // Typing a different area drops a spot picked earlier: it belonged to that lookup.
   field.addEventListener("input", (event) => {
@@ -151,7 +154,16 @@
         field.value = area.label;
         pinLat.value = spot.lat.toFixed(4);
         pinLon.value = spot.lng.toFixed(4);
-        form.requestSubmit();
+        // The area becomes the choice; Qloo checks it once an animal is picked.
+        typed.checked = true;
+        typed.dispatchEvent(new Event("change", { bubbles: true }));
+        // After the click: a button taken out of the popup mid-click reads to Leaflet as
+        // a click on the map, which would close the popup.
+        setTimeout(() => {
+          text.textContent = field.dataset.pickedNote || text.textContent;
+          box.replaceChildren(text);
+          popup.update();
+        }, 0);
       });
       box.append(use);
     }

@@ -27,6 +27,7 @@ from app.profile import build_profile, local_tastes
 from app.session import Sessions, photo_type
 from app.store import Store
 from app.views.build import build_result_view
+from app.views.models import TYPED_AREA
 from tests.qloo_fakes import (
     BASELINE,
     CAT_SHOW,
@@ -544,8 +545,7 @@ def cells(n: int) -> list[dict]:
     return [cell(f"dr5rks{i}", 40.67 + i * 0.002, -73.98 + i * 0.002, 0.5) for i in range(n)]
 
 
-def location_script(status="ok", results=None, **fields):
-    text = "Example Heights, Example City"
+def location_script(status="ok", results=None, text="Example Heights, Example City", **fields):
     return text, {
         key("describe", {"entity": "Example Drama", "type": "tv_show"}): describe_ok(
             BASELINE, "Example Drama"
@@ -608,7 +608,7 @@ def test_a_thin_top_show_falls_back_to_the_seed_show():
 
 def test_an_uncached_top_list_is_unavailable_not_thin():
     # Codex, PR #13: with live calls off, a cached thin seed map must not refuse an area
-    # whose own top list was never asked; "unavailable" lets /locations try it live.
+    # whose own top list was never asked; "unavailable" lets the run try it live.
     text, script = location_script(results=cells(2))
     del script[top_list_key(text)]
     assert check_location(FakeQloo(script), text, SEEDS).status == "unavailable"
@@ -616,7 +616,7 @@ def test_an_uncached_top_list_is_unavailable_not_thin():
 
 def test_a_thin_top_show_and_an_unresolvable_seed_show_is_unavailable_not_thin():
     # Codex, PR #13 re-check: the seed show's lookup missing from the cache must not
-    # leave the area refused as thin; "unavailable" lets /locations try it live.
+    # leave the area refused as thin; "unavailable" lets the run try it live.
     text, script = location_script(results=cells(6))
     with_top_show(script, text, 2)
     del script[key("describe", {"entity": "Example Drama", "type": "tv_show"})]
@@ -739,38 +739,161 @@ def test_zoom_fits_a_neighbourhood_and_a_city():
     assert zoom_for(0.4, 0.4, 30.3) <= 11
 
 
-def test_a_checked_location_is_saved_and_offered(client, monkeypatch):
+def area_run(client, text, animal="dog-02", **extra):
+    """A run at an area typed in the panel (decision 32), waited for: the run and its
+    working page."""
+    data = {"animal": animal, "location": TYPED_AREA, "area": text, **extra}
+    response = client.post("/runs", data=data)
+    run = main.RUNS[response.url.path.rsplit("/", 1)[1]]
+    asyncio.run(_wait(run))
+    return run, client.get(response.url.path).text
+
+
+def checked_by(monkeypatch, script):
+    """The area check's answers, from the cache as far as the run can tell."""
+    qloo = FakeQloo(script)
+    monkeypatch.setattr(runs, "replay_client", lambda settings: qloo)
+    monkeypatch.setattr(runs, "load_seeds", lambda path: SEEDS)
+    return qloo
+
+
+def test_a_typed_area_is_checked_in_the_run_then_saved_and_offered(client, monkeypatch):
     text, script = location_script(results=cells(6))
-    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo(script))
-    monkeypatch.setattr(main, "load_seeds", lambda path: SEEDS)
-    response = client.post("/locations", data={"text": text}, follow_redirects=False)
-    assert response.status_code == 303
+    checked_by(monkeypatch, script)
+    run, page = area_run(client, text)
     loc_id = location_id(text)
-    assert response.headers["location"] == f"/?location={loc_id}"
-    page = client.get("/", params={"location": loc_id}).text
-    assert "Example Heights" in page
-    # Typing it again costs nothing: it is served from the store.
-    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo({}))
-    again = client.post("/locations", data={"text": text}, follow_redirects=False)
-    assert again.status_code == 303
+    assert not run.failed and run.location_id == loc_id
+    assert f"Checking “{text}” with Qloo" in page and "it is saved as an area" in page
+    assert Store(main.get_settings().cache_db).get_location(loc_id) is not None
+    assert "Example Heights" in client.get("/", params={"location": loc_id}).text
+    # Typing it again asks Qloo nothing: the area is saved, and so is the listing.
+    qloo = checked_by(monkeypatch, {})
+    again = client.post("/runs", data={"animal": "dog-02", "location": TYPED_AREA, "area": text})
+    assert "This listing was made before" in again.text and qloo.calls == []
 
 
-def test_thin_and_ambiguous_locations_stay_on_the_start_page(client, monkeypatch):
+def test_a_typed_area_qloo_does_not_pass_ends_the_run_with_its_answer(client, monkeypatch):
     text, script = location_script(results=cells(1))
-    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo(script))
-    monkeypatch.setattr(main, "load_seeds", lambda path: SEEDS)
-    response = client.post("/locations", data={"text": text})
-    assert response.status_code == 400 and "too little data" in response.text
+    checked_by(monkeypatch, script)
+    run, page = area_run(client, text)
+    assert run.failed and run.area_failed
+    assert 'data-role="area-check"' in page and "too little data" in page
+    assert "See the result" not in page
+    assert "/?area=Example+Heights%2C+Example+City#shelter" in page
+    store = Store(main.get_settings().cache_db)
+    assert store.get_location(location_id(text)) is None
+    assert store.get_listing("dog-02", location_id(text)) is None
+    # The link back keeps the area typed and chosen, in the open panel.
+    back = client.get("/", params={"area": text}).text
+    assert 'id="location-typed" required checked>' in back and f'value="{text}"' in back
+    assert (
+        'data-role="shelter" open>' in back and " checked>" not in back.split("location-typed")[0]
+    )
+
+
+@pytest.mark.parametrize("ui", main.UIS)
+def test_every_skin_offers_the_typed_area_and_says_what_qloo_answered(client, monkeypatch, ui):
+    start = client.get("/", params={"ui": ui}).text
+    assert f'name="location" value="{TYPED_AREA}"' in start and 'name="area"' in start
+    assert "Check with Qloo" not in start  # no separate check: the run does it
+    text, script = location_script(results=cells(1))
+    checked_by(monkeypatch, script)
+    _, page = area_run(client, text, ui=ui)
+    assert 'data-role="area-check"' in page and "too little data" in page
+
+
+def test_a_name_the_field_refuses_never_starts_a_run(client):
+    before = len(main.RUNS)
+    page = client.post("/runs", data={"animal": "dog-02", "location": TYPED_AREA,
+                                      "area": "12 Example Street"})  # fmt: skip
+    assert page.status_code == 400 and len(main.RUNS) == before
+    assert 'id="location-alert" role="alert"' in page.text
+    assert 'id="location-typed" required checked>' in page.text
+
+
+def test_a_litter_and_an_added_animal_take_the_typed_area_too(client, monkeypatch, roster):
+    text, script = location_script(results=cells(6))
+    checked_by(monkeypatch, script)
+    run, _ = area_run(client, text, animal="litter-group")
+    assert not run.failed
+    members = next(lit for lit in roster.litters if lit.id == "litter-group").members
+    store = Store(main.get_settings().cache_db)
+    assert all(store.get_listing(m, location_id(text)) is not None for m in members)
+
+    # Codex: "Add your own animal" took only a preset; the typed area goes along and back.
+    other = "Example Heights, Other City"
+    page = client.get("/animals/new", params={"location": TYPED_AREA, "area": other}).text
+    assert f'name="area" value="{other}"' in page and "area=Example+Heights%2C+Other+City" in page
+    added = client.post("/animals", follow_redirects=False, data={
+        "location": TYPED_AREA, "area": other, "species": "dog", "sex": "female",
+        "age": "2 years", "look": "a brindle coat", "temperament": "calm with people",
+    })  # fmt: skip
+    assert added.headers["location"].startswith("/?area=Example+Heights%2C+Other+City#added-")
+    animal_id = added.headers["location"].rsplit("#", 1)[1]
+    _, other_script = location_script(results=cells(6), text=other)
+    checked_by(monkeypatch, other_script)
+    run, page = area_run(client, other, animal=animal_id)
+    assert not run.failed and f"Checking “{other}” with Qloo" in page
+    # An added animal's run is this visit's own.
+    assert run.session_id is not None
+    assert TestClient(main.app).get(f"/runs/{run.id}").status_code == 404
+
+
+def test_a_check_that_raises_gives_the_run_back(client, monkeypatch):
+    # Codex, Flash: an answer the check could not read kept the run's charge.
+    settings = main.get_settings()
+    monkeypatch.setattr(settings, "live_runs_per_visitor_per_hour", 1)
+    monkeypatch.setattr(runs, "live_work_possible", lambda settings: True)
+
+    def broken(*args):
+        raise ValueError("an answer in a shape the check cannot read")
+
+    monkeypatch.setattr(runs, "check_area", broken)
+    for _ in range(2):
+        run, page = area_run(client, "Example Heights")
+        assert run.area_failed and "could not be reached" in page
+
+
+def test_an_empty_area_in_the_link_is_no_choice(client):
+    page = client.get("/", params={"area": " ", "location": "astoria"}).text
+    assert 'id="location-typed" required>' in page and page.count(" checked>") == 1
 
 
 def test_new_locations_are_capped_per_day(client, monkeypatch):
     settings = main.get_settings()
     monkeypatch.setattr(settings, "new_locations_per_day", 0)
+    # A blocked try gives its run back, so with room for two starts both tries start.
+    monkeypatch.setattr(settings, "live_runs_per_visitor_per_hour", 2)
     monkeypatch.setattr(settings, "allow_live_qloo", True)
-    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo({}))
-    monkeypatch.setattr(main, "qloo_client", lambda settings: FakeQloo({}))
-    response = client.post("/locations", data={"text": "Example Heights"})
-    assert response.status_code == 429 and "limit of 0 new locations" in response.text
+    checked_by(monkeypatch, {})
+    monkeypatch.setattr(runs, "qloo_client", lambda settings: FakeQloo({}))
+    for _ in range(2):
+        # The run's own charge comes back with the area, so a second try still starts.
+        run, page = area_run(client, "Example Heights")
+        assert run.area_failed and "limit of 0 new locations" in page
+
+
+def test_a_cached_location_check_is_free_even_at_the_cap(client, monkeypatch):
+    settings = main.get_settings()
+    monkeypatch.setattr(settings, "new_locations_per_day", 0)
+    monkeypatch.setattr(settings, "allow_live_qloo", True)
+    text, script = location_script(results=cells(1))  # thin, and never stored
+    checked_by(monkeypatch, script)
+    monkeypatch.setattr(runs, "qloo_client", lambda settings: FakeQloo({}))
+    for _ in range(2):
+        assert "too little data" in area_run(client, text)[1]
+
+
+def test_a_location_check_without_a_live_call_gives_its_slot_back(client, monkeypatch):
+    settings = main.get_settings()
+    monkeypatch.setattr(settings, "new_locations_per_day", 1)
+    monkeypatch.setattr(settings, "allow_live_qloo", True)
+    text, script = location_script(results=cells(1))
+    checked_by(monkeypatch, {})
+    # The fake makes no live calls, as if every answer had come from the cache.
+    monkeypatch.setattr(runs, "qloo_client", lambda settings: FakeQloo(script))
+    for _ in range(3):
+        assert "too little data" in area_run(client, text)[1]
 
 
 # Examples
@@ -878,30 +1001,6 @@ def test_naming_the_litter_again_keeps_members_already_named(roster):
     assert results[0].draft.names[0].name == "Bingo"
     assert results[1].draft.names[0].name == "Scout"
     assert store.get_listing("dog-02", LOCATION.id).draft.names[0].name == "Bingo"
-
-
-def test_a_cached_location_check_is_free_even_at_the_cap(client, monkeypatch):
-    settings = main.get_settings()
-    monkeypatch.setattr(settings, "new_locations_per_day", 0)
-    monkeypatch.setattr(settings, "allow_live_qloo", True)
-    monkeypatch.setattr(main, "load_seeds", lambda path: SEEDS)
-    text, script = location_script(results=cells(1))  # thin, and never stored
-    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo(script))
-    for _ in range(2):
-        assert client.post("/locations", data={"text": text}).status_code == 400
-
-
-def test_a_location_check_without_a_live_call_gives_its_slot_back(client, monkeypatch):
-    settings = main.get_settings()
-    monkeypatch.setattr(settings, "new_locations_per_day", 1)
-    monkeypatch.setattr(settings, "allow_live_qloo", True)
-    monkeypatch.setattr(main, "load_seeds", lambda path: SEEDS)
-    text, script = location_script(results=cells(1))
-    monkeypatch.setattr(main, "replay_client", lambda settings: FakeQloo({}))
-    # The fake makes no live calls, as if every answer had come from the cache.
-    monkeypatch.setattr(main, "qloo_client", lambda settings: FakeQloo(script))
-    for _ in range(3):
-        assert client.post("/locations", data={"text": text}).status_code == 400
 
 
 def test_the_location_cap_is_reserved_before_the_call(tmp_path):

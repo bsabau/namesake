@@ -1,4 +1,5 @@
-"""A location the visitor types: sent to Qloo as typed, and checked before any run.
+"""A location the visitor types: sent to Qloo as typed, and checked as the first step of
+the run that picking an animal starts (decision 32).
 
 A fixed heatmap decides whether the place is usable: where fans of the area's own
 most-watched TV show are, within the typed place. That show comes from the call the
@@ -12,8 +13,8 @@ looking thin: Gràcia, Barcelona had 2 cells for it and 20 for its own top show
 and zoom come from the cells it returns.
 
 - Qloo offers candidates (`needs_input`): the visitor picks one, as buttons.
-- Too few cells for every probe: Qloo has too little data there, and the app says so
-  before any run.
+- Too few cells for every probe: Qloo has too little data there, and the run stops
+  there, saying so.
 """
 
 import hashlib
@@ -34,6 +35,18 @@ MAX_LENGTH = 80
 # Place names only: letters, spaces and light punctuation. Digits are refused, which
 # keeps street addresses (and anything personal they carry) away from Qloo.
 ALLOWED = re.compile(r"^[^\W\d_][\w .,'’()\-]*$")
+
+
+INVALID = (
+    "Type a neighbourhood or a city, such as “Williamsburg, Brooklyn” or “Portland, OR”: "
+    "letters only, no street address or numbers."
+)
+
+
+UNAVAILABLE = (
+    "Qloo could not be reached to check this place, and it has not been checked before. "
+    "Try again later, or pick one of the preset areas."
+)
 
 
 class LocationCheck(BaseModel):
@@ -96,11 +109,7 @@ def heatmap_cells(
 def check_location(qloo: QlooClient, typed: str, seeds: Seeds) -> LocationCheck:
     text = clean(typed)
     if text is None:
-        return LocationCheck(
-            status="invalid",
-            message="Type a neighbourhood or a city, such as “Williamsburg, Brooklyn” or "
-            "“Portland, OR”: letters only, no street address or numbers.",
-        )
+        return LocationCheck(status="invalid", message=INVALID)
     probe = Location(
         id=location_id(text),
         label=text,
@@ -111,11 +120,7 @@ def check_location(qloo: QlooClient, typed: str, seeds: Seeds) -> LocationCheck:
         latitude=0,
         longitude=0,
     )
-    unavailable = LocationCheck(
-        status="unavailable",
-        message="Qloo could not be reached to check this place, and it has not been checked "
-        "before. Try again later, or pick one of the preset areas.",
-    )
+    unavailable = LocationCheck(status="unavailable", message=UNAVAILABLE)
     try:
         probe_id, top_failed = local_top_show(qloo, text)
         env, cells = heatmap_cells(qloo, probe_id, text) if probe_id else (None, [])

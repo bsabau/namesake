@@ -191,6 +191,8 @@ The refusal keeps the edit and names the missing words.
 
 **Revised 18 October:** the probe is the area's own most-watched TV show (the profile's local-tastes call, so it is cached for the profile), and the seed show as well when that list is not a plain answer or its top show has too few cells, the seed's candidates or failure speaking for the place, else the fuller map deciding. A US seed show alone made neighbourhoods abroad look thin: Gràcia, Barcelona had 2 cells for *Yellowstone* and 20 for its own top show (`docs/qloo-findings.md`). About two calls a check, three when the top show is thin there (the seed show's `describe` is cached after the first time). A list that is not cached while live calls are off makes the check "unavailable", so it is tried live later instead of refused from the seed show's map alone. Passing now says Qloo has data for the area, not that its pet titles map well; the result page says when the map is thin.
 
+**Revised 20 October (decision 32):** the check is no longer a step of its own on the start page. It runs as the first step of the run, when an animal is picked, and its candidates and its "too little data" show on the working page.
+
 ## 13. A litter is named as a set by the first member's choice
 
 **Decided:**
@@ -249,7 +251,7 @@ The refusal keeps the edit and names the missing words.
 ## 17. The shelter's spot from the map: the pin stays in the visit, Qloo gets the area's name
 
 **Decided** (the author, 17 October: point at the shelter on the map, "so we can use the neighbourhood after that"; Photon chosen as the geocoder):
-- Right-click on the start map (long-press on a phone) offers the areas that spot lies in, most local first ("Williamsburg, Brooklyn", "Brooklyn, New York", "New York"). Choosing one sends that name through the custom-location check exactly as if typed (decision 12).
+- Right-click on the start map (long-press on a phone) offers the areas that spot lies in, most local first ("Williamsburg, Brooklyn", "Brooklyn, New York", "New York"). Choosing one sends that name through the custom-location check exactly as if typed (decision 12; since 20 October it becomes the typed area, checked when an animal is picked, decision 32).
 - The spot itself is that visit's pin: kept in the session, never stored or shared, never sent to Qloo, and drawn on the start and result maps with a note saying so. A pin more than 15 km from the area Qloo checked is dropped, so the result map stays close enough to read.
 - The location field suggests area names as you type, ranked near the area on the map.
 - Both lookups go through the app's own `/api/places`, which asks Photon (OpenStreetMap data, no key) for areas only and never shows an address. Typed text the location field would refuse (digits, so street addresses, or anything but a place name) is never sent. A picked spot is rounded to about 100 m in the browser already, so the exact spot stays out of URLs and logs; the ranking point to about 11 km; the pin kept in the visit to about 10 m.
@@ -460,3 +462,21 @@ Not done: the character a name refers to ("Bingo, a puppy in *Bluey*") is not la
 - **Cost:** one call per title, by its ID alone (Qloo resolves the kind), cached; a run asks only for titles not asked before, so a few calls at most. Listings saved before get it from `python -m app.audience`, once, on the host. Older listings without it show nothing.
 - **The evidence review's caution** (20 October, from the review of PR #59): `docs/research/adoption-evidence-review.md` warns that cultural tastes are proxies for demographics, so "target fans of X" is partly demographic targeting. Showing age and gender is a choice made with that in view: the line describes a title's audience across all of Qloo's data, never this area's or a person's, names none of politics, health, finances, race or religion, and is not used to choose or rank names, so nothing is targeted by it. The page and the Devpost text say what Qloo reported, never that a name will appeal to a group.
 - **Safe to fail** (20 October, from the same review): a failed or oddly shaped answer is left out and never costs the checked listing (a failure is logged; either is counted in the run's step log as a title Qloo had no audience for); an answer with neither age nor gender counts as none. The line shows only under the title's own name, never a character's. The backfill skips listings from before the checks last changed and writes only onto a listing no run has rewritten meanwhile, in one transaction (`Store.merge_audiences`).
+
+## 32. A typed area is checked as the run's first step
+
+**Decided** (the author, 20 October, after "Check with Qloo" left the page looking frozen: "can you do it async? or when a pet is selected?", then choosing "when a pet is picked"):
+- The panel's typed area is one more choice beside the presets ("Another area", `location=typed` with the name in `area`), with no button of its own and no Qloo call. Typing in it, choosing a suggestion, or choosing an area for a spot picked on the map selects it, and the shelter bar shows the name; Enter closes the panel rather than picking the first animal.
+- Picking an animal posts the run (`POST /runs`). Text the field refuses (digits, say) comes back to the start page with the alert and no run. An area already checked and saved runs as before. Any other starts a run whose first step checks the area with Qloo (decision 12's check, unchanged: from the cache first, then live, counted against the new-areas cap), logged on the working page.
+- When the check passes, the area is saved and offered like a preset, the visitor's spot is kept as before (or dropped with a note when it is over 15 km from Qloo's cells), and the listing, or the litter's, follows in the same run.
+- When it does not, or the check itself fails, the run ends there and gives back its charge for the listing. The working page says what Qloo answered, shows its candidates as buttons that start the same animal again there (the spot rides in the form, never the URL), and links back to the start page with the area still typed (`/?area=…`).
+
+**Why:** the check took 10 to 30 seconds (up to four calls, five seconds apart on the host) on a page that only changed when Qloo answered. The working page is built for waiting, with its step log and its sign of life, and a new area's run takes minutes anyway; one wait replaces two, and the check now shows as a Qloo step.
+
+**Follows:**
+- A typed area's trouble (too little data, several places of that name) shows after the animal is picked, not before.
+- Against the per-visitor hour, a new area that passes counts as two starts, its check and its run, as before; one that does not keeps only the check's, and one refused by a cap keeps none.
+- A run carrying the visitor's spot is theirs alone, like one for an added animal: its page can offer the spot back in its candidates' form.
+- "Add your own animal" takes the typed area's name to its form and back (`/animals/new?location=typed&area=…`); a spot picked on the map stays behind, since that link is a GET. A spot more than 15 km from an area already saved is dropped with a note in the run; the start page's `?pin=far` note is gone.
+- Suggestions for the typed area are ranked near the preset chosen before it.
+- `POST /locations` is gone.

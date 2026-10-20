@@ -33,6 +33,12 @@
     answer = { text: "", places: [] };
     close();
     field.focus();
+    // A suggestion picked for the shelter's area makes the typed area the choice.
+    const typed = document.getElementById("location-typed");
+    if (typed) {
+      typed.checked = true;
+      typed.dispatchEvent(new Event("change", { bubbles: true }));
+    }
   };
 
   // The selected area's centre, from the map's data, so nearby places come first.
@@ -40,7 +46,9 @@
     const data = document.getElementById("map-points");
     const checked = document.querySelector('input[name="location"]:checked');
     if (!data || !checked) return "";
-    const p = JSON.parse(data.textContent).find((x) => x.id === checked.value);
+    // While the typed area is chosen, near the preset chosen before it (shelter-bar.js).
+    const id = checked.id === "location-typed" ? checked.dataset.near : checked.value;
+    const p = JSON.parse(data.textContent).find((x) => x.id === id);
     return p ? `&lat=${p.latitude.toFixed(1)}&lon=${p.longitude.toFixed(1)}` : "";
   };
 
@@ -96,7 +104,7 @@
       event.preventDefault();
       highlight(event.key === "ArrowDown" ? 1 : -1);
     } else if (event.key === "Enter" && active >= 0) {
-      event.preventDefault(); // pick the suggestion; a second Enter submits
+      event.preventDefault(); // pick the suggestion; a second Enter closes the panel
       choose(items()[active].textContent);
     } else if (event.key === "Escape") {
       close();

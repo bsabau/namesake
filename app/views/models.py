@@ -100,14 +100,24 @@ class ExampleLink(BaseModel):
     url: str
 
 
+# The `location` value of the area typed in the panel, beside the presets' IDs.
+TYPED_AREA = "typed"
+
+
 class LocationForm(BaseModel):
-    action: str = "/locations"
-    label: str = "Or type the shelter's area"
+    """The typed area: one more choice beside the presets, checked with Qloo as the run's
+    first step once an animal is picked (decision 32)."""
+
+    typed_value: str = TYPED_AREA
+    label: str = "Another area"
+    field_label: str = "The shelter's area, as a neighbourhood and city"
     placeholder: str = "A neighbourhood and city, such as “Williamsburg, Brooklyn”"
     hint: str = (
-        "Sent to Qloo as typed. Place names only: never a street address. A new area takes "
-        "a few minutes the first time."
+        "Checked with Qloo, as typed, when you pick an animal. Place names only: never a "
+        "street address. A new area takes a few minutes the first time."
     )
+    # Said in the map's popup once a spot's area is chosen.
+    picked_note: str = "Chosen. Now pick an animal, and Qloo checks this area first."
     map_hint: str = (
         "Or right-click the map (long-press on a phone) where the shelter is: Namesake uses "
         "the area around that spot."
@@ -122,10 +132,11 @@ class LocationForm(BaseModel):
     # A spot picked on the map, carried through Qloo's candidate buttons.
     pin_lat: str = ""
     pin_lon: str = ""
-    # After a check: what Qloo said, and its suggestions as buttons.
+    # The typed area is the choice (back from a check, or a refused name).
+    typed: bool = False
+    # A name the field refuses (digits, say), said before any run.
     message: str | None = None
     value: str = ""
-    candidates: list[str] = []
 
 
 class ShelterBar(BaseModel):
@@ -140,8 +151,8 @@ class ShelterBar(BaseModel):
     choose: str = "Choose an area"
     close: str = "Done"
     panel_heading: str = "Choose the shelter's area"
-    # Open when no area is chosen or an area check needs the visitor: the alert, Qloo's
-    # candidates and the required choice must be visible.
+    # Open when no area is chosen, or the typed area needs the visitor (a name the field
+    # refused, or back from a check that did not pass): the alert and the choice show.
     open: bool = False
 
 
@@ -178,6 +189,9 @@ class AddAnimalView(BaseModel):
     )
     action: str = "/animals"
     location_id: str
+    # The typed area's name, when it is the choice, and the way back to the animals.
+    area: str = ""
+    back_url: str
     # What the visitor entered, kept when the form is refused so only the fix is needed.
     values: dict[str, str] = {}
     species: list[str] = ["dog", "cat"]
@@ -348,6 +362,22 @@ class ActorKey(BaseModel):
     label: str
 
 
+class AreaCheckView(BaseModel):
+    """A typed area Qloo did not pass, on the working page: what it said, its candidates
+    as buttons that start the same animal again, and a way back to change the area."""
+
+    status: str = "Stopped at the area check, so no listing was written."
+    message: str
+    candidates: list[str] = []
+    picked: str
+    typed_value: str = TYPED_AREA
+    # The visitor's spot, carried in the form (never a URL) so a candidate keeps it.
+    pin_lat: str = ""
+    pin_lon: str = ""
+    back_url: str
+    back_label: str = "Change the area"
+
+
 class WorkingView(BaseModel):
     run_id: str
     title: str
@@ -376,6 +406,8 @@ class WorkingView(BaseModel):
     # Seconds since the last step when the page was built, so a reload keeps counting.
     seconds_since_step: int = 0
     credits: Credits = Credits()
+    # A typed area that did not pass its check: the run ended there.
+    area: AreaCheckView | None = None
 
 
 class QlooPart(BaseModel):

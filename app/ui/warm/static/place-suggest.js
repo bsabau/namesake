@@ -10,7 +10,9 @@ function nearSelected() {
   const data = document.getElementById("map-points");
   const checked = document.querySelector('input[name="location"]:checked');
   if (!data || !checked) return "";
-  const p = JSON.parse(data.textContent).find((x) => x.id === checked.value);
+  // While the typed area is chosen, near the preset chosen before it (shelter-bar.js).
+  const id = checked.id === "location-typed" ? checked.dataset.near : checked.value;
+  const p = JSON.parse(data.textContent).find((x) => x.id === id);
   return p ? `&lat=${p.latitude.toFixed(1)}&lon=${p.longitude.toFixed(1)}` : "";
 }
 
@@ -99,7 +101,7 @@ function attachSuggestions(field, list, onChoose, near = nearSelected) {
       event.preventDefault();
       highlight(event.key === "ArrowDown" ? 1 : -1);
     } else if (event.key === "Enter" && active >= 0) {
-      event.preventDefault(); // pick the suggestion; a second Enter submits
+      event.preventDefault(); // pick the suggestion; a second Enter closes the panel
       choose(shown[active]);
     } else if (event.key === "Escape") {
       close();
@@ -108,10 +110,16 @@ function attachSuggestions(field, list, onChoose, near = nearSelected) {
   field.addEventListener("blur", close);
 }
 
+// A suggestion picked for the shelter's area makes the typed area the choice.
 attachSuggestions(
   document.getElementById("custom-location-text"),
   document.getElementById("place-suggestions"),
-  () => {},
+  () => {
+    const typed = document.getElementById("location-typed");
+    if (!typed) return;
+    typed.checked = true;
+    typed.dispatchEvent(new Event("change", { bubbles: true }));
+  },
 );
 
 // The search on the map only moves it; it never chooses an area or asks Qloo. Enter in

@@ -2,6 +2,7 @@
 
 import re
 import time
+from urllib.parse import urlencode
 
 from app.agent.checks import hook_text, mentions_identity
 from app.agent.listing_agent import Lookalike, NameOption
@@ -14,7 +15,7 @@ from app.config import get_settings
 from app.custom_location import MIN_CELLS
 from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, pronouns, templated_listing
 from app.locations import Location
-from app.places import MAX_PIN_KM, distance_km
+from app.places import distance_km
 from app.profile import (
     LEFT_OUT_GROUPS,
     MIN_CATEGORY_VENUES,
@@ -30,10 +31,12 @@ from app.profile import (
 )
 from app.qloo.geohash import bounds
 from app.views.models import (
+    TYPED_AREA,
     ActorKey,
     AddAnimalView,
     AnimalCard,
     ApprovedView,
+    AreaCheckView,
     Credits,
     ExampleLink,
     ListingSentence,
@@ -117,10 +120,6 @@ def and_list(items: list[str]) -> str:
     return ", ".join(items[:-1]) + " and " + items[-1]
 
 
-PIN_FAR_NOTE = (
-    f"The spot you picked is more than {MAX_PIN_KM} km from where Qloo has data for this "
-    "area, so it is not shown. The circle marks the area Qloo checked."
-)
 PIN_NOTE = (
     "The pin is the spot you picked for the shelter. It stays in this visit and never "
     "goes to Qloo, which gets only the area's name."
@@ -293,19 +292,14 @@ def build_start_view(
     examples: list[ExampleLink] | None = None,
     added: list[AnimalCard] | None = None,
     pins: dict[str, tuple[float, float]] | None = None,
-    pin_far: bool = False,
 ) -> StartView:
     animals = sorted(roster.animals, key=lambda a: a.id != FEATURED)
     options = [
         location_option(loc, loc.id == selected_id, (pins or {}).get(loc.id)) for loc in locations
     ]
-    for option in options:
-        if pin_far and option.selected:
-            option.map_note = PIN_FAR_NOTE
     chosen = next((o for o in options if o.selected), None)
     shelter = (
-        # A spot dropped as too far is explained in the panel, so it opens.
-        ShelterBar(name=chosen.label, region=chosen.region, open=pin_far)
+        ShelterBar(name=chosen.label, region=chosen.region)
         if chosen
         else ShelterBar(name="not chosen yet", chosen=False, open=True)
     )
@@ -1694,9 +1688,14 @@ def build_add_animal_view(
     max_facts: int,
     error: str | None = None,
     values: dict[str, str] | None = None,
+    area: str = "",
 ) -> AddAnimalView:
+    """With the typed area (`location_id` is TYPED_AREA), its name goes along, and back."""
+    typed = location_id == TYPED_AREA
     return AddAnimalView(
         location_id=location_id,
+        area=area if typed else "",
+        back_url=f"/?{urlencode({'area': area} if typed else {'location': location_id})}",
         values=values or {},
         questions=[
             Question(field=field, label=label)
@@ -1710,4 +1709,17 @@ def build_add_animal_view(
         ],
         max_facts=max_facts,
         error=error,
+    )
+
+
+def area_check_view(area, ui_query: str = "") -> AreaCheckView:
+    """The working page's answer when a typed area did not pass (`app.runs.AreaCheck`)."""
+    lat, lon = (str(area.pin[0]), str(area.pin[1])) if area.pin else ("", "")
+    return AreaCheckView(
+        message=area.outcome.message,
+        candidates=area.outcome.candidates,
+        picked=area.picked,
+        pin_lat=lat,
+        pin_lon=lon,
+        back_url=f"/?{urlencode({'area': area.text})}{ui_query}#shelter",
     )

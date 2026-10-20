@@ -3,7 +3,7 @@
 {% block title %}{{ view.title }} · Namesake{% endblock %}
 
 {% block content %}
-<p class="back"><a href="/?location={{ view.location_id }}{{ ui_query }}">&larr; Back to the animals</a></p>
+<p class="back"><a href="{{ view.back_url }}{{ ui_query }}">&larr; Back to the animals</a></p>
 
 <section class="add-animal-form" data-role="add-animal">
   <h1>{{ view.title }}</h1>
@@ -12,6 +12,7 @@
 
   <form action="{{ view.action }}" method="post" enctype="multipart/form-data">
     <input type="hidden" name="location" value="{{ view.location_id }}">
+    {% if view.area %}<input type="hidden" name="area" value="{{ view.area }}">{% endif %}
     {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
 
     <fieldset class="choices">

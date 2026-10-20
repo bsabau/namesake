@@ -15,7 +15,7 @@
       <p class="animal-meta">{{ view.animal.meta }}</p>
       <h1 class="working-title">{{ view.title }}</h1>
       <p class="where-label" data-role="status">
-        {{ 'Finished.' if view.finished else 'Working. Each step appears as it happens.' }}</p>
+        {% if view.area %}{{ view.area.status }}{% else %}{{ 'Finished.' if view.finished else 'Working. Each step appears as it happens.' }}{% endif %}</p>
     </div>
   </div>
 
@@ -33,7 +33,28 @@
   </p>
   {% endif %}
 
+  {% if view.area %}
+  {# A typed area Qloo did not pass: what it said, its candidates (each starts this animal
+     again there; the spot rides in the form, never the URL), and a way to change it. #}
+  <section class="area-check" data-role="area-check">
+    <p class="location-alert" role="alert">{{ view.area.message }}</p>
+    {% if view.area.candidates %}
+    <form class="candidates" data-role="candidates" action="/runs" method="post">
+      {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
+      <input type="hidden" name="animal" value="{{ view.area.picked }}">
+      <input type="hidden" name="location" value="{{ view.area.typed_value }}">
+      <input type="hidden" name="pin_lat" value="{{ view.area.pin_lat }}">
+      <input type="hidden" name="pin_lon" value="{{ view.area.pin_lon }}">
+      {% for candidate in view.area.candidates %}
+      <button type="submit" name="area" value="{{ candidate }}">{{ candidate }}</button>
+      {% endfor %}
+    </form>
+    {% endif %}
+    <p><a href="{{ view.area.back_url }}">{{ view.area.back_label }}</a></p>
+  </section>
+  {% else %}
   <p><a class="result-link" href="{{ view.result_url }}">See the result</a></p>
+  {% endif %}
   <noscript><p>Reload this page to see new steps.</p></noscript>
 </section>
 {% endblock %}
