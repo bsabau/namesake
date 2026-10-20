@@ -524,8 +524,7 @@ def test_no_warm_cell_says_so():
         LOCATION, map_with([(0.5, 0.9), (0.4, 0.8), (0.3, 0.7), (0.2, 0.6), (0.1, 0.5)])
     ).note
     assert note.endswith(
-        "Circle: the area around the shelter the animals are adopted from, a made-up spot "
-        "for this demo."
+        "Circle: the shelter the animals are adopted from (made up for this demo)."
     )
     # Codex and flash: around a spot the visitor picked, the circle is not made up.
     picked = map_view(
@@ -533,7 +532,7 @@ def test_no_warm_cell_says_so():
         map_with([(0.5, 0.9), (0.4, 0.8), (0.3, 0.7), (0.2, 0.6), (0.1, 0.5)]),
         pin=(LOCATION.latitude, LOCATION.longitude),
     ).note
-    assert picked.endswith("Circle: the area around the spot you picked for the shelter.")
+    assert picked.endswith("Circle: around the spot you picked for the shelter.")
 
 
 def test_one_compared_cell_among_grey_ones_reads_in_the_singular():

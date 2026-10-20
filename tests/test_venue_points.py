@@ -171,7 +171,7 @@ def test_a_far_pin_is_not_drawn_and_the_key_counts_only_drawn_ones():
     assert (
         [x.number for x in view.venues] == [2]
         and "Numbers: the places to ask" in view.note
-        and "need not sit in a warm one" in view.note
+        and "need not sit in a warm cell" in view.note
     )
 
 

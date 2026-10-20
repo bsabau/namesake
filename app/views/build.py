@@ -709,10 +709,9 @@ def map_view(
         # The circle is drawn on every map with cells, so it is explained on every one;
         # it centres on the visitor's own spot when they picked one.
         + (
-            " Circle: the area around the spot you picked for the shelter."
+            " Circle: around the spot you picked for the shelter."
             if pin
-            else " Circle: the area around the shelter the animals are adopted from, a "
-            "made-up spot for this demo."
+            else " Circle: the shelter the animals are adopted from (made up for this demo)."
         )
         if cells
         else None
@@ -760,9 +759,8 @@ def map_view(
     # Qloo ranks places in a separate answer from the cells, so a reader should not look
     # for them inside warm cells (the author's question, 20 October).
     numbers = (
-        " Numbers: the places to ask, as in the list (points from OpenStreetMap). Qloo "
-        "ranks places in a separate answer from the cells, so they need not sit in a "
-        "warm one."
+        " Numbers: the places to ask, as in the list. Qloo ranks them separately from the "
+        "cells, so they need not sit in a warm cell."
         if placed
         else ""
     )
