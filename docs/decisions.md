@@ -281,7 +281,7 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** Qloo's `trends` was considered for a "rising lately" signal and dropped: it has no location, returned nothing for July to October 2026, and was flat for 2025 (`docs/qloo-findings.md`).
 
-**Revised 20 October, the key** (the author asked why the numbered places sat outside the warm cells): the key now says Qloo ranks the places separately from the cells, so they need not sit in a warm cell. The circle reads as the shelter the animals are adopted from, made up for this demo, or, where the visitor picked a spot, the area around that spot; the key grows by about 55 characters, to about 330 with places (the OpenStreetMap aside went, since each place's card names it); "shelter" and "cell" stay the page's only words for them.
+**Revised 20 October, the key** (the author asked why the numbered places sat outside the warm cells): the key now says Qloo ranks the places separately from the cells, so they need not sit in a warm cell. The circle reads as the area around the shelter the animals are adopted from, made up for this demo, or, where the visitor picked a spot, the area around that spot; the key grows by about 55 characters, to about 330 with places (the OpenStreetMap aside went, since each place's card names it); "shelter" and "cell" stay the page's only words for them.
 
 ## 19. The name screen checks real people and identity-coded references in code
 

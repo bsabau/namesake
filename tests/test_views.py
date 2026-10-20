@@ -524,7 +524,7 @@ def test_no_warm_cell_says_so():
         LOCATION, map_with([(0.5, 0.9), (0.4, 0.8), (0.3, 0.7), (0.2, 0.6), (0.1, 0.5)])
     ).note
     assert note.endswith(
-        "Circle: the shelter the animals are adopted from (made up for this demo)."
+        "Circle: around the shelter the animals are adopted from (made up for this demo)."
     )
     # Codex and flash: around a spot the visitor picked, the circle is not made up.
     picked = map_view(

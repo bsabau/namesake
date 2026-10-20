@@ -711,7 +711,7 @@ def map_view(
         + (
             " Circle: around the spot you picked for the shelter."
             if pin
-            else " Circle: the shelter the animals are adopted from (made up for this demo)."
+            else " Circle: around the shelter the animals are adopted from (made up for this demo)."
         )
         if cells
         else None
