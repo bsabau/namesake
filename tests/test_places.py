@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from app import main
 from app.custom_location import location_id
 from app.locations import Location
-from app.places import Allowance, Places, Throttled, areas_around, label_for
+from app.places import Allowance, LookupFailed, Places, Throttled, areas_around, label_for
 from app.store import Store
 from tests.qloo_fakes import FakeQloo
 from tests.test_product import (  # noqa: F401 - fixtures
@@ -180,6 +180,20 @@ def test_a_picked_spot_leaves_the_server_rounded_to_about_100_m():
     assert "layer" not in asked
 
 
+def test_a_spot_photon_could_not_answer_is_not_an_area_less_spot():
+    house = feature(None, type="house", locality="Example Slope", district="Exampleton")
+    lookup, fake = places(OSError("timed out"), {"features": [house]})
+    with pytest.raises(LookupFailed):
+        lookup.at(*HOME)
+    # Not cached, so picking the spot again asks again.
+    assert [p.label for p in lookup.at(*HOME)] == ["Example Slope, Exampleton", "Exampleton"]
+    assert len(fake.urls) == 2
+    # An answer in an odd shape is not "no area here" either.
+    lookup, _ = places({"features": None})
+    with pytest.raises(LookupFailed):
+        lookup.at(*HOME)
+
+
 def test_with_no_geocoder_nothing_is_asked():
     fake = FakeGeocoder()
     lookup = Places("", fetch=fake)
@@ -219,6 +233,14 @@ def test_the_api_names_the_area_around_a_spot(client, geocoder):  # noqa: F811
     empty = client.get("/api/places/at", params={"lat": 0.5, "lon": 0.5}).json()
     assert empty["places"] == [] and "No neighbourhood or city" in empty["message"]
     assert client.get("/api/places/at", params={"lat": 91, "lon": 0}).status_code == 422
+
+
+def test_the_api_says_so_when_the_lookup_did_not_answer(client, geocoder):  # noqa: F811
+    geocoder.answers = [OSError("timed out")]
+    failed = client.get("/api/places/at", params={"lat": 40.67, "lon": -73.98})
+    assert failed.status_code == 503
+    assert "did not answer" in failed.json()["detail"]
+    assert "No neighbourhood" not in failed.json()["detail"]
 
 
 def test_lookups_are_off_without_a_geocoder_and_limited_per_visitor(client, monkeypatch):  # noqa: F811

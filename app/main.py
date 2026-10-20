@@ -40,6 +40,7 @@ from app.places import (
     MAX_PIN_KM,
     PIN_DECIMALS,
     Allowance,
+    LookupFailed,
     Places,
     Throttled,
     distance_km,
@@ -888,6 +889,9 @@ def place_lookup() -> Places:
 
 
 TOO_MANY_LOOKUPS = "too many place lookups; wait a minute, or type the area"
+LOOKUP_FAILED = (
+    "The map's place lookup did not answer just now. Pick the spot again, or type the area."
+)
 
 
 @app.get("/api/places")
@@ -918,6 +922,8 @@ def api_place_at(
         found = place_lookup().at(lat, lon, visitor=visitor(request))
     except Throttled:
         raise HTTPException(429, TOO_MANY_LOOKUPS) from None
+    except LookupFailed:
+        raise HTTPException(503, LOOKUP_FAILED) from None
     if not found:
         return PlacesView(
             message="No neighbourhood or city was found at that spot. Pick a spot in a town, "

@@ -16,7 +16,8 @@ addresses, or anything but a place name) is never sent at all.
 Answers are cached in memory. Only a call that reaches Photon counts against the
 allowances: each visitor's per minute, and one for everyone together, which keeps to
 Photon's fair use. At most a few calls run at once, so a slow Photon never ties up the
-server's threads. When Photon is slow, down or odd, the field works as typed.
+server's threads. When Photon is slow, down or odd, the field works as typed; a picked
+spot says the lookup did not answer, so the visitor can pick it again.
 """
 
 import http.client
@@ -195,13 +196,19 @@ class Places:
 
     def at(self, latitude: float, longitude: float, visitor: str = "anyone") -> list[Place]:
         """The areas a spot lies in, most local first, looked up at about 100 m. Each comes
-        with the rounded spot, since an area's own centre is not known here."""
+        with the rounded spot, since an area's own centre is not known here. Raises
+        Throttled, or LookupFailed when Photon could not answer, so the visitor is told to
+        try again rather than that the spot has no area."""
         if not self.enabled:
             return []
         lat, lon = round(latitude, SPOT_DECIMALS), round(longitude, SPOT_DECIMALS)
         url = self._url("reverse", {"lat": lat, "lon": lon, "limit": 1}, areas_only=False)
         return self._cached(
-            url, lambda f: [(a, lat, lon) for a in areas_around(f.get("properties", {}))], visitor
+            url,
+            lambda f: [(a, lat, lon) for a in areas_around(f.get("properties", {}))],
+            visitor,
+            strict=True,
+            odd_fails=True,
         )
 
     def venue_point(
@@ -229,7 +236,7 @@ class Places:
                 "lon": round(near[1], NEAR_DECIMALS + 1),
             }
             url = self._url("api", params, areas_only=False)
-            found = self._cached(url, _point, visitor, strict=True)
+            found = self._cached(url, _point, visitor, strict=True, paced=True)
             if not found:
                 continue
             point = found[0]
@@ -254,11 +261,20 @@ class Places:
         return f"{self.base_url}/{path}?{urllib.parse.urlencode([*params.items(), *layers])}"
 
     def _cached(
-        self, url: str, read: Callable[[dict], Found], visitor: str, strict: bool = False
+        self,
+        url: str,
+        read: Callable[[dict], Found],
+        visitor: str,
+        strict: bool = False,
+        paced: bool = False,
+        odd_fails: bool = False,
     ) -> list[Place]:
         """Places from one Photon answer, cached by URL; `read` turns each feature into
-        (label, latitude, longitude). Raises Throttled when an allowance is spent. Only a
-        call that goes out is counted: one that waits too long for a slot is not."""
+        (label, latitude, longitude). Raises Throttled when an allowance is spent, and when
+        `strict`, LookupFailed when Photon could not answer. Only a call that goes out is
+        counted: one that waits too long for a slot is not. `paced` keeps venue lookups
+        apart. An answer in an odd shape counts as no match, or with `odd_fails` raises
+        LookupFailed too: `odd_fails` covers only the answer, `strict` the request."""
         with self._lock:
             if url in self._cache:
                 self._cache.move_to_end(url)
@@ -273,7 +289,7 @@ class Places:
             if not self.per_visitor.take(visitor):
                 self.overall.refund("everyone")
                 raise Throttled
-            if strict:
+            if paced:
                 self._pace()  # right before the request, so queued lookups keep apart
             try:
                 data = self.fetch(url)
@@ -291,7 +307,9 @@ class Places:
         except (OSError, ValueError, http.client.HTTPException, LookupError, TypeError,
                 AttributeError):  # fmt: skip
             # Down, cut off or an odd answer; not cached, so the next try may work. For a
-            # venue lookup an odd answer counts as no match.
+            # venue an odd answer counts as no match; for a picked spot it is a failure.
+            if odd_fails:
+                raise LookupFailed("odd answer") from None
             return []
         finally:
             self._calls.release()

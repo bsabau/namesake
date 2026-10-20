@@ -263,6 +263,8 @@ The refusal keeps the edit and names the missing words.
 
 **Revised 18 October, a search on the map:** a field above the start map, "Find a place on the map", takes the same area suggestions as the typed-area field (`/api/places`, the same allowance and rules) and only moves the map to the chosen place, so a visitor far from the presets (Barcelona, say) need not pan there by hand before right-clicking the shelter's spot. It belongs to its own empty form (`method="dialog"`), so Enter can never submit the animal picker around it, has no name, and nothing from it goes to Qloo. It is shown only when place lookups are on, and asks without the selected area's bias, since its purpose is to go elsewhere; a chosen place opens at a city-sized zoom.
 
+**Revised 20 October, a lookup that did not answer** (the author right-clicked a spot in Yorkville, Manhattan, and was told no neighbourhood or city was found there): Photon had not answered in time, and a failed lookup read the same as an empty one. A picked spot Photon could not answer now says so ("The map's place lookup did not answer just now. Pick the spot again, or type the area.", a 503) and is not cached, so picking again asks again; "No neighbourhood or city was found" is kept for an answer with no area in it. An answer in an odd shape is a failure here too, unlike a venue lookup's, where it counts as no match (decision 4). Suggestions while typing still fail quietly, since the field works as typed.
+
 ## 18. The map combines the top pet titles; the baseline is the area's own top shows
 
 **Decided** (the author, 17 October: "lets go with combined layer", and for the baseline "Local top shows instead"; profile version 2):
