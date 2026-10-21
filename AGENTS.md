@@ -39,7 +39,7 @@ These shape most decisions below, so keep them in mind when making trade-offs. C
 - **How results are worded:** Qloo returns aggregate affinities. Write "people in this area tend to like X", never a claim or probability about an individual. Do not infer sensitive traits (politics, health, finances, race, religion) from taste data.
 - **Provenance:** in the UI, keep what Qloo returned visibly separate from the app's interpretation of it.
 - **Ambiguity:** when Qloo cannot resolve a name it returns candidates. Show them or pick with a stated reason; do not force a fuzzy match through.
-- **Quota:** the hackathon key's quota is not published, so treat live calls as scarce. Tests never call Qloo or a model. Cache every live Qloo result. The key is rate-limited (refused after about 12 calls in 20 minutes on 15 October; 30 calls 10 seconds apart passed on 17 October; at 2 seconds `rank` was refused on 18 October), so every live call goes through `QlooClient`, which spaces calls at least `QLOO_MIN_INTERVAL` seconds apart (default 5) across processes, waits longer after a rate limit, and retries `rank` twice. Raise it if Qloo starts refusing.
+- **Quota:** the hackathon key's quota is not published, so treat live calls as scarce. Tests never call Qloo or a model. Cache every live Qloo result. The key is rate-limited (refused after about 12 calls in 20 minutes on 15 October; 30 calls 10 seconds apart passed on 17 October; at 2 seconds `rank` was refused on 18 October; on 21 October Qloo raised every hackathon key's limits, and 50 calls at 2 then 1 second apart, `rank` among them, all passed), so every live call goes through `QlooClient`, which spaces calls at least `QLOO_MIN_INTERVAL` seconds apart (default 2) across processes, waits longer after a rate limit, and retries `rank` twice. Raise it if Qloo starts refusing.
 - **Supported Qloo surfaces:** only the harness commands `qloo mcp`, `qloo exec` and `qloo api`. Do not call the HTTP API directly from Python.
 - **Listings state only recorded facts.**
   - Every sentence of a bio traces to the animal's recorded facts. Anything unrecorded stays unmentioned.
@@ -190,7 +190,7 @@ Qloo silently ignores parameters it does not recognise and then returns empty re
 - Citywide heatmaps rarely reach the shelter. Heatmaps within the neighbourhood work, and the map layer is the lift of the top two pet titles over the area's top two shows; a title that maps thinly there gives way to the next.
 - Names are often ambiguous; resolving them with a stated reason is an agent step.
 - Raw affinity saturates; use order within a call and lift against a baseline.
-- The key is rate-limited, `rank` most of all.
+- The key is rate-limited; before Qloo raised the limits on 21 October, `rank` most of all.
 
 The demo centres on New York City because US coverage is likely to be deepest; Barcelona tests an area outside the US (decision 30).
 

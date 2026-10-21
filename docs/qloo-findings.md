@@ -16,7 +16,7 @@ Probed from 3 October 2026 (milestone 1 on 15 October) with harness 0.1.26, sche
 | Is the citywide heatmap useful near a shelter? | Rarely. It returns only the top 20 cells for the city, and for 4 of 5 entities none falls within 3 km of either shelter. | Heatmaps for the map are taken within the neighbourhood. |
 | Does a heatmap within the neighbourhood work? | Yes. It returns 12 to 15 cells about 150 m across, scored by rank from 0 to 1 within the area. Against a baseline show, 8 cells overlap and give a lift map. | The map shows lift against a baseline inside the neighbourhood. |
 | Do names resolve? | Often not: 6 of 10 pet-show names were ambiguous and came back as candidates. | Choosing among candidates, with a stated reason, is a real agent step. |
-| How much can we call? | Rate-limited after about 12 calls in 20 minutes. After a 20-minute pause, 7 calls spaced 5 seconds apart went through, except `rank`, which was refused twice more. | Cache everything, space live calls, precompute the demo, give the agent a call budget, and keep `rank` calls rare. |
+| How much can we call? | Rate-limited after about 12 calls in 20 minutes. After a 20-minute pause, 7 calls spaced 5 seconds apart went through, except `rank`, which was refused twice more. Qloo raised the limits on 21 October (last section). | Cache everything, space live calls, precompute the demo, give the agent a call budget, and keep `rank` calls rare. |
 | Are the venues suitable? | Not all. Near Astoria the list mixes a museum, a sculpture park and a cinema with nightclubs and an adult venue. | Venues are screened for event suitability by the agent and by code. |
 
 ## Pet tags (P1, P2)
@@ -209,7 +209,7 @@ Top 20 TV shows, films and books for Astoria and Barcelona, for everyone and wit
 - The demographic input takes natural language and reports what it sent: "women" → `gender: female`, "millennials" → `age: 30_to_34,35_to_44`, "adults 55-64" → `age: 55_and_older`. "35 and younger", "55 and older" and "baby boomers" came back `needs_input` before any request reached Qloo (nothing was cached).
 - Of 30 lists (600 places), seven held a pet title, one or two each: *Peanut Goes for the Gold* (three lists), *Isle of Dogs* (two), *DC League of Super-Pets*, *The Labrador Pact*, *Evie and the Animals*, *Love in Lowercase*. Every index is one or two titles, so differences between areas or groups are noise, and no claim about a group is supported.
 - The splits do widen the search: five of those pet titles appeared only in a split list, not in the area's own top 20.
-- Rate limit: 30 calls about 10 seconds apart, in about 8 minutes, with no refusal. On 15 October the key was refused after about 12 calls in 20 minutes, so the limit has risen or was a burst limit; `QLOO_MIN_INTERVAL` could be lowered after a check on the server.
+- Rate limit: 30 calls about 10 seconds apart, in about 8 minutes, with no refusal. On 15 October the key was refused after about 12 calls in 20 minutes, so the limit has risen or was a burst limit; `QLOO_MIN_INTERVAL` could be lowered after a check on the server (done 21 October, below).
 
 **The feature, one live run** (`scripts/run_agent.py dog-03 austin --fresh`, 17 October, 12 live Qloo calls, the rest cached): Namesake's AI proposed PAW Patrol, Scooby-Doo, Lady and the Tramp, 101 Dalmatians and Clifford, then searched TV for PAW Patrol's fans, films for 101 Dalmatians' and books for Clifford's. Of 60 titles, Jev kept 4 and left 4 to the AI. The AI sent four TV titles to `rank`; Qloo ranked two for Austin, Bluey (1st in the PAW Patrol list) and Nature Cat (3rd), both found in the area's lists, and returned nothing for the AI's own TV titles. One run, one area: it shows the mechanism works, not how often it changes the result.
 
@@ -318,3 +318,19 @@ Could the recorded look find lookalike titles inside Qloo, in place of the AI pr
 **As filters** (`include_tags`, 10 calls): with no signal at all Qloo asks for one (`needs_input`, "Provide at least one entity, tag, location, or demographic taste signal"). With Park Slope as the signal, orange tabby and border collie films and black-cat TV came back empty, and black-cat films gave one title, *Lords of Chaos*, a black-metal film. With the black-cat tag as its own signal and no area, the list was witchcraft and horror (*Night of the Eagle*, *The Tingler*, *Sabrina the Teenage Witch*), which the name screen would refuse and which ties a shelter's black cat to superstition.
 
 **Not adopted.** Qloo knows the looks but cannot tie them to an area, and what it returns without one is wrong or unsuitable. The lookalike step stays as decision 14 has it: the AI proposes a title with an animal that looks like this one, and Qloo confirms the title.
+
+## The raised limits (21 October, 50 calls)
+
+Qloo Support announced on Discord that the default rate and monthly limits on every hackathon key were "significantly raised" and every count reset, without giving figures. A burst probe measured the new floor: fresh `where_popular` calls (Bluey within 25 New York neighbourhoods not yet cached, from a pool of 30, limit 20) and fresh `rank` calls (the seven seed TV shows with each neighbourhood as `signal_location`), fired back to back through the client's shared slot with no automatic retry.
+
+| Phase | Gap | Calls | Refused | Call duration |
+|---|---|---|---|---|
+| `where_popular` | 2 s | 15 | 0 | 1.3 to 2.1 s |
+| `rank` | 2 s | 15 | 0 | 1.3 to 2.6 s |
+| `where_popular` | 1 s | 10 | 0 | 1.0 to 1.2 s |
+| `rank` | 1 s | 10 | 0 | 0.9 to 1.4 s |
+
+- No refusal in 50 calls over about 80 seconds, where on 18 October `rank` was refused at 2 seconds. `QLOO_MIN_INTERVAL` is 2 seconds by default again (decision 20, revised 21 October); 1 second passed too, but a call itself takes 1 to 2.5 seconds, so 2 costs almost nothing.
+- The spacing is start to start, so the 2-second phases ran at about one call every 2 seconds for a minute, and the 1-second phases as fast as Qloo answered, about one call a second for 20 seconds. That is all that was measured: a longer or faster run has not been, so raise the setting if Qloo refuses.
+- A side finding: `rank` answered `ok` with no results for four of the 25 neighbourhoods (Sunset Park, Crown Heights, Bedford-Stuyvesant, Fordham), and only two of the seven for two others, so a profile's ranking can be empty without an error even where the heatmap answers. The `evidence_order` fallback (decision 20) already covers it.
+- Heatmap cells within a neighbourhood vary from 1 (Bay Ridge, Flatbush, Long Island City, Ridgewood, Riverdale) to 20 (Williamsburg, Chelsea, East Village); a bar of 5 cells (`THIN_MAP`) would call Bluey's map thin in many real New York neighbourhoods, which is why the area check heatmaps the area's own top show and the baseline rather than a pet title (decision 12).

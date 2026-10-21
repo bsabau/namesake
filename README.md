@@ -39,7 +39,7 @@ The same dog, the same record, two neighbourhoods of one city. Park Slope offers
 
 ![The lead dog's result in Park Slope, Brooklyn (top: Comet, Scooby and Hooch) and in Astoria, Queens (bottom: Bluey, Moon and Scooby-Doo): each with its version toggle, its name options with their Qloo titles, and its own strip of what Qloo returned and what Namesake's AI did](docs/img/two-neighbourhoods.png)
 
-Namesake's AI (two agents, one per area and one per animal) and some plain code call Qloo through the official harness (`qloo exec`, pinned at 0.1.26). Every call is cached in SQLite and spaced at least 5 seconds apart, because the hackathon key is rate-limited; a refused ranking is retried after a longer wait.
+Namesake's AI (two agents, one per area and one per animal) and some plain code call Qloo through the official harness (`qloo exec`, pinned at 0.1.26). Every call is cached in SQLite and spaced at least 2 seconds apart, because the hackathon key is rate-limited; a refused ranking is retried after a longer wait.
 
 Who decides each step, from the area to the result (the same graph is in [`docs/architecture.md`](docs/architecture.md)):
 

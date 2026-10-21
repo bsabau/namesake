@@ -14,8 +14,9 @@ complete.
 
 The key was refused after about 12 calls in 20 minutes on 15 October, but took 30 calls
 10 seconds apart on 17 October, so calls are spaced at least --min-interval seconds (10
-by default) whatever QLOO_MIN_INTERVAL says; raise it if Qloo refuses, and split a long
-run with --only.
+by default) whatever QLOO_MIN_INTERVAL says. Qloo raised the limits on 21 October; the
+10 stays as a margin for a long unattended run. Raise it if Qloo refuses, and split a
+long run with --only.
 """
 
 import argparse
