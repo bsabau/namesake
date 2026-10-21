@@ -23,7 +23,9 @@ class Settings(BaseSettings):
     # Seconds between live Qloo calls, across processes. The key is rate-limited: refused
     # after about 12 calls in 20 minutes on 15 October; 30 calls 10 s apart passed on
     # 17 October, but at 2 s `rank` was refused on 18 October (docs/decisions.md #20).
-    qloo_min_interval: float = 5.0
+    # Qloo raised the hackathon limits on 21 October: 50 calls at 2 s and 1 s apart,
+    # `rank` among them, all passed (docs/qloo-findings.md).
+    qloo_min_interval: float = 2.0
     # Whether web runs may call Qloo live. Off, they use only the cache and recordings.
     allow_live_qloo: bool = True
 
