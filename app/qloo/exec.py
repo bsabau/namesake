@@ -77,7 +77,7 @@ class QlooClient:
         runner: Runner = _subprocess_runner,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.time,
-        min_interval: float = 5.0,
+        min_interval: float = 2.0,
         retry_delay: float = 5.0,
         rate_limit_delay: float = 20.0,
         timeout: float = 90.0,

@@ -16,7 +16,7 @@ Probed from 3 October 2026 (milestone 1 on 15 October) with harness 0.1.26, sche
 | Is the citywide heatmap useful near a shelter? | Rarely. It returns only the top 20 cells for the city, and for 4 of 5 entities none falls within 3 km of either shelter. | Heatmaps for the map are taken within the neighbourhood. |
 | Does a heatmap within the neighbourhood work? | Yes. It returns 12 to 15 cells about 150 m across, scored by rank from 0 to 1 within the area. Against a baseline show, 8 cells overlap and give a lift map. | The map shows lift against a baseline inside the neighbourhood. |
 | Do names resolve? | Often not: 6 of 10 pet-show names were ambiguous and came back as candidates. | Choosing among candidates, with a stated reason, is a real agent step. |
-| How much can we call? | Rate-limited after about 12 calls in 20 minutes. After a 20-minute pause, 7 calls spaced 5 seconds apart went through, except `rank`, which was refused twice more. | Cache everything, space live calls, precompute the demo, give the agent a call budget, and keep `rank` calls rare. |
+| How much can we call? | Rate-limited after about 12 calls in 20 minutes. After a 20-minute pause, 7 calls spaced 5 seconds apart went through, except `rank`, which was refused twice more. Qloo raised the limits on 21 October (last section). | Cache everything, space live calls, precompute the demo, give the agent a call budget, and keep `rank` calls rare. |
 | Are the venues suitable? | Not all. Near Astoria the list mixes a museum, a sculpture park and a cinema with nightclubs and an adult venue. | Venues are screened for event suitability by the agent and by code. |
 
 ## Pet tags (P1, P2)
@@ -321,7 +321,7 @@ Could the recorded look find lookalike titles inside Qloo, in place of the AI pr
 
 ## The raised limits (21 October, 50 calls)
 
-Qloo Support announced on Discord that the default rate and monthly limits on every hackathon key were "significantly raised" and every count reset, without giving figures. A burst probe measured the new floor: fresh `where_popular` calls (Bluey within 30 New York neighbourhoods not yet cached, limit 20) and fresh `rank` calls (the seven seed TV shows with each neighbourhood as `signal_location`), fired back to back through the client's shared slot with no automatic retry.
+Qloo Support announced on Discord that the default rate and monthly limits on every hackathon key were "significantly raised" and every count reset, without giving figures. A burst probe measured the new floor: fresh `where_popular` calls (Bluey within 25 New York neighbourhoods not yet cached, from a pool of 30, limit 20) and fresh `rank` calls (the seven seed TV shows with each neighbourhood as `signal_location`), fired back to back through the client's shared slot with no automatic retry.
 
 | Phase | Gap | Calls | Refused | Call duration |
 |---|---|---|---|---|
@@ -330,7 +330,7 @@ Qloo Support announced on Discord that the default rate and monthly limits on ev
 | `where_popular` | 1 s | 10 | 0 | 1.0 to 1.2 s |
 | `rank` | 1 s | 10 | 0 | 0.9 to 1.4 s |
 
-- No refusal in 50 calls over about 80 seconds, where on 18 October `rank` was refused at 2 seconds. `QLOO_MIN_INTERVAL` is 2 seconds by default again (decision 20, revised 21 October); 1 second passed too, but a call takes about as long, so 2 costs almost nothing.
-- The spacing is start to start, so at 1 second the calls ran as fast as Qloo answered them: the new limit is at least about one call a second for a minute and a half. A longer run has not been measured; raise the setting if Qloo refuses.
+- No refusal in 50 calls over about 80 seconds, where on 18 October `rank` was refused at 2 seconds. `QLOO_MIN_INTERVAL` is 2 seconds by default again (decision 20, revised 21 October); 1 second passed too, but a call itself takes 1 to 2.5 seconds, so 2 costs almost nothing.
+- The spacing is start to start, so the 2-second phases ran at about one call every 2 seconds for a minute, and the 1-second phases as fast as Qloo answered, about one call a second for 20 seconds. That is all that was measured: a longer or faster run has not been, so raise the setting if Qloo refuses.
 - A side finding: `rank` answered `ok` with no results for four of the 25 neighbourhoods (Sunset Park, Crown Heights, Bedford-Stuyvesant, Fordham), and only two of the seven for two others, so a profile's ranking can be empty without an error even where the heatmap answers. The `evidence_order` fallback (decision 20) already covers it.
 - Heatmap cells within a neighbourhood vary from 1 (Bay Ridge, Flatbush, Long Island City, Ridgewood, Riverdale) to 20 (Williamsburg, Chelsea, East Village); a bar of 5 cells (`THIN_MAP`) would call Bluey's map thin in many real New York neighbourhoods, which is why the area check heatmaps the area's own top show and the baseline rather than a pet title (decision 12).
