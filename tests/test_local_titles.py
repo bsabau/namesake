@@ -483,6 +483,22 @@ def test_a_title_the_classifier_marks_as_about_real_people_gives_only_animal_nam
     assert screen_names([dog], {DOG_DOCS: named}, False) == []
 
 
+def test_a_title_about_real_people_shows_its_whole_description():
+    # Review of PR #80: the check reads the whole description, so the model sees it too.
+    from app.agent.listing_agent import titles_block
+
+    tail = "x " * 100 + "and Bingo, the clinic dog."
+    reality = Entity(
+        id=DOG_DOCS,
+        name="Example Vet",
+        type="urn:entity:tv_show",
+        description="A reality series " + tail,
+    )
+    fiction = reality.model_copy(update={"id": PUPPY_SCHOOL, "description": "A cartoon " + tail})
+    block = titles_block({DOG_DOCS: (reality, "pet"), PUPPY_SCHOOL: (fiction, "pet")})
+    assert block.count("Bingo, the clinic dog") == 1
+
+
 def test_a_ranked_found_title_shows_both_badges():
     from app.views.build import name_badge
 

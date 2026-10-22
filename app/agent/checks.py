@@ -85,8 +85,7 @@ FAMOUS_PEOPLE = (
     "serena williams", "parton",
 )  # fmt: skip
 # Phrases in a title's name or description that mark it as about real people: a name
-# from one must be an animal's own (Marley in "Marley & Me" is a dog; the author is not
-# a name option).
+# from one must be an animal the title or description names, never a person (check_title).
 REAL_PEOPLE_TITLES = (
     "talk show", "late-night talk", "late-night show", "news program", "news show",
     "news satire", "newsmagazine", "reality show", "reality series", "reality television",
@@ -295,7 +294,8 @@ def check_title(
     """The title a name comes from, as Qloo returned it: about real people (by its
     description, or by the classifier when `real_people`), or coded to a religion, race or
     political identity. A title about real people gives only an animal Qloo's own text
-    names (Marley in "Marley & Me"): nothing else shows the show has such an animal, so
+    names (a vet's show whose description names its clinic cat): nothing else shows the
+    show has such an animal, so
     "Max, a cat in" a vet's reality show was a common pet name under a caption no one
     checked (23 October walkthrough)."""
     problems = []
@@ -308,7 +308,7 @@ def check_title(
                 f"name {name!r}: {title} is about real people ({why}), so a name from it "
                 "must be an animal's own"
             )
-        elif not find_word(text, (character or name,)):
+        elif not names_animal(text, name, character or name):
             problems.append(
                 f"name {name!r}: {title} is about real people ({why}), and Qloo's title and "
                 f"description name no animal {character or name!r}; take the name from "
@@ -326,6 +326,25 @@ def check_title(
             "does not suit an adoption listing; use another title"
         )
     return problems
+
+
+def name_words(text: str) -> list[str]:
+    """Letters and digits only, so "Mr. Pickles" and "Mr Pickles" read alike."""
+    return re.findall(r"[a-z0-9]+", text.lower().translate(APOSTROPHES).replace("'", ""))
+
+
+def names_animal(text: str, name: str, character: str) -> bool:
+    """Qloo's text names this animal: the name is the character's own, perhaps shortened
+    ("Scooby" for "Scooby-Doo"), and the text says the character or the name, whatever
+    the punctuation. A name unrelated to its character ("Max" for a show's "Biscuit") is
+    never named by it."""
+    said, own, words = name_words(name), name_words(character), name_words(text)
+
+    def says(phrase: list[str]) -> bool:
+        n = len(phrase)
+        return any(words[i : i + n] == phrase for i in range(len(words) - n + 1))
+
+    return bool(said) and own[: len(said)] == said and (says(own) or says(said))
 
 
 STOPWORDS = frozenset((
