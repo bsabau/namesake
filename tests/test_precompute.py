@@ -40,3 +40,29 @@ def test_all_with_only_keeps_those_areas():
     roster, places = setup()
     jobs = plan(roster, places, True, {"barcelona"})
     assert jobs and {loc for _, loc, _ in jobs} == {"barcelona"}
+
+
+def test_the_dry_run_lists_saved_and_missing_and_calls_nothing(monkeypatch, tmp_path, capsys):
+    import asyncio
+    import sys
+
+    import scripts.precompute_examples as script
+    from app.agent.results import CHECKS_VERSION, ListingResult
+    from app.store import Store
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "cache_db", tmp_path / "cache.sqlite")
+    Store(settings.cache_db).put_listing(
+        ListingResult(animal_id="dog-02", location_id="park-slope", checks_version=CHECKS_VERSION)
+    )
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("a dry run sets up no model and no Qloo")
+
+    monkeypatch.setattr(script, "model_factory", refuse)
+    monkeypatch.setattr(script, "qloo_client", refuse)
+    monkeypatch.setattr(sys, "argv", ["precompute", "--all", "--dry-run", "--only", "park-slope"])
+    asyncio.run(script.main())
+    out = capsys.readouterr().out.splitlines()
+    assert out[0] == "saved: The brindle dog in Park Slope"
+    assert "build: the litter in Park Slope" in out

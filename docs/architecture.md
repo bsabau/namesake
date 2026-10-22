@@ -229,7 +229,7 @@ Saved listings carry the version of the checks they passed. When the checks chan
 |---|---|---|
 | `var/cache.sqlite`, `qloo_cache` | every Qloo answer that is not an error, keyed by operation and canonical input | server only, never committed |
 | `qloo_meta` | the time of the last live Qloo call, for spacing across processes | server only |
-| `agent_results` | area profiles, listings (with each name title's audience from Qloo), typed areas | server only |
+| `agent_results` | area profiles, listings (with each name title's audience from Qloo), typed areas; the examples, and with `scripts/precompute_examples.py --all` every preset animal in every preset area, are built into it on the host (`deploy/README.md`) | server only |
 | `approvals` | approved names and versions, for the measurement log | server only |
 | `classifier_answers` | the classifier's answers per title, keyed by the title as described (name, kind and description), the questions and the model | server only |
 | `usage` | live runs and new typed areas per day (UTC), for the daily caps | server only |

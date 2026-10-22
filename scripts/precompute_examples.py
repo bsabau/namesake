@@ -25,10 +25,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.agent.model import fallback_models  # noqa: E402
 from app.agent.pipeline import run_litter, run_pipeline  # noqa: E402
 from app.agent.steps import StepLog  # noqa: E402
-from app.animals import load_roster  # noqa: E402
+from app.animals import Roster, load_roster  # noqa: E402
 from app.classify import classifier_from  # noqa: E402
 from app.config import get_settings  # noqa: E402
-from app.locations import load_locations  # noqa: E402
+from app.locations import Location, load_locations  # noqa: E402
 from app.places import places_for  # noqa: E402
 from app.profile import load_seeds  # noqa: E402
 from app.runs import model_factory, qloo_client  # noqa: E402
@@ -46,7 +46,9 @@ def kittens_of(roster, animal):
     return mates
 
 
-def plan(roster, places, every: bool, only: set[str]) -> list[tuple[str, str, str]]:
+def plan(
+    roster: Roster, places: dict[str, Location], every: bool, only: set[str]
+) -> list[tuple[str, str, str]]:
     """What to build, as (animal ID, area ID, label): the examples first, so they keep
     the names they have; with `every`, then each other animal in each preset area, a
     litter once (it is named as a set). `only` keeps those areas."""
@@ -113,7 +115,8 @@ async def main() -> None:
     jobs = plan(roster, places, args.all, only)
     store = Store(settings.cache_db)
     if args.dry_run:
-        # Reads the saved listings only: no model, no Qloo, nothing written.
+        # Reads the saved listings: no model and no Qloo. Opening the cache creates its
+        # tables only where there are none, as on a fresh clone.
         for animal_id, location_id, label in jobs:
             animal = roster.get(animal_id)
             mates = kittens_of(roster, animal) if animal.litter is not None else [animal]
