@@ -32,7 +32,7 @@ A **Generic / Local, with Qloo** toggle shows both versions of the listing, each
 
 **What makes it Qloo-powered.** Qloo supplies every part of the result that changes with the area: the pet-themed titles people near the shelter tend to watch, and so the names on offer; the nearby places their fans favour, compared with fans of the area's own top shows; and the map of where pet-show fans stand out. Namesake's AI decides which Qloo calls to make (looking up, settling and ranking titles, searching Qloo's lists, asking for places), and code checks that every title and place it keeps came from Qloo in that run. Without Qloo, Namesake still writes the plain listing (the generic version is exactly that), but it has no local names, no places to ask and no map.
 
-A **Why** drawer separates "Qloo returned" from "How Namesake read it" for every choice. The volunteer can refine with one line, edit, approve, and copy a block ready to paste into shelter software. Typing a new area works too: Qloo checks it first, and if the data is thin the app says so instead of producing a weak result.
+A **Why** drawer separates "Qloo returned" from "How Namesake read it" for every choice. The volunteer can refine with one line, edit, approve, and copy a block ready to paste into shelter software, or print a flyer with a checklist of the places to ask. Typing a new area works too: Qloo checks it first, and if the data is thin the app says so instead of producing a weak result. A volunteer can add their own animals, edit or remove them, and come back to them for 7 days, with no sign-up: they live in a workspace in that browser, with a link to open it on another device.
 
 ## How I built it
 
