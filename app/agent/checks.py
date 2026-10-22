@@ -50,7 +50,7 @@ TITLE_UNFIT = (
     "hate", "hates", "hated", "monstrous",
 )  # fmt: skip
 
-# Well-known villains and tragic animals: the model also declares each reference's role,
+# Well-known villains: the model also declares each reference's role,
 # but a code list catches the famous ones even when it gets that wrong.
 FAMOUS_VILLAINS = (
     "scar", "shere khan", "cruella", "cujo", "jafar", "ursula", "maleficent", "voldemort",
@@ -171,6 +171,7 @@ def find_word(text: str, words: tuple[str, ...]) -> str | None:
     apostrophes read as straight ones, so "A Dog\u2019s Purpose" matches "a dog's purpose"."""
     text = text.lower().translate(APOSTROPHES)
     for word in words:
+        word = word.lower().translate(APOSTROPHES)
         if re.search(rf"(?<![a-z]){re.escape(word)}(?![a-z])", text):
             return word
     return None
@@ -223,7 +224,7 @@ def check_name(
         problems.append(f"name {name!r} is unflattering for an adoption listing ({unflattering!r})")
     villain = find_word(f"{name} {reference}", FAMOUS_VILLAINS)
     if villain:
-        problems.append(f"name {name!r} refers to {villain!r}, a villain or tragic animal")
+        problems.append(f"name {name!r} refers to {villain!r}, a villain")
     if reference_role in BAD_ROLES:
         problems.append(f"name {name!r} refers to a {reference_role} character")
     person = find_word(f"{name} {reference}", FAMOUS_PEOPLE)
