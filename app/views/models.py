@@ -80,6 +80,8 @@ class AnimalCard(BaseModel):
     temperament: str
     litter: bool
     featured: bool = False
+    # Added by this visitor: it can be edited or removed.
+    own: bool = False
     badges: list[str] = []
     # What the shelter recorded, as short lines: the observed facts, then the confirmed
     # answers; and the checks still unknown, as labels ("children", "dogs").
@@ -179,7 +181,16 @@ class StartView(BaseModel):
     animals: list[AnimalCard]
     litters: list[LitterCard]
     add_animal_url: str = "/animals/new"
-    add_animal_label: str = "Add your own animal (kept for this visit only)"
+    add_animal_label: str = "Add your own animal"
+    # The visitor's own animals, before the samples (story), and the workspace that keeps
+    # them: one line, and the link that opens it in another browser (decision 34).
+    your_heading: str = "Your animals"
+    your_animals: list[AnimalCard] = []
+    sample_heading: str = "Or try a sample animal"
+    sample_animals: list[AnimalCard] = []
+    workspace_note: str = ""
+    workspace_link: str = ""
+    workspace_link_label: str = "Keep this workspace"
     credits: Credits = Credits()
 
 
@@ -191,12 +202,15 @@ class Question(BaseModel):
 class AddAnimalView(BaseModel):
     title: str = "Add an animal"
     intro: str = (
-        "Describe one animal as the shelter has observed it. It is kept in memory for this "
-        "visit only, never stored, and gone when you leave or the server restarts. The "
-        "listing will say only what you enter here, so leave out anything unconfirmed, and "
-        "leave out people's names and personal details."
+        "Describe one animal as the shelter has observed it. It is kept in your workspace, "
+        "in this browser and its link, for 7 days after your last visit, and never shown "
+        "to anyone else. The listing will say only what you enter here, so leave out "
+        "anything unconfirmed, and leave out people's names and personal details."
     )
     action: str = "/animals"
+    # The added animal being edited, if any: its record is replaced, its listings dropped.
+    edit: str = ""
+    submit_label: str = "Add the animal"
     location_id: str
     # The typed area's name, when it is the choice, and the way back to the animals.
     area: str = ""
@@ -210,7 +224,7 @@ class AddAnimalView(BaseModel):
     max_facts: int
     photo_note: str = (
         "Optional: a JPEG, PNG or WebP photo, up to 3 MB. It is shown back to you only, "
-        "never read by a model, and never stored."
+        "kept with your workspace, and never read by a model."
     )
     error: str | None = None
     credits: Credits = Credits()

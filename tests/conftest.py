@@ -19,6 +19,7 @@ def isolated_settings(tmp_path, monkeypatch):
     """
     settings = get_settings()
     monkeypatch.setattr(settings, "cache_db", tmp_path / "cache.sqlite")
+    monkeypatch.setattr(settings, "workspace_db", tmp_path / "workspaces.sqlite")
     monkeypatch.setattr(settings, "qloo_recordings", tmp_path / "recordings")
     monkeypatch.setattr(settings, "allow_live_qloo", False)
     monkeypatch.setattr(settings, "agent_base_url", None)

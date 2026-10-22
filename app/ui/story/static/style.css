@@ -1229,3 +1229,11 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* The visitor's own animals and their workspace, before the samples (decision 34). */
+.yours { margin: 8px 0 28px; }
+.yours h3, .samples-heading { font-family: var(--display); font-size: 1.25rem; margin: 0 0 12px; }
+.yours .animal-grid > li { flex-direction: column; }
+.own-actions { display: flex; gap: 16px; margin: 8px 4px 0; }
+.workspace-note { font-size: 0.9rem; margin: 8px 0 0; max-width: 60ch; }
+.workspace-note a { color: var(--primary-ink); font-weight: 700; }

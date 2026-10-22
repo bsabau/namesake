@@ -14,6 +14,8 @@ The review found no study showing that names or wording speed adoption. Being se
 - **Second example:** the kitten litter, named as a set, listed for two neighbourhoods side by side. (On 19 October the Astoria one briefly gave way to the lead dog in Barcelona, decision 30.)
 - **Locations:** two New York neighbourhoods and one other US city, from `data/locations.json`, confirmed in milestone 1, and Barcelona outside the US (decision 30).
 
+- **Your own animals:** a volunteer can add up to three of their own, with an optional photo, and edit or remove them. They are kept in a workspace in that browser for 7 days after the last visit, with a link that opens it elsewhere; there is no sign-up (decision 34).
+
 ## Output 1: the listing
 
 **Input is a fact sheet.**

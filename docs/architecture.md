@@ -18,7 +18,7 @@ flowchart LR
         places["Place lookups<br/>app/places.py"]
         classify["Title classifier<br/>app/classify.py"]
         db[("SQLite<br/>var/cache.sqlite")]
-        sessions[("Sessions<br/>in memory")]
+        sessions[("Sessions in memory,<br/>workspaces in var/workspaces.sqlite")]
     end
     harness["qloo exec<br/>(pinned harness)"]
     qloo["Qloo API"]
@@ -151,7 +151,7 @@ sequenceDiagram
 ```
 
 - **The step log** (`StepLog`) is what the Working page streams over server-sent events. Each step records who did it (`actor`: Qloo's calls and answers, a decision of Namesake's AI, the classifier, or the run's own code), given where it is logged. A follower gets every step exactly once, including those logged before it connected. A saved listing keeps its run's steps (a litter member, the area's steps and its own, not its mates'), and the story skin's result page shows them folded under "How Namesake made this" (`ResultView.run_steps`); a result with no listing yet offers a button that starts a run (`ResultView.write_label`, posting to `/runs`; for a litter member `write_animal` names the litter, so it is named as a set).
-- **Refine** (`POST /refine`) reruns the listing with a volunteer's request, for that visitor only. **Approve** (`POST /approve`) records the chosen name and version for the measurement log. A listing for an animal a visitor added, and any refined listing, stays in their session and is never saved.
+- **Refine** (`POST /refine`) reruns the listing with a volunteer's request, for that visitor only. **Approve** (`POST /approve`) records the chosen name and version for the measurement log. A listing for an animal a visitor added, and any refined listing, stays in their workspace and is never saved to the shared results.
 
 ## Typed areas and the map pick
 
@@ -235,9 +235,10 @@ Saved listings carry the version of the checks they passed. When the checks chan
 | `usage` | live runs and new typed areas per day (UTC), for the daily caps | server only |
 | Memory | live runs per visitor in the last hour; runs and their step logs (an hour after they finish; past 300, the oldest finished go first) | server only, reset on restart |
 | `var/qloo-recordings/` | raw Qloo answers, for replay in development | never committed |
-| Session (memory) | added animals, their photos and listings; refined listings; the map pin | one visitor; ends 2 hours after the last visit, on a restart, or when over 500 sessions are open |
+| Session (memory) | the visitor's workspace while in use, and the map pin | one visitor; 2 hours after the last visit, on a restart, or when over 500 sessions are open, the workspace is read again from disk and the pin is gone |
+| `var/workspaces.sqlite` | the workspace: added animals, their photos and listings; refined listings (decision 34) | one visitor and whoever has their workspace link; deleted 7 days after the last visit |
 
-No account exists. The session cookie holds a random ID and nothing else. Qloo receives cultural entities and place names only; Photon receives area names, rounded points, and the names and public street addresses of venues Qloo returned (to pin them, once per saved profile); the classifier receives a title's name, kind and Qloo's description; none gets anything about a visitor. `tests/test_no_qloo_data.py` fails if real Qloo data appears in the repository.
+No account exists. The session cookie holds the workspace's random ID and nothing else. Qloo receives cultural entities and place names only; Photon receives area names, rounded points, and the names and public street addresses of venues Qloo returned (to pin them, once per saved profile); the classifier receives a title's name, kind and Qloo's description; none gets anything about a visitor. `tests/test_no_qloo_data.py` fails if real Qloo data appears in the repository.
 
 ## The API
 
@@ -245,7 +246,7 @@ The start, result and working screens' view models are also served as JSON, so a
 
 | Method and path | Returns |
 |---|---|
-| `GET /api/start?location=` | `StartView`: animals, areas, the shelter bar, examples, the problem line and its research link |
+| `GET /api/start?location=` | `StartView`: animals (the visitor's own, then the samples), areas, the shelter bar, examples, the problem line and its research link, the workspace line and link |
 | `GET /api/results/{animal}@{location}` | `ResultView`: Qloo's part and the AI's (`qloo_part`), the one line on what came from Qloo (`local_touch`, and `local_touch_generic` for the generic version), listing versions, names, map, venues, plan, Why panel, the trial line (`trial`) |
 | `GET /api/runs/{id}` | `WorkingView`: the run's steps so far |
 | `GET /api/runs/{id}/events` | the step log as server-sent events: a `step` per step with its `kind`, `text` and `actor` (`qloo`, `ai`, `classifier` or `code`, given where the step is logged), then `done` |
@@ -254,7 +255,7 @@ The start, result and working screens' view models are also served as JSON, so a
 | `GET /health` | `{"status": "ok"}` |
 | `GET /robots.txt` | keeps crawlers off `/api/` and `/runs` |
 
-The HTML routes render the same view models through the chosen UI: `/`, `/result`, `POST /runs`, `/runs/{id}`, `POST /refine` and `/refine/reset`, `POST /approve`, `/animals/new` and `POST /animals`, and `/photos/{animal_id}` for a visitor's own photo. `tests/test_ui_contract.py` checks that every UI renders what each screen must show, found by `data-role`: the name, Qloo's part and the AI's, Qloo's answer and Namesake's reading, the map, the photo credit and the Qloo credit, and that the note on the kinds of place carries Namesake's label. It also checks that a UI's scripts only ever fetch the app's own `/api/`.
+The HTML routes render the same view models through the chosen UI: `/`, `/result`, `POST /runs`, `/runs/{id}`, `POST /refine` and `/refine/reset`, `POST /approve`, `/animals/new` (with `?edit=` for one of the visitor's own) and `POST /animals`, `POST /animals/remove`, `/workspace/{id}` (the workspace link), and `/photos/{animal_id}` for a visitor's own photo. `tests/test_ui_contract.py` checks that every UI renders what each screen must show, found by `data-role`: the name, Qloo's part and the AI's, Qloo's answer and Namesake's reading, the map, the photo credit and the Qloo credit, and that the note on the kinds of place carries Namesake's label. It also checks that a UI's scripts only ever fetch the app's own `/api/`.
 
 ## Configuration
 

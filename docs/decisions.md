@@ -136,6 +136,8 @@ Revised 18 October (the author, after the screenshot review): each toggle button
 - Precomputed and shared listings change only through a run for an animal that has none, or through `scripts/precompute_examples.py`.
 - Approval records the approval ID, animal, area, version, name, the name's source, whether the text was edited, and the time. The text itself is never recorded. An added animal is recorded by its random ID, which identifies nothing outside the visit.
 
+**Revised 22 October** (decision 34): added animals, their photos, and the listings made for them or refined, are now written to the visitor's workspace on disk (`var/workspaces.sqlite`) and kept for 7 days after the last visit; the map pin still stays in memory. A workspace link (`/workspace/{id}`) is the one way to adopt an ID the server made.
+
 **Why:** the demo has no accounts, and every judge sees the same examples. If one visitor's "less childish" overwrote the shared result, the next visitor would see it. Keeping the text out of the log keeps free text, which could contain anything, out of storage. The trial needs only the version and the name.
 
 **Follows:**
@@ -497,4 +499,20 @@ Not done: the character a name refers to ("Bingo, a puppy in *Bluey*") is not la
 **Follows:**
 - The warm and classic skins keep their layout; the new fields are in the shared view models and the JSON API.
 - The README screenshots are retaken with the examples' rebuild (`TODO.md`).
+
+## 34. A workspace per browser, kept 7 days, with a link; no accounts
+
+**Decided** (the author, 22 October, after asking "should we now have a proper crud?" and "should we use login with password? and say use demo/demo?"; chose "SQLite, 7 days, + link"):
+- No sign-up, no password and no shared demo account. A visitor's added animals, their photos and the listings made for them alone are their **workspace**, kept in `var/workspaces.sqlite` for 7 days after the last visit (`app/workspace.py`), written through from the in-memory session after each change (`Sessions.save`).
+- The cookie holds the workspace's random ID and lasts as long as the workspace; each visit renews it. **"Keep this workspace"** links to `/workspace/{id}`, which opens it in another browser. It opens only a workspace the server made and still keeps, and the start page says "Anyone with the link can open it."
+- A visitor can **edit** an added animal (its record is replaced, the listings made from the old one are dropped, its photo is kept unless a new one is sent) and **remove** it (its photo and listings go too). Only the workspace that holds an animal can edit or remove it.
+- The story skin's start page puts **Your animals** first, with "Add your own animal", the workspace line and the link, then "Or try a sample animal". Warm and classic list the visitor's animals first in the one grid, as before.
+- The map pin is not written: it stays in memory for the visit (decision 17). The photo budget (64 MB) now counts every workspace's photos on disk. A workspace still holds up to three animals.
+
+**Why:** Devpost judges design as "a complete, coherent product experience, not just a technical proof of concept", and a volunteer's animal vanishing after two hours or a restart read as a demo. An account would ask judges for a password, and a shared demo/demo login would mix every judge's animals. A workspace per browser keeps each visitor's own, survives restarts, and needs nothing from them. The workspace holds only what the visitor typed about an animal, and the form already asks them to leave out people's names and personal details.
+
+**Follows:**
+- Shared results are unchanged: the precomputed examples and saved listings still change only through runs (decision 9).
+- An expired workspace is deleted, with its photos, on the next write; nothing else reads it.
+- Not done: sample animals cannot be edited ("add what you know"); a visitor adds their own instead.
 
