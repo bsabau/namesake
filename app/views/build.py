@@ -888,7 +888,8 @@ def cell_reading(
     shelter: tuple[float, float] | None = None,
 ) -> str | None:
     """Where OpenStreetMap places a venue on the lift map, read in the map's own terms:
-    ranks within the area, for fans of pet-themed titles as a group against the comparison shows."""
+    ranks among the cells scored for both, for fans of pet-themed titles as a group against
+    the comparison shows."""
     if v.latitude is None or v.longitude is None:
         return None
     c = cell_of(v, profile)
@@ -1275,7 +1276,8 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         returned.append(
             WhyItem(
                 title=f"{len(profile.cells)} map cells within {location.label}",
-                detail="Scored by Qloo from 0 to 1, as ranks within the area.",
+                detail="Scored by Qloo from 0 to 1, as ranks over the cells it maps for each "
+                "title.",
             )
         )
     if any(c.lift is not None for c in profile.cells):
@@ -1283,8 +1285,9 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
             WhyItem(
                 title="Lift on the map",
                 detail="The pet-themed titles' score minus the score for "
-                f"{compared_with(profile) or 'the baseline'} in the same cell, each averaged over "
-                "the shows that scored it. It is relative: "
+                f"{compared_with(profile) or 'the baseline'} in the same cell. Each is averaged "
+                "over the shows that scored it, then ranked again among the cells scored for "
+                "both, since Qloo ranks each title over its own cells. It is relative: "
                 "where in this area fans of pet-themed titles stand out, not how many there are.",
             )
         )

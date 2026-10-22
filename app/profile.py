@@ -471,10 +471,10 @@ def combine_cells(
 def averaged_cells(
     pet_maps: list[dict[str, Any]], base_maps: list[dict[str, Any]]
 ) -> list[LiftCell]:
-    """One layer from several heatmaps. Each map's scores are ranks within the area (0 to
-    1), so a cell's score is the mean over the maps that scored it; a cell no pet map
-    scored is left out, and one no baseline map scored has no lift. Maps of different
-    precision are brought to the coarsest one, so their cells line up."""
+    """One layer from several heatmaps. Each map's scores are ranks (0 to 1) over the cells
+    Qloo maps for that title, so a cell's score is the mean over the maps that scored it;
+    a cell no pet map scored is left out, and one no baseline map scored has no lift. Maps
+    of different precision are brought to the coarsest one, so their cells line up."""
     cells: list[LiftCell] = []
     sizes = [len(g) for m in pet_maps + base_maps for g in m]
     size = min(sizes) if sizes else 0
