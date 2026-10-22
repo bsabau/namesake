@@ -192,4 +192,44 @@ def test_the_flyer_has_a_contact_line_that_is_never_sent(client):  # noqa: F811
     sheet = html[html.index('data-role="flyer"') : html.index('data-role="flyer-checklist"')]
     assert 'data-role="flyer-contact"' in sheet
     # No form holds it, and it has no name to be sent under.
-    assert "<form" not in sheet and 'name="contact"' not in sheet
+    field = sheet[sheet.index("<textarea") : sheet.index("</textarea>")]
+    assert "<form" not in sheet and " name=" not in field
+
+
+def test_every_skins_approval_page_prints_the_approved_text(client):  # noqa: F811
+    from tests.test_product import approve
+
+    save(saved_listing())
+    for skin in ("story", "warm", "classic"):
+        page = approve(client, variant="local", local_name="Biscuit", text="Calm.", ui=skin).text
+        assert 'action="/flyer"' in page and f'name="ui" value="{skin}"' in page
+
+
+def test_paragraph_breaks_sent_as_crlf_are_kept():
+    assert main.listing_text("She is calm.\r\n\r\nShe knows sit.") == (
+        "She is calm.\n\nShe knows sit."
+    )
+
+
+def test_an_approved_text_that_opens_with_meet_is_printed_whole(client):  # noqa: F811
+    # Codex: the heading's "Meet" line was cut from approved text too, caution and all.
+    save(saved_listing())
+    text = "Meet Biscuit. She has a bite on record; ask the shelter for the details."
+    shown = main.result_view("dog-02", "park-slope", None)
+    view = build_flyer_view(shown, "local", name="Biscuit", approved=text)
+    assert text in view.paragraphs
+
+
+def test_an_approved_flyer_refuses_a_name_taken_since(client, monkeypatch):  # noqa: F811
+    # Codex, muse: /approve refuses a name or generic name taken since; the print must too.
+    save(saved_listing())
+    base = {"animal": "dog-02", "location": "park-slope", "text": "Calm."}
+    generic = main.result_view("dog-02", "park-slope", None).listing.versions[0].name
+    assert (
+        client.post("/flyer", data={**base, "variant": "generic", "name": "Rex"}).status_code == 409
+    )
+    ok = client.post("/flyer", data={**base, "variant": "generic", "name": generic})
+    assert ok.status_code == 200 and f"Meet {generic}" in ok.text
+    monkeypatch.setattr(main, "taken_names", lambda *a: {"biscuit"})
+    taken = client.post("/flyer", data={**base, "variant": "local", "name": "Biscuit"})
+    assert taken.status_code == 409

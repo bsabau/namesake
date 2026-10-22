@@ -1831,9 +1831,10 @@ def build_flyer_view(
         return None
     if approved is not None:
         copy_text = copy_block(None, hook, approved)
-    # The copy text opens with "Meet <name>.", which the flyer shows as its heading.
+    # The drafted copy text opens with "Meet <name>.", which the flyer shows as its heading.
+    # Only that generated line goes: an approved text is printed whole, whatever it says.
     paragraphs = [p for p in copy_text.split("\n\n") if p.strip()]
-    if paragraphs and paragraphs[0].startswith("Meet "):
+    if approved is None and paragraphs and paragraphs[0] == f"Meet {chosen}.":
         paragraphs = paragraphs[1:]
     query = urlencode({"animal": result.animal.id, "location": result.location.id})
     other = next((v for v in versions.values() if v.variant != version.variant), None)

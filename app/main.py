@@ -89,6 +89,7 @@ from app.views.models import (
     TYPED_AREA,
     LitterMateView,
     LocationForm,
+    NameOptionView,
     NoticeView,
     PlaceOption,
     PlacesView,
@@ -228,8 +229,10 @@ def cross_site(request: Request) -> bool:
 
 @app.middleware("http")
 async def same_site_posts(request: Request, call_next):
-    """Every POST starts live work or records something, so one sent by another site's
-    page (which could spend a judge's run allowance) is refused (19 October audit)."""
+    """Almost every POST starts live work or records something, so one sent by another
+    site's page (which could spend a judge's run allowance) is refused (19 October
+    audit). `POST /flyer` records nothing, but another site has no business printing a
+    flyer on this one's pages either."""
     if request.method == "POST" and cross_site(request):
         return Response("Requests from other sites are refused.", status_code=403)
     return await call_next(request)
@@ -618,12 +621,17 @@ def flyer_approved(
     name: str | None = Form(None, max_length=40),
     ui: str | None = Form(None),
 ) -> HTMLResponse:
-    """The flyer with the text just approved, sent from the approval page. The text is
-    held to the approval's own check (the recorded cautions) and kept nowhere."""
+    """The flyer with the text just approved, sent from the approval page. The text and
+    the name are held to the approval's own checks (the recorded cautions, the name and
+    what it refers to still free here) and kept nowhere."""
     session = session_of(request)
     view = result_view(animal, location, session)
     chosen = pick_ui(ui)
+    if not any(v.variant == variant and v.available for v in view.listing.versions):
+        raise HTTPException(400, "that version is not available for this animal")
     edited = listing_text(text)
+    store = Store(get_settings().cache_db)
+    checked_choice(view, animal, location, variant, session, store, name, name)
     if missing_cautions(find_animal(animal, session), edited):
         raise HTTPException(400, "the text drops what the shelter recorded as a caution")
     flyer_view = build_flyer_view(
@@ -784,8 +792,62 @@ def refine_reset(
 TEXT_MAX = 3000
 
 
+def checked_choice(
+    view: ResultView,
+    animal: str,
+    location: str,
+    variant: str,
+    session: Session | None,
+    store: Store,
+    local_name: str | None,
+    generic_name: str | None,
+) -> tuple[str, str | None, str, NameOptionView | None]:
+    """The name the volunteer chose, checked as of now: one of the local options, or the
+    generic name they saw, and neither taken by another animal here since, nor (for a
+    local name) what it refers to. Returns the name, its hook, where it came from and the
+    option; refuses as `/approve` does. `/flyer` holds a print to the same checks."""
+    hook = None
+    option = None
+    if variant == "local":
+        option = next((o for o in view.name.options if o.name == local_name), None)
+        if option is None:
+            raise HTTPException(400, "pick one of the name options")
+        name, hook = option.name, option.hook
+        source = option.approved_source
+    else:
+        version = next(v for v in view.listing.versions if v.variant == variant)
+        name, source = version.name, "a fixed list of common pet names, not Qloo"
+        # The generic name is worked out afresh; approve only the one the volunteer saw.
+        if not generic_name:
+            raise HTTPException(400, "the generic name shown on the page is missing")
+        if generic_name != name:
+            raise HTTPException(409, f"{generic_name} is now used by another animal here")
+    # Checked again now: another animal here may have been given the name since.
+    taken = taken_names(
+        find_animal(animal, session),
+        find_location(location),
+        store,
+        visit_names(session, animal, view.location.id, store),
+    )
+    if name.lower() in taken:
+        raise HTTPException(409, f"{name} is now used by another animal here")
+    if option is not None and not animal.startswith(ADDED_PREFIX):
+        # Nor what the name refers to (decision 26): another animal may have been named
+        # after the same character since this listing was written.
+        mine = reference_key(option.entity_id, option.character)
+        refs = taken_references(find_animal(animal, session), find_location(location), store)
+        shared = next((label for key, label in refs.items() if same_reference(key, mine)), None)
+        if shared:
+            raise HTTPException(
+                409, f"{name} refers to {shared}, which another animal here is now named after"
+            )
+    return name, hook, source, option
+
+
 def listing_text(text: str) -> str:
     """A listing as the volunteer sent it, with its paragraphs and spacing tidied."""
+    # A browser sends a textarea's line breaks as CRLF (Flash, 22 October).
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     edited = "\n\n".join(" ".join(p.split()) for p in text.strip().split("\n\n") if p.strip())
     if not edited or len(edited) > TEXT_MAX:
         raise HTTPException(400, f"the listing text is 1 to {TEXT_MAX} characters")
@@ -813,39 +875,9 @@ def approve(
         raise HTTPException(400, "that version is not available for this animal")
     edited = listing_text(text)
 
-    hook = None
-    if variant == "local":
-        option = next((o for o in view.name.options if o.name == local_name), None)
-        if option is None:
-            raise HTTPException(400, "pick one of the name options")
-        name, hook = option.name, option.hook
-        source = option.approved_source
-    else:
-        name, source = version.name, "a fixed list of common pet names, not Qloo"
-        # The generic name is worked out afresh; approve only the one the volunteer saw.
-        if not generic_name:
-            raise HTTPException(400, "the generic name shown on the page is missing")
-        if generic_name != name:
-            raise HTTPException(409, f"{generic_name} is now used by another animal here")
-    # Checked again now: another animal here may have been given the name since.
-    taken = taken_names(
-        find_animal(animal, session),
-        find_location(location),
-        store,
-        visit_names(session, animal, view.location.id, store),
+    name, hook, source, option = checked_choice(
+        view, animal, location, variant, session, store, local_name, generic_name
     )
-    if name.lower() in taken:
-        raise HTTPException(409, f"{name} is now used by another animal here")
-    if variant == "local" and not animal.startswith(ADDED_PREFIX):
-        # Nor what the name refers to (decision 26): another animal may have been named
-        # after the same character since this listing was written.
-        mine = reference_key(option.entity_id, option.character)
-        refs = taken_references(find_animal(animal, session), find_location(location), store)
-        shared = next((label for key, label in refs.items() if same_reference(key, mine)), None)
-        if shared:
-            raise HTTPException(
-                409, f"{name} refers to {shared}, which another animal here is now named after"
-            )
 
     missing = missing_cautions(find_animal(animal, session), edited)
     if missing:

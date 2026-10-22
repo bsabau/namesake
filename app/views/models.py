@@ -579,7 +579,8 @@ class FlyerPlace(BaseModel):
 
 class FlyerView(BaseModel):
     """A printable page: the flyer to post, then the volunteer's checklist (decision 35).
-    The listing, names, places and plan are the result page's own; only the lines that
+    The listing, names, places and plan are the result page's own, except that a flyer
+    printed from the approval page carries the text just approved; only the lines that
     frame them (who to ask, how to use the checklist) are new."""
 
     title: str
