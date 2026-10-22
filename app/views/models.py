@@ -254,6 +254,8 @@ class NameOptionView(BaseModel):
     # shelter is named after it (decision 26): Qloo's title ID and the character.
     entity_id: str = ""
     character: str = ""
+    # The flyer for the local version with this name (decision 35).
+    flyer_url: str = ""
     # Who tends to like the title, from Qloo's demographics (app/audience.py); None when
     # Qloo gave no clear lean or was not asked.
     audience: str | None = None
@@ -568,11 +570,14 @@ class FlyerPlace(BaseModel):
     number: int
     name: str
     place: str
+    # Qloo's comparison for the place, as its card on the result page shows it.
+    badge: str = ""
 
 
 class FlyerView(BaseModel):
     """A printable page: the flyer to post, then the volunteer's checklist (decision 35).
-    Everything on it is already on the result page."""
+    The listing, names, places and plan are the result page's own; only the lines that
+    frame them (who to ask, how to use the checklist) are new."""
 
     title: str
     name: str | None
@@ -588,7 +593,10 @@ class FlyerView(BaseModel):
     other_heading: str = "Other ways to help"
     other: list[str] = []
     print_label: str = "Print this page"
-    print_note: str = "Page 1 is the flyer to post; page 2 is your checklist."
+    print_note: str = (
+        "Page 1 is the flyer to post; page 2 is your checklist. It prints the drafted "
+        "listing: if you edited it, copy your edit from the approval page instead."
+    )
     other_version: Link | None = None
     back_url: str
     back_label: str = "Back to the result"

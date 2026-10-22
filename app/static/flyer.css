@@ -7,16 +7,19 @@
   background: #fff; color: #1b202c; border: 1px solid #d8d2c4; border-radius: 6px;
   max-width: 46rem; margin: 0 auto 1.5rem; padding: 2rem 2.25rem;
 }
+/* A sheet of paper in every theme: its own dark ink, never the skin's (dark mode). */
+.flyer-sheet h1, .flyer-sheet h2, .flyer-sheet p, .flyer-sheet li, .flyer-sheet strong { color: #1b202c; }
 .flyer-sheet h1 { font-size: 2.6rem; line-height: 1.1; margin: 0 0 1rem; }
 .flyer-sheet h2 { font-size: 1.5rem; margin: 0 0 .5rem; }
 .flyer-photo { width: 100%; max-height: 26rem; object-fit: cover; object-position: 50% 20%; border-radius: 4px; display: block; margin: 0 0 1.25rem; }
 .flyer-sheet p { font-size: 1.1rem; line-height: 1.55; margin: 0 0 .9rem; }
 .flyer-ask { font-weight: 700; font-size: 1.25rem; border-top: 2px solid #1b202c; padding-top: .9rem; margin-top: 1.25rem; }
-.flyer-version { color: #5e6370; font-size: .9rem !important; }
+.flyer-version { font-size: .9rem !important; }
 .flyer-checklist { list-style: none; padding: 0; margin: 0 0 1.25rem; }
 .flyer-checklist li { display: flex; gap: .75rem; align-items: baseline; padding: .55rem 0; border-bottom: 1px solid #e4dac8; }
 .flyer-box { flex: none; width: 1.1rem; height: 1.1rem; border: 2px solid #1b202c; border-radius: 3px; transform: translateY(.15rem); }
-.flyer-checklist .flyer-place { color: #5e6370; }
+.flyer-sheet .flyer-place, .flyer-sheet .flyer-version { color: #5e6370; }
+.flyer-sheet .flyer-badge { color: #19646c; font-size: .9rem; }
 @media (max-width: 720px) {
   .flyer-sheet { padding: 1.25rem 1rem; }
   .flyer-sheet h1 { font-size: 2rem; }

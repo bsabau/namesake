@@ -167,7 +167,12 @@ def test_no_page_needs_an_exception_to_the_content_security_policy(plain, ui):
     # Review of PR #46: the policy allows no inline script or style; this keeps it true.
     import re
 
-    pages = ["/", "/result?animal=dog-02&location=park-slope", "/animals/new?location=park-slope"]
+    pages = [
+        "/",
+        "/result?animal=dog-02&location=park-slope",
+        "/animals/new?location=park-slope",
+        "/flyer?animal=dog-02&location=park-slope",
+    ]
     started = plain.post(
         "/runs", data={"animal": "dog-02", "location": "park-slope"}, follow_redirects=False
     )

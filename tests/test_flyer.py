@@ -59,3 +59,55 @@ def test_the_flyer_page_prints_both_sheets_with_the_credits(client):  # noqa: F8
 
 def test_a_flyer_for_an_animal_not_kept_is_a_404(client):  # noqa: F811
     assert client.get("/flyer", params={"animal": "added-gone"}).status_code == 404
+
+
+def test_the_flyer_prints_the_name_chosen_on_the_page(client):  # noqa: F811
+    save(saved_listing())
+    shown = main.result_view("dog-02", "park-slope", None)
+    second = shown.name.options[1]
+    view = build_flyer_view(shown, "local", name=second.name)
+    assert view.title == f"Meet {second.name}"
+    assert "\n\n".join(view.paragraphs) in second.copy_text
+    # A name that is not an option is ignored: the version's own name prints.
+    assert build_flyer_view(shown, "local", name="Rex").name == shown.name.options[0].name
+    page = client.get("/result", params=PARAMS).text
+    assert f'data-flyer="{second.flyer_url.replace("&", "&amp;")}' in page
+    flyer = client.get("/flyer", params={**PARAMS, "variant": "local", "name": second.name})
+    assert f"Meet {second.name}" in flyer.text
+
+
+def test_the_flyer_keeps_every_caution_the_listing_carries(client):  # noqa: F811
+    save(saved_listing())
+    shown = main.result_view("dog-02", "park-slope", None)
+    for variant in ("generic", "local"):
+        text = " ".join(build_flyer_view(shown, variant).paragraphs)
+        assert all(phrase in text for phrase in shown.listing.must_keep)
+
+
+def test_with_no_places_the_checklist_gives_the_results_own_reason(client):  # noqa: F811
+    shown = result().model_copy(update={"venues": [], "venues_empty": "None suits this dog."})
+    view = build_flyer_view(shown, None)
+    assert view.checklist_note == "None suits this dog." and not view.places
+
+
+def test_each_place_carries_qloos_comparison(client):  # noqa: F811
+    shown = result()
+    view = build_flyer_view(shown, None)
+    assert [p.badge for p in view.places] == [v.badge for v in shown.venues]
+    page = client.get("/flyer", params=PARAMS).text
+    assert f"Qloo: {shown.venues[0].badge}" in page
+
+
+def test_a_result_with_no_version_to_print_has_no_flyer(client):  # noqa: F811
+    shown = result()
+    versions = [v.model_copy(update={"available": False}) for v in shown.listing.versions]
+    empty = shown.model_copy(
+        update={"listing": shown.listing.model_copy(update={"versions": versions})}
+    )
+    assert build_flyer_view(empty, "generic") is None
+
+
+def test_page_one_says_the_animal_is_a_sample(client):  # noqa: F811
+    html = client.get("/flyer", params=PARAMS).text
+    sheet = html[html.index('data-role="flyer"') : html.index('data-role="flyer-checklist"')]
+    assert result().credits.photos in sheet

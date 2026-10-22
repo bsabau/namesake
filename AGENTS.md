@@ -293,7 +293,7 @@ app/
   qloo/              exec wrapper, envelope types, cache, geohash helpers
   views/             UI-neutral view models, one per screen, also served as JSON
   ui/<name>/         one folder per UI: templates/ and static/ (story is the default; warm and classic are kept)
-  static/            shared assets: web-sized animal photos, the favicon
+  static/            shared assets: web-sized animal photos, the favicon, the flyer's print styles and button
 data/animals/        animals.json and original photos
 data/locations.json  the preset shelter locations
 docs/                architecture.md, decisions.md, product.md, qloo-findings.md, research/, img/

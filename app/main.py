@@ -509,9 +509,13 @@ def result_view(animal_id: str, location_id: str | None, session: Session | None
         None,
     )
     query = urlencode({"animal": animal.id, "location": location.id})
-    view.flyer_generic_url = f"/flyer?{query}&variant=generic"
-    if any(v.variant == "local" and v.available for v in view.listing.versions):
+    available = {v.variant for v in view.listing.versions if v.available}
+    if "generic" in available:
+        view.flyer_generic_url = f"/flyer?{query}&variant=generic"
+    if "local" in available:
         view.flyer_local_url = f"/flyer?{query}&variant=local"
+        for option in view.name.options:
+            option.flyer_url = f"{view.flyer_local_url}&{urlencode({'name': option.name})}"
     if view.write_label and litter is not None:
         # A litter is named as a set: the button runs the litter, whose members already
         # named keep their names (decision 13).
@@ -591,14 +595,16 @@ def flyer(
     animal: str,
     location: str | None = None,
     variant: str | None = None,
+    name: str | None = Query(None, max_length=40),
     ui: str | None = None,
 ) -> HTMLResponse:
     """A printable page from the result: the flyer, then the volunteer's checklist of
-    places to ask (decision 35). Every result has one: the generic version is always
-    there, written from the record."""
+    places to ask (decision 35), for the version and name chosen on the result page."""
     view = result_view(animal, location, session_of(request))
     chosen = pick_ui(ui)
-    flyer_view = build_flyer_view(view, variant, f"&ui={chosen}" if ui else "")
+    flyer_view = build_flyer_view(view, variant, f"&ui={chosen}" if ui else "", name)
+    if flyer_view is None:
+        raise HTTPException(404, "This animal has no listing to print here.")
     return render(request, chosen, "flyer.html", flyer_view)
 
 

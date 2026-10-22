@@ -1803,42 +1803,51 @@ def area_check_view(area, ui_query: str = "") -> AreaCheckView:
     )
 
 
-def build_flyer_view(result: ResultView, variant: str | None, ui_query: str = "") -> FlyerView:
+def build_flyer_view(
+    result: ResultView, variant: str | None, ui_query: str = "", name: str | None = None
+) -> FlyerView | None:
     """The flyer for one version of a result: the version asked for when it exists, else
-    the one the result page opens on. Built only from the result's own view, so it shows
-    nothing the page does not (decision 35)."""
+    the one the result page opens on; for the local one, the name option chosen on the
+    page when `name` is one of them. Built only from the result's own view (decision 35).
+    None when the result has no version to print."""
     versions = {v.variant: v for v in result.listing.versions if v.available}
+    if not versions:
+        return None
     opened = next((v for v in result.listing.versions if v.selected and v.available), None)
     version = versions.get(variant or "") or opened or next(iter(versions.values()))
+    chosen, copy_text = version.name, version.copy_text
+    option = next((o for o in result.name.options if o.name == name), None)
+    if version.variant == "local" and option is not None:
+        chosen, copy_text = option.name, option.copy_text
     # The copy text opens with "Meet <name>.", which the flyer shows as its heading.
-    paragraphs = [p for p in version.copy_text.split("\n\n") if p.strip()]
+    paragraphs = [p for p in copy_text.split("\n\n") if p.strip()]
     if paragraphs and paragraphs[0].startswith("Meet "):
         paragraphs = paragraphs[1:]
     query = urlencode({"animal": result.animal.id, "location": result.location.id})
     other = next((v for v in versions.values() if v.variant != version.variant), None)
     return FlyerView(
-        title=f"Meet {version.name}" if version.name else "Meet this animal",
-        name=version.name,
+        title=f"Meet {chosen}" if chosen else "Meet this animal",
+        name=chosen,
         image_url=result.animal.image_url,
         image_alt=result.animal.alt,
         paragraphs=paragraphs,
         version_label=version.label,
-        ask_line=f"Ask the shelter in {result.location.label} about "
-        f"{version.name or 'this animal'}.",
+        ask_line=f"Ask the shelter in {result.location.label} about {chosen or 'this animal'}.",
         checklist_note=(
-            "Places near the shelter that fans of pet-themed titles favour, from Qloo taste "
-            "data. Tick each one once you have asked about a flyer or a stand."
+            "Places near the shelter that Qloo returned for fans of pet-themed titles; "
+            "each says whether it stands out for those fans or is popular nearby generally. "
+            "Tick each one once you have asked about a flyer or a stand."
             if result.venues
-            else "No places to suggest for this area yet."
+            else result.venues_empty
         ),
         places=[
-            FlyerPlace(number=v.number or n, name=v.name, place=v.place)
+            FlyerPlace(number=v.number or n, name=v.name, place=v.place, badge=v.badge)
             for n, v in enumerate(result.venues, start=1)
         ],
         other=[item.text for item in result.plan if item.basis != "Qloo"],
         other_version=(
             Link(
-                label=f"The {other.label.lower()} instead",
+                label=f"Print the “{other.label}” version instead",
                 url=f"/flyer?{query}&variant={other.variant}{ui_query}",
             )
             if other

@@ -242,7 +242,7 @@ No account exists. The session cookie holds the workspace's random ID and nothin
 
 ## The API
 
-The start, result and working screens' view models are also served as JSON, so another interface can show them from the API alone; the add-animal form and the approval page are HTML only.
+The start, result and working screens' view models are also served as JSON, so another interface can show them from the API alone; the add-animal form, the approval page and the printable flyer (`/flyer`, built from the result's own view model) are HTML only.
 
 | Method and path | Returns |
 |---|---|
