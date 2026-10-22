@@ -492,3 +492,20 @@ def test_a_failed_request_is_not_sent_again_for_another_animal(roster):
     d.qloo.script = film_script()
     again = look_up_lookalike(ctx, "Example Dog Film", "movie", "Max", ["brindle coat"])
     assert again["status"].startswith("unavailable") and len(d.qloo.calls) == 1
+
+
+def test_a_kept_lookalike_keeps_its_evidence_when_looked_up_again(roster):
+    # Codex, PR #78: a refine's second lookup of the same film must not swap Rex's
+    # shared look for another animal's.
+    from app.agent.listing_agent import Lookalike, NameOption
+    from app.profile import Entity
+
+    film = Entity(id=DOG_FILM, name="Example Dog Film", type="movie")
+    rex = Lookalike(entity=film, animal="Rex", shared_look=["short brindle coat"])
+    d = deps(roster, kept=[NameOption.model_validate(REX)], lookalikes={DOG_FILM: rex})
+    d.titles[DOG_FILM] = (film, "lookalike")
+    out = look_up_lookalike(
+        SimpleNamespace(deps=d), "Example Dog Film", "movie", "Spot", ["broad head"]
+    )
+    assert out["status"] == "found"
+    assert d.lookalikes[DOG_FILM].animal == "Rex"

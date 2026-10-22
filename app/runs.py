@@ -323,9 +323,10 @@ def _listing_work(
             # Removed or edited while the run worked: this listing describes a record the
             # workspace no longer holds, so it is not kept (review of the workspace PR).
             return
-        if request is not None and result.draft is None and previous and previous.draft:
-            # A refine that fell to the template would replace a listing that has names
-            # with one that has none: the visitor keeps what they had (decision 37).
+        if request is not None and result.draft is None:
+            # A refine that fell to the template saves nothing: the visitor keeps what they
+            # had, and the working page stays on the steps that say so (decision 37).
+            run.error = "RefineNotFinished"
             run.log.add("note", "The refine did not finish, so the listing is as it was")
             return
         session.listings[key] = result

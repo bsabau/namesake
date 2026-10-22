@@ -338,6 +338,9 @@ def look_up_lookalike(
         if entity.id in deps.titles and deps.titles[entity.id][1] != "lookalike":
             # Already offered from the profile: it keeps that source and its rules.
             continue
+        if any(o.entity_id == entity.id for o in deps.kept):
+            # A kept name's title keeps the evidence its first run found (decision 37).
+            continue
         deps.lookalikes[entity.id] = Lookalike(
             entity=entity,
             animal=animal_in_it,

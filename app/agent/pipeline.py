@@ -401,7 +401,8 @@ def kept_names(
 
 
 def same_names(names: list[NameOption], kept: list[NameOption]) -> bool:
-    return [(o.name, o.entity_id) for o in names] == [(o.name, o.entity_id) for o in kept]
+    """The same names from the same titles, in any order."""
+    return {(o.name, o.entity_id) for o in names} == {(o.name, o.entity_id) for o in kept}
 
 
 async def write_listing(
@@ -478,11 +479,11 @@ async def write_listing(
         result.hook = hook_text(result.references[0])
         used = {o.entity_id for o in run.output.names}
         result.lookalikes = [v for k, v in deps.lookalikes.items() if k in used]
-        result.names_kept = bool(kept) and same_names(run.output.names, kept)
         if kept:
+            result.names_kept = same_names(run.output.names, kept)
             log.add(
                 "check",
-                "The names are kept" if result.names_kept else "The names are changed, as asked",
+                "The names are kept" if result.names_kept else "Namesake's AI changed the names",
             )
     except MODEL_FAILURES as exc:
         # No model answered: there was no draft to check (Flash review, PR #42).

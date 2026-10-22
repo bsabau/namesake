@@ -32,6 +32,8 @@ The review found no study showing that names or wording speed adoption. Being se
 
 **Generic and local versions** share the same bio. The generic version takes a common pet name from a fixed list; the local version takes the chosen name from Qloo's titles and adds one hook line. The toggle therefore shows exactly what Qloo contributed (`docs/decisions.md` #8).
 
+**Refine.** One line asks Namesake's AI for a change ("shorter sentences", "other names"). It keeps the names unless the request asks for other ones, and the note on the refined listing says which; a refine that does not finish leaves the listing as it was (`docs/decisions.md` #37).
+
 **Volunteer approval.** The volunteer edits and approves the text, then copies a block ready to paste into shelter software.
 
 **Flyer and checklist.** "Print a flyer" prints two pages from the result: the flyer to post (the name, the photo, the listing, who to ask, and a contact line the volunteer types in, which is printed and never saved), and the volunteer's checklist of the places to ask, numbered as on the map, and the other ways to help (decision 35). After approving, the approval page prints the same flyer with the approved text.

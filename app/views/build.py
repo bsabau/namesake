@@ -492,7 +492,7 @@ def listing_view(
             f"Refined at your request (“{refined}”)"
             + (
                 ""
-                if not (result and result.draft)
+                if not (result and result.draft) or result.names_kept is None
                 else ": the bio is rewritten and the names are kept"
                 if result.names_kept
                 else ": the names are changed too"

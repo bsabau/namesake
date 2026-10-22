@@ -387,11 +387,16 @@ def test_a_refined_listing_is_for_this_visitor_only(client, monkeypatch):
     assert "Refined at your request" not in page
 
 
-def test_a_refine_that_falls_to_the_template_leaves_the_listing_as_it_was(client, monkeypatch):
-    save(saved_listing())
+@pytest.mark.parametrize("shared", [True, False])
+def test_a_refine_that_falls_to_the_template_saves_nothing(client, monkeypatch, shared):
+    # With or without a shared listing to keep (Codex, PR #78): the visitor's page stays
+    # as it was, and the working page stops on the step that says why.
+    if shared:
+        save(saved_listing())
     run, _, page = refine(client, monkeypatch, "shorter sentences", None)
-    assert any("the listing is as it was" in s.text for s in run.log.steps)
-    assert "Refined at your request" not in page and "Bingo" in page
+    assert run.failed and any("the listing is as it was" in s.text for s in run.log.steps)
+    assert "Refined at your request" not in page
+    assert ("Bingo" in page) is shared
 
 
 @pytest.mark.parametrize("text", ["", "ok", "x" * 201])

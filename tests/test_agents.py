@@ -749,9 +749,15 @@ def test_a_refine_shows_the_agent_the_names_to_keep(roster):
 
 def test_names_the_agent_changes_are_said_to_be_changed(roster):
     first, _, _ = run(Script([PLAN], [DRAFT]), roster)
-    result, log, _ = refine(roster, first, "other names please", [REORDERED])
-    assert not result.names_kept and result.draft.names[0].name == "Biscuit"
-    assert any(s.text == "The names are changed, as asked" for s in log.steps)
+    result, log, _ = refine(roster, first, "other names please", [WITHOUT_BINGO])
+    assert result.names_kept is False and result.draft.names[2].name == "Rusty"
+    assert any(s.text == "Namesake's AI changed the names" for s in log.steps)
+    # The same names in another order are the names kept.
+    result, _, _ = refine(roster, first, "warmer", [REORDERED])
+    assert result.names_kept
+    # A refine of a listing with no names has none to keep.
+    result, _, _ = refine(roster, first.model_copy(update={"draft": None}), "warmer", [DRAFT])
+    assert result.names_kept is None
 
 
 def test_kept_names_are_checked_like_new_ones(roster):
