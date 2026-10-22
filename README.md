@@ -14,9 +14,9 @@ A **generic version** of the listing sits beside the **local version**, so you c
 
 Built for the [Qloo Agentic Hackathon](https://qloo-hackathon.devpost.com/). Taste data from the Qloo API; not affiliated with Qloo.
 
-![The first screen of the result for the lead dog in Park Slope, in the story skin: her photo, the local name Comet with its line "Named after Comet in Dogs in Space." and the start of what the shelter recorded on the left; "Let's tell her story" with the Generic and Local version toggle; three name options (Comet, Scooby, Hooch), each with its Qloo title under it; a strip with what Qloo returned beside what Namesake's AI did, including the title it searched Qloo's lists with; and the start of her introduction](docs/img/result-first-screen.png)
+![The first screen of the result for the lead dog in Park Slope, in the story skin: her photo, the local name Comet with its line "Named after Comet in Dogs in Space." and the start of what the shelter recorded on the left; "Let's tell her story" with the Generic and Local version toggle; three name options (Comet, Scooby, Hooch), each with its Qloo title under it; and the start of her introduction (this screenshot predates the one line under the names saying what came from Qloo's data for the area)](docs/img/result-first-screen.png)
 
-The whole result page, with the map, the places to ask and "How Namesake made this": [`docs/img/result.png`](docs/img/result.png).
+The whole result page, with the map, the places to ask and what is now "How Namesake made this" (taken before the page was reordered on 22 October; to be retaken): [`docs/img/result.png`](docs/img/result.png).
 
 ## The problem
 

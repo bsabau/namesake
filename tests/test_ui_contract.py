@@ -259,7 +259,8 @@ def test_the_story_result_tells_the_story_in_order(client):
     marks = [
         "tell her story.",
         "Choose a name",
-        'class="local-touch"',
+        # Hidden with the names under the generic version, whose names are not Qloo's.
+        'class="local-touch local-only"',
         "Her introduction",
         'data-role="approve"',
         "Want to adjust the wording?",
@@ -279,6 +280,9 @@ def test_the_story_result_tells_the_story_in_order(client):
     positions = [page.index(mark) for mark in marks]
     assert positions == sorted(positions), marks
     assert "What we know" in page and "Still to learn: children" in page
+    # The line names Qloo once, and what it claims stays inside the folded detail.
+    assert "Qloo From Qloo" not in page and page.count("From Qloo taste data for") == 1
+    assert 'class="venue-why"' in page and "<span>Qloo:</span> <strong>" in page
 
 
 @pytest.mark.parametrize("ui", main.UIS)

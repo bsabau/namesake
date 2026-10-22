@@ -202,7 +202,8 @@ TRIAL_URL = f"{REPO_URL}#measuring-whether-it-works"
 PROBLEM = (
     "Volunteers write a listing for every animal, often with little time. Namesake keeps "
     "to what the research supports: a plain listing that states only the recorded facts, "
-    "names screened before they are offered, and a plan for getting the animal seen."
+    "names screened before they are offered, and a plan for getting the animal seen. "
+    "Local taste data is the labelled experiment."
 )
 # Whether the local version helps is untested; the page says so, and what would test it.
 TRIAL = (

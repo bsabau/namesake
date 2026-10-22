@@ -114,7 +114,8 @@
 
     {% if view.local_touch %}
     {# One plain line; the detail is in "How Namesake made this", below the places. #}
-    <p class="local-touch"><span class="from-qloo">Qloo</span> {{ view.local_touch }} <a href="#how">{{ view.how_heading }}</a></p>
+    {# The local version's line: hidden with the names when the generic version is shown. #}
+    <p class="local-touch local-only">{{ view.local_touch }} <a href="#how">{{ view.how_heading }}</a></p>
     {% endif %}
 
     <section class="step" aria-labelledby="step-intro">

@@ -578,7 +578,6 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
 /* The one line under the names on what came from Qloo; the rest is in "How Namesake made
    this" (decision 33). */
 .local-touch { margin: 16px 0 0; font-size: 0.95rem; }
-.local-touch a { font-weight: 700; white-space: nowrap; }
 .local-touch a, .problem a, .trial a { color: var(--primary-ink); font-weight: 700; }
 
 /* Qloo's part and the AI's, at the top of "How Namesake made this" (decisions 21, 33). */
