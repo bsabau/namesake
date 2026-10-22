@@ -449,12 +449,15 @@ async def write_listing(
         result.lookalikes = [v for k, v in deps.lookalikes.items() if k in used]
     except MODEL_FAILURES as exc:
         # No model answered: there was no draft to check (Flash review, PR #42).
-        log.add("error", f"Namesake's AI could not be reached ({type(exc).__name__})")
+        # The visitor reads the step; the exception's name is for the server's log only.
+        logger.warning("listing: no model answered (%s)", type(exc).__name__)
+        log.add("error", "Namesake's AI could not be reached")
         result.fallback_reason = (
             "Namesake's AI could not be reached, so this is the templated listing."
         )
     except AGENT_FAILURES as exc:
-        log.add("error", f"The listing did not pass its checks ({type(exc).__name__})")
+        logger.warning("listing: the draft failed its checks (%s)", type(exc).__name__)
+        log.add("error", "The listing did not pass its checks after one repair")
         result.fallback_reason = (
             "The draft from Namesake's AI did not pass the checks after one repair, so this is "
             "the templated listing."

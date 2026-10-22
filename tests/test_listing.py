@@ -1,7 +1,7 @@
 import pytest
 
 from app.animals import Animal, Checks
-from app.listing import fact_sentence, templated_listing
+from app.listing import cautions, fact_sentence, set_aside, templated_listing
 
 
 def animal(**overrides) -> Animal:
@@ -81,3 +81,24 @@ def test_fact_sentences(fact, expected):
 
 def test_ages_read_naturally():
     assert "a 10-week-old female dog" in templated_listing(animal(age="10 weeks")).text
+
+
+def test_a_recorded_backstory_fact_is_set_aside_from_the_template():
+    # 22 October walkthrough: a typed "was brought in as a stray" reached the listing.
+    pet = animal(
+        facts=["chases feather toys", "was brought in as a stray", "feels lonely at night"]
+    )
+    assert set_aside(pet) == {
+        "fact:1": "was brought in as a stray",
+        "fact:2": "feels lonely at night",
+    }
+    listing = templated_listing(pet)
+    assert "stray" not in listing.text and "lonely" not in listing.text
+    assert "chases feather toys" in listing.text
+
+
+def test_a_caution_is_never_set_aside_even_with_a_past():
+    pet = animal(facts=["bit a previous owner when startled"])
+    assert set_aside(pet) == {}
+    assert "bit a previous owner when startled" in templated_listing(pet).text
+    assert "bit a previous owner when startled" in cautions(pet)

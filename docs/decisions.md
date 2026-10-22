@@ -547,3 +547,17 @@ Not done: the character a name refers to ("Bingo, a dog in *Bluey*") is not labe
 **Revised 22 October** (the author, "yeah lets address these", after Codex's judge read: "A volunteer should not have to choose between the approved wording and the printable artifact", and the flyer names no way to reach the shelter):
 - The approval page has **Print a flyer with this text**, in every skin: a form that posts the approved text, version and name to `POST /flyer`. The route holds them to the approval's own checks (`checked_choice`, shared with `/approve`: the name is one of the options or the generic name shown, neither it nor what it refers to has been taken by another animal here since; and `missing_cautions`), prints the approved text whole, and records and keeps nothing; the flyer then has no link to the other version, which would be a draft.
 - Page 1 has a **shelter contact** line under "Ask the shelter…": a two-line field the volunteer types into on the page (a phone, an email or a website), printed as plain text that wraps, and left out when empty. No form holds it, so it is never sent or saved. A QR code stays out: it would need the shelter's own address.
+
+## 36. A recorded fact that is backstory or pity is set aside
+
+**Decided** (Claude, 22 October, under the author's "yes lets do this" to the walkthrough's fixes):
+- A recorded fact with a backstory or pity phrase ("stray", "surrender", "previous owner", "lonely", "last chance" and the rest of the lists in `app/listing.py`) is set aside (`set_aside`): the listing agent is not shown it and may not cite it, the template leaves it out, and the page's "left out" lines name it, quoted.
+- A fact that is also a caution (bit, guards, growls and the like) is never set aside, since a caution is stated every time; restating it whole may then carry its past ("bit a previous owner"), and the checks allow a backstory or pity phrase only when the cited facts themselves say it.
+- The animal's `history` was already never used; this covers what a volunteer types as a fact.
+
+**Why:** the 22 October walkthrough added a cat with the fact "was brought in as a stray". The agent was told to use every fact and to leave out backstory, so its draft was sent back twice with opposite fixes ("leave out backstory ('stray')", then "cites fact:2 but leaves out ['stray']; restate it whole"), failed, and fell to the template, which printed the stray sentence anyway and left no local version. Setting the fact aside in code removes the contradiction for both paths, and naming it keeps the volunteer's record visible.
+
+**Follows:**
+- No demo animal has such a fact, so saved listings are unchanged and `CHECKS_VERSION` stays.
+- The same walkthrough's smaller fixes ship with it: the step log no longer shows Python exception names (they go to the server log), descriptions are no longer cut at an initial ("Michael J. Fox"), the approval record keeps "Qloo" capitalised, and the story skin styles "Print a flyer" and the flyer page's tools.
+

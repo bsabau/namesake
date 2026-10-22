@@ -207,6 +207,7 @@ def test_approving_records_the_choice_but_never_the_text(client):
     assert record.variant == "local" and record.name == "Biscuit" and record.edited
     assert "Example Cat Show" in record.name_source
     assert "She is calm" not in record.model_dump_json()
+    assert "The version: local, with Qloo." in response.text
 
 
 def test_the_generic_version_never_carries_a_qloo_name_or_hook(client):

@@ -161,7 +161,8 @@ def test_a_failed_run_reports_its_error_and_does_not_send_to_a_result(monkeypatc
         run_id = location.rsplit("/", 1)[-1]
         with client.stream("GET", f"/api/runs/{run_id}/events") as stream:
             lines = [line for line in stream.iter_lines() if line.startswith("data:")]
-    assert "The run stopped: RuntimeError" in lines[-2]
+    assert "The run stopped on an error in Namesake's code" in lines[-2]
+    assert "RuntimeError" not in lines[-2]
     assert '"failed": true' in lines[-1]
 
 

@@ -39,6 +39,21 @@ CHECK_SENTENCES: dict[str, dict[str, str]] = {
 }
 
 
+# Words that place a fact in the animal's past or plead for it. The listing describes the
+# animal as it is now, so a recorded fact with one of them is set aside: neither the
+# template nor Namesake's AI restates it, and the page names it (decision 36). Matched
+# with a space either side, so "sad " is a word, not the start of "saddle".
+BACKSTORY = (
+    "stray", "surrender", "abandon", "previous owner", "former owner", "rescued from",
+    "in the shelter for", "months in", "years in the shelter", "waiting for",
+    "could no longer care",
+)  # fmt: skip
+PITY_URGENCY = (
+    "last chance", "urgent", "running out", "euthan", "death row", "desperate",
+    "heartbroken", "forgotten", "overlooked", "sad ", "lonely",
+)  # fmt: skip
+
+
 class Sentence(BaseModel):
     text: str
     # What the sentence restates: "temperament", "look", "fact:<n>" or "check:<field>".
@@ -149,9 +164,11 @@ def templated_listing(animal: Animal) -> Listing:
             source="look",
         ),
     ]
+    left_out = set_aside(animal)
     sentences += [
         Sentence(text=fact_sentence(fact, they, p["is"]), source=f"fact:{i}")
         for i, fact in enumerate(animal.facts)
+        if f"fact:{i}" not in left_out
     ]
     sentences += check_sentences(animal.checks, p)
     return Listing(sentences=sentences)
@@ -213,3 +230,20 @@ def missing_cautions(animal: Animal, text: str) -> list[str]:
     """The cautions an edited listing dropped or reworded."""
     plain = _plain(text)
     return [c for c in cautions(animal) if _plain(c) not in plain]
+
+
+def past_or_pity(text: str) -> list[str]:
+    """The backstory and pity phrases in `text`."""
+    lowered = f" {text.lower()} "
+    return [phrase.strip() for phrase in BACKSTORY + PITY_URGENCY if phrase in lowered]
+
+
+def set_aside(animal: Animal) -> dict[str, str]:
+    """The recorded facts no listing restates, by key ("fact:<n>"): backstory or pity.
+
+    A fact that is also a caution stays, since a caution is stated every time."""
+    return {
+        f"fact:{i}": fact
+        for i, fact in enumerate(animal.facts)
+        if past_or_pity(fact) and not CAUTION_WORDS.search(fact)
+    }

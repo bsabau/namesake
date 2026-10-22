@@ -210,7 +210,8 @@ def facts_block(animal: Animal) -> str:
         f'- temperament: "{animal.temperament}"',
         f'- look: "{look_text(animal)}"',
     ]
-    lines += [f'- fact:{i}: "{f}"' for i, f in enumerate(animal.facts)]
+    usable = set(checks.agent_fact_keys(animal))
+    lines += [f'- fact:{i}: "{f}"' for i, f in enumerate(animal.facts) if f"fact:{i}" in usable]
     return "\n".join(lines)
 
 

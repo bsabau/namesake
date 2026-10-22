@@ -7,7 +7,7 @@ list means the draft passes.
 import re
 
 from app.animals import Animal
-from app.listing import MAX_WORDS
+from app.listing import BACKSTORY, MAX_WORDS, past_or_pity, set_aside
 
 # Looks that mark a bully-type dog: these get the strictest name screen, because a
 # measured adoption penalty fell on names perceived as Black for pit-bull-type dogs.
@@ -123,15 +123,6 @@ HOOK_TRAIT_WORDS = (
 )  # fmt: skip
 HOOK_CLAIMS = ("fan", "fans", "fans of", "perfect for", "love", "loves", "loved", "loving")
 
-BACKSTORY = (
-    "stray", "surrender", "abandon", "previous owner", "former owner", "rescued from",
-    "in the shelter for", "months in", "years in the shelter", "waiting for",
-    "could no longer care",
-)  # fmt: skip
-PITY_URGENCY = (
-    "last chance", "urgent", "running out", "euthan", "death row", "desperate",
-    "heartbroken", "forgotten", "overlooked", "sad ", "lonely",
-)  # fmt: skip
 # Words that would state a check the shelter has not confirmed.
 UNKNOWN_TOPICS = {
     "good_with_children": (
@@ -400,8 +391,11 @@ EASY_TO_SAY = re.compile(
 
 
 def agent_fact_keys(animal: Animal) -> list[str]:
-    """What the agent's bio may cite: confirmed checks are added by code, not written."""
-    return ["temperament", "look"] + [f"fact:{i}" for i in range(len(animal.facts))]
+    """What the agent's bio may cite: confirmed checks are added by code, not written, and
+    a fact set aside as backstory or pity is never shown to it (decision 36)."""
+    left_out = set_aside(animal)
+    facts = [f"fact:{i}" for i in range(len(animal.facts))]
+    return ["temperament", "look"] + [k for k in facts if k not in left_out]
 
 
 def _texts_for(animal: Animal, keys: list[str]) -> str:
@@ -454,13 +448,13 @@ def _topics_and_tone(text: str, source: str, label: str) -> list[str]:
                 f"{label} mentions {hit!r}; children, other animals, house-training and bites "
                 "come only from the shelter's confirmed checks, which are added separately"
             )
-    lowered = f" {text.lower()} "
-    for phrase in BACKSTORY:
-        if phrase in lowered:
-            problems.append(f"{label}: leave out backstory ({phrase.strip()!r})")
-    for phrase in PITY_URGENCY:
-        if phrase in lowered:
-            problems.append(f"{label}: leave out pity and urgency ({phrase.strip()!r})")
+    # Only what the cited facts do not say: a caution that mentions a previous owner, or
+    # the shelter's own temperament line, is restated whole (decision 36).
+    recorded = past_or_pity(source)
+    for phrase in past_or_pity(text):
+        if phrase not in recorded:
+            kind = "backstory" if phrase in BACKSTORY else "pity and urgency"
+            problems.append(f"{label}: leave out {kind} ({phrase!r})")
     if FIRST_PERSON.search(text):
         problems.append(f"{label}: write in the third person")
     return problems
