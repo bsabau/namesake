@@ -11,7 +11,7 @@ The review found no study showing that names or wording speed adoption. Being se
 ## Demo
 
 - **Lead animal:** `dog-02`, a large brindle adult with a broad head, eight months in the shelter. That's the profile the research names as the US bottleneck, and it exercises the strictest name screening.
-- **Second example:** the kitten litter, named as a set, listed for two neighbourhoods side by side. (On 19 October the Astoria one briefly gave way to the lead dog in Barcelona, decision 30.)
+- **Second example:** `cat-01`, a shy black senior five months in the shelter, listed for two neighbourhoods side by side. Older cats are among those that wait longest (`docs/research/adoption-evidence-review.md`), and her listing has to stay honest about shyness. The kitten litter, the second example until 22 October, is still named as a set when a visitor picks a kitten (decision 30).
 - **Locations:** two New York neighbourhoods and one other US city, from `data/locations.json`, confirmed in milestone 1, and Barcelona outside the US (decision 30).
 
 - **Your own animals:** a volunteer can add up to three of their own, with an optional photo, and edit or remove them. They are kept in a workspace in that browser for 7 days after the last visit, with a link that opens it elsewhere; there is no sign-up (decision 34).
@@ -33,7 +33,7 @@ The review found no study showing that names or wording speed adoption. Being se
 
 **Volunteer approval.** The volunteer edits and approves the text, then copies a block ready to paste into shelter software.
 
-**Flyer and checklist.** "Print a flyer" prints two pages from the result: the flyer to post (the name, the photo, the listing, and who to ask), and the volunteer's checklist of the places to ask, numbered as on the map, and the other ways to help (decision 35).
+**Flyer and checklist.** "Print a flyer" prints two pages from the result: the flyer to post (the name, the photo, the listing, who to ask, and a contact line the volunteer types in, which is printed and never saved), and the volunteer's checklist of the places to ask, numbered as on the map, and the other ways to help (decision 35). After approving, the approval page prints the same flyer with the approved text.
 
 ## Output 2: name options
 
@@ -65,7 +65,7 @@ The plan's success measure is adoptions and returns; likes and reach are left ou
 |---|---|---|---|
 | A. Pet-themed titles the area likes | `recommend` per type with the four pet tags as signals plus `signal_location` (decision 22). As filters the tags returned almost nothing (milestone 1) | code asks; a classifier sorts; agent judges the unclear ones | location |
 | B. More pet-themed entities strong here | `describe` for titles the agent adds; then `recommend` with one of them as the signal plus `signal_location`, per type (decision 20) | agent adds and searches; a classifier sorts the search results; agent judges the unclear ones; code keeps only titles Qloo ranks or lists here | location |
-| C. Local lift against a baseline | `where_popular` for the top two entities (a thin first one gives way to the next) and the area's top two shows (decision 18); lift = the entities' averaged score in a cell minus the baseline shows' | code computes; nothing is dropped by lift: the map shows it | entity and city |
+| C. Local lift against a baseline | `where_popular` for the top two entities (a thin first one gives way to the next) and the area's top two shows (decision 18); lift = the entities' averaged score in a cell minus the baseline shows', both ranked among the cells scored for both | code computes; nothing is dropped by lift: the map shows it | entity and city |
 | D. Venues fans favour | `recommend` for places, up to three entities with the strongest evidence as signals, titles about another animal only last, never an identity-coded one (code picks them), location near the shelter | agent picks about three venues, with reasons | location |
 | E. General local tastes | `recommend` for TV shows with `signal_location` | code asks; they are the names' second source, screened like the rest | location |
 | F. Check each name's reference | resolve and `describe`; on `needs_input` the agent picks a candidate with a stated reason (candidate buttons are for typed areas only) | agent | entity |
@@ -82,7 +82,7 @@ The result screen must be legible in a single screenshot. It shows:
 - the photo and chosen name
 - the generic/local toggle, each button showing its version's name
 - the name options with what Qloo returned for each title
-- a map of local lift, its caption (folded under "About this map" in story, decision 33) counting the cells where fans of pet-themed titles stand out (unless the map is thin or has no comparison), with the venues listed beside it under a note on which kinds of place were asked for and why (decision 23), and pinned on it by number, each card saying which cell it sits in and how far it is from the shelter (`docs/decisions.md` #4)
+- a map of local lift, its caption (folded under "About this map" in story, decision 33) counting the cells fans of pet-themed titles rank higher than fans of the area's top shows, a comparison of parts of the area rather than of how many fans (unless the map is thin or has one compared cell or none), with the venues listed beside it under a note on which kinds of place were asked for and why (decision 23), and pinned on it by number, each card saying which cell it sits in and how far it is from the shelter (`docs/decisions.md` #4)
 - the exposure checklist
 - a "Why" drawer with two columns, "Qloo returned" and "How Namesake read it", the Qloo calls behind the result listed under Qloo's
 - in the story skin, the saved run's own step log, folded, each step marked by who did it; and, where the animal has no listing yet, a button that starts a run (for a litter member, the litter's) (decision 27)

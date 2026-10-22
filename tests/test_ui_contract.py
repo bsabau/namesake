@@ -32,7 +32,7 @@ REQUIRED = {
         "qloo-credit",
     ],
     "add_animal": ["add-animal", "photo-credit", "qloo-credit"],
-    "flyer": ["flyer", "name", "flyer-checklist", "photo-credit", "qloo-credit"],
+    "flyer": ["flyer", "name", "flyer-contact", "flyer-checklist", "photo-credit", "qloo-credit"],
 }
 
 

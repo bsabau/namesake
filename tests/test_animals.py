@@ -1,6 +1,9 @@
+import pytest
 from PIL import Image
 
+from app.animals import load_roster
 from app.config import ROOT
+from app.listing import MIN_WORDS, templated_listing
 
 WEB_PHOTOS = ROOT / "app" / "static" / "animals"
 
@@ -20,3 +23,21 @@ def test_every_photo_has_a_web_sized_copy(roster):
         assert path.stat().st_size <= 150 * 1024
         with Image.open(path) as img:
             assert max(img.size) <= 800
+
+
+# Codex, on the fuller records: the tests read a frozen roster, so these read the demo's own.
+DEMO = load_roster(ROOT / "data" / "animals" / "animals.json")
+
+
+@pytest.mark.parametrize("animal", DEMO.animals, ids=lambda a: a.id)
+def test_every_demo_animal_fills_a_listing_and_keeps_something_to_learn(animal):
+    assert templated_listing(animal).word_count >= MIN_WORDS
+    assert "unknown" in animal.checks.model_dump().values()
+
+
+def test_the_demo_kittens_are_house_trained_rather_than_saying_so_twice():
+    kittens = [a for a in DEMO.animals if a.litter == "litter-a"]
+    assert len(kittens) == 4
+    for kitten in kittens:
+        assert kitten.checks.house_trained == "yes"
+        assert "uses the litter box" not in kitten.facts

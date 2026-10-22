@@ -15,6 +15,10 @@
 .flyer-sheet p { font-size: 1.1rem; line-height: 1.55; margin: 0 0 .9rem; }
 .flyer-ask { font-weight: 700; font-size: 1.25rem; border-top: 2px solid #1b202c; padding-top: .9rem; margin-top: 1.25rem; }
 .flyer-version { font-size: .9rem !important; }
+/* The volunteer's contact line: a field on screen, plain text in print, gone when empty. */
+.flyer-contact { display: block; margin: -.4rem 0 1rem; }
+.flyer-contact span { display: block; font-size: .9rem; color: #5e6370; margin-bottom: .25rem; }
+.flyer-contact textarea { width: 100%; resize: vertical; field-sizing: content; min-height: 2.2em; font: inherit; font-size: 1.15rem; font-weight: 700; line-height: 1.4; color: #1b202c; background: #fff; border: 1px dashed #8a8f9a; border-radius: 4px; padding: .4rem .55rem; }
 .flyer-checklist { list-style: none; padding: 0; margin: 0 0 1.25rem; }
 .flyer-checklist li { display: flex; gap: .75rem; align-items: baseline; padding: .55rem 0; border-bottom: 1px solid #e4dac8; }
 .flyer-box { flex: none; width: 1.1rem; height: 1.1rem; border: 2px solid #1b202c; border-radius: 3px; transform: translateY(.15rem); }
@@ -31,6 +35,13 @@
   main { padding: 0 !important; margin: 0 !important; max-width: none !important; }
   .flyer-sheet { border: 0; border-radius: 0; max-width: none; margin: 0; padding: 0; }
   .flyer-sheet + .flyer-sheet { break-before: page; }
+  .flyer-contact span { display: none; }
+  .flyer-sheet .flyer-contact textarea {
+    border: 0 !important; outline: 0 !important; box-shadow: none !important;
+    background: transparent !important; padding: 0 !important; resize: none; overflow: hidden;
+  }
+  /* Empty: the whole line goes, with its spacing. */
+  .flyer-sheet .flyer-contact:has(textarea:placeholder-shown) { display: none; }
   .flyer-sheet, .flyer-checklist li { break-inside: avoid; }
   .site-footer { font-size: 8pt; color: #444; border: 0 !important; }
 }
