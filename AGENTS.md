@@ -233,7 +233,7 @@ Twelve fictional animals plus one group photo of a litter, all AI-generated. The
 
 - Fields per animal: `id`, `species`, `group`, `sex`, `age`, `look`, `temperament`, `facts` (a list), `history`, `checks` (the five `yes`/`no`/`unknown` answers listed in `docs/product.md`), `image`. The four kittens share `litter: "litter-a"`. The `litter-group` entry has `members` and no profile.
 - Animals have no names on purpose. Naming them is the app's job.
-- `dog-02` leads the demo and the litter is the second example; `docs/product.md` says why.
+- `dog-02` leads the demo and `cat-01` is the second example; `docs/product.md` says why. The litter stays in the app, out of the examples (decision 30, revised 22 October).
 - The photos and JSON were produced by a separate project outside this repo (`../image_generation`, which also holds `ANIMALS.md` with each animal's role in the demo). It is not part of this app; do not import from it or run it.
 - The app serves web-sized copies from `app/static/animals`, made by `scripts/make_web_photos.py`. The UI labels the photos as AI-generated, and the app never edits or generates animal images.
 
@@ -350,7 +350,7 @@ Work on one milestone at a time, in order, and stop at the end of each for revie
 **4. Product (25–27 October).** Done 17 October.
 - The generic-versus-local toggle, the Why panel, the refine line, and candidate buttons for `needs_input`.
 - Edit and approve, and a copy-ready block.
-- Precomputed examples, built by a script into the cache database: `dog-02` and the litter in two neighbourhoods.
+- Precomputed examples, built by a script into the cache database: `dog-02` and the litter in two neighbourhoods (since 22 October `cat-01` in place of the litter).
 - A per-visitor rate limit and a daily cap on live runs.
 - The "try your own" path:
   - A custom location field. A custom location goes to Qloo as typed; on `needs_input`, show the candidates as buttons. Where the data is thin, say so instead of producing a weak listing. The field suggests area names as you type, and a spot picked on the map becomes an area's name, with the spot kept as that visit's pin (`docs/decisions.md` #17).
