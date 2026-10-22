@@ -417,7 +417,10 @@ def test_a_character_is_a_plain_name():
 
 
 def test_references_are_written_by_code():
-    assert reference_text("Bingo", "puppy", "Bluey") == "Bingo, a puppy in Bluey"
+    # The character's kind, never its age: the animal named after it may be grown.
+    assert reference_text("Bingo", "puppy", "Bluey") == "Bingo, a dog in Bluey"
+    assert reference_text("Marie", "kitten", "The Aristocats") == "Marie, a cat in The Aristocats"
+    assert reference_text("Odie", "animal", "Garfield") == "Odie, an animal in Garfield"
     assert reference_text("Rubble", "character", "PAW Patrol") == "Rubble in PAW Patrol"
     assert reference_text("x", "title", "Lassie") == "Lassie"
 

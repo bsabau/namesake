@@ -14,6 +14,7 @@ from app.agent import checks
 from app.agent.listing_agent import (
     hook_for,
     record_problems,
+    reference_for,
     repeated_titles,
     screen_names,
     shared_look_problem,
@@ -39,12 +40,13 @@ def recheckable(result: ListingResult) -> bool:
     return result.checks_version >= floor
 
 
-def screen_problems(store: Store, animal: Animal, result: ListingResult) -> list[str]:
-    """The name screen on a saved draft, with its titles as Qloo returned them: the
-    area profile's and the lookalikes'. A title no longer found counts as a problem."""
+def offered_titles(
+    store: Store, animal: Animal, result: ListingResult
+) -> dict[str, tuple[Entity, str]]:
+    """A saved draft's titles as the listing agent was offered them: the area's, with the
+    source the pipeline gave them, then the lookalikes (repeated_titles counts only the
+    former)."""
     profile = store.get_profile(result.location_id, animal.species)
-    # As the listing agent was offered them: the area's titles, with the source the
-    # pipeline gave them, then the lookalikes (repeated_titles counts only the former).
     offered: dict[str, tuple[Entity, str]] = {}
     if profile is not None:
         offered = {e.id: (e, "pet") for e in profile.pet_entities}
@@ -52,6 +54,13 @@ def screen_problems(store: Store, animal: Animal, result: ListingResult) -> list
             offered.setdefault(e.id, (e, "local"))
     for look in result.lookalikes:
         offered.setdefault(look.entity.id, (look.entity, "lookalike"))
+    return offered
+
+
+def screen_problems(store: Store, animal: Animal, result: ListingResult) -> list[str]:
+    """The name screen on a saved draft, with its titles as Qloo returned them: the
+    area profile's and the lookalikes'. A title no longer found counts as a problem."""
+    offered = offered_titles(store, animal, result)
     titles = {k: e for k, (e, _) in offered.items()}
     missing = [
         f"{o.name!r} has no title to check" for o in result.draft.names if o.entity_id not in titles
@@ -93,9 +102,13 @@ def recheck(store: Store, roster: Roster) -> tuple[int, int]:
         ):
             update = {"checks_version": CHECKS_VERSION, "bio": shown_bio(animal, result.draft)}
             if result.references:
-                # Built by code from the saved reference, so today's form (a title ending
-                # in "!" ends the sentence) replaces the saved one.
-                update["hook"] = checks.hook_text(result.references[0])
+                # Built by code from the saved draft and its titles, so today's form (a
+                # title ending in "!" ends the sentence; a character's kind, not its age)
+                # replaces the saved one. screen_problems found every title.
+                titles = offered_titles(store, animal, result)
+                refs = [reference_for(o, titles[o.entity_id][0].name) for o in result.draft.names]
+                update["references"] = refs
+                update["hook"] = checks.hook_text(refs[0])
             store.put_listing(result.model_copy(update=update))
             kept += 1
         else:

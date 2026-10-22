@@ -209,6 +209,9 @@ def test_a_recheck_rebuilds_the_hook_and_refuses_an_unfit_title(roster):
     assert (kept, rerun) == (1, 0)
     fresh = store.get_listing("dog-02", LOCATION.id)
     assert fresh.hook == "Named after Bingo, a dog in Scooby Doo, Where Are You!"
+    # The references are rebuilt from the draft, not kept as saved: "x" and "y" are gone.
+    assert fresh.references[0] == "Bingo, a dog in Scooby Doo, Where Are You!"
+    assert "x" not in fresh.references and "y" not in fresh.references
     # The same draft from a title whose own name does not suit a listing is left to rerun.
     hell = title.model_copy(update={"name": "My Dog from Hell"})
     store.put_profile(
