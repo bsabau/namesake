@@ -49,7 +49,7 @@ These shape most decisions below, so keep them in mind when making trade-offs. C
   - The cultural reference appears only in the name and one hook line, and neither the hook nor a name's reason says anything about temperament.
 - **Names are screened.**
   - Names are short and easy to say, at one to three syllables.
-  - Every option passes a screen for villains, violent or tragic characters, weapon and aggression words, words that put an animal down (garbage, scat, rat), living celebrities, and references coded to a race, religion or political identity.
+  - Every option passes a screen for villains, violent or tragic characters (including well-known animals that die in their story), weapon and aggression words, words that put an animal down (garbage, scat, rat), living celebrities, and references coded to a race, religion or political identity.
   - Dogs of bully-breed type get the strictest screen, because research found a measured penalty for names perceived as Black on pit-bull-type dogs.
   - A title whose own name would introduce the animal badly ("My Cat from Hell") gives no names.
   - Two animals in one shelter never share a reference (a title's character), except a litter named as a set, whose mates share a title but never a character. One animal's options come from different titles while another of the area's open titles is unused (lookalike titles never count).

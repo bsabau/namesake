@@ -7,7 +7,7 @@
 A volunteer picks an animal and the shelter's area. In about a minute Namesake produces:
 
 1. **A listing written only from the facts the shelter recorded.** Plain words, third person, behaviour toward people first. A bite history or guarding is always stated. Code checks each sentence of the bio against the record and sends back content words the facts don't contain.
-2. **Name options drawn from Qloo taste data**, each labelled with where it came from and screened for villains, violent or tragic characters, aggression words, words that put an animal down, real people and identity-coded references, never from a title whose own name would sound wrong in a listing, and never what another animal at the shelter is named after.
+2. **Name options drawn from Qloo taste data**, each labelled with where it came from and screened for villains, violent or tragic characters (well-known animals that die in their story among them), aggression words, words that put an animal down, real people and identity-coded references, never from a title whose own name would sound wrong in a listing, and never what another animal at the shelter is named after.
 3. **A plan to get the animal seen**: the evidence-backed channels (foster networks, outings, timing) plus a few local venues that fans of pet-themed shows and films favour, each with Qloo's evidence beside it.
 
 A **generic version** of the listing sits beside the **local version**, so you can see exactly what Qloo adds. Every Qloo answer is shown apart from how Namesake read it.

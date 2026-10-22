@@ -55,20 +55,21 @@ TITLE_UNFIT = (
 FAMOUS_VILLAINS = (
     "scar", "shere khan", "cruella", "cujo", "jafar", "ursula", "maleficent", "voldemort",
     "thanos", "vader", "sauron", "pennywise", "chucky", "hannibal", "lecter", "gaston",
-    "hades", "mojo jojo", "old yeller",
+    "hades", "mojo jojo",
 )  # fmt: skip
 BAD_ROLES = ("villain", "tragic")
 # Well-known animals that die in their story, by character and, where the name is common,
 # the title it must come from (22 October: the lead dog was offered Hooch, from Turner &
 # Hooch, with the model calling him a friend). Checked whatever role the model declares.
 TRAGIC_ANIMALS: tuple[tuple[str, str | None], ...] = (
-    ("hooch", None), ("hachiko", None), ("hachi", "hachi"), ("old yeller", None),
+    ("hooch", None), ("hachiko", None), ("hachi", "hachi"), ("hachi", "hachiko"),
+    ("old yeller", None),
     ("yeller", "old yeller"), ("mufasa", None), ("artax", None), ("hedwig", None),
     ("topthorn", None), ("old dan", None), ("little ann", None), ("marley", "marley"),
     ("skip", "my dog skip"), ("bailey", "a dog's purpose"), ("bailey", "a dog's journey"),
-    ("enzo", "the art of racing in the rain"), ("charlie", "all dogs go to heaven"),
+    ("enzo", "art of racing in the rain"), ("charlie", "all dogs go to heaven"),
     ("charlotte", "charlotte's web"), ("ginger", "black beauty"), ("boxer", "animal farm"),
-    ("sounder", "sounder"), ("dewey", "eight below"), ("old jack", "eight below"),
+    ("dewey", "eight below"), ("old jack", "eight below"),
 )  # fmt: skip
 ANIMAL_ROLES = ("puppy", "dog", "cat", "kitten", "animal")
 
@@ -162,10 +163,15 @@ FIRST_PERSON = re.compile(r"\b(I|I'm|I've|I'll|me|my|mine)\b")
 ABBREVIATIONS = re.compile(r"\b(Mr|Mrs|Ms|Dr|St|Jr|Sr)\.")
 
 
+APOSTROPHES = str.maketrans({"\u2019": "'", "\u2018": "'", "\u02bc": "'", "`": "'"})
+
+
 def find_word(text: str, words: tuple[str, ...]) -> str | None:
-    """The first of `words` (or phrases) that appears in `text` as a whole word."""
+    """The first of `words` (or phrases) that appears in `text` as a whole word. Curly
+    apostrophes read as straight ones, so "A Dog\u2019s Purpose" matches "a dog's purpose"."""
+    text = text.lower().translate(APOSTROPHES)
     for word in words:
-        if re.search(rf"(?<![a-z]){re.escape(word)}(?![a-z])", text.lower()):
+        if re.search(rf"(?<![a-z]){re.escape(word)}(?![a-z])", text):
             return word
     return None
 

@@ -377,6 +377,9 @@ def test_a_famous_villain_in_the_reference_fails():
         ("Hooch", "Hooch", "Turner & Hooch", "Hooch"),
         ("Bailey", "Bailey", "A Dog's Purpose", "Bailey"),
         ("Yeller", "Old Yeller", "Old Yeller", "Old Yeller"),
+        # Review: Qloo's titles may carry a curly apostrophe or a year.
+        ("Bailey", "Bailey", "A Dog\u2019s Purpose (2017)", "Bailey"),
+        ("Hachi", "Hachi", "Hachiko: A Dog's Story", "Hachi"),
     ],
 )
 def test_a_name_after_an_animal_that_dies_in_its_story_fails(name, character, title, animal):
