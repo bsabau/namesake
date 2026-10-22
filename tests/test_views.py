@@ -552,9 +552,9 @@ def test_the_map_caption_counts_the_warm_cells_and_says_what_they_mean():
     assert view.legend.startswith(
         "Fans of Example Dog Show and Example Cat Show rank 1 of these 5 cells higher than "
         "fans of this area's top shows do. Both sides are ranked among the same cells, so "
-        "this shows where in "
+        "this compares places "
     )
-    assert "not how many there are." in view.legend
+    assert "compares places within Example Slope, not how many fans live there." in view.legend
 
 
 def test_a_cell_label_gives_places_not_rescaled_scores():
@@ -566,6 +566,17 @@ def test_a_cell_label_gives_places_not_rescaled_scores():
         "Fans of Example Dog Show and Example Cat Show (2 shows): 1st of these 5 cells; "
         "fans of this area's top shows (2 shows): 5th."
     )
+
+
+def test_tied_places_read_as_a_range_that_agrees_with_the_colour():
+    # Codex: four cells tie on the pet side; the first is 2nd for the baseline. Its pet
+    # place, 1st to 4th, centres below 2nd, as its cool colour says.
+    view = map_view(
+        LOCATION, map_with([(0.9, 0.8), (0.9, 0.9), (0.9, 0.7), (0.9, 0.6), (0.1, 0.1)])
+    )
+    first = view.cells[0]
+    assert first.lift is not None and first.lift < 0
+    assert "joint 1st to 4th of these 5 cells" in first.label and first.label.endswith(": 2nd.")
 
 
 def test_a_tie_is_cool_in_the_count_and_the_key():
@@ -586,8 +597,8 @@ def test_two_sides_that_order_the_cells_alike_say_so():
         LOCATION, map_with([(0.5, 0.9), (0.4, 0.8), (0.3, 0.7), (0.2, 0.6), (0.1, 0.5)])
     ).legend
     assert (
-        "Fans of Example Dog Show and Example Cat Show and fans of this area's top shows "
-        "order these cells alike. " in legend
+        "Fans of Example Dog Show and Example Cat Show order these cells as fans of this "
+        "area's top shows do. " in legend
     )
     # Review of PR #48: the colour key follows as a key, never as a second finding, and
     # the shelter's circle is explained.

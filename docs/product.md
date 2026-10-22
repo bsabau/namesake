@@ -82,7 +82,7 @@ The result screen must be legible in a single screenshot. It shows:
 - the photo and chosen name
 - the generic/local toggle, each button showing its version's name
 - the name options with what Qloo returned for each title
-- a map of local lift, its caption (folded under "About this map" in story, decision 33) counting the cells where fans of pet-themed titles stand out (unless the map is thin or has no comparison), with the venues listed beside it under a note on which kinds of place were asked for and why (decision 23), and pinned on it by number, each card saying which cell it sits in and how far it is from the shelter (`docs/decisions.md` #4)
+- a map of local lift, its caption (folded under "About this map" in story, decision 33) counting the cells fans of pet-themed titles rank higher than fans of the area's top shows, a comparison of places rather than of how many fans (unless the map is thin or has one compared cell or none), with the venues listed beside it under a note on which kinds of place were asked for and why (decision 23), and pinned on it by number, each card saying which cell it sits in and how far it is from the shelter (`docs/decisions.md` #4)
 - the exposure checklist
 - a "Why" drawer with two columns, "Qloo returned" and "How Namesake read it", the Qloo calls behind the result listed under Qloo's
 - in the story skin, the saved run's own step log, folded, each step marked by who did it; and, where the animal has no listing yet, a button that starts a run (for a litter member, the litter's) (decision 27)

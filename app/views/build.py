@@ -698,8 +698,12 @@ def map_view(
     # gives each side's place among those cells, never a number that reads as Qloo's.
     both = [c for c in profile.cells if c.lift is not None]
 
-    def place(score: float, side: str) -> int:
-        return 1 + sum(getattr(o, side) > score for o in both)
+    def place(score: float, side: str) -> str:
+        # Tied cells share a range of places, whose middle is the rank lift is taken from,
+        # so a label never reads higher on the side whose colour says lower (Codex).
+        first = 1 + sum(getattr(o, side) > score for o in both)
+        last = sum(getattr(o, side) >= score for o in both)
+        return ordinal(first) if first == last else f"joint {ordinal(first)} to {ordinal(last)}"
 
     for c in profile.cells:
         south, west, north, east = bounds(c.geohash)
@@ -712,9 +716,9 @@ def map_view(
             )
         else:
             label = (
-                f"{cap(pets)}{shows(c.pet_count)}: {ordinal(place(c.pet_score, 'pet_score'))} "
+                f"{cap(pets)}{shows(c.pet_count)}: {place(c.pet_score, 'pet_score')} "
                 f"of these {len(both)} cells; {base}{shows(c.baseline_count)}: "
-                f"{ordinal(place(c.baseline_score, 'baseline_score'))}."
+                f"{place(c.baseline_score, 'baseline_score')}."
             )
         cells.append(
             MapCell(
@@ -786,11 +790,10 @@ def map_view(
     some = "these" if len(compared) == len(cells) else "the"
     # Both sides are ranked among the same cells (one_scale), so their differences sum to
     # zero: some cells are always warmer than others unless the two order them alike. The
-    # count says where, never that pet fans outnumber anyone (Flash, 22 October).
+    # count compares places, never how many fans live anywhere (Flash and Codex, 22 October).
     where = (
-        f"Both sides are ranked among the same cells, so this shows where in {location.label} "
-        "fans of pet-themed titles concentrate more than its general audience, not how many "
-        "there are. "
+        f"Both sides are ranked among the same cells, so this compares places within "
+        f"{location.label}, not how many fans live there. "
     )
     if not compared or thin:
         # A thin map already says it says little; a count would read as more.
@@ -798,7 +801,7 @@ def map_view(
     elif len(compared) == 1:
         count = "Only one cell was scored for both sides, so there is nothing to compare. "
     elif not warm:
-        count = f"{cap(pets)} and {base} order {some} cells{which} alike. "
+        count = f"{cap(pets)} order {some} cells{which} as {base} do. "
     else:
         count = (
             f"{cap(pets)} rank {warm} of {some} {len(compared)} cells{which} higher than "
