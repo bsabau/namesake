@@ -790,9 +790,9 @@ def map_view(
     some = "these" if len(compared) == len(cells) else "the"
     # Both sides are ranked among the same cells (one_scale), so their differences sum to
     # zero: some cells are always warmer than others unless the two order them alike. The
-    # count compares places, never how many fans live anywhere (Flash and Codex, 22 October).
+    # count compares parts of the area, never how many fans live anywhere (Flash, Codex).
     where = (
-        f"Both sides are ranked among the same cells, so this compares places within "
+        f"Both sides are ranked among the same cells, so this compares parts of "
         f"{location.label}, not how many fans live there. "
     )
     if not compared or thin:
@@ -847,7 +847,7 @@ def map_view(
                 f"{base} do; cool where lower, or level; grey where only the pet-themed titles "
                 "have a score. Where several "
                 "shows scored a cell, their scores are averaged, then ranked among the cells "
-                "scored for both, so they compare places here, not with other cities."
+                "scored for both, so they compare parts of this area, not other cities."
             )
             if any(c.lift is not None for c in cells)
             else f"Cells: where {pets} rank high within {location.label}. No cell was also "

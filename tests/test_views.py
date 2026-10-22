@@ -552,9 +552,9 @@ def test_the_map_caption_counts_the_warm_cells_and_says_what_they_mean():
     assert view.legend.startswith(
         "Fans of Example Dog Show and Example Cat Show rank 1 of these 5 cells higher than "
         "fans of this area's top shows do. Both sides are ranked among the same cells, so "
-        "this compares places "
+        "this compares parts of "
     )
-    assert "compares places within Example Slope, not how many fans live there." in view.legend
+    assert "compares parts of Example Slope, not how many fans live there." in view.legend
 
 
 def test_a_cell_label_gives_places_not_rescaled_scores():
