@@ -534,5 +534,9 @@ Not done: the character a name refers to ("Bingo, a dog in *Bluey*") is not labe
 
 **Follows:**
 - Warm and classic have no link; the page renders in them for comparison.
-- No QR code or shelter contact: the shelter is fictional, and a real one adds its own details by hand.
+- No QR code: the shelter is fictional, and a real one adds its own details by hand (since 22 October, in the contact line; see the revision below).
 - It prints the drafted listing. An edit the volunteer approved is not kept (approvals record the version and name, never the text), so the page says to copy an edit from the approval page instead.
+
+**Revised 22 October** (the author, "yeah lets address these", after Codex's judge read: "A volunteer should not have to choose between the approved wording and the printable artifact", and the flyer names no way to reach the shelter):
+- The approval page has **Print a flyer with this text**: a form that posts the approved text, version and name to `POST /flyer`. The route holds the text to the approval's own check (the recorded cautions, `missing_cautions`), takes the name only from the version's options, and records and keeps nothing; the flyer then has no link to the other version, which would be a draft.
+- Page 1 has a **shelter contact** line under "Ask the shelter…": a field the volunteer types into on the page (a phone, an email or a website), printed as plain text and left out when empty. No form holds it, so it is never sent or saved. A QR code stays out: it would need the shelter's own address.

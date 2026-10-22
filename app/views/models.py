@@ -532,6 +532,9 @@ class ApprovedView(BaseModel):
     copy_text: str
     recorded: list[str]
     back_url: str
+    # Posted to /flyer with the approved text, which is not kept anywhere.
+    flyer_label: str = "Print a flyer with this text"
+    flyer_fields: dict[str, str] = {}
     credits: Credits = Credits()
 
 
@@ -593,10 +596,14 @@ class FlyerView(BaseModel):
     places: list[FlyerPlace] = []
     other_heading: str = "Other ways to help"
     other: list[str] = []
+    # A line the volunteer types on the page for the shelter's phone, email or website:
+    # printed under the ask line, never sent or saved (no form holds it).
+    contact_label: str = "Shelter contact, printed under that line"
+    contact_placeholder: str = "Phone, email or website"
     print_label: str = "Print this page"
     print_note: str = (
         "Page 1 is the flyer to post; page 2 is your checklist. It prints the drafted "
-        "listing: if you edited it, copy your edit from the approval page instead."
+        "listing; to print your edit, approve it, then print from the approval page."
     )
     other_version: Link | None = None
     back_url: str

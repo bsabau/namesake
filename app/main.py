@@ -608,6 +608,32 @@ def flyer(
     return render(request, chosen, "flyer.html", flyer_view)
 
 
+@app.post("/flyer", response_class=HTMLResponse)
+def flyer_approved(
+    request: Request,
+    animal: str = Form(...),
+    location: str = Form(...),
+    variant: str = Form(...),
+    text: str = Form(...),
+    name: str | None = Form(None, max_length=40),
+    ui: str | None = Form(None),
+) -> HTMLResponse:
+    """The flyer with the text just approved, sent from the approval page. The text is
+    held to the approval's own check (the recorded cautions) and kept nowhere."""
+    session = session_of(request)
+    view = result_view(animal, location, session)
+    chosen = pick_ui(ui)
+    edited = listing_text(text)
+    if missing_cautions(find_animal(animal, session), edited):
+        raise HTTPException(400, "the text drops what the shelter recorded as a caution")
+    flyer_view = build_flyer_view(
+        view, variant, f"&ui={chosen}" if ui else "", name, approved=edited
+    )
+    if flyer_view is None:
+        raise HTTPException(400, "that version or name is not this animal's")
+    return render(request, chosen, "flyer.html", flyer_view)
+
+
 @app.get("/api/start")
 def api_start(request: Request, location: str | None = None) -> StartView:
     return start_view(location, session_of(request))
@@ -758,6 +784,14 @@ def refine_reset(
 TEXT_MAX = 3000
 
 
+def listing_text(text: str) -> str:
+    """A listing as the volunteer sent it, with its paragraphs and spacing tidied."""
+    edited = "\n\n".join(" ".join(p.split()) for p in text.strip().split("\n\n") if p.strip())
+    if not edited or len(edited) > TEXT_MAX:
+        raise HTTPException(400, f"the listing text is 1 to {TEXT_MAX} characters")
+    return edited
+
+
 @app.post("/approve", response_class=HTMLResponse)
 def approve(
     request: Request,
@@ -777,9 +811,7 @@ def approve(
     version = next((v for v in view.listing.versions if v.variant == variant and v.available), None)
     if version is None:
         raise HTTPException(400, "that version is not available for this animal")
-    edited = "\n\n".join(" ".join(p.split()) for p in text.strip().split("\n\n") if p.strip())
-    if not edited or len(edited) > TEXT_MAX:
-        raise HTTPException(400, f"the listing text is 1 to {TEXT_MAX} characters")
+    edited = listing_text(text)
 
     hook = None
     if variant == "local":
@@ -856,6 +888,14 @@ def approve(
         approval.edited,
         f"/result?animal={animal}&location={location}{ui_suffix(request, ui)}",
     )
+    approved.flyer_fields = {
+        "animal": animal,
+        "location": location,
+        "variant": variant,
+        "name": name,
+        "text": edited,
+        **({"ui": ui} if ui else {}),
+    }
     return render(request, chosen_ui, "approved.html", approved)
 
 
