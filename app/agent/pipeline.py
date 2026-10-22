@@ -461,6 +461,7 @@ async def write_listing(
             first_of_litter=first_of_litter,
             qloo=qloo,
             lookalikes=dict(found),
+            carried=dict(found),
         )
         # The lookup tool is synchronous and runs `qloo` as a subprocess; PydanticAI
         # runs sync tools in a worker thread.

@@ -572,7 +572,7 @@ Not done: the character a name refers to ("Bingo, a dog in *Bluey*") is not labe
 - Kept names go through every name check, the stricter screen for bully-breed dogs included: one another animal here took since is refused, and the repair round replaces it alongside any fix to the bio.
 - A kept name from a lookalike title keeps the title and the evidence its first run found.
 - The refine starts from the listing the visitor is looking at: their own refined or added one, else the shared one.
-- A kept name's lookalike title keeps that evidence if the AI looks the same animal up again; a lookup of another animal in the title replaces it, as for a request to swap that name.
+- A kept name's lookalike title keeps the evidence its first run found, kept apart: a lookup of another animal in the title replaces it, as for a request to swap that name, and a lookup of the same animal again (by any form of its name) restores it.
 - A refine that falls to the template saves nothing: the visitor keeps the listing they had, and the working page stays on the steps and says "The refine did not finish, so your listing is unchanged."
 - Code compares the names that come back with the kept ones, in any order, and the refined note says which: "the bio is rewritten and the names are kept" or "the names are changed too". A refine of a listing that had no names says neither; one whose names could not be kept (a title left the area's lists) says they changed.
 - The refine line suggests "shorter sentences" or "other names", one of each kind.

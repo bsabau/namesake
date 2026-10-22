@@ -72,6 +72,8 @@ class ListingDeps:
     qloo: QlooClient | None = None
     lookups: int = 0
     lookalikes: dict[str, Lookalike] = field(default_factory=dict)
+    # On a refine, the lookalikes the kept names came from, as their first run found them.
+    carried: dict[str, Lookalike] = field(default_factory=dict)
     # Each Qloo answer by (title, kind) with the titles it found, so a request is sent
     # once per run whichever animal the agent names.
     answers: dict[tuple[str, str], tuple[dict[str, Any], list]] = field(default_factory=dict)
@@ -338,12 +340,11 @@ def look_up_lookalike(
         if entity.id in deps.titles and deps.titles[entity.id][1] != "lookalike":
             # Already offered from the profile: it keeps that source and its rules.
             continue
-        if any(
-            o.entity_id == entity.id and o.character.lower() == animal_in_it.strip().lower()
-            for o in deps.kept
-        ):
-            # Asked again about a kept name's animal: it keeps the evidence its first run
-            # found (decision 37). Another animal in the title replaces it, as asked.
+        first = deps.carried.get(entity.id)
+        if first is not None and same_animal(first.animal, animal_in_it):
+            # Asked again about a kept name's animal, before or after another one: it gets
+            # back the evidence its first run found (decision 37).
+            deps.lookalikes[entity.id] = first
             continue
         deps.lookalikes[entity.id] = Lookalike(
             entity=entity,

@@ -501,7 +501,12 @@ def test_a_kept_lookalike_keeps_its_evidence_when_looked_up_again(roster):
 
     film = Entity(id=DOG_FILM, name="Example Dog Film", type="movie")
     rex = Lookalike(entity=film, animal="Rex", shared_look=["short brindle coat"])
-    d = deps(roster, kept=[NameOption.model_validate(REX)], lookalikes={DOG_FILM: rex})
+    d = deps(
+        roster,
+        kept=[NameOption.model_validate(REX)],
+        lookalikes={DOG_FILM: rex},
+        carried={DOG_FILM: rex},
+    )
     d.titles[DOG_FILM] = (film, "lookalike")
     ctx = SimpleNamespace(deps=d)
     out = look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["broad head"])
@@ -511,3 +516,6 @@ def test_a_kept_lookalike_keeps_its_evidence_when_looked_up_again(roster):
     # new evidence replaces Rex's (Codex, PR #78 second re-check).
     look_up_lookalike(ctx, "Example Dog Film", "movie", "Spot", ["broad head"])
     assert d.lookalikes[DOG_FILM].animal == "Spot"
+    # And back to Rex, by another form of his name: his first evidence is restored.
+    look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex the Dog", ["broad head"])
+    assert d.lookalikes[DOG_FILM] == rex
