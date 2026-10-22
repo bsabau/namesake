@@ -93,7 +93,7 @@ Still open, for the author: the video, making the repo public (with the branch c
 
 - [x] **A first-screen image at 1440×900** for Devpost (and the top of the README), after the rebuild. Keep the full page as a second image. F8, D13 · S
 - [x] **Two neighbourhoods side by side:** the same dog in Park Slope and Astoria, in the Devpost text and one image. Fable's idea lever. · S
-- [ ] Record the video from `docs/video-script.md`, after the wording alignment. F top 10 · M
+- [ ] ~~Record the video from `docs/video-script.md`, after the wording alignment. F top 10 · M~~ Dropped 22 October: Devpost asks for no video, only a demo judges can use.
 
 ## For the author
 

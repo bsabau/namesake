@@ -1,5 +1,7 @@
 # Demo video: shot list and narration
 
+Optional, and not planned: since 22 October Devpost asks for no video, only a demo judges can use. Kept in case one is recorded later.
+
 About two minutes. Record the live demo at https://namesake.bogdansabau.eu in a 1440-wide browser window. Same claim rules as the README: say "drafts", "screens", "an experiment"; never "adopted faster", "saves lives" or "matches".
 
 | Time | On screen | Narration |
