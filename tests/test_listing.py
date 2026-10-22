@@ -93,6 +93,9 @@ def test_a_recorded_past_is_restated_never_dropped():
     assert recorded_past(animal(temperament="shy since she was a stray")) == [
         "shy since she was a stray"
     ]
+    assert recorded_past(animal(look="black coat, a stray's notched ear")) == [
+        "black coat, a stray's notched ear"
+    ]
 
 
 def test_past_and_pity_match_whole_words():

@@ -194,3 +194,15 @@ def test_an_empty_api_or_output_mode_line_means_the_default():
     settings = Settings(_env_file=None, agent_api="", agent_output_mode="", agent_fallback_2_api="")
     assert settings.agent_api == "chat" and settings.agent_output_mode == "native"
     assert settings.agent_fallback_2_api == "chat"
+
+
+def test_an_error_that_is_not_a_failed_check_says_the_ai_did_not_finish(roster):
+    # Flash, PR #77: only a draft refused after its repair is said to fail the checks.
+    def broken(messages, info):
+        raise ValueError("a tool's answer could not be read")
+
+    result, _, _ = run(roster, broken, [])
+    assert result.draft is None
+    assert result.fallback_reason == (
+        "Namesake's AI did not finish the listing, so this is the templated listing."
+    )

@@ -468,6 +468,7 @@ def check_bio(
     allowed = agent_fact_keys(animal)
     texts = fact_texts(animal)
     cited: set[str] = set()
+    accepted: list[str] = []
     for i, (sentence, facts) in enumerate(sentences, start=1):
         label = f"bio sentence {i}"
         if not facts:
@@ -478,15 +479,18 @@ def check_bio(
             problems.append(f"{label} cites keys it may not use: {bad}; use {allowed}")
             continue
         cited |= set(facts)
+        accepted.append(sentence)
         problems += check_grounded(animal, sentence, facts, label)
     # Over the whole bio too: a recorded "stray" restated in two sentences is said twice.
-    said = Counter(phrase for sentence, _ in sentences for phrase in past_or_pity(sentence))
+    # A phrase the record never says is already refused sentence by sentence.
+    said = Counter(phrase for sentence in accepted for phrase in past_or_pity(sentence))
     recorded = Counter(past_or_pity(_texts_for(animal, sorted(cited))))
     for phrase, times in said.items():
-        if times > recorded[phrase]:
+        if 0 < recorded[phrase] < times:
             problems.append(
-                f"the bio says {phrase!r} {times} times and the record {recorded[phrase]}; "
-                "restate a recorded past once, as recorded"
+                f"the bio repeats {phrase!r}, which the record says "
+                f"{'once' if recorded[phrase] == 1 else f'{recorded[phrase]} times'}; "
+                "restate it as recorded, no more often"
             )
     missing = [k for k in allowed if k != "look" and k not in cited]
     if missing:

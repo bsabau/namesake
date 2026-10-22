@@ -303,8 +303,19 @@ def test_a_recorded_past_counts_once_however_it_is_cited():
         [(f"{once} Her previous owner bit her.", ["fact:1", "fact:1"])],
         [(f"{once} Her previous-owner bit her.", ["fact:1"])],
         [(once, ["fact:1"]), (once, ["fact:1"])],
+        [(f"{once} Her previous  owner bit her.", ["fact:1"])],
+        [(f"{once} Her previous\nowner bit her.", ["fact:1"])],
     ]:
         assert check_bio(pet, [TEMPERAMENT, FACTS[0], *extended]), extended
+
+
+def test_a_repeat_says_so_and_an_unrecorded_phrase_once():
+    pet = animal(facts=["knows basic commands", "was brought in as a stray"])
+    stray = ("She was brought in as a stray.", ["fact:1"])
+    problems = check_bio(pet, [TEMPERAMENT, FACTS[0], stray, stray])
+    assert any("repeats 'stray', which the record says once" in p for p in problems)
+    unrecorded = check_bio(pet, [TEMPERAMENT, FACTS[0], stray, ("She is sad.", ["fact:0"])])
+    assert not any("repeats" in p for p in unrecorded)
 
 
 def test_pity_and_urgency_fails():

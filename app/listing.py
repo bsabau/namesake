@@ -235,8 +235,9 @@ def missing_cautions(animal: Animal, text: str) -> list[str]:
 def past_or_pity(text: str) -> list[str]:
     """Each backstory or pity phrase in `text`, lower-cased, once per time it is said.
 
-    Hyphens and slashes count as spaces, so "previous-owner" is "previous owner"."""
-    plain = re.sub(r"[-‐‑–—/_]", " ", text)
+    Hyphens, slashes and any run of spaces or line breaks count as one space, so
+    "previous-owner" and "previous  owner" are "previous owner"."""
+    plain = re.sub(r"[\s\-‐‑–—/_]+", " ", text)
     return [m.group(0).lower() for p in (BACKSTORY, PITY_URGENCY) for m in p.finditer(plain)]
 
 
