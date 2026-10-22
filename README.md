@@ -7,7 +7,7 @@
 A volunteer picks an animal and the shelter's area. In about a minute Namesake produces:
 
 1. **A listing written only from the facts the shelter recorded.** Plain words, third person, behaviour toward people first. A bite history or guarding is always stated. Code checks each sentence of the bio against the record and sends back content words the facts don't contain.
-2. **Name options drawn from Qloo taste data**, each labelled with where it came from and screened for villains, violent or tragic characters, aggression words, words that put an animal down, real people and identity-coded references, never from a title whose own name would sound wrong in a listing, and never what another animal at the shelter is named after.
+2. **Name options drawn from Qloo taste data**, each labelled with where it came from and screened for villains, violent or tragic characters (well-known animals that die in their story among them), aggression words, words that put an animal down, real people and identity-coded references, never from a title whose own name would sound wrong in a listing, and never what another animal at the shelter is named after.
 3. **A plan to get the animal seen**: the evidence-backed channels (foster networks, outings, timing) plus a few local venues that fans of pet-themed shows and films favour, each with Qloo's evidence beside it.
 
 A **generic version** of the listing sits beside the **local version**, so you can see exactly what Qloo adds. Every Qloo answer is shown apart from how Namesake read it.
@@ -193,7 +193,7 @@ How it works inside, with diagrams: [`docs/architecture.md`](docs/architecture.m
 | `app/qloo/` | the typed wrapper around `qloo exec`: envelope parsing, cache, spacing, replay |
 | `app/views/`, `app/ui/story/` | view models (also served as JSON) and the default interface, which tells the result as a story; `app/ui/warm/` (the default before it, `?ui=warm`) and `app/ui/classic/` (the first skin, `?ui=classic`) are kept for comparison |
 | `docs/` | [architecture](docs/architecture.md), [decisions](docs/decisions.md), [Qloo findings](docs/qloo-findings.md), [product design](docs/product.md), [evidence review](docs/research/adoption-evidence-review.md) |
-| `tests/` | about 600 tests, all offline; `tests/test_no_qloo_data.py` keeps Qloo data out of the repo |
+| `tests/` | over 700 tests, all offline; `tests/test_no_qloo_data.py` keeps Qloo data out of the repo |
 
 Qloo's terms forbid publishing its response data, so real responses live only in the git-ignored `var/` and the deployed cache.
 

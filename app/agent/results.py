@@ -9,8 +9,10 @@ from app.audience import TitleAudience
 # Raised whenever the listing checks change. A saved result from an older version is
 # never shown as it is: app/agent/recheck.py holds it to today's record checks (the bio
 # and the names' reasons) and name screen, and anything it cannot recheck is rerun.
-CHECKS_VERSION = 14
+CHECKS_VERSION = 15
 # What changed since, so which saved drafts a recheck of the record is enough for:
+# - 15 refused a name after a well-known animal that dies in its story (rechecked with
+#   the name screen);
 # - 14 words a reference by the character's kind, not its age ("a dog", not "a puppy"),
 #   and names a litter only from pet-themed titles (the recheck rebuilds the references
 #   and hook from the saved draft; a saved litter keeps its names until the examples
