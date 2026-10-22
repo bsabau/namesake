@@ -89,6 +89,23 @@ class Throttled(Exception):
     """A lookup refused by the visitor's allowance or everyone's."""
 
 
+def qloo_pick(
+    places: "Places", text: str, latitude: float, longitude: float, visitor: str = "anyone"
+) -> tuple[str | None, str | None]:
+    """What a bare typed name ("Portland") became in Qloo, which picks one place on its
+    own and does not say which: OpenStreetMap's areas at the centre of Qloo's cells. The
+    one carrying the typed name ("Portland, Oregon"), else the widest, as (match, near).
+    Both None when the lookup is off or did not answer; the area then keeps its name as
+    typed (decision 38)."""
+    try:
+        areas = [label for label, _, _ in places.at(latitude, longitude, visitor)]
+    except (Throttled, LookupFailed):
+        return None, None
+    typed = text.strip().lower()
+    match = next((a for a in areas if a.split(",")[0].strip().lower() == typed), None)
+    return match, None if match or not areas else areas[-1]
+
+
 class Place(BaseModel):
     label: str
     latitude: float

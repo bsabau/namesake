@@ -846,6 +846,62 @@ def test_a_typed_area_is_checked_in_the_run_then_saved_and_offered(client, monke
     assert "This listing was made before" in again.text and qloo.calls == []
 
 
+class PlacesAt:
+    """OpenStreetMap's areas at a spot, most local first, as Places.at answers."""
+
+    def __init__(self, *areas, fails=False):
+        self.areas, self.fails, self.asked = areas, fails, []
+
+    def at(self, latitude, longitude, visitor="anyone"):
+        from app.places import LookupFailed
+
+        self.asked.append((latitude, longitude))
+        if self.fails:
+            raise LookupFailed
+        return [(a, latitude, longitude) for a in self.areas]
+
+
+def test_a_bare_typed_name_is_shown_as_the_place_qloo_picked(client, monkeypatch):
+    # 23 October walkthrough: "Portland" passed with no candidates, and the page said
+    # only "Portland". Qloo picked one; OpenStreetMap names where its data centres.
+    text, script = location_script(results=cells(6), text="Example Heights")
+    checked_by(monkeypatch, script)
+    osm = PlacesAt("Downtown, Example Heights", "Example Heights, Example State")
+    monkeypatch.setattr(runs, "places_for", lambda url: osm)
+    run, page = area_run(client, text)
+    saved = Store(main.get_settings().cache_db).get_location(location_id(text))
+    assert saved.region == "Example State" and len(osm.asked) == 1
+    assert "its data centres on Example Heights, Example State" in page
+    assert "Example Heights, Example State" in client.get("/", params={"location": saved.id}).text
+
+
+@pytest.mark.parametrize(
+    "osm, note",
+    [
+        (PlacesAt("Somewhere Else, Example State"), "centres near Somewhere Else"),
+        (PlacesAt(fails=True), None),
+    ],
+)
+def test_a_pick_osm_cannot_name_keeps_the_typed_name(client, monkeypatch, osm, note):
+    text, script = location_script(results=cells(6), text="Example Heights")
+    checked_by(monkeypatch, script)
+    monkeypatch.setattr(runs, "places_for", lambda url: osm)
+    run, page = area_run(client, text)
+    assert not run.failed
+    assert Store(main.get_settings().cache_db).get_location(location_id(text)).region == ""
+    assert (note in page) if note else "Qloo did not say which" not in page
+
+
+def test_a_typed_name_with_its_city_is_not_looked_up(client, monkeypatch):
+    text, script = location_script(results=cells(6))
+    assert "," in text
+    checked_by(monkeypatch, script)
+    osm = PlacesAt("Example Heights, Example State")
+    monkeypatch.setattr(runs, "places_for", lambda url: osm)
+    area_run(client, text)
+    assert osm.asked == []
+
+
 def test_a_typed_area_qloo_does_not_pass_ends_the_run_with_its_answer(client, monkeypatch):
     text, script = location_script(results=cells(1))
     checked_by(monkeypatch, script)
