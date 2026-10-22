@@ -473,7 +473,7 @@ class ResultView(BaseModel):
     story_lead_generic: str = ""
     introduction_heading: str = ""
     travel_heading: str = ""
-    # "Behind this story": three steps from the actual profile and listing (decision 24).
+    # "How Namesake made this": three steps from the actual profile and listing (decision 24).
     process: list[ProcessStep] = []
     # The saved run's own step log, each step marked by who did it, as the working page
     # showed it: judges who open a saved result never see a live run (decision 27).

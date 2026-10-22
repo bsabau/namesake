@@ -438,11 +438,24 @@ def test_the_local_touch_names_only_what_came_from_qloo_here(roster):
     from types import SimpleNamespace
 
     p = profile()
-    named = SimpleNamespace(draft=SimpleNamespace(names=["one"]))
-    assert local_touch(LOCATION, p, named, 3) == (
+    p.ranked = [p.pet_entities[0].id]
+    ranked, looked_up = p.pet_entities[0].id, p.pet_entities[1].id
+
+    def drafted(*options):
+        names = [SimpleNamespace(entity_id=i, source=s) for i, s in options]
+        return SimpleNamespace(draft=SimpleNamespace(names=names))
+
+    assert local_touch(LOCATION, p, drafted((ranked, "pet")), 3) == (
         f"From Qloo taste data for {LOCATION.label}: the titles behind the names, "
         "3 places to ask and the map."
     )
+    # A title only looked up, or a lookalike, has no evidence for the area: not claimed.
+    some = drafted((ranked, "pet"), (looked_up, "pet"), (ranked, "lookalike"))
+    assert local_touch(LOCATION, p, some, 3).startswith(
+        f"From Qloo taste data for {LOCATION.label}: the titles behind 1 of the 3 names, "
+    )
+    none = drafted((looked_up, "pet"), ("x", "lookalike"))
+    assert "names" not in local_touch(LOCATION, p, none, 3)
     # The fixed template names nothing from Qloo; no places, no cells: nothing to claim.
     assert local_touch(LOCATION, p, None, 1) == (
         f"From Qloo taste data for {LOCATION.label}: 1 place to ask and the map."

@@ -191,7 +191,7 @@ def location_option(
 
 
 def shelter_radius(location: Location) -> float:
-    """The circle around the fictional shelter, in metres: wider for a city."""
+    """The circle around the sample shelter, in metres: wider for a city."""
     return 800 * 2 ** (14 - location.zoom)
 
 
@@ -209,7 +209,7 @@ TRIAL = (
     "Does the local version help? Nobody has tested it yet. Namesake records each "
     "approved version so a shelter network could: generic against local, assigned at "
     "random, measured in days to adoption, with about 190 adoptions to detect a 50% "
-    "faster rate."
+    "faster rate, before allowing for clustering by shelter."
 )
 CLASSIFIER_CREDIT = (
     "Pet-themed titles sorted with TypeSafe's Jev classifier. Namesake is not affiliated with "
@@ -1341,10 +1341,22 @@ def local_touch(
 ) -> str:
     """One plain line under the listing: which parts of this result rest on Qloo's data
     for the area. Counted from the profile and the listing, like qloo_part; the detail
-    is in "How Namesake made this" (decision 33)."""
-    named = bool(listing and listing.draft and listing.draft.names)
+    is in "How Namesake made this" (decision 33). A name counts only when its title has
+    Qloo's evidence for the area: ranked here, in Qloo's lists for it, or among what people
+    there tend to watch; a lookalike or a title only looked up does not."""
+    names = listing.draft.names if listing and listing.draft else []
+    local = {e.id for e in profile.pet_entities if e.id in profile.ranked}
+    local |= {e.id for e in profile.pet_entities if e.found_in or e.listed_in}
+    local |= {e.id for e in profile.local_tastes}
+    backed = [o for o in names if o.source != "lookalike" and o.entity_id in local]
     parts = (
-        (["the titles behind the names"] if named else [])
+        (
+            ["the titles behind the names"]
+            if backed and len(backed) == len(names)
+            else [f"the titles behind {len(backed)} of the {len(names)} names"]
+            if backed
+            else []
+        )
         + ([plural(places_shown, "place") + " to ask"] if places_shown else [])
         + (["the map"] if profile.cells else [])
     )

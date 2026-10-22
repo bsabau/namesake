@@ -96,7 +96,7 @@
         {% for option in view.name.options %}
         <li class="name-option">
           <label>
-            {# Named with its source kept apart, and described by its pair in "Why this name?". #}
+            {# Named with its source kept apart, and described by its pair in "Why these names?". #}
             <input type="radio" name="local_name" value="{{ option.name }}"
                    aria-labelledby="option-name-{{ loop.index }} option-title-{{ loop.index }}" aria-describedby="why-name-{{ loop.index }}"
                    data-hook="{{ option.hook }}" data-source="{{ option.header_source }}"
@@ -212,9 +212,9 @@
             {% if venue.reason %}<p class="reading"><span>Namesake's AI:</span> {{ venue.reason }}</p>{% endif %}
             {# What Qloo returned for the place and Namesake's reading of it, one click away. #}
             <details class="venue-why">
-              <summary>Why this place</summary>
+              <summary>Why this place<span class="visually-hidden">: {{ venue.name }}</span></summary>
               <p class="venue-rank rank-{{ venue.rank_band }}" data-role="venue-rank">
-                <strong>{{ venue.rank }}</strong> · {{ venue.rank_note }}</p>
+                <span>Qloo:</span> <strong>{{ venue.rank }}</strong> · {{ venue.rank_note }}</p>
               <p class="evidence"><span>Qloo:</span> {% if venue.description %}{{ venue.description }} {% endif %}{{ venue.evidence }}</p>
               {% if venue.where %}<p class="reading venue-where"><span>Namesake:</span> {{ venue.where }}{% if venue.distance %} {{ venue.distance }}{% endif %}</p>{% endif %}
             </details>
