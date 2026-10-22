@@ -419,6 +419,8 @@ class WorkingView(BaseModel):
     actor_labels: dict[str, str] = {}
     actor_key: list[ActorKey] = []
     finished: bool
+    # The status line: working, finished, or why the run stopped.
+    status: str = "Working. Each step appears as it happens."
     # A sign of life between steps, so a long model call never looks stuck: words to
     # cycle, and the time since the last step ("0:42 since the last step").
     busy_words: list[str] = [
@@ -452,7 +454,7 @@ class ResultView(BaseModel):
     location: LocationOption
     approve_url: str = "/approve"
     refine_url: str = "/refine"
-    refine_placeholder: str = "Ask for a change, such as “shorter names” or “less childish”"
+    refine_placeholder: str = "Ask for a change, such as “shorter sentences” or “other names”"
     # Other members of a litter named as a set, with links to their results.
     litter: list["LitterMateView"] = []
     litter_note: str | None = None

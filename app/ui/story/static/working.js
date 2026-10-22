@@ -70,7 +70,7 @@
       return; // the page's own status says it already
     }
     if (outcome.failed) {
-      status.textContent = "The run stopped before it finished. The steps above show where.";
+      status.textContent = outcome.stopped || "The run stopped before it finished.";
       return;
     }
     status.textContent = "Finished. Opening the result…";

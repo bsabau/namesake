@@ -335,16 +335,41 @@ async def _wait(run, timeout: float = 10) -> None:
 # Refine
 
 
-def test_a_refined_listing_is_for_this_visitor_only(client):
-    save(saved_listing())
+def refine(client, monkeypatch, text, rewritten, animal="dog-02"):
+    """A refine whose pipeline hands back `rewritten` (None: as without a model) and
+    records the listing it was given to start from."""
+    given = []
+
+    async def pipeline(animal, location, **kw):
+        given.append(kw["previous"])
+        result = rewritten or ListingResult(
+            animal_id=animal.id, location_id=location.id, checks_version=CHECKS_VERSION
+        )
+        kw["save"](result)
+        kw["log"].add("done", "Done")
+        return result
+
+    monkeypatch.setattr(runs, "run_pipeline", pipeline)
     response = client.post(
-        "/refine", data={"animal": "dog-02", "location": "park-slope", "text": "shorter names"}
+        "/refine", data={"animal": animal, "location": "park-slope", "text": text}
     )
     run = main.RUNS[response.url.path.rsplit("/", 1)[1]]
     asyncio.run(_wait(run))
+    page = client.get("/result", params={"animal": animal, "location": "park-slope"}).text
+    return run, given, page
+
+
+def test_a_refined_listing_is_for_this_visitor_only(client, monkeypatch):
+    save(saved_listing())
+    rewritten = saved_listing().model_copy(update={"names_kept": True})
+    run, given, page = refine(client, monkeypatch, "shorter sentences", rewritten)
     assert run.session_id is not None
-    page = client.get("/result", params={"animal": "dog-02", "location": "park-slope"}).text
-    assert "Refined at your request (“shorter names”)" in page
+    # The refine starts from the listing the visitor was looking at (decision 37).
+    assert given[0].draft.names[0].name == "Bingo"
+    assert (
+        "Refined at your request (“shorter sentences”): the bio is rewritten and the names "
+        "are kept."
+    ) in html.unescape(page)
     # The shared listing is untouched, and another visitor still sees it.
     assert Store(main.get_settings().cache_db).get_listing("dog-02", "park-slope").draft
     other = TestClient(main.app).get(
@@ -352,9 +377,38 @@ def test_a_refined_listing_is_for_this_visitor_only(client):
     )
     assert "Refined at your request" not in other.text and "Bingo" in other.text
 
+    # A second refine starts from the first: the visitor's own version.
+    again = saved_listing().model_copy(update={"names_kept": False, "hook": "Named again."})
+    _, given, page = refine(client, monkeypatch, "other names", again)
+    assert given[0].names_kept and "the names are changed too" in page
+
     client.post("/refine/reset", data={"animal": "dog-02", "location": "park-slope"})
     page = client.get("/result", params={"animal": "dog-02", "location": "park-slope"}).text
     assert "Refined at your request" not in page
+
+
+@pytest.mark.parametrize("shared", [True, False])
+def test_a_refine_that_falls_to_the_template_saves_nothing(client, monkeypatch, shared):
+    # With or without a shared listing to keep (Codex, PR #78): the visitor's page stays
+    # as it was, and the working page stops on the step that says why.
+    if shared:
+        save(saved_listing())
+    run, _, page = refine(client, monkeypatch, "shorter sentences", None)
+    assert run.failed and any("the listing is as it was" in s.text for s in run.log.steps)
+    assert "Refined at your request" not in page
+    assert ("Bingo" in page) is shared
+    working = client.get(f"/runs/{run.id}").text
+    assert "The refine did not finish, so your listing is unchanged." in working
+
+
+def test_a_refine_of_an_added_animal_starts_from_its_own_listing(client, monkeypatch):
+    animal_id = added_id(add(client))
+    session = next(s for s in main.SESSIONS._items.values() if animal_id in s.animals)
+    own = saved_listing(animal_id).model_copy(update={"location_id": "park-slope"})
+    session.listings[f"{animal_id}@park-slope"] = own
+    main.SESSIONS.save(session)
+    _, given, _ = refine(client, monkeypatch, "warmer", own, animal=animal_id)
+    assert given[0] == own
 
 
 @pytest.mark.parametrize("text", ["", "ok", "x" * 201])

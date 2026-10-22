@@ -489,7 +489,15 @@ def listing_view(
         ),
         fallback_note=result.fallback_reason if result else None,
         refined_note=(
-            f"Refined at your request (“{refined}”). Only you see this version."
+            f"Refined at your request (“{refined}”)"
+            + (
+                ""
+                if not (result and result.draft) or result.names_kept is None
+                else ": the bio is rewritten and the names are kept"
+                if result.names_kept
+                else ": the names are changed too"
+            )
+            + ". Only you see this version."
             if refined
             else None
         ),
@@ -1767,6 +1775,9 @@ def build_working_view(
         actor_labels=dict(ACTOR_LABELS),
         actor_key=[ActorKey(actor=a, label=label) for a, label in ACTOR_LABELS],
         finished=run.log.finished,
+        status=(run.stopped or "Finished.")
+        if run.log.finished
+        else "Working. Each step appears as it happens.",
         seconds_since_step=int(time.time() - run.log.steps[-1].at) if run.log.steps else 0,
     )
 

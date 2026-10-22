@@ -123,6 +123,24 @@ def test_listing_view_points_out_a_recorded_past(roster):
     assert "came in as a stray" in view.listing.text
 
 
+def test_the_refined_note_says_the_names_were_kept(roster):
+    from tests.test_product import saved_listing
+
+    kept = saved_listing().model_copy(update={"names_kept": True})
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile(), kept, refined="warmer")
+    assert view.listing.refined_note == (
+        "Refined at your request (“warmer”): the bio is rewritten and the names are kept. "
+        "Only you see this version."
+    )
+    # A refine with no draft says nothing about names it has none of.
+    none = saved_listing().model_copy(update={"draft": None})
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile(), none, refined="warmer")
+    assert (
+        view.listing.refined_note
+        == "Refined at your request (“warmer”). Only you see this version."
+    )
+
+
 def baseline_key():
     return key(
         "recommend",

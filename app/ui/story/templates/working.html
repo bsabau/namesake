@@ -24,7 +24,7 @@
       <h1 class="headline working-title">{{ view.headline or view.title }}</h1>
       <p class="lead">{{ view.location.place }}.</p>
       <p class="where-label" data-role="status">
-        {% if view.area %}{{ view.area.status }}{% else %}{{ 'Finished.' if view.finished else 'Working. Each step appears as it happens.' }}{% endif %}</p>
+        {% if view.area %}{{ view.area.status }}{% else %}{{ view.status }}{% endif %}</p>
       <ul class="step-key" aria-label="Who did each step">
         {% for key in view.actor_key %}<li class="actor-{{ key.actor }}">{{ key.label }}</li>{% endfor %}
       </ul>

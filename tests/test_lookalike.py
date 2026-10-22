@@ -492,3 +492,30 @@ def test_a_failed_request_is_not_sent_again_for_another_animal(roster):
     d.qloo.script = film_script()
     again = look_up_lookalike(ctx, "Example Dog Film", "movie", "Max", ["brindle coat"])
     assert again["status"].startswith("unavailable") and len(d.qloo.calls) == 1
+
+
+def test_a_kept_lookalike_keeps_its_evidence_when_looked_up_again(roster):
+    # Codex, PR #78: a refine's second lookup of Rex must not swap his shared look.
+    from app.agent.listing_agent import Lookalike, NameOption
+    from app.profile import Entity
+
+    film = Entity(id=DOG_FILM, name="Example Dog Film", type="movie")
+    rex = Lookalike(entity=film, animal="Rex", shared_look=["short brindle coat"])
+    d = deps(
+        roster,
+        kept=[NameOption.model_validate(REX)],
+        lookalikes={DOG_FILM: rex},
+        carried={DOG_FILM: rex},
+    )
+    d.titles[DOG_FILM] = (film, "lookalike")
+    ctx = SimpleNamespace(deps=d)
+    out = look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex", ["broad head"])
+    assert out["status"] == "found"
+    assert d.lookalikes[DOG_FILM].shared_look == ["short brindle coat"]
+    # Asked about another of the film's animals, as for "replace Rex with Spot": the
+    # new evidence replaces Rex's (Codex, PR #78 second re-check).
+    look_up_lookalike(ctx, "Example Dog Film", "movie", "Spot", ["broad head"])
+    assert d.lookalikes[DOG_FILM].animal == "Spot"
+    # And back to Rex, by another form of his name: his first evidence is restored.
+    look_up_lookalike(ctx, "Example Dog Film", "movie", "Rex the Dog", ["broad head"])
+    assert d.lookalikes[DOG_FILM] == rex

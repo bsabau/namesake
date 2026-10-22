@@ -57,6 +57,9 @@ class ListingResult(BaseModel):
     # Titles the agent looked up for this animal's look, as Qloo returned them.
     lookalikes: list[Lookalike] = []
     fallback_reason: str | None = None
+    # On a refine of a listing with names: whether they were kept (decision 37). None
+    # when there were none to keep.
+    names_kept: bool | None = None
     steps: list[Step] = []
     # Who tends to like each name's title, by Qloo's title ID (app/audience.py). Shown
     # only; added after the run, and by `python -m app.audience` to older listings.

@@ -243,6 +243,8 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** the start view model, the form and the JSON API stay as they are. If a tone experiment is ever wanted, it belongs in the measurement design first, as a recorded variant, and only then on the screen.
 
+Revised 22 October: a refine now keeps the listing's names unless the request asks for other ones (decision 37), and the refine line's example is "shorter sentences" or "other names".
+
 ## 16. Saved listings are rechecked, not rerun, when only the record checks change
 
 **Decided** (17 October, from Codex's review of milestone 5):
@@ -562,3 +564,19 @@ Not done: the character a name refers to ("Bingo, a dog in *Bluey*") is not labe
 - `CHECKS_VERSION` stays. No demo animal's record says such a phrase, so no shared listing changes verdict. The whole-word match now also catches "sad" before punctuation, so a visitor's own saved draft whose record says "sad" once and whose bio says "sad." twice would pass under the old check and fail under this one; raising the version for that would make every saved listing, the four examples included, run again, so it is accepted (the review of PR #77).
 - A listing that falls to the template says the draft failed its checks only when it did; another error on the way says Namesake's AI did not finish the listing.
 - The same walkthrough's smaller fixes ship with it: the step log and the run's stream no longer carry Python exception names (they go to the server log), nor does a profile note carry Qloo's error text; descriptions are no longer cut at an initial ("Michael J. Fox"); the approval record keeps "Qloo" capitalised; and the story skin styles "Print a flyer" and the flyer page's tools.
+
+## 37. A refine keeps the names unless it asks for other ones
+
+**Decided** (Claude, 22 October, under the author's "do what you want on F3" after the walkthrough; revised before merging after the reviews):
+- On a refine, Namesake's AI is shown the listing's name options and told to return them unchanged, in order, unless the request asks for other names in any words ("other names", "less childish", "not Bingo"); then it changes only the names asked about. The AI judges the request: a word list tried first misread "add a call to action" as a request for names and "change Bingo to Max" as one that was not (Codex, muse and DeepSeek Flash on PR #78).
+- Kept names go through every name check, the stricter screen for bully-breed dogs included: one another animal here took since is refused, and the repair round replaces it alongside any fix to the bio.
+- A kept name from a lookalike title keeps the title and the evidence its first run found.
+- The refine starts from the listing the visitor is looking at: their own refined or added one, else the shared one.
+- A kept name's lookalike title keeps the evidence its first run found, kept apart: a lookup of another animal in the title replaces it, as for a request to swap that name, and a lookup of the same animal again (by any form of its name) restores it.
+- A refine that falls to the template saves nothing: the visitor keeps the listing they had, and the working page stays on the steps and says "The refine did not finish, so your listing is unchanged."
+- Code compares the names that come back with the kept ones, in any order, and the refined note says which: "the bio is rewritten and the names are kept" or "the names are changed too". A refine of a listing that had no names says neither; one whose names could not be kept (a title left the area's lists) says they changed.
+- The refine line suggests "shorter sentences" or "other names", one of each kind.
+
+**Why:** in the 22 October walkthrough, "shorter sentences, a bit warmer" turned Loaf, Hercules and Chance into Cheese, Bolt and Scooby: the refine reran the listing with no sight of the names it had. A volunteer asking for wording changes who gets three new names would read it as the app ignoring them. Two separate actions ("Reword the bio", "Other names") were clearer, but would have added UI and taught the approval and workspace code about both. Code forcing the names back was tried and dropped: it could only tell a request about names by its words.
+
+**Follows:** `CHECKS_VERSION` stays: no saved listing changes. The AI keeps its lookalike tool on a refine, since a request may ask for other names.
