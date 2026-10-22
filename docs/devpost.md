@@ -28,9 +28,11 @@ A volunteer picks an animal and the shelter's area. In about a minute Namesake's
 - **Name options from Qloo taste data**, each with what Qloo returned for its title: a pet-themed title strong in the area, or something the area tends to watch. A title with an animal that looks like this one is also offered; Qloo finds the title (or offers candidates when it is ambiguous), and the match is labelled as the reading of Namesake's AI. Every name is screened for villains, tragic or violent characters, aggression words, real people and identity-coded references, with the strictest screen for bully-breed dogs.
 - **A plan to get the animal seen**: foster and volunteer networks, outings in an "Adopt Me" vest, timing for Saturdays and early evenings, rescue partners for New York dogs, and up to three local venues that fans of pet-themed shows and films favour, each with Qloo's rank and its comparison against the shows the area watches most.
 
-A **Generic / Local, with Qloo** toggle shows both versions of the listing, each button carrying its version's name. They share the same bio; the local one adds a name from Qloo's titles and one line saying where it comes from. That is exactly what Qloo contributes, visible in one click.
+A **Generic / Local, with Qloo** toggle shows both versions of the listing, each button carrying its version's name. They share the same bio; the local one adds a name from Qloo's titles and one line saying where it comes from. That is exactly what Qloo adds to the listing, visible in one click.
 
-A **Why** drawer separates "Qloo returned" from "How Namesake read it" for every choice. The volunteer can refine with one line, edit, approve, and copy a block ready to paste into shelter software. Typing a new area works too: Qloo checks it first, and if the data is thin the app says so instead of producing a weak result.
+**What makes it Qloo-powered.** Namesake's AI chooses which Qloo calls to make where the answer is open: it looks up titles and settles any Qloo finds ambiguous, searches what people near the shelter who like a title also tend to like, can rank the titles, and asks Qloo for places their fans favour. Plain code makes the fixed calls (the pet-tagged lists the AI starts from, the area's most-watched shows, the map's heatmaps, who tends to like a title) and checks that every title and place the AI keeps came from Qloo in that run. So Qloo's taste data is behind the local names, the places to ask and the map's colours. Without Qloo, Namesake still writes the generic version of the listing, with a name from a fixed list, but it has no local names, no places to ask and no taste layer on the map.
+
+A **Why** drawer separates "Qloo returned" from "How Namesake read it" for every choice. The volunteer can refine with one line, edit, approve, and copy a block ready to paste into shelter software, or print a flyer with a checklist of the places to ask. Typing a new area works too: Qloo checks it first, and if the data is thin the app says so instead of producing a weak result. A volunteer can add their own animals, edit or remove them, and come back to them for 7 days, with no sign-up: they live in a workspace tied to that browser, with a link to open it on another device.
 
 ## How I built it
 
@@ -39,7 +41,7 @@ A **Why** drawer separates "Qloo returned" from "How Namesake read it" for every
 - **The official Qloo harness** (`qloo exec`), wrapped in a typed client that handles every envelope status, caches every answer in SQLite, and spaces calls 2 seconds apart, because the hackathon key is rate-limited.
 - **FastAPI, Jinja and a little JavaScript**, with server-sent events for the live step log, Leaflet and OpenStreetMap for the map, and view models also served as JSON so the interface is replaceable.
 - **One Docker image** with Python, Node and the pinned harness, on a long-lived VM behind Caddy, with the cache on a private volume.
-- **Tests that never touch Qloo or a model**: over 650 of them, on hand-written envelopes with invented IDs, plus a test that fails if real Qloo data ever enters the repo.
+- **Tests that never touch Qloo or a model**: over 700 of them, on hand-written envelopes with invented IDs, plus a test that fails if real Qloo data ever enters the repo.
 
 ## Challenges I ran into
 
