@@ -273,7 +273,7 @@ def test_the_story_result_tells_the_story_in_order(client):
         'class="local-touch local-only"',
         "Her introduction",
         'data-role="approve"',
-        "Want to adjust the wording?",
+        "Want the wording or the names changed?",
         "Not yet known, so not mentioned",
         "Help her story travel",
         'data-role="map"',
