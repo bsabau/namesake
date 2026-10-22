@@ -134,6 +134,8 @@
 
       <div class="actions">
         <button type="button" class="copy primary" data-copy-variant>Copy this version</button>
+        {% if view.flyer_local_url %}<a class="flyer-link local-only" href="{{ view.flyer_local_url }}{{ ui_query }}">{{ view.flyer_label }}</a>{% endif %}
+        <a class="flyer-link{% if view.flyer_local_url %} version-generic{% endif %}" href="{{ view.flyer_generic_url }}{{ ui_query }}">{{ view.flyer_label }}</a>
         <details class="approve" data-role="approve"{% if view.approve_error %} open{% endif %}>
           <summary>Edit and approve</summary>
           <div class="approve-body">

@@ -470,6 +470,11 @@ class ResultView(BaseModel):
     # The trial the local version would need, in one line, with the README's design.
     trial: str = ""
     trial_link: Link | None = None
+    # A printable flyer and checklist for each version of this result (decision 35); the
+    # local one only when that version exists.
+    flyer_generic_url: str = ""
+    flyer_local_url: str = ""
+    flyer_label: str = "Print a flyer"
     how_heading: str = "How Namesake made this"
     how_lead: str = "What came from Qloo, what Namesake's AI did with it, and what code checked."
     name: NameView
@@ -557,3 +562,34 @@ class PlacesView(BaseModel):
 
     places: list[PlaceOption] = []
     message: str | None = None
+
+
+class FlyerPlace(BaseModel):
+    number: int
+    name: str
+    place: str
+
+
+class FlyerView(BaseModel):
+    """A printable page: the flyer to post, then the volunteer's checklist (decision 35).
+    Everything on it is already on the result page."""
+
+    title: str
+    name: str | None
+    image_url: str
+    image_alt: str
+    # The version as the volunteer would copy it, after its "Meet <name>." line.
+    paragraphs: list[str]
+    version_label: str
+    ask_line: str
+    checklist_heading: str = "Where to take this flyer"
+    checklist_note: str = ""
+    places: list[FlyerPlace] = []
+    other_heading: str = "Other ways to help"
+    other: list[str] = []
+    print_label: str = "Print this page"
+    print_note: str = "Page 1 is the flyer to post; page 2 is your checklist."
+    other_version: Link | None = None
+    back_url: str
+    back_label: str = "Back to the result"
+    credits: Credits = Credits()
