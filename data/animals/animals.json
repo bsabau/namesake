@@ -9,7 +9,12 @@
     "temperament": "shy and slow to trust; once settled, a quiet lap cat",
     "facts": [
       "fine with calm adults",
-      "hides when it is noisy"
+      "hides when it is noisy",
+      "comes out to sit beside people once a room is quiet",
+      "likes a covered bed or a box to sleep in",
+      "takes treats from a hand once she knows someone",
+      "eats well",
+      "is spayed and up to date on vaccinations"
     ],
     "image": "cat-01.jpg",
     "history": [
@@ -19,8 +24,8 @@
       "good_with_children": "unknown",
       "good_with_dogs": "unknown",
       "good_with_cats": "unknown",
-      "house_trained": "unknown",
-      "bite_history": "unknown"
+      "house_trained": "yes",
+      "bite_history": "no"
     }
   },
   {
@@ -32,7 +37,13 @@
     "look": "large orange tabby, amber eyes",
     "temperament": "confident, talkative, greets every visitor",
     "facts": [
-      "likes to be carried"
+      "likes to be carried",
+      "rides calmly in a carrier",
+      "sits still for brushing",
+      "plays with balls and paper bags",
+      "follows people from room to room",
+      "eats well",
+      "is neutered and up to date on vaccinations"
     ],
     "image": "cat-02.jpg",
     "history": [
@@ -42,8 +53,8 @@
       "good_with_children": "unknown",
       "good_with_dogs": "yes",
       "good_with_cats": "unknown",
-      "house_trained": "unknown",
-      "bite_history": "unknown"
+      "house_trained": "yes",
+      "bite_history": "no"
     }
   },
   {
@@ -57,7 +68,9 @@
     "facts": [
       "loves wand toys",
       "prefers to be the only pet",
-      "healthy and needs no special care"
+      "healthy and needs no special care",
+      "likes a high perch by a window",
+      "is spayed and up to date on vaccinations"
     ],
     "image": "cat-03.jpg",
     "history": [],
@@ -65,8 +78,8 @@
       "good_with_children": "unknown",
       "good_with_dogs": "no",
       "good_with_cats": "no",
-      "house_trained": "unknown",
-      "bite_history": "unknown"
+      "house_trained": "yes",
+      "bite_history": "no"
     }
   },
   {
@@ -81,8 +94,11 @@
     "facts": [
       "climbs everything",
       "fearless with new people",
-      "uses the litter box",
-      "eats well"
+      "eats well",
+      "has had his first vaccinations",
+      "falls asleep in a heap with his littermates",
+      "explores a new room within a few minutes",
+      "chases crumpled paper across the floor"
     ],
     "image": "kitten-01.jpg",
     "history": [],
@@ -90,7 +106,7 @@
       "good_with_children": "unknown",
       "good_with_dogs": "unknown",
       "good_with_cats": "yes",
-      "house_trained": "unknown",
+      "house_trained": "yes",
       "bite_history": "no"
     }
   },
@@ -106,8 +122,11 @@
     "facts": [
       "plays hardest of the litter",
       "sleeps deeply afterwards",
-      "uses the litter box",
-      "chases any toy on a string"
+      "chases any toy on a string",
+      "has had her first vaccinations",
+      "climbs the cat tree to the top shelf",
+      "races up and down the hallway",
+      "loves feather toys"
     ],
     "image": "kitten-02.jpg",
     "history": [],
@@ -115,7 +134,7 @@
       "good_with_children": "unknown",
       "good_with_dogs": "unknown",
       "good_with_cats": "yes",
-      "house_trained": "unknown",
+      "house_trained": "yes",
       "bite_history": "no"
     }
   },
@@ -131,8 +150,11 @@
     "facts": [
       "purrs as soon as he is picked up",
       "follows his sisters around",
-      "uses the litter box",
-      "naps on laps"
+      "naps on laps",
+      "has had his first vaccinations",
+      "kneads a blanket before he sleeps",
+      "lets visitors pick him up",
+      "plays gently with the rest of his litter"
     ],
     "image": "kitten-03.jpg",
     "history": [],
@@ -140,7 +162,7 @@
       "good_with_children": "unknown",
       "good_with_dogs": "unknown",
       "good_with_cats": "yes",
-      "house_trained": "unknown",
+      "house_trained": "yes",
       "bite_history": "no"
     }
   },
@@ -156,8 +178,11 @@
     "facts": [
       "meows for attention",
       "holds her own against bigger siblings",
-      "uses the litter box",
-      "comes running at feeding time"
+      "comes running at feeding time",
+      "has had her first vaccinations",
+      "eats well for the smallest of the litter",
+      "lets visitors pick her up",
+      "follows people to the door"
     ],
     "image": "kitten-04.jpg",
     "history": [],
@@ -165,7 +190,7 @@
       "good_with_children": "unknown",
       "good_with_dogs": "unknown",
       "good_with_cats": "yes",
-      "house_trained": "unknown",
+      "house_trained": "yes",
       "bite_history": "no"
     }
   },
@@ -192,16 +217,21 @@
     "temperament": "clumsy, affectionate, very food-motivated",
     "facts": [
       "learning to sit",
-      "falls asleep mid-play"
+      "falls asleep mid-play",
+      "has had her first vaccinations",
+      "is learning to walk on a lead",
+      "takes food gently from a hand",
+      "plays nicely with other puppies",
+      "sleeps through the night in a crate"
     ],
     "image": "puppy-01.jpg",
     "history": [],
     "checks": {
       "good_with_children": "unknown",
-      "good_with_dogs": "unknown",
+      "good_with_dogs": "yes",
       "good_with_cats": "unknown",
-      "house_trained": "unknown",
-      "bite_history": "unknown"
+      "house_trained": "no",
+      "bite_history": "no"
     }
   },
   {
@@ -214,16 +244,21 @@
     "temperament": "energetic and toy-obsessed",
     "facts": [
       "needs an active home",
-      "already walks well on a lead"
+      "already walks well on a lead",
+      "has had his first vaccinations",
+      "fetches a ball and brings it back",
+      "sits for his food",
+      "settles in a crate after exercise",
+      "chews his toys rather than furniture"
     ],
     "image": "puppy-02.jpg",
     "history": [],
     "checks": {
       "good_with_children": "unknown",
-      "good_with_dogs": "unknown",
+      "good_with_dogs": "yes",
       "good_with_cats": "unknown",
       "house_trained": "unknown",
-      "bite_history": "unknown"
+      "bite_history": "no"
     }
   },
   {
@@ -234,17 +269,24 @@
     "age": "10 years",
     "look": "Labrador-type mix, yellow coat, grey muzzle",
     "temperament": "calm and gentle; a slow-walk companion",
-    "facts": [],
+    "facts": [
+      "walks happily at a slow pace for half an hour",
+      "knows sit and stay",
+      "takes treats gently",
+      "rides calmly in the car",
+      "sleeps through the night",
+      "is neutered and up to date on vaccinations"
+    ],
     "image": "dog-01.jpg",
     "history": [
       "owner could no longer care for him"
     ],
     "checks": {
       "good_with_children": "yes",
-      "good_with_dogs": "unknown",
+      "good_with_dogs": "yes",
       "good_with_cats": "unknown",
       "house_trained": "yes",
-      "bite_history": "unknown"
+      "bite_history": "no"
     }
   },
   {
@@ -285,7 +327,11 @@
     "temperament": "very active and clever; needs a job to do",
     "facts": [
       "learns tricks in minutes",
-      "not suited to being left alone all day"
+      "not suited to being left alone all day",
+      "knows sit, down, stay and come",
+      "plays fetch for as long as anyone will throw",
+      "walks well on a lead",
+      "is neutered and up to date on vaccinations"
     ],
     "image": "dog-03.jpg",
     "history": [],
@@ -293,8 +339,8 @@
       "good_with_children": "unknown",
       "good_with_dogs": "unknown",
       "good_with_cats": "unknown",
-      "house_trained": "unknown",
-      "bite_history": "unknown"
+      "house_trained": "yes",
+      "bite_history": "no"
     }
   }
 ]
