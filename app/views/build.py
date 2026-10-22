@@ -210,7 +210,7 @@ TRIAL = (
     "Does the local version help? Nobody has tested it yet. Namesake records each "
     "approved version so a shelter network could: generic against local, assigned at "
     "random, measured in days to adoption, with about 190 adoptions to detect a 50% "
-    "faster rate, more when they come from several shelters."
+    "faster rate, more if several shelters take part."
 )
 CLASSIFIER_CREDIT = (
     "Pet-themed titles sorted with TypeSafe's Jev classifier. Namesake is not affiliated with "

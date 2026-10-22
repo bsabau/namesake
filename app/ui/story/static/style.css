@@ -1015,6 +1015,8 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
 .listing-form:has(input[name="variant"][value="generic"]:checked) .version-local,
 .listing-form:has(input[name="variant"][value="generic"]:checked) .local-only,
 .listing-form:has(input[name="variant"][value="local"]:checked) .version-generic { display: none; }
+/* With neither version to choose (no draft and no free generic name), one line, not two. */
+.listing-form:not(:has(input[name="variant"]:checked)) .local-touch.version-generic { display: none; }
 
 /* Forms */
 .inline-field { display: flex; gap: 8px; flex-wrap: wrap; }

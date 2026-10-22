@@ -462,8 +462,13 @@ def test_the_local_touch_names_only_what_came_from_qloo_here(roster):
     )
     empty = LocationProfile(location_id=LOCATION.id)
     assert local_touch(LOCATION, empty, None, 0) == ""
-    view = build_result_view(roster.get("dog-02"), LOCATION, p)
-    assert view.local_touch.startswith(f"From Qloo taste data for {LOCATION.label}:")
+    # With a listing whose names have Qloo's evidence, only the local version's line
+    # names them: the generic version's names are a fixed list.
+    from tests.test_product import saved_listing
+
+    agent = agent_profile()
+    view = build_result_view(roster.get("dog-02"), LOCATION, agent, saved_listing())
+    assert "the titles behind" in view.local_touch
     assert "names" not in view.local_touch_generic and view.local_touch_generic.endswith("map.")
 
 
