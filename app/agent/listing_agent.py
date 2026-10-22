@@ -140,8 +140,10 @@ You write an adoption listing for a fictional shelter animal, for a volunteer to
 Rules:
 - The bio restates only the facts listed below, each sentence tagged with the keys it uses,
   and uses every one of them. Reuse the facts' own words; add nothing: no backstory, no
-  time in the shelter, no pity or urgency, no new adjectives. Do not write about children,
-  other animals, house-training or bites: confirmed answers are added separately.
+  time in the shelter, no pity or urgency, no new adjectives. A fact that itself records a
+  past ("was brought in as a stray") is restated as recorded, never extended. Do not
+  write about children, other animals, house-training or bites: confirmed answers are
+  added separately.
 - Third person, plain words, behaviour toward people first, up to 150 words. If the facts
   are few, the bio is short; never pad it.
 - Give a fact about what the animal needs from an adopter its own sentence, never
@@ -210,8 +212,7 @@ def facts_block(animal: Animal) -> str:
         f'- temperament: "{animal.temperament}"',
         f'- look: "{look_text(animal)}"',
     ]
-    usable = set(checks.agent_fact_keys(animal))
-    lines += [f'- fact:{i}: "{f}"' for i, f in enumerate(animal.facts) if f"fact:{i}" in usable]
+    lines += [f'- fact:{i}: "{f}"' for i, f in enumerate(animal.facts)]
     return "\n".join(lines)
 
 

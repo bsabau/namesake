@@ -18,7 +18,7 @@ from app.listing import (
     MIN_WORDS,
     cautions,
     pronouns,
-    set_aside,
+    recorded_past,
     templated_listing,
 )
 from app.locations import Location
@@ -418,12 +418,13 @@ def listing_view(
     left_out = []
     if unknown:
         left_out.append(f"Not yet known, so not mentioned: {and_list(unknown)}.")
-    aside = set_aside(animal)
-    if aside:
-        quoted = and_list([f"“{fact}”" for fact in aside.values()])
+    past = recorded_past(animal)
+    if past:
+        quoted = and_list([f"“{text}”" for text in past])
         left_out.append(
-            f"Set aside as backstory or pity, since the listing describes the animal as it "
-            f"is now: {quoted}."
+            f"The record tells a past or pleads ({quoted}), so the listing restates it as "
+            "recorded. Listings work best describing the animal as it is now: edit it out "
+            "before approving unless it carries a warning."
         )
     if animal.history:
         left_out.append("Backstory and time in the shelter stay out of the listing.")

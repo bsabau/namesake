@@ -106,23 +106,21 @@ def test_sentences_trims_at_a_sentence_end():
 
 
 def test_sentences_keep_initials_and_titles_whole():
-    text = "A film featuring the voices of Michael J. Fox and Sally Field. Then more."
-    assert sentences(text) == text
-    assert sentences("Dr. Oakley treats animals in the Yukon.") == (
-        "Dr. Oakley treats animals in the Yukon."
-    )
+    # Qloo's Homeward Bound description was cut at "Michael J." (22 October walkthrough).
+    assert sentences("A film starring Michael J. Fox with") == "A film starring Michael J. Fox…"
+    assert sentences("Dr. Oakley treats animals. More.") == "Dr. Oakley treats animals. More."
 
 
-def test_listing_view_names_the_facts_set_aside(roster):
+def test_listing_view_points_out_a_recorded_past(roster):
     pet = roster.get("dog-02").model_copy(
         update={"facts": ["knows basic commands", "came in as a stray"]}
     )
     view = build_result_view(pet, LOCATION, profile())
     assert any(
-        "Set aside as backstory or pity" in line and "“came in as a stray”" in line
+        "“came in as a stray”" in line and "edit it out before approving" in line
         for line in view.listing.left_out
     )
-    assert "stray" not in view.listing.text
+    assert "came in as a stray" in view.listing.text
 
 
 def baseline_key():

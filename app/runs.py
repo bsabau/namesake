@@ -248,9 +248,10 @@ def _launch(run: Run, work, then=None) -> None:
                 except Exception as exc:  # noqa: BLE001 - the result is saved; only pins wait
                     logger.warning("run %s: pinning failed (%s)", run.id, type(exc).__name__)
                     run.log.add("note", "The places could not be pinned yet")
-        except Exception as exc:  # noqa: BLE001 - shown on the Working page, never swallowed
-            run.error = type(exc).__name__
-            # The visitor reads the step; the exception is for the server's log only.
+        except Exception:  # noqa: BLE001 - shown on the Working page, never swallowed
+            # The visitor reads the step and the stream; the exception is for the server's
+            # log only.
+            run.error = "RunStopped"
             logger.exception("run %s stopped", run.id)
             run.log.add("error", "The run stopped on an error in Namesake's code")
         finally:

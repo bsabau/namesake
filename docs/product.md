@@ -26,7 +26,7 @@ The review found no study showing that names or wording speed adoption. Being se
 **The bio:**
 - Third person, behaviour toward people first, plain wording, 75 to 150 words.
 - Every sentence traces to a fact. Code checks this after the model writes.
-- It describes the animal as it is now. A recorded fact that tells its past or pleads for it ("was brought in as a stray", "feels lonely") is set aside before the model or the template sees it, and the page names it; a caution is never set aside (decision 36).
+- It describes the animal as it is now: the model adds no backstory, pity or urgency. A recorded fact that tells a past ("was brought in as a stray") is restated as recorded, never dropped, since it may carry a warning, and the page points it out so the volunteer can edit it out before approving (decision 36).
 - A fact about what the animal needs from an adopter gets its own sentence, never joined to a fact about what the animal does, so the animal's behaviour is never read as the adopter's.
 - Difficult behaviour is stated plainly, as recorded. (No management suggestion is added: the bio may only restate the shelter's facts.)
 

@@ -9,6 +9,7 @@ Everything here is either what Qloo returned or a plain calculation on it
 """
 
 import json
+import logging
 import re
 from pathlib import Path
 from types import SimpleNamespace
@@ -20,6 +21,8 @@ from app.agent.checks import mentions_identity
 from app.locations import Location
 from app.qloo.envelope import Envelope
 from app.qloo.exec import QlooClient, QlooExecError, ReplayMiss
+
+logger = logging.getLogger(__name__)
 
 VENUE_LIMIT = 15
 # The kinds of place Qloo is asked for (decided 18 October), in groups, each with the
@@ -522,7 +525,8 @@ class _Builder:
             return None
         except QlooExecError as exc:
             self.failure = exc
-            self.profile.notes.append(f"Qloo could not be reached for {purpose}: {exc}")
+            logger.warning("Qloo could not be reached for %s: %s", purpose, exc)
+            self.profile.notes.append(f"Qloo could not be reached for {purpose}.")
             return None
         self.profile.calls.append(
             QlooCall(

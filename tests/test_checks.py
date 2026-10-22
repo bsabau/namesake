@@ -3,7 +3,6 @@
 import pytest
 
 from app.agent.checks import (
-    agent_fact_keys,
     check_bio,
     check_character,
     check_hook,
@@ -280,19 +279,20 @@ def test_backstory_fails():
     assert any("leave out backstory ('stray')" in p for p in problems)
 
 
-def test_a_set_aside_fact_need_not_be_cited():
+def test_a_recorded_past_may_be_restated_as_recorded():
     # The trap the 22 October walkthrough hit: "leave out backstory", then "restate it whole".
     pet = animal(facts=["knows basic commands", "was brought in as a stray"])
-    assert agent_fact_keys(pet) == ["temperament", "look", "fact:0"]
-    assert check_bio(pet, [TEMPERAMENT, FACTS[0]]) == []
-    problems = check_bio(pet, [TEMPERAMENT, FACTS[0], ("She was a stray.", ["fact:1"])])
-    assert any("cites keys it may not use" in p for p in problems)
-
-
-def test_a_caution_with_a_past_is_restated_whole():
-    pet = animal(facts=["knows basic commands", "bit a previous owner when startled"])
-    bio = [TEMPERAMENT, FACTS[0], ("She bit a previous owner when startled.", ["fact:1"])]
+    bio = [TEMPERAMENT, FACTS[0], ("She was brought in as a stray.", ["fact:1"])]
     assert check_bio(pet, bio) == []
+
+
+def test_a_recorded_past_may_not_be_extended():
+    pet = animal(facts=["knows basic commands", "bit a previous owner when startled"])
+    restated = "She bit a previous owner when startled."
+    assert check_bio(pet, [TEMPERAMENT, FACTS[0], (restated, ["fact:1"])]) == []
+    extended = f"{restated} Her previous owner bit her."
+    problems = check_bio(pet, [TEMPERAMENT, FACTS[0], (extended, ["fact:1"])])
+    assert any("leave out backstory ('previous owner')" in p for p in problems)
 
 
 def test_pity_and_urgency_fails():

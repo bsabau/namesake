@@ -548,16 +548,16 @@ Not done: the character a name refers to ("Bingo, a dog in *Bluey*") is not labe
 - The approval page has **Print a flyer with this text**, in every skin: a form that posts the approved text, version and name to `POST /flyer`. The route holds them to the approval's own checks (`checked_choice`, shared with `/approve`: the name is one of the options or the generic name shown, neither it nor what it refers to has been taken by another animal here since; and `missing_cautions`), prints the approved text whole, and records and keeps nothing; the flyer then has no link to the other version, which would be a draft.
 - Page 1 has a **shelter contact** line under "Ask the shelter…": a two-line field the volunteer types into on the page (a phone, an email or a website), printed as plain text that wraps, and left out when empty. No form holds it, so it is never sent or saved. A QR code stays out: it would need the shelter's own address.
 
-## 36. A recorded fact that is backstory or pity is set aside
+## 36. A recorded past is restated as recorded, and pointed out
 
-**Decided** (Claude, 22 October, under the author's "yes lets do this" to the walkthrough's fixes):
-- A recorded fact with a backstory or pity phrase ("stray", "surrender", "previous owner", "lonely", "last chance" and the rest of the lists in `app/listing.py`) is set aside (`set_aside`): the listing agent is not shown it and may not cite it, the template leaves it out, and the page's "left out" lines name it, quoted.
-- A fact that is also a caution (bit, guards, growls and the like) is never set aside, since a caution is stated every time; restating it whole may then carry its past ("bit a previous owner"), and the checks allow a backstory or pity phrase only when the cited facts themselves say it.
-- The animal's `history` was already never used; this covers what a volunteer types as a fact.
+**Decided** (Claude, 22 October, under the author's "yes lets do this" to the walkthrough's fixes; revised before merging after the reviews):
+- Namesake's AI may write a backstory or pity phrase ("stray", "surrendered", "previous owner", "lonely", "last chance" and the rest of `BACKSTORY` and `PITY_URGENCY` in `app/listing.py`) only as often as the facts a sentence cites say it. A recorded "was brought in as a stray" is restated as recorded; "Her previous owner bit her." added to a recorded bite is refused.
+- Every recorded fact is still used, by the AI and by the template, so nothing the shelter recorded is dropped.
+- When the record says such a phrase, the page's notes under the listing quote it and say listings work best describing the animal as it is now: edit it out before approving unless it carries a warning.
+- The phrases match whole words ("running outside" is not "running out", "saddle" is not "sad"; "sad." now is).
 
-**Why:** the 22 October walkthrough added a cat with the fact "was brought in as a stray". The agent was told to use every fact and to leave out backstory, so its draft was sent back twice with opposite fixes ("leave out backstory ('stray')", then "cites fact:2 but leaves out ['stray']; restate it whole"), failed, and fell to the template, which printed the stray sentence anyway and left no local version. Setting the fact aside in code removes the contradiction for both paths, and naming it keeps the volunteer's record visible.
+**Why:** the 22 October walkthrough added a cat with the fact "was brought in as a stray". The AI was told to use every fact and to leave out backstory, so its draft was sent back with opposite fixes ("leave out backstory ('stray')", then "cites fact:2 but leaves out ['stray']; restate it whole"), failed, and fell to the template, which printed the stray sentence anyway and left no local version. The first fix set such facts aside for both paths; Codex and DeepSeek Flash showed that a fact can carry a warning beside its past ("chases cars and came in as a stray", "was abandoned and is not safe around small children") and would have been dropped. Restating the record and leaving the edit to the volunteer drops nothing.
 
 **Follows:**
-- No demo animal has such a fact, so saved listings are unchanged and `CHECKS_VERSION` stays.
-- The same walkthrough's smaller fixes ship with it: the step log no longer shows Python exception names (they go to the server log), descriptions are no longer cut at an initial ("Michael J. Fox"), the approval record keeps "Qloo" capitalised, and the story skin styles "Print a flyer" and the flyer page's tools.
-
+- No saved listing changes verdict: the relaxed check only turns a refusal into a pass, and no demo animal's record says such a phrase, so `CHECKS_VERSION` stays.
+- The same walkthrough's smaller fixes ship with it: the step log and the run's stream no longer carry Python exception names (they go to the server log), nor does a profile note carry Qloo's error text; descriptions are no longer cut at an initial ("Michael J. Fox"); the approval record keeps "Qloo" capitalised; and the story skin styles "Print a flyer" and the flyer page's tools.

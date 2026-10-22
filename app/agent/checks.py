@@ -5,9 +5,10 @@ list means the draft passes.
 """
 
 import re
+from collections import Counter
 
 from app.animals import Animal
-from app.listing import BACKSTORY, MAX_WORDS, past_or_pity, set_aside
+from app.listing import BACKSTORY, MAX_WORDS, past_or_pity
 
 # Looks that mark a bully-type dog: these get the strictest name screen, because a
 # measured adoption penalty fell on names perceived as Black for pit-bull-type dogs.
@@ -391,11 +392,8 @@ EASY_TO_SAY = re.compile(
 
 
 def agent_fact_keys(animal: Animal) -> list[str]:
-    """What the agent's bio may cite: confirmed checks are added by code, not written, and
-    a fact set aside as backstory or pity is never shown to it (decision 36)."""
-    left_out = set_aside(animal)
-    facts = [f"fact:{i}" for i in range(len(animal.facts))]
-    return ["temperament", "look"] + [k for k in facts if k not in left_out]
+    """What the agent's bio may cite: confirmed checks are added by code, not written."""
+    return ["temperament", "look"] + [f"fact:{i}" for i in range(len(animal.facts))]
 
 
 def _texts_for(animal: Animal, keys: list[str]) -> str:
@@ -448,12 +446,13 @@ def _topics_and_tone(text: str, source: str, label: str) -> list[str]:
                 f"{label} mentions {hit!r}; children, other animals, house-training and bites "
                 "come only from the shelter's confirmed checks, which are added separately"
             )
-    # Only what the cited facts do not say: a caution that mentions a previous owner, or
-    # the shelter's own temperament line, is restated whole (decision 36).
-    recorded = past_or_pity(source)
-    for phrase in past_or_pity(text):
-        if phrase not in recorded:
-            kind = "backstory" if phrase in BACKSTORY else "pity and urgency"
+    # A recorded fact that tells a past ("was brought in as a stray") is restated as
+    # recorded, so a phrase is allowed as often as the cited facts say it, and no more:
+    # "Her previous owner bit her." added to a recorded bite is refused (decision 36).
+    recorded = Counter(past_or_pity(source))
+    for phrase, said in Counter(past_or_pity(text)).items():
+        if said > recorded[phrase]:
+            kind = "backstory" if BACKSTORY.fullmatch(phrase) else "pity and urgency"
             problems.append(f"{label}: leave out {kind} ({phrase!r})")
     if FIRST_PERSON.search(text):
         problems.append(f"{label}: write in the third person")

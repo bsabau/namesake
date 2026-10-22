@@ -39,19 +39,21 @@ CHECK_SENTENCES: dict[str, dict[str, str]] = {
 }
 
 
-# Words that place a fact in the animal's past or plead for it. The listing describes the
-# animal as it is now, so a recorded fact with one of them is set aside: neither the
-# template nor Namesake's AI restates it, and the page names it (decision 36). Matched
-# with a space either side, so "sad " is a word, not the start of "saddle".
-BACKSTORY = (
-    "stray", "surrender", "abandon", "previous owner", "former owner", "rescued from",
-    "in the shelter for", "months in", "years in the shelter", "waiting for",
-    "could no longer care",
-)  # fmt: skip
-PITY_URGENCY = (
-    "last chance", "urgent", "running out", "euthan", "death row", "desperate",
-    "heartbroken", "forgotten", "overlooked", "sad ", "lonely",
-)  # fmt: skip
+# Words that place the animal in its past or plead for it. The listing describes the
+# animal as it is now: Namesake's AI may not add them, but a recorded fact that says one
+# is restated as recorded, never dropped, since it may carry a warning, and the page
+# points it out to the volunteer (decision 36). Whole words, so "running outside" is not
+# "running out" and "saddle" is not "sad".
+BACKSTORY = re.compile(
+    r"\b(stray\w*|surrender\w*|abandon\w*|(previous|former) owners?|rescued from|"
+    r"in the shelter for|months in|years in the shelter|waiting for|could no longer care)\b",
+    re.IGNORECASE,
+)
+PITY_URGENCY = re.compile(
+    r"\b(last chance|urgent\w*|running out|euthan\w*|death row|desperate\w*|heartbroken|"
+    r"forgotten|overlooked|sad|lonely)\b",
+    re.IGNORECASE,
+)
 
 
 class Sentence(BaseModel):
@@ -164,11 +166,9 @@ def templated_listing(animal: Animal) -> Listing:
             source="look",
         ),
     ]
-    left_out = set_aside(animal)
     sentences += [
         Sentence(text=fact_sentence(fact, they, p["is"]), source=f"fact:{i}")
         for i, fact in enumerate(animal.facts)
-        if f"fact:{i}" not in left_out
     ]
     sentences += check_sentences(animal.checks, p)
     return Listing(sentences=sentences)
@@ -233,17 +233,10 @@ def missing_cautions(animal: Animal, text: str) -> list[str]:
 
 
 def past_or_pity(text: str) -> list[str]:
-    """The backstory and pity phrases in `text`."""
-    lowered = f" {text.lower()} "
-    return [phrase.strip() for phrase in BACKSTORY + PITY_URGENCY if phrase in lowered]
+    """Each backstory or pity phrase in `text`, lower-cased, once per time it is said."""
+    return [m.group(0).lower() for p in (BACKSTORY, PITY_URGENCY) for m in p.finditer(text)]
 
 
-def set_aside(animal: Animal) -> dict[str, str]:
-    """The recorded facts no listing restates, by key ("fact:<n>"): backstory or pity.
-
-    A fact that is also a caution stays, since a caution is stated every time."""
-    return {
-        f"fact:{i}": fact
-        for i, fact in enumerate(animal.facts)
-        if past_or_pity(fact) and not CAUTION_WORDS.search(fact)
-    }
+def recorded_past(animal: Animal) -> list[str]:
+    """The animal's recorded temperament and facts that say a backstory or pity phrase."""
+    return [t for t in [animal.temperament, *animal.facts] if past_or_pity(t)]
