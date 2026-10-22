@@ -825,8 +825,8 @@ def map_view(
                 f"Colours: warm where {pets} rank this part of {location.label} higher than "
                 f"{base} do; cool where lower, or level; grey where only the pet-themed titles "
                 "have a score. Where several "
-                "shows scored a cell, their scores are averaged. Scores are ranks within the "
-                "area, so they compare places here, not with other cities."
+                "shows scored a cell, their scores are averaged. Both scores are ranks among the "
+                "cells scored for both, so they compare places here, not with other cities."
             )
             if any(c.lift is not None for c in cells)
             else f"Cells: where {pets} rank high within {location.label}. No cell was also "

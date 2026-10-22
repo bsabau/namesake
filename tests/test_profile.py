@@ -80,8 +80,11 @@ def test_unsuitable_venues_are_flagged():
 def test_lift_is_pet_minus_baseline_and_missing_where_unscored():
     p = build_profile(FakeQloo(standard_script()), LOCATION, SEEDS)
     cells = {c.geohash: c for c in p.cells}
-    # dr5rks5: pet maps 0.9 and 0.7, baseline maps 0.4 and 0.2, so 0.8 - 0.3.
-    assert round(cells["dr5rks5"].lift, 3) == 0.5
+    # Both scores are ranks among the cells scored for both (one_scale), so lift is their
+    # difference on one scale.
+    c = cells["dr5rks5"]
+    assert 0 < c.pet_score < 1 and 0 < c.baseline_score < 1
+    assert c.lift == c.pet_score - c.baseline_score
     assert (cells["dr5rks5"].pet_count, cells["dr5rks5"].baseline_count) == (2, 2)
     # dr5rk66: only the dog show's map scored it, and no baseline did.
     assert cells["dr5rk66"].lift is None and cells["dr5rk66"].pet_count == 1

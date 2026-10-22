@@ -14,7 +14,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.agent.checks import mentions_identity
 from app.locations import Location
@@ -291,6 +291,33 @@ class LiftCell(BaseModel):
         return None if self.baseline_score is None else self.pet_score - self.baseline_score
 
 
+def ranked_among(values: list[float]) -> list[float]:
+    """Each value's place among `values`, 0 to 1: the share below it plus half the share
+    level with it, so ties share a place and the middle is 0.5."""
+    n = len(values)
+    return [(sum(v < x for v in values) + 0.5 * sum(v == x for v in values)) / n for x in values]
+
+
+def one_scale(cells: list[LiftCell]) -> list[LiftCell]:
+    """The cells scored for both sides, with both scores ranked among those cells. Qloo
+    ranks a heatmap's cells over everything it maps, and the area's top shows are mapped
+    far more widely than pet titles, so their raw scores sat near the top in almost every
+    cell and nearly every lift came out below zero (22 October, all four examples). On
+    one scale a cell is warm where fans of the pet titles rank it higher than fans of the
+    top shows do, as the map's key says. Ranking ranks changes nothing, so a saved
+    profile is put on this scale as it loads."""
+    both = [c for c in cells if c.baseline_score is not None]
+    if not both:
+        return cells
+    pets = ranked_among([c.pet_score for c in both])
+    bases = ranked_among([c.baseline_score for c in both])
+    ranked = {
+        id(c): c.model_copy(update={"pet_score": p, "baseline_score": b})
+        for c, p, b in zip(both, pets, bases, strict=True)
+    }
+    return [ranked.get(id(c), c) for c in cells]
+
+
 class QlooCall(BaseModel):
     """One harness call behind the profile, for the Why panel."""
 
@@ -351,6 +378,11 @@ class LocationProfile(BaseModel):
     local_tastes: list[Entity] = Field(default_factory=list)
     calls: list[QlooCall] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _cells_on_one_scale(self) -> "LocationProfile":
+        self.cells = one_scale(self.cells)
+        return self
 
     @property
     def complete(self) -> bool:
@@ -430,6 +462,13 @@ def better_map(
 
 
 def combine_cells(
+    pet_maps: list[dict[str, Any]], base_maps: list[dict[str, Any]]
+) -> list[LiftCell]:
+    """The map layer: `averaged_cells`, with both sides put on one scale (`one_scale`)."""
+    return one_scale(averaged_cells(pet_maps, base_maps))
+
+
+def averaged_cells(
     pet_maps: list[dict[str, Any]], base_maps: list[dict[str, Any]]
 ) -> list[LiftCell]:
     """One layer from several heatmaps. Each map's scores are ranks within the area (0 to
