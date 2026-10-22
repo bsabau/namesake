@@ -16,6 +16,8 @@
   <img class="flyer-photo" src="{{ view.image_url }}" alt="{{ view.image_alt }}">
   {% for paragraph in view.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}
   <p class="flyer-ask">{{ view.ask_line }}</p>
+  <label class="flyer-contact"><span>{{ view.contact_label }}</span>
+    <textarea rows="2" maxlength="160" autocomplete="off" placeholder="{{ view.contact_placeholder }}" data-role="flyer-contact"></textarea></label>
   <p class="flyer-version">{{ view.version_label }}, drafted with Namesake. {{ view.sample_line }}</p>
 </article>
 

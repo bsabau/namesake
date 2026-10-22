@@ -33,7 +33,7 @@ The review found no study showing that names or wording speed adoption. Being se
 
 **Volunteer approval.** The volunteer edits and approves the text, then copies a block ready to paste into shelter software.
 
-**Flyer and checklist.** "Print a flyer" prints two pages from the result: the flyer to post (the name, the photo, the listing, and who to ask), and the volunteer's checklist of the places to ask, numbered as on the map, and the other ways to help (decision 35).
+**Flyer and checklist.** "Print a flyer" prints two pages from the result: the flyer to post (the name, the photo, the listing, who to ask, and a contact line the volunteer types in, which is printed and never saved), and the volunteer's checklist of the places to ask, numbered as on the map, and the other ways to help (decision 35). After approving, the approval page prints the same flyer with the approved text.
 
 ## Output 2: name options
 

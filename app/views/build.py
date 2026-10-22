@@ -1804,24 +1804,37 @@ def area_check_view(area, ui_query: str = "") -> AreaCheckView:
 
 
 def build_flyer_view(
-    result: ResultView, variant: str | None, ui_query: str = "", name: str | None = None
+    result: ResultView,
+    variant: str | None,
+    ui_query: str = "",
+    name: str | None = None,
+    approved: str | None = None,
 ) -> FlyerView | None:
     """The flyer for one version of a result: the version asked for when it exists, else
     the one the result page opens on; for the local one, the name option chosen on the
     page when `name` is one of them. Built only from the result's own view (decision 35).
-    None when the result has no version to print."""
+    With `approved`, the text the volunteer approved (checked by the caller) replaces the
+    drafted listing, for exactly that version and name. None when there is nothing to
+    print."""
     versions = {v.variant: v for v in result.listing.versions if v.available}
     if not versions:
         return None
     opened = next((v for v in result.listing.versions if v.selected and v.available), None)
+    if approved is not None and (variant or "") not in versions:
+        return None
     version = versions.get(variant or "") or opened or next(iter(versions.values()))
-    chosen, copy_text = version.name, version.copy_text
+    chosen, hook, copy_text = version.name, version.hook, version.copy_text
     option = next((o for o in result.name.options if o.name == name), None)
     if version.variant == "local" and option is not None:
-        chosen, copy_text = option.name, option.copy_text
-    # The copy text opens with "Meet <name>.", which the flyer shows as its heading.
+        chosen, hook, copy_text = option.name, option.hook, option.copy_text
+    elif approved is not None and version.variant == "local":
+        return None
+    if approved is not None:
+        copy_text = copy_block(None, hook, approved)
+    # The drafted copy text opens with "Meet <name>.", which the flyer shows as its heading.
+    # Only that generated line goes: an approved text is printed whole, whatever it says.
     paragraphs = [p for p in copy_text.split("\n\n") if p.strip()]
-    if paragraphs and paragraphs[0].startswith("Meet "):
+    if approved is None and paragraphs and paragraphs[0] == f"Meet {chosen}.":
         paragraphs = paragraphs[1:]
     query = urlencode({"animal": result.animal.id, "location": result.location.id})
     other = next((v for v in versions.values() if v.variant != version.variant), None)
@@ -1852,13 +1865,22 @@ def build_flyer_view(
             for n, v in enumerate(result.venues, start=1)
         ],
         other=[item.text for item in result.plan if item.basis != "Qloo"],
+        # An approved text is one version's: the other would be a draft.
         other_version=(
             Link(
                 label=f"Print the “{other.label}” version instead",
                 url=f"/flyer?{query}&variant={other.variant}{ui_query}",
             )
-            if other
+            if other and approved is None
             else None
+        ),
+        **(
+            {
+                "print_note": "Page 1 is the flyer to post; page 2 is your checklist. It "
+                "prints the listing you approved."
+            }
+            if approved is not None
+            else {}
         ),
         back_url=f"/result?{query}{ui_query}",
         credits=result.credits,
