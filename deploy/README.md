@@ -45,7 +45,7 @@ Changes reach `main` through a pull request. CI (`.github/workflows/ci.yml`) run
 
 ## Watching the demo
 
-The demo must stay up, unattended, from 2 to 16 November.
+The demo must stay up, unattended, through judging: 2 November 12:00 to 5 November 09:00 US Eastern.
 
 - **Every hour**, `.github/workflows/watch.yml` runs `deploy/watch.py` against the live site. It checks `/health`, that the start page (its JSON and the page itself) lists every example, and that each example opens its saved result in the story skin. Only public pages are opened, so it costs no Qloo or model call and needs no secrets; it also never starts a run, so a dead Qloo key or a model outage does not fail it (those show in `docker compose logs app`). A failure is checked again a minute later, so a deploy's restart passes. If it fails again, the run fails, and GitHub emails whoever last edited the schedule. Check that "Actions" notifications are on in GitHub's settings. "Run workflow" checks at once, and `python3 deploy/watch.py https://namesake.bogdansabau.eu --examples 4` does the same from any machine.
 - **How close the demo comes to its caps:** `docker compose exec app python -m app.limits` on the host prints each of the last 14 days' live runs and new areas (UTC) against the daily caps, quiet days as zero, with the per-visitor cap on the line above (it lives in memory and is not counted). To change a cap, set `LIVE_RUNS_PER_DAY`, `LIVE_RUNS_PER_VISITOR_PER_HOUR` or `NEW_LOCATIONS_PER_DAY` in your local `.env` and deploy with `--env`; without them, or left empty, the host keeps the defaults (60, 6 and 10).

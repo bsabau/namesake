@@ -16,20 +16,26 @@ This is an entry for the Qloo Agentic Hackathon on Devpost. The author is one de
 
 ## What the judges need to see
 
-These shape most decisions below, so keep them in mind when making trade-offs. Checked against the Devpost rules on 15 October 2026.
+These shape most decisions below, so keep them in mind when making trade-offs. Checked against the Devpost rules on 15 October 2026, and the dates and the list of what to submit again on 22 October.
 
-- **Dates:** submissions close 30 October 2026, 23:45 US Eastern; aim to submit on the 29th. Judging runs 2 November 12:00 to 16 November 23:45 Eastern, and the demo and the Qloo key must stay live throughout. Winners are announced around 23 November.
-- **Required:** a link to a working demo; a public GitHub, GitLab or Bitbucket repo with an open-source licence that shows in the repo's About section; and an English text description. A video is optional.
+- **Dates:** submissions close 30 October 2026, 23:45 US Eastern; aim to submit on the 29th. Judging runs 2 November 12:00 to 5 November 09:00 Eastern (18:00 to 15:00 GMT+1), and the demo and the Qloo key must stay live throughout. Winners are announced on 5 November at 15:00 Eastern. Dates checked against the Devpost schedule on 22 October.
+- **Required:**
+  - a link to a working demo that judges can try end to end, hosted and fully published (nothing that runs only locally or needs private access)
+  - a public GitHub, GitLab or Bitbucket repo holding all the source code, assets and instructions needed to run the project
+  - an open-source licence whose file shows in the repo's About section
+  - an English text description of the key features: what the agent can do, and what makes it "Qloo-powered"
+
+  No video is asked for: Devpost wants "something judges can actually use" instead of a recording.
 - **Theme check (pass or fail):** the project must be agentic. A fixed pipeline with a model only writing the final text would be a risk, so the model has to choose at least some of the Qloo calls.
-- **Scoring, four equal parts:**
-  - technological implementation: how deeply and skilfully Qloo is used
-  - design: a complete product, not a proof of concept
-  - potential impact: a credible, specific case for a real audience
-  - quality of the idea: a creative, non-obvious use of Qloo that shows an understanding of the problem
+- **Scoring, four equal parts** (Devpost's wording, 22 October):
+  - technological implementation: how thoroughly and skilfully the project uses Qloo, and whether the code reflects genuine effort and a working, non-trivial implementation
+  - design: a complete, coherent product experience, not just a technical proof of concept
+  - potential impact: a credible, specific case for solving a real problem for a real audience, and whether the solution actually addresses that problem, judged on what is demonstrated
+  - quality of the idea: a creative, non-obvious use of Qloo, and a genuine understanding of the problem space
 
   **Ties are broken on technological implementation.**
 - **Key test from the brief:** if the app would work the same without Qloo, it is the wrong app. The generic-versus-local comparison exists to answer this.
-- Judges may not run the app, and judging may be partly automated. They may judge from the description, screenshots and video, so the result screen must be legible in a single screenshot, and the README and description must state plainly what the app does.
+- Judges are expected to use the live demo, so it must work end to end for a newcomer, within the caps on live runs, through the judging days. Judging may still be partly automated, and some judges may read only the description and screenshots, so the result screen must be legible in a single screenshot, and the README and description must state plainly what the app does.
 
 ## Rules that always apply
 
@@ -367,4 +373,4 @@ Out of scope: accounts, an admin area, creating, editing or deleting stored anim
   - the measurement design
   - setup from a clean machine
   - known limitations: uneven coverage outside the US, saturated affinity scores, and no outcome evidence yet
-- Write the Devpost description, take one result-screen screenshot, and record a short video.
+- Write the Devpost description and take one result-screen screenshot. A video is no longer asked for (22 October).
