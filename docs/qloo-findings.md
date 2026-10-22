@@ -61,7 +61,7 @@ From the five citywide heatmaps recorded on 3 October:
 
 Entities tied to a place show real taste: the Mets' top cells are mostly in Queens and the Yankees' in the Bronx. Broad entities land in Manhattan, where most people are. Either way, the top 20 cells of a whole city rarely reach the shelter.
 
-Within the neighbourhood (`within: "Park Slope, Brooklyn"`) the heatmap behaves differently: 15 cells for *Bluey* and 12 for *Yellowstone*, each about 150 m across (7-character geohashes, against 6 citywide). Scores are ranks spread evenly from 0 to 1 inside the area, so they compare within one map, not with citywide scores. As ranks (each cell's place within its own map), two maps of the same area can be set side by side: the lift is one map's rank minus the other's in the same cell, and since decision 18 the map averages the ranks of two pet titles and of two baseline shows per cell.
+Within the neighbourhood (`within: "Park Slope, Brooklyn"`) the heatmap behaves differently: 15 cells for *Bluey* and 12 for *Yellowstone*, each about 150 m across (7-character geohashes, against 6 citywide). Scores are ranks spread evenly from 0 to 1 inside the area, so they compare within one map, not with citywide scores. Each map ranks the cells it returns, so two maps compare only once both are ranked among the cells they share: subtracting the raw ranks measures how widely each title is mapped, not taste (see "Heatmap ranks are over each title's own cells", 22 October, below). Since decision 18 the map averages two pet titles and two baseline shows per cell, then ranks both among the shared cells.
 
 Eight cells appear in both. The difference in score is the lift for the pet show: from +0.48 to −0.62, four cells above zero, one level and three below, between 0.1 and 1.4 km from the shelter. (The cells themselves, Qloo's response data, stay in the git-ignored recordings.)
 
@@ -107,7 +107,7 @@ Most Qloo work depends on the location and the species, not the individual anima
 3. *Agent and Qloo:* rank them in the location and keep the strongest. If fewer than three survive, propose more once.
 4. *Code:* venues for fans of the survivors and for the baseline (since decision 18, the area's own top two shows; first a fixed show), near the shelter, and the rank difference between the two lists.
 5. *Agent and code:* screen the venues for event suitability (code drops adult venues and nightlife by category; the agent judges the rest) and choose about three, each with a reason.
-6. *Code:* heatmaps within the neighbourhood for the top title and the baseline, and the lift map (since decision 18, the top two titles against the two baseline shows, averaged).
+6. *Code:* heatmaps within the neighbourhood for the top title and the baseline, and the lift map (since decision 18, the top two titles against the two baseline shows, averaged, then ranked among the cells scored for both).
 7. *Code:* the area's general tastes (TV and films with a location signal), the second source for names.
 
 **Listing run (per animal, at most a couple of `describe` calls):**
@@ -337,5 +337,5 @@ Qloo Support announced on Discord that the default rate and monthly limits on ev
 
 ## Heatmap ranks are over each title's own cells (22 October, no calls)
 
-Read from the four saved examples' maps after two judge reads cited the Park Slope dog's map. A heatmap's `query.affinity` within an area is a rank over every cell Qloo returns for that title, not over a shared grid. The area's top shows are mapped across far more cells than pet-themed titles, so in the cells the pet titles scored, the top shows' ranks sat between 0.77 and 1.00, while the pet titles' spread evenly from 0 to 1. Subtracting the raw ranks made nearly every cell cool in every area: of 32 compared cells across the four examples, 4 were warm. Ranked again among the cells scored for both, 14 are warm. The map now compares on that shared scale (decision 18, revised 22 October).
+Read from the four saved examples' maps after two judge reads cited the Park Slope dog's map. A heatmap's `query.affinity` within an area is a rank over every cell Qloo returns for that title, not over a shared grid. The area's top shows are mapped across far more cells than pet-themed titles, so in the cells the pet titles scored, the top shows' ranks sat between 0.77 and 1.00, while the pet titles' spread evenly from 0 to 1. Subtracting the raw ranks made nearly every cell cool in every area: of 32 compared cells across the four examples, 4 were warm. Ranked again among the cells scored for both, 14 are warm; on a shared scale the differences sum to zero, so that count shows where pet-title fans concentrate, not that they outnumber anyone. The map now compares on that scale (decision 18, revised 22 October).
 

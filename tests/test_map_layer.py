@@ -260,7 +260,11 @@ def test_version_1_cells_render_with_their_defaults(roster):
         }
     )  # fmt: skip
     label = build_result_view(roster.get("dog-02"), LOCATION, old).map.cells[0].label
-    assert label == "Fans of Example Dog Show: 0.90; fans of Example Drama: 0.40."
+    # One compared cell: on one scale there is nothing to rank it against.
+    assert label == (
+        "Scored for fans of Example Dog Show and fans of Example Drama: the only such cell, "
+        "so nothing to compare it with."
+    )
 
 
 def deps_with_baseline() -> ProfileDeps:

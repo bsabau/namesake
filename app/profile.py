@@ -280,7 +280,8 @@ class LiftCell(BaseModel):
     geohash: str
     latitude: float
     longitude: float
-    # Means over the maps that scored this cell, and how many did.
+    # Means over the maps that scored this cell, and how many did; in a cell scored for
+    # both sides, each mean's rank among those cells (one_scale).
     pet_score: float
     baseline_score: float | None = None
     pet_count: int = 1
@@ -309,13 +310,14 @@ def one_scale(cells: list[LiftCell]) -> list[LiftCell]:
     both = [c for c in cells if c.baseline_score is not None]
     if not both:
         return cells
-    pets = ranked_among([c.pet_score for c in both])
-    bases = ranked_among([c.baseline_score for c in both])
-    ranked = {
-        id(c): c.model_copy(update={"pet_score": p, "baseline_score": b})
-        for c, p, b in zip(both, pets, bases, strict=True)
-    }
-    return [ranked.get(id(c), c) for c in cells]
+    pets = iter(ranked_among([c.pet_score for c in both]))
+    bases = iter(ranked_among([c.baseline_score for c in both]))
+    return [
+        c.model_copy(update={"pet_score": next(pets), "baseline_score": next(bases)})
+        if c.baseline_score is not None
+        else c
+        for c in cells
+    ]
 
 
 class QlooCall(BaseModel):

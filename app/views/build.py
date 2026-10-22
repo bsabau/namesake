@@ -694,14 +694,27 @@ def map_view(
     )
     base = compared_with(profile) or "a baseline"
     cells = []
+    # A compared cell's two scores are Namesake's ranks of Qloo's (one_scale), so the label
+    # gives each side's place among those cells, never a number that reads as Qloo's.
+    both = [c for c in profile.cells if c.lift is not None]
+
+    def place(score: float, side: str) -> int:
+        return 1 + sum(getattr(o, side) > score for o in both)
+
     for c in profile.cells:
         south, west, north, east = bounds(c.geohash)
         if c.lift is None:
             label = f"Scored for {pets}{shows(c.pet_count)} only; no comparison here."
+        elif len(both) == 1:
+            label = (
+                f"Scored for {pets}{shows(c.pet_count)} and {base}{shows(c.baseline_count)}: "
+                "the only such cell, so nothing to compare it with."
+            )
         else:
             label = (
-                f"{cap(pets)}: {c.pet_score:.2f}{shows(c.pet_count)}; "
-                f"{base}: {c.baseline_score:.2f}{shows(c.baseline_count)}."
+                f"{cap(pets)}{shows(c.pet_count)}: {ordinal(place(c.pet_score, 'pet_score'))} "
+                f"of these {len(both)} cells; {base}{shows(c.baseline_count)}: "
+                f"{ordinal(place(c.baseline_score, 'baseline_score'))}."
             )
         cells.append(
             MapCell(
@@ -771,20 +784,25 @@ def map_view(
     warm = sum(lift > 0 for lift in compared)
     which = "" if len(compared) == len(cells) else " with a comparison"
     some = "these" if len(compared) == len(cells) else "the"
+    # Both sides are ranked among the same cells (one_scale), so their differences sum to
+    # zero: some cells are always warmer than others unless the two order them alike. The
+    # count says where, never that pet fans outnumber anyone (Flash, 22 October).
+    where = (
+        f"Both sides are ranked among the same cells, so this shows where in {location.label} "
+        "fans of pet-themed titles concentrate more than its general audience, not how many "
+        "there are. "
+    )
     if not compared or thin:
         # A thin map already says it says little; a count would read as more.
         count = ""
     elif len(compared) == 1:
-        verb = "stand out" if warm else "do not stand out"
-        count = f"{cap(pets)} {verb} against {base} in the one cell{which}. "
+        count = "Only one cell was scored for both sides, so there is nothing to compare. "
     elif not warm:
-        count = f"{cap(pets)} do not stand out against {base} in any of {some} cells{which}. "
-    elif warm == len(compared):
-        count = f"{cap(pets)} stand out against {base} in all {warm} cells{which}. "
+        count = f"{cap(pets)} and {base} order {some} cells{which} alike. "
     else:
         count = (
-            f"{cap(pets)} stand out against {base} in {warm} of {some} "
-            f"{len(compared)} cells{which}. "
+            f"{cap(pets)} rank {warm} of {some} {len(compared)} cells{which} higher than "
+            f"{base} do. " + where
         )
     # Qloo ranks places in a separate answer from the cells, so a reader should not look
     # for them inside warm cells (the author's question, 20 October).
@@ -825,8 +843,8 @@ def map_view(
                 f"Colours: warm where {pets} rank this part of {location.label} higher than "
                 f"{base} do; cool where lower, or level; grey where only the pet-themed titles "
                 "have a score. Where several "
-                "shows scored a cell, their scores are averaged. Both scores are ranks among the "
-                "cells scored for both, so they compare places here, not with other cities."
+                "shows scored a cell, their scores are averaged, then ranked among the cells "
+                "scored for both, so they compare places here, not with other cities."
             )
             if any(c.lift is not None for c in cells)
             else f"Cells: where {pets} rank high within {location.label}. No cell was also "

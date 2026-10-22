@@ -82,9 +82,9 @@ def test_lift_is_pet_minus_baseline_and_missing_where_unscored():
     cells = {c.geohash: c for c in p.cells}
     # Both scores are ranks among the cells scored for both (one_scale), so lift is their
     # difference on one scale.
+    # dr5rks5 is the fixture's only compared cell, so both sides rank it in the middle.
     c = cells["dr5rks5"]
-    assert 0 < c.pet_score < 1 and 0 < c.baseline_score < 1
-    assert c.lift == c.pet_score - c.baseline_score
+    assert (c.pet_score, c.baseline_score, c.lift) == (0.5, 0.5, 0.0)
     assert (cells["dr5rks5"].pet_count, cells["dr5rks5"].baseline_count) == (2, 2)
     # dr5rk66: only the dog show's map scored it, and no baseline did.
     assert cells["dr5rk66"].lift is None and cells["dr5rk66"].pet_count == 1
