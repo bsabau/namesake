@@ -5,9 +5,10 @@ list means the draft passes.
 """
 
 import re
+from collections import Counter
 
 from app.animals import Animal
-from app.listing import MAX_WORDS
+from app.listing import BACKSTORY, MAX_WORDS, past_or_pity
 
 # Looks that mark a bully-type dog: these get the strictest name screen, because a
 # measured adoption penalty fell on names perceived as Black for pit-bull-type dogs.
@@ -123,15 +124,6 @@ HOOK_TRAIT_WORDS = (
 )  # fmt: skip
 HOOK_CLAIMS = ("fan", "fans", "fans of", "perfect for", "love", "loves", "loved", "loving")
 
-BACKSTORY = (
-    "stray", "surrender", "abandon", "previous owner", "former owner", "rescued from",
-    "in the shelter for", "months in", "years in the shelter", "waiting for",
-    "could no longer care",
-)  # fmt: skip
-PITY_URGENCY = (
-    "last chance", "urgent", "running out", "euthan", "death row", "desperate",
-    "heartbroken", "forgotten", "overlooked", "sad ", "lonely",
-)  # fmt: skip
 # Words that would state a check the shelter has not confirmed.
 UNKNOWN_TOPICS = {
     "good_with_children": (
@@ -405,8 +397,9 @@ def agent_fact_keys(animal: Animal) -> list[str]:
 
 
 def _texts_for(animal: Animal, keys: list[str]) -> str:
+    """The cited facts' text, each once: citing a fact twice says it no more often."""
     texts = fact_texts(animal)
-    return " ".join(texts[k] for k in keys if k in texts)
+    return " ".join(texts[k] for k in dict.fromkeys(keys) if k in texts)
 
 
 def check_grounded(
@@ -454,13 +447,14 @@ def _topics_and_tone(text: str, source: str, label: str) -> list[str]:
                 f"{label} mentions {hit!r}; children, other animals, house-training and bites "
                 "come only from the shelter's confirmed checks, which are added separately"
             )
-    lowered = f" {text.lower()} "
-    for phrase in BACKSTORY:
-        if phrase in lowered:
-            problems.append(f"{label}: leave out backstory ({phrase.strip()!r})")
-    for phrase in PITY_URGENCY:
-        if phrase in lowered:
-            problems.append(f"{label}: leave out pity and urgency ({phrase.strip()!r})")
+    # A recorded fact that tells a past ("was brought in as a stray") is restated as
+    # recorded, so a phrase is allowed as often as the cited facts say it, and no more:
+    # "Her previous owner bit her." added to a recorded bite is refused (decision 36).
+    recorded = Counter(past_or_pity(source))
+    for phrase, said in Counter(past_or_pity(text)).items():
+        if said > recorded[phrase]:
+            kind = "backstory" if BACKSTORY.fullmatch(phrase) else "pity and urgency"
+            problems.append(f"{label}: leave out {kind} ({phrase!r})")
     if FIRST_PERSON.search(text):
         problems.append(f"{label}: write in the third person")
     return problems
@@ -474,6 +468,7 @@ def check_bio(
     allowed = agent_fact_keys(animal)
     texts = fact_texts(animal)
     cited: set[str] = set()
+    accepted: list[str] = []
     for i, (sentence, facts) in enumerate(sentences, start=1):
         label = f"bio sentence {i}"
         if not facts:
@@ -484,7 +479,19 @@ def check_bio(
             problems.append(f"{label} cites keys it may not use: {bad}; use {allowed}")
             continue
         cited |= set(facts)
+        accepted.append(sentence)
         problems += check_grounded(animal, sentence, facts, label)
+    # Over the whole bio too: a recorded "stray" restated in two sentences is said twice.
+    # A phrase the record never says is already refused sentence by sentence.
+    said = Counter(phrase for sentence in accepted for phrase in past_or_pity(sentence))
+    recorded = Counter(past_or_pity(_texts_for(animal, sorted(cited))))
+    for phrase, times in said.items():
+        if 0 < recorded[phrase] < times:
+            problems.append(
+                f"the bio repeats {phrase!r}, which the record says "
+                f"{'once' if recorded[phrase] == 1 else f'{recorded[phrase]} times'}; "
+                "restate it as recorded, no more often"
+            )
     missing = [k for k in allowed if k != "look" and k not in cited]
     if missing:
         listed = "; ".join(f"{k} ({texts[k]!r})" for k in missing)

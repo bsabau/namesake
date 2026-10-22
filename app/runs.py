@@ -246,12 +246,14 @@ def _launch(run: Run, work, then=None) -> None:
                 try:
                     await asyncio.to_thread(then)
                 except Exception as exc:  # noqa: BLE001 - the result is saved; only pins wait
-                    run.log.add(
-                        "note", f"The places could not be pinned yet ({type(exc).__name__})"
-                    )
-        except Exception as exc:  # noqa: BLE001 - shown on the Working page, never swallowed
-            run.error = type(exc).__name__
-            run.log.add("error", f"The run stopped: {type(exc).__name__}")
+                    logger.warning("run %s: pinning failed (%s)", run.id, type(exc).__name__)
+                    run.log.add("note", "The places could not be pinned yet")
+        except Exception:  # noqa: BLE001 - shown on the Working page, never swallowed
+            # The visitor reads the step and the stream; the exception is for the server's
+            # log only.
+            run.error = "RunStopped"
+            logger.exception("run %s stopped", run.id)
+            run.log.add("error", "The run stopped on an error in Namesake's code")
         finally:
             # After any error is logged, so a follower always sees it before the end.
             run.log.finish()

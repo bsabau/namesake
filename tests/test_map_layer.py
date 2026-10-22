@@ -24,6 +24,7 @@ from app.profile import (
     profile_from,
     ranked_among,
 )
+from app.qloo.exec import QlooExecError
 from app.views.build import build_result_view, map_view, why
 from tests.qloo_fakes import (
     BASELINE,
@@ -755,3 +756,14 @@ def test_a_saved_profile_loads_on_one_scale():
     saved = LocationProfile(location_id="x", cells=raw).model_dump(mode="json")
     loaded = LocationProfile.model_validate(saved)
     assert [round(c.lift, 3) for c in loaded.cells] == [0.0, 0.0]
+
+
+def test_a_qloo_failure_note_carries_no_error_text():
+    # 22 October walkthrough: the note named what went wrong inside the harness.
+    class Failing(FakeQloo):
+        def run(self, operation, input_):
+            raise QlooExecError("qloo exec exited 1: a detail for the server log")
+
+    p = profile_from(Failing(standard_script()), LOCATION, PETS, BASELINES, [DOG_SHOW, CAT_SHOW])
+    assert p.notes and all("detail for the server log" not in n for n in p.notes)
+    assert any(n.startswith("Qloo could not be reached for ") for n in p.notes)

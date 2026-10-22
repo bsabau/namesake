@@ -279,6 +279,45 @@ def test_backstory_fails():
     assert any("leave out backstory ('stray')" in p for p in problems)
 
 
+def test_a_recorded_past_may_be_restated_as_recorded():
+    # The trap the 22 October walkthrough hit: "leave out backstory", then "restate it whole".
+    pet = animal(facts=["knows basic commands", "was brought in as a stray"])
+    bio = [TEMPERAMENT, FACTS[0], ("She was brought in as a stray.", ["fact:1"])]
+    assert check_bio(pet, bio) == []
+
+
+def test_a_recorded_past_may_not_be_extended():
+    pet = animal(facts=["knows basic commands", "bit a previous owner when startled"])
+    restated = "She bit a previous owner when startled."
+    assert check_bio(pet, [TEMPERAMENT, FACTS[0], (restated, ["fact:1"])]) == []
+    extended = f"{restated} Her previous owner bit her."
+    problems = check_bio(pet, [TEMPERAMENT, FACTS[0], (extended, ["fact:1"])])
+    assert any("leave out backstory ('previous owner')" in p for p in problems)
+
+
+def test_a_recorded_past_counts_once_however_it_is_cited():
+    # Codex, PR #77: citing the fact twice, a hyphen, or a second sentence said it twice.
+    pet = animal(facts=["knows basic commands", "bit a previous owner when startled"])
+    once = "She bit a previous owner when startled."
+    for extended in [
+        [(f"{once} Her previous owner bit her.", ["fact:1", "fact:1"])],
+        [(f"{once} Her previous-owner bit her.", ["fact:1"])],
+        [(once, ["fact:1"]), (once, ["fact:1"])],
+        [(f"{once} Her previous  owner bit her.", ["fact:1"])],
+        [(f"{once} Her previous\nowner bit her.", ["fact:1"])],
+    ]:
+        assert check_bio(pet, [TEMPERAMENT, FACTS[0], *extended]), extended
+
+
+def test_a_repeat_says_so_and_an_unrecorded_phrase_once():
+    pet = animal(facts=["knows basic commands", "was brought in as a stray"])
+    stray = ("She was brought in as a stray.", ["fact:1"])
+    problems = check_bio(pet, [TEMPERAMENT, FACTS[0], stray, stray])
+    assert any("repeats 'stray', which the record says once" in p for p in problems)
+    unrecorded = check_bio(pet, [TEMPERAMENT, FACTS[0], stray, ("She is sad.", ["fact:0"])])
+    assert not any("repeats" in p for p in unrecorded)
+
+
 def test_pity_and_urgency_fails():
     problems = check_bio(animal(), [("Her last chance.", ["fact:0"]), TEMPERAMENT, FACTS[1]])
     assert any("leave out pity and urgency ('last chance')" in p for p in problems)

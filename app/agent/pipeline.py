@@ -295,9 +295,8 @@ async def _build_profile(
         try:
             profile = await on_each_model(models, attempt, log)
         except AGENT_FAILURES as exc:
-            log.add(
-                "error", f"Namesake's AI did not finish the area profile ({type(exc).__name__})"
-            )
+            logger.warning("profile: Namesake's AI did not finish (%s)", type(exc).__name__)
+            log.add("error", "Namesake's AI did not finish the area profile")
     if profile is None:
         log.add("note", "Falling back to the fixed lookup with the seed titles")
         profile = await asyncio.to_thread(build_profile, qloo, location, seeds, prepared, species)
@@ -449,15 +448,22 @@ async def write_listing(
         result.lookalikes = [v for k, v in deps.lookalikes.items() if k in used]
     except MODEL_FAILURES as exc:
         # No model answered: there was no draft to check (Flash review, PR #42).
-        log.add("error", f"Namesake's AI could not be reached ({type(exc).__name__})")
+        # The visitor reads the step; the exception's name is for the server's log only.
+        logger.warning("listing: no model answered (%s)", type(exc).__name__)
+        log.add("error", "Namesake's AI could not be reached")
         result.fallback_reason = (
             "Namesake's AI could not be reached, so this is the templated listing."
         )
     except AGENT_FAILURES as exc:
-        log.add("error", f"The listing did not pass its checks ({type(exc).__name__})")
+        logger.warning("listing: Namesake's AI did not finish (%s)", type(exc).__name__)
+        log.add("error", "Namesake's AI did not finish a listing that passes the checks")
+        # Only a draft refused after its repair round is said to fail the checks; an
+        # error on the way (a Qloo lookup, the model's answer) is not.
         result.fallback_reason = (
             "The draft from Namesake's AI did not pass the checks after one repair, so this is "
             "the templated listing."
+            if isinstance(exc, UnexpectedModelBehavior)
+            else "Namesake's AI did not finish the listing, so this is the templated listing."
         )
     return result
 

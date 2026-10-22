@@ -39,6 +39,23 @@ CHECK_SENTENCES: dict[str, dict[str, str]] = {
 }
 
 
+# Words that place the animal in its past or plead for it. The listing describes the
+# animal as it is now: Namesake's AI may not add them, but a recorded fact that says one
+# is restated as recorded, never dropped, since it may carry a warning, and the page
+# points it out to the volunteer (decision 36). Whole words, so "running outside" is not
+# "running out" and "saddle" is not "sad".
+BACKSTORY = re.compile(
+    r"\b(stray\w*|surrender\w*|abandon\w*|(previous|former) owners?|rescued from|"
+    r"in the shelter for|months in|years in the shelter|waiting for|could no longer care)\b",
+    re.IGNORECASE,
+)
+PITY_URGENCY = re.compile(
+    r"\b(last chance|urgent\w*|running out|euthan\w*|death row|desperate\w*|heartbroken|"
+    r"forgotten|overlooked|sad|lonely)\b",
+    re.IGNORECASE,
+)
+
+
 class Sentence(BaseModel):
     text: str
     # What the sentence restates: "temperament", "look", "fact:<n>" or "check:<field>".
@@ -213,3 +230,18 @@ def missing_cautions(animal: Animal, text: str) -> list[str]:
     """The cautions an edited listing dropped or reworded."""
     plain = _plain(text)
     return [c for c in cautions(animal) if _plain(c) not in plain]
+
+
+def past_or_pity(text: str) -> list[str]:
+    """Each backstory or pity phrase in `text`, lower-cased, once per time it is said.
+
+    Hyphens, slashes and any run of spaces or line breaks count as one space, so
+    "previous-owner" and "previous  owner" are "previous owner"."""
+    plain = re.sub(r"[\s\-‐‑–—/_]+", " ", text)
+    return [m.group(0).lower() for p in (BACKSTORY, PITY_URGENCY) for m in p.finditer(plain)]
+
+
+def recorded_past(animal: Animal) -> list[str]:
+    """The animal's recorded temperament, look and facts that say a backstory or pity
+    phrase: every one the listing may restate."""
+    return [t for t in [animal.temperament, animal.look, *animal.facts] if past_or_pity(t)]

@@ -661,7 +661,7 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
 
 /* Copy, and edit and approve: two buttons side by side; the editor opens under both. */
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
-.copy.primary, .approve > summary {
+.copy.primary, .flyer-tools .primary, .approve > summary {
   display: block;
   padding: 11px 16px;
   border: 2px solid var(--primary-ink);
@@ -671,7 +671,7 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
   text-align: center;
   cursor: pointer;
 }
-.copy.primary { background: var(--primary-ink); color: var(--on-primary); box-shadow: var(--shadow); }
+.copy.primary, .flyer-tools .primary { background: var(--primary-ink); color: var(--on-primary); box-shadow: var(--shadow); }
 /* "Write her story": the one action on a result with no listing yet. */
 .write-run { margin: 14px 0 0; }
 .run-button {
@@ -688,12 +688,12 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
 .run-button:hover { filter: brightness(1.08); }
 /* On a button filled with the teal, the focus ring is ink rather than teal, so it shows
    against the button itself. */
-.run-button:focus-visible, .copy.primary:focus-visible { outline-color: var(--text); }
+.run-button:focus-visible, .copy.primary:focus-visible, .flyer-tools .primary:focus-visible { outline-color: var(--text); }
 /* The saved run's log under "How Namesake made this": folded, the working page's timeline. */
 .run-log { margin: 18px 0 6px; }
 .run-log > summary { cursor: pointer; font-weight: 800; color: var(--primary-ink); }
 .run-log .steps.timeline { margin-top: 12px; }
-.copy.primary:hover { filter: brightness(1.08); }
+.copy.primary:hover, .flyer-tools .primary:hover { filter: brightness(1.08); }
 .approve { margin: 0; }
 .approve > summary { background: var(--surface); color: var(--primary-ink); list-style: none; }
 .approve > summary::-webkit-details-marker { display: none; }
@@ -1240,3 +1240,5 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
 
 /* The flyer link under the copy and approve buttons (decision 35). */
 .actions .flyer-link { grid-column: 1 / -1; justify-self: start; }
+/* "Print a flyer" and the flyer page's links, in the skin's ink like its other links. */
+.flyer-link, .flyer-tools a { color: var(--primary-ink); font-weight: 700; }

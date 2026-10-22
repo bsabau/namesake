@@ -1,7 +1,7 @@
 import pytest
 
 from app.animals import Animal, Checks
-from app.listing import fact_sentence, templated_listing
+from app.listing import fact_sentence, past_or_pity, recorded_past, templated_listing
 
 
 def animal(**overrides) -> Animal:
@@ -81,3 +81,27 @@ def test_fact_sentences(fact, expected):
 
 def test_ages_read_naturally():
     assert "a 10-week-old female dog" in templated_listing(animal(age="10 weeks")).text
+
+
+def test_a_recorded_past_is_restated_never_dropped():
+    # 22 October: setting such facts aside would have dropped "chases cars" with "stray".
+    pet = animal(facts=["chases cars and came in as a stray", "knows basic commands"])
+    assert "chases cars and came in as a stray" in templated_listing(pet).text
+    assert recorded_past(pet) == ["chases cars and came in as a stray"]
+    assert recorded_past(animal()) == []
+    # Typed into the temperament or the look, it is pointed out too (Flash, PR #77).
+    assert recorded_past(animal(temperament="shy since she was a stray")) == [
+        "shy since she was a stray"
+    ]
+    assert recorded_past(animal(look="black coat, a stray's notched ear")) == [
+        "black coat, a stray's notched ear"
+    ]
+
+
+def test_past_and_pity_match_whole_words():
+    assert past_or_pity("enjoys running outside; sits on a saddle") == []
+    assert past_or_pity("seems sad.") == ["sad"]
+    assert past_or_pity("Was surrendered by her previous owner") == [
+        "surrendered",
+        "previous owner",
+    ]

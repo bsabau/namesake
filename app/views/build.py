@@ -13,7 +13,14 @@ from app.audience import audience_line
 from app.classify import bucket
 from app.config import get_settings
 from app.custom_location import MIN_CELLS
-from app.listing import CHECK_SENTENCES, MIN_WORDS, cautions, pronouns, templated_listing
+from app.listing import (
+    CHECK_SENTENCES,
+    MIN_WORDS,
+    cautions,
+    pronouns,
+    recorded_past,
+    templated_listing,
+)
 from app.locations import Location
 from app.places import distance_km
 from app.profile import (
@@ -98,6 +105,14 @@ def ordinal(n: int) -> str:
     return f"{n}{suffix}"
 
 
+# A sentence ends at . ! or ?, but not after an initial or a title: "Michael J. Fox" and
+# "Dr. Oakley" stay whole (22 October walkthrough).
+SENTENCE_END = re.compile(
+    r"(?<=[.!?])(?<!\b[A-Z]\.)(?<!\bMr\.)(?<!\bMs\.)(?<!\bDr\.)(?<!\bSt\.)(?<!\bJr\.)"
+    r"(?<!\bSr\.)(?<!\bMrs\.)\s+"
+)
+
+
 def sentences(text: str | None, limit: int = 220) -> str:
     """Whole sentences from the start of `text`, up to about `limit` characters.
 
@@ -106,7 +121,7 @@ def sentences(text: str | None, limit: int = 220) -> str:
     if not text:
         return ""
     out = ""
-    for part in re.split(r"(?<=[.!?])\s+", text.strip()):
+    for part in SENTENCE_END.split(text.strip()):
         if not part.endswith((".", "!", "?")) or (out and len(out) + len(part) > limit):
             break
         out = f"{out} {part}".strip()
@@ -403,6 +418,14 @@ def listing_view(
     left_out = []
     if unknown:
         left_out.append(f"Not yet known, so not mentioned: {and_list(unknown)}.")
+    past = recorded_past(animal)
+    if past:
+        quoted = and_list([f"“{fact}”" for fact in past])
+        left_out.append(
+            f"The record mentions a past or pleads for the animal ({quoted}); the listing "
+            "repeats it as recorded. A listing works best describing the animal as it is "
+            "now, so reword or remove it before approving, unless it carries a warning."
+        )
     if animal.history:
         left_out.append("Backstory and time in the shelter stay out of the listing.")
 
@@ -1768,7 +1791,7 @@ def build_approved_view(
         recorded=[
             f"Approval {approval_id}, with the time.",
             f"The animal and the shelter area ({result.location.label}).",
-            f"The version: {variant_label.lower()}.",
+            f"The version: {variant_label[:1].lower()}{variant_label[1:]}.",
             f"The name, {name}, and where it came from: {name_source}.",
             "Whether you edited the text" + (" (you did)." if edited else " (you did not)."),
             "Not the text itself. This is what a trial of generic against local listings "
