@@ -448,6 +448,9 @@ class ResultView(BaseModel):
     # One plain line under the listing: what in this result comes from Qloo's data for
     # the area. The detail is in "How Namesake made this" (decision 33).
     local_touch: str = ""
+    # The same line for the generic version, whose names are not Qloo's: the places and
+    # the map only.
+    local_touch_generic: str = ""
     # The trial the local version would need, in one line, with the README's design.
     trial: str = ""
     trial_link: Link | None = None

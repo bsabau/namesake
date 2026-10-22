@@ -280,9 +280,25 @@ def test_the_story_result_tells_the_story_in_order(client):
     positions = [page.index(mark) for mark in marks]
     assert positions == sorted(positions), marks
     assert "What we know" in page and "Still to learn: children" in page
-    # The line names Qloo once, and what it claims stays inside the folded detail.
-    assert "Qloo From Qloo" not in page and page.count("From Qloo taste data for") == 1
-    assert 'class="venue-why"' in page and "<span>Qloo:</span> <strong>" in page
+    # One line per version, each naming Qloo once; the generic one claims no names.
+    assert "Qloo From Qloo" not in page and page.count("From Qloo taste data for") == 2
+    generic = page.split('class="local-touch version-generic">')[1].split("</p>")[0]
+    assert "names" not in generic and "places to ask" in generic
+    # Each place's folded detail keeps Qloo's rank and answer, each labelled.
+    fold = page.split('<details class="venue-why">')[1].split("</details>")[0]
+    assert (
+        "<span>Qloo:</span> <strong>" in fold and '<p class="evidence"><span>Qloo:</span>' in fold
+    )
+
+
+@pytest.mark.parametrize("ui", [u for u in main.UIS if u != "story"])
+def test_the_other_skins_keep_qloos_part_first(client, ui):
+    # Decision 33 reordered the story skin only: warm and classic open with Qloo's part.
+    page = client.get(
+        "/result", params={"animal": "dog-02", "location": "park-slope", "ui": ui}
+    ).text
+    assert 'class="local-touch' not in page and 'class="trial"' not in page
+    assert page.index('data-role="qloo-part"') < page.index('data-role="listing"')
 
 
 @pytest.mark.parametrize("ui", main.UIS)

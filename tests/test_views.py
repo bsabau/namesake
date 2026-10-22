@@ -464,6 +464,7 @@ def test_the_local_touch_names_only_what_came_from_qloo_here(roster):
     assert local_touch(LOCATION, empty, None, 0) == ""
     view = build_result_view(roster.get("dog-02"), LOCATION, p)
     assert view.local_touch.startswith(f"From Qloo taste data for {LOCATION.label}:")
+    assert "names" not in view.local_touch_generic and view.local_touch_generic.endswith("map.")
 
 
 def test_the_result_says_the_local_version_is_untested_and_how_to_test_it(roster):

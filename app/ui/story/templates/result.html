@@ -114,8 +114,9 @@
 
     {% if view.local_touch %}
     {# One plain line; the detail is in "How Namesake made this", below the places. #}
-    {# The local version's line: hidden with the names when the generic version is shown. #}
+    {# The line for each version: the generic one's names are not Qloo's, so it names only the places and the map. #}
     <p class="local-touch local-only">{{ view.local_touch }} <a href="#how">{{ view.how_heading }}</a></p>
+    {% if view.local_touch_generic %}<p class="local-touch version-generic">{{ view.local_touch_generic }} <a href="#how">{{ view.how_heading }}</a></p>{% endif %}
     {% endif %}
 
     <section class="step" aria-labelledby="step-intro">

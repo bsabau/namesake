@@ -210,7 +210,7 @@ TRIAL = (
     "Does the local version help? Nobody has tested it yet. Namesake records each "
     "approved version so a shelter network could: generic against local, assigned at "
     "random, measured in days to adoption, with about 190 adoptions to detect a 50% "
-    "faster rate, before allowing for clustering by shelter."
+    "faster rate, more when they come from several shelters."
 )
 CLASSIFIER_CREDIT = (
     "Pet-themed titles sorted with TypeSafe's Jev classifier. Namesake is not affiliated with "
@@ -1629,6 +1629,7 @@ def build_result_view(
         litter_note=("Named as a set with the rest of the litter:" if len(named) > 1 else None),
         qloo_part=qloo_part(location, profile, listing, len(shown)),
         local_touch=local_touch(location, profile, listing, len(shown)),
+        local_touch_generic=local_touch(location, profile, None, len(shown)),
         trial=TRIAL,
         trial_link=Link(label="How the trial would work", url=TRIAL_URL),
         name=name_view(listing, profile, listing_.text),

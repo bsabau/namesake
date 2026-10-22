@@ -606,16 +606,16 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
 }
 .evidence { border-color: var(--qloo); color: var(--text); }
 .reading { border-color: var(--ai); color: var(--muted); }
-.evidence span, .reading span {
+.evidence span, .reading span, .venue-rank > span {
   font-weight: 800;
   font-size: 0.72rem;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   margin-right: 4px;
 }
-.evidence span { color: var(--qloo-ink); }
+.evidence span, .venue-rank > span { color: var(--qloo-ink); }
 .reading span { color: var(--ai-ink); }
-.evidence span::before, .reading span::before {
+.evidence span::before, .reading span::before, .venue-rank > span::before {
   content: "";
   display: inline-block;
   width: 0.55em;
