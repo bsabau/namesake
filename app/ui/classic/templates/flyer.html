@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}{{ view.title }} · Namesake{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/flyer.css">{% endblock %}
+
+{% block content %}
+<div class="flyer-tools">
+  <p><a href="{{ view.back_url }}">&larr; {{ view.back_label }}</a></p>
+  <button type="button" class="primary" data-print>{{ view.print_label }}</button>
+  <p class="hint">{{ view.print_note }}</p>
+  {% if view.other_version %}<p><a href="{{ view.other_version.url }}">{{ view.other_version.label }}</a></p>{% endif %}
+</div>
+
+<article class="flyer-sheet" data-role="flyer">
+  <h1 data-role="name">{{ view.title }}</h1>
+  <img class="flyer-photo" src="{{ view.image_url }}" alt="{{ view.image_alt }}">
+  {% for paragraph in view.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}
+  <p class="flyer-ask">{{ view.ask_line }}</p>
+  <p class="flyer-version">{{ view.version_label }}, drafted with Namesake. {{ view.sample_line }}</p>
+</article>
+
+<section class="flyer-sheet" data-role="flyer-checklist">
+  <h2>{{ view.checklist_heading }}</h2>
+  <p>{{ view.checklist_note }}</p>
+  {% if view.places %}
+  <ul class="flyer-checklist">
+    {% for place in view.places %}
+    <li><span class="flyer-box" aria-hidden="true"></span><span><strong>{{ place.number }}. {{ place.name }}</strong> <span class="flyer-place">{{ place.place }}</span>{% if place.badge %} <span class="flyer-badge">Namesake: {{ place.badge }}</span>{% endif %}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if view.other %}
+  <h2>{{ view.other_heading }}</h2>
+  <ul class="flyer-checklist">
+    {% for item in view.other %}<li><span class="flyer-box" aria-hidden="true"></span><span>{{ item }}</span></li>{% endfor %}
+  </ul>
+  {% endif %}
+</section>
+<script src="/static/flyer.js" defer></script>
+{% endblock %}

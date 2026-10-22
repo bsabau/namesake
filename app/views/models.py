@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-PHOTO_CREDIT = "All animals and the shelter are fictional; the photos are AI-generated."
+PHOTO_CREDIT = "A sample shelter: the animals are fictional and their photos AI-generated."
 QLOO_CREDIT = "Taste data from the Qloo API. Namesake is not affiliated with or endorsed by Qloo."
 
 
@@ -66,8 +66,8 @@ class LocationOption(BaseModel):
     # The spot this visitor picked for the shelter, if any, and what the map says about it.
     pin: Pin | None = None
     map_note: str = (
-        "The circle marks the area around the shelter the animals are adopted from: made up "
-        "for this demo, not a real address."
+        "The circle marks the area around the sample shelter the animals are adopted from, "
+        "not a real address."
     )
 
 
@@ -80,6 +80,8 @@ class AnimalCard(BaseModel):
     temperament: str
     litter: bool
     featured: bool = False
+    # Added by this visitor: it can be edited or removed.
+    own: bool = False
     badges: list[str] = []
     # What the shelter recorded, as short lines: the observed facts, then the confirmed
     # answers; and the checks still unknown, as labels ("children", "dogs").
@@ -156,9 +158,18 @@ class ShelterBar(BaseModel):
     open: bool = False
 
 
+class Link(BaseModel):
+    label: str
+    url: str
+
+
 class StartView(BaseModel):
     title: str
     intro: str
+    # The problem in one line, and the research it rests on, so the start page shows why
+    # the listing is plain and the names screened (decision 33).
+    problem: str = ""
+    problem_link: Link | None = None
     examples_heading: str = "Read a finished story"
     examples: list[ExampleLink] = []
     locations: list[LocationOption]
@@ -170,7 +181,16 @@ class StartView(BaseModel):
     animals: list[AnimalCard]
     litters: list[LitterCard]
     add_animal_url: str = "/animals/new"
-    add_animal_label: str = "Add your own animal (kept for this visit only)"
+    add_animal_label: str = "Add your own animal"
+    # The visitor's own animals, before the samples (story), and the workspace that keeps
+    # them: one line, and the link that opens it in another browser (decision 34).
+    your_heading: str = "Your animals"
+    your_animals: list[AnimalCard] = []
+    sample_heading: str = "Or try a sample animal"
+    sample_animals: list[AnimalCard] = []
+    workspace_note: str = ""
+    workspace_link: str = ""
+    workspace_link_label: str = "Link to this workspace"
     credits: Credits = Credits()
 
 
@@ -182,12 +202,17 @@ class Question(BaseModel):
 class AddAnimalView(BaseModel):
     title: str = "Add an animal"
     intro: str = (
-        "Describe one animal as the shelter has observed it. It is kept in memory for this "
-        "visit only, never stored, and gone when you leave or the server restarts. The "
-        "listing will say only what you enter here, so leave out anything unconfirmed, and "
-        "leave out people's names and personal details."
+        "Describe one animal as the shelter has observed it. It is kept in your workspace "
+        "for 7 days after your last visit, and anyone with the workspace's link can open "
+        "it. The listing will say only what you enter here, so leave out anything "
+        "unconfirmed, and leave out people's names and personal details."
     )
     action: str = "/animals"
+    # The added animal being edited, if any: its record is replaced, its listings dropped.
+    edit: str = ""
+    submit_label: str = "Add the animal"
+    # Under the photo field when editing an animal that has one.
+    photo_kept_note: str = ""
     location_id: str
     # The typed area's name, when it is the choice, and the way back to the animals.
     area: str = ""
@@ -200,8 +225,8 @@ class AddAnimalView(BaseModel):
     answers: list[str] = ["yes", "no", "unknown"]
     max_facts: int
     photo_note: str = (
-        "Optional: a JPEG, PNG or WebP photo, up to 3 MB. It is shown back to you only, "
-        "never read by a model, and never stored."
+        "Optional: a JPEG, PNG or WebP photo, up to 3 MB. It is kept with your workspace, "
+        "shown to whoever opens it, and never read by a model."
     )
     error: str | None = None
     credits: Credits = Credits()
@@ -229,6 +254,8 @@ class NameOptionView(BaseModel):
     # shelter is named after it (decision 26): Qloo's title ID and the character.
     entity_id: str = ""
     character: str = ""
+    # The flyer for the local version with this name (decision 35).
+    flyer_url: str = ""
     # Who tends to like the title, from Qloo's demographics (app/audience.py); None when
     # Qloo gave no clear lean or was not asked.
     audience: str | None = None
@@ -436,6 +463,22 @@ class ResultView(BaseModel):
     chosen_name: str | None = None
     # What Qloo returned and what the AI did, legible in one screenshot.
     qloo_part: QlooPart | None = None
+    # One plain line under the listing: what in this result comes from Qloo's data for
+    # the area. The detail is in "How Namesake made this" (decision 33).
+    local_touch: str = ""
+    # The same line for the generic version, whose names are not Qloo's: the places and
+    # the map only.
+    local_touch_generic: str = ""
+    # The trial the local version would need, in one line, with the README's design.
+    trial: str = ""
+    trial_link: Link | None = None
+    # A printable flyer and checklist for each version of this result (decision 35); the
+    # local one only when that version exists.
+    flyer_generic_url: str = ""
+    flyer_local_url: str = ""
+    flyer_label: str = "Print a flyer"
+    how_heading: str = "How Namesake made this"
+    how_lead: str = "What came from Qloo, what Namesake's AI did with it, and what code checked."
     name: NameView
     listing: ListingView
     map: MapView
@@ -456,7 +499,7 @@ class ResultView(BaseModel):
     story_lead_generic: str = ""
     introduction_heading: str = ""
     travel_heading: str = ""
-    # "Behind this story": three steps from the actual profile and listing (decision 24).
+    # "How Namesake made this": three steps from the actual profile and listing (decision 24).
     process: list[ProcessStep] = []
     # The saved run's own step log, each step marked by who did it, as the working page
     # showed it: judges who open a saved result never see a live run (decision 27).
@@ -498,6 +541,11 @@ class NoticeView(BaseModel):
     title: str
     message: str
     links: list[tuple[str, str]] = []
+    # One button that posts to `action_url`, for a step the visitor must confirm.
+    action_url: str = ""
+    action_label: str = ""
+    # Sent with the button, as hidden fields.
+    action_fields: dict[str, str] = {}
     credits: Credits = Credits()
 
 
@@ -516,3 +564,41 @@ class PlacesView(BaseModel):
 
     places: list[PlaceOption] = []
     message: str | None = None
+
+
+class FlyerPlace(BaseModel):
+    number: int
+    name: str
+    place: str
+    # Namesake's comparison of Qloo's two lists for the place, as its card shows it.
+    badge: str = ""
+
+
+class FlyerView(BaseModel):
+    """A printable page: the flyer to post, then the volunteer's checklist (decision 35).
+    The listing, names, places and plan are the result page's own; only the lines that
+    frame them (who to ask, how to use the checklist) are new."""
+
+    title: str
+    name: str | None
+    image_url: str
+    image_alt: str
+    # The version as the volunteer would copy it, after its "Meet <name>." line.
+    paragraphs: list[str]
+    version_label: str
+    ask_line: str
+    sample_line: str = ""
+    checklist_heading: str = "Where to take this flyer"
+    checklist_note: str = ""
+    places: list[FlyerPlace] = []
+    other_heading: str = "Other ways to help"
+    other: list[str] = []
+    print_label: str = "Print this page"
+    print_note: str = (
+        "Page 1 is the flyer to post; page 2 is your checklist. It prints the drafted "
+        "listing: if you edited it, copy your edit from the approval page instead."
+    )
+    other_version: Link | None = None
+    back_url: str
+    back_label: str = "Back to the result"
+    credits: Credits = Credits()

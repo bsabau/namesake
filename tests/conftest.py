@@ -26,6 +26,7 @@ def isolated_settings(tmp_path, monkeypatch):
     settings = get_settings()
     monkeypatch.setattr(settings, "cache_db", tmp_path / "cache.sqlite")
     monkeypatch.setattr(settings, "animals_file", ANIMALS)
+    monkeypatch.setattr(settings, "workspace_db", tmp_path / "workspaces.sqlite")
     monkeypatch.setattr(settings, "qloo_recordings", tmp_path / "recordings")
     monkeypatch.setattr(settings, "allow_live_qloo", False)
     monkeypatch.setattr(settings, "agent_base_url", None)
@@ -37,6 +38,9 @@ def isolated_settings(tmp_path, monkeypatch):
     from app.places import Allowance
 
     monkeypatch.setattr(main, "ADD_ALLOWANCE", Allowance(per_minute=5))
+    monkeypatch.setattr(main, "PHOTO_ALLOWANCE", Allowance(per_minute=6, window=3600))
+    # No visitor's session carries over from another test: each starts from its own disk.
+    monkeypatch.setattr(main.SESSIONS, "_items", type(main.SESSIONS._items)())
     for name in type(settings).model_fields:
         if name.startswith("agent_fallback_") and name.endswith(("_api_key", "_model")):
             monkeypatch.setattr(settings, name, None)

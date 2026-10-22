@@ -32,6 +32,7 @@ REQUIRED = {
         "qloo-credit",
     ],
     "add_animal": ["add-animal", "photo-credit", "qloo-credit"],
+    "flyer": ["flyer", "name", "flyer-checklist", "photo-credit", "qloo-credit"],
 }
 
 
@@ -83,6 +84,14 @@ def test_result_screen_meets_the_contract(client, ui):
     assert response.status_code == 200
     for role in REQUIRED["result"]:
         assert f'data-role="{role}"' in response.text, f"{ui} result: missing {role}"
+
+
+@pytest.mark.parametrize("ui", main.UIS)
+def test_flyer_meets_the_contract(client, ui):
+    response = client.get("/flyer", params={"animal": "dog-02", "location": "park-slope", "ui": ui})
+    assert response.status_code == 200
+    for role in REQUIRED["flyer"]:
+        assert f'data-role="{role}"' in response.text, f"{ui} flyer: missing {role}"
 
 
 @pytest.mark.parametrize("ui", main.UIS)
@@ -251,31 +260,54 @@ def test_story_maps_take_their_tiles_from_the_view_model(client, monkeypatch):
 
 
 def test_the_story_result_tells_the_story_in_order(client):
-    # The structure the skin was built to (docs/img/story-structure.png, decision 24).
+    # The structure the skin was built to (docs/img/story-structure.png, decision 24),
+    # with the outcome first and the how after the places (decision 33).
     page = client.get(
         "/result", params={"animal": "dog-02", "location": "park-slope", "ui": "story"}
     ).text
     marks = [
         "tell her story.",
         "Choose a name",
-        'data-role="qloo-part"',
+        # Hidden with the names under the generic version, whose names are not Qloo's.
+        'class="local-touch local-only"',
         "Her introduction",
         'data-role="approve"',
         "Want to adjust the wording?",
         "Not yet known, so not mentioned",
-        "Behind this story",
-        'data-role="qloo-returned"',
-        'data-role="our-reading"',
         "Help her story travel",
         'data-role="map"',
         "Places to ask",
         'data-role="venues-note"',
         "Other ways to help",
+        'id="how-heading"',
+        'data-role="qloo-part"',
+        'data-role="qloo-returned"',
+        'data-role="our-reading"',
+        'class="trial"',
         'data-role="qloo-credit"',
     ]
     positions = [page.index(mark) for mark in marks]
     assert positions == sorted(positions), marks
     assert "What we know" in page and "Still to learn: children" in page
+    # One line per version, each naming Qloo once; the generic one claims no names.
+    assert "Qloo From Qloo" not in page and page.count("From Qloo taste data for") == 2
+    generic = page.split('class="local-touch version-generic">')[1].split("</p>")[0]
+    assert "names" not in generic and "places to ask" in generic
+    # Each place's folded detail keeps Qloo's rank and answer, each labelled.
+    fold = page.split('<details class="venue-why">')[1].split("</details>")[0]
+    assert (
+        "<span>Qloo:</span> <strong>" in fold and '<p class="evidence"><span>Qloo:</span>' in fold
+    )
+
+
+@pytest.mark.parametrize("ui", [u for u in main.UIS if u != "story"])
+def test_the_other_skins_keep_qloos_part_first(client, ui):
+    # Decision 33 reordered the story skin only: warm and classic open with Qloo's part.
+    page = client.get(
+        "/result", params={"animal": "dog-02", "location": "park-slope", "ui": ui}
+    ).text
+    assert 'class="local-touch' not in page and 'class="trial"' not in page
+    assert page.index('data-role="qloo-part"') < page.index('data-role="listing"')
 
 
 @pytest.mark.parametrize("ui", main.UIS)

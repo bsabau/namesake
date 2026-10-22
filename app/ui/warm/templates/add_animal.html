@@ -14,6 +14,7 @@
     <input type="hidden" name="location" value="{{ view.location_id }}">
     {% if view.area %}<input type="hidden" name="area" value="{{ view.area }}">{% endif %}
     {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
+    {% if view.edit %}<input type="hidden" name="edit" value="{{ view.edit }}">{% endif %}
 
     <fieldset class="choices">
       <legend>Species</legend>
@@ -45,9 +46,9 @@
 
     <label for="photo">Photo</label>
     <input id="photo" type="file" name="photo" accept="image/jpeg,image/png,image/webp">
-    <p class="hint">{{ view.photo_note }}</p>
+    <p class="hint">{{ view.photo_note }}{% if view.photo_kept_note %} {{ view.photo_kept_note }}{% endif %}</p>
 
-    <button type="submit">Add the animal</button>
+    <button type="submit">{{ view.submit_label }}</button>
   </form>
 </section>
 {% endblock %}

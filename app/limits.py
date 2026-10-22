@@ -114,7 +114,7 @@ class Limits:
         if self._used_today(kind) >= self.daily[kind]:
             what = "new runs" if kind == "run" else "new locations"
             raise LimitReached(
-                f"The demo has reached today's limit of {self.daily[kind]} {what}, which "
+                f"Namesake has reached today's limit of {self.daily[kind]} {what}, which "
                 "keeps it within its Qloo and model quota. The examples and earlier "
                 "results still open instantly; new ones open again tomorrow (UTC)."
             )

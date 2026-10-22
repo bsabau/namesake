@@ -498,14 +498,20 @@ def check_why(animal: Animal, why: str, name: str) -> list[str]:
 NAME_JOINERS = ("in", "of", "the", "and", "de", "da", "von", "van", "le", "la")
 
 
+# The reference names the character's kind, not its age: "Bluey, a puppy in Bluey" read
+# as a claim about a 4-year-old dog (22 October, an outside read as a judge).
+REFERENCE_KIND = {"puppy": "dog", "kitten": "cat"}
+
+
 def reference_text(character: str, role: str, title: str) -> str:
     """What a name refers to, assembled by code from a name, a fixed role and Qloo's title."""
     if role == "title":
         return title
     if role in ("character", "object"):
         return f"{character} in {title}"
-    article = "an" if role[0] in "aeiou" else "a"
-    return f"{character}, {article} {role} in {title}"
+    kind = REFERENCE_KIND.get(role, role)
+    article = "an" if kind[0] in "aeiou" else "a"
+    return f"{character}, {article} {kind} in {title}"
 
 
 def check_character(character: str, role: str) -> list[str]:
