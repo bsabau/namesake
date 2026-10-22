@@ -829,6 +829,10 @@ def approve(
                 v.name, v.hook, v.name_source = name, hook, option.header_source
                 v.copy_text, v.choice = option.copy_text, option.version_choice
         view.chosen_name = name if variant == "local" else view.name.value
+        # The flyer follows the restored choice, as the page does.
+        picked = next((o for o in view.name.options if o.name == view.chosen_name), None)
+        if picked is not None and picked.flyer_url:
+            view.flyer_local_url = picked.flyer_url
         return render(request, chosen_ui, "result.html", view)
 
     approval = Approval(

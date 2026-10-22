@@ -139,3 +139,14 @@ def test_page_one_of_an_added_animal_says_only_that_the_shelter_is_a_sample(clie
         update={"credits": shown.credits.model_copy(update={"photos": ADDED_PHOTO_CREDIT})}
     )
     assert build_flyer_view(added, None).sample_line == "The shelter is a sample."
+
+
+def test_after_a_refused_approval_the_flyer_follows_the_restored_name(client, monkeypatch):  # noqa: F811
+    from tests.test_product import approve
+
+    save(saved_listing())
+    monkeypatch.setattr(main, "missing_cautions", lambda *a: ["guards her food"])
+    page = approve(client, variant="local", local_name="Biscuit", text="She is calm.").text
+    assert "Not approved" in page
+    link = "/flyer?animal=dog-02&amp;location=park-slope&amp;variant=local&amp;name=Biscuit"
+    assert f'class="flyer-link local-only" href="{link}"' in page
