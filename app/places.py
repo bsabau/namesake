@@ -18,6 +18,10 @@ allowances: each visitor's per minute, and one for everyone together, which keep
 Photon's fair use. At most a few calls run at once, so a slow Photon never ties up the
 server's threads. When Photon is slow, down or odd, the field works as typed; a picked
 spot says the lookup did not answer, so the visitor can pick it again.
+
+A bare typed name Qloo resolves on its own is named the same way once it passes: the
+spot looked up is the centre of Qloo's own cells, never anything the visitor picked
+(`qloo_pick`, decision 38).
 """
 
 import http.client
@@ -98,12 +102,15 @@ def qloo_pick(
     Both None when the lookup is off or did not answer; the area then keeps its name as
     typed (decision 38)."""
     try:
-        areas = [label for label, _, _ in places.at(latitude, longitude, visitor)]
+        areas = [place.label for place in places.at(latitude, longitude, visitor)]
     except (Throttled, LookupFailed):
         return None, None
     typed = text.strip().lower()
-    match = next((a for a in areas if a.split(",")[0].strip().lower() == typed), None)
-    return match, None if match or not areas else areas[-1]
+    # A label with no wider place ("Berlin", where the city is its own state) says no more
+    # than was typed, so it is no match.
+    match = next((a for a in areas if "," in a and a.split(",")[0].strip().lower() == typed), None)
+    near = areas[-1] if areas and areas[-1].strip().lower() != typed else None
+    return match, None if match else near
 
 
 class Place(BaseModel):

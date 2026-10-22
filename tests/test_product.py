@@ -23,6 +23,7 @@ from app.animals import Animal, Checks
 from app.custom_location import check_location, clean, location_id, zoom_for
 from app.limits import LimitReached, Limits, usage_report
 from app.listing import GENERIC_NAMES, cautions, generic_name, missing_cautions
+from app.places import LookupFailed, Place, Throttled
 from app.profile import build_profile, local_tastes
 from app.session import Sessions, photo_type
 from app.store import Store
@@ -847,48 +848,66 @@ def test_a_typed_area_is_checked_in_the_run_then_saved_and_offered(client, monke
 
 
 class PlacesAt:
-    """OpenStreetMap's areas at a spot, most local first, as Places.at answers."""
+    """OpenStreetMap's areas at a spot, most local first, as Places.at answers: Place
+    models (review of PR #81: a fake of tuples hid a crash)."""
 
-    def __init__(self, *areas, fails=False):
+    def __init__(self, *areas, fails=None):
         self.areas, self.fails, self.asked = areas, fails, []
 
     def at(self, latitude, longitude, visitor="anyone"):
-        from app.places import LookupFailed
-
         self.asked.append((latitude, longitude))
         if self.fails:
-            raise LookupFailed
-        return [(a, latitude, longitude) for a in self.areas]
+            raise self.fails
+        return [Place(label=a, latitude=latitude, longitude=longitude) for a in self.areas]
+
+
+def bare_area_run(client, monkeypatch, osm, **extra):
+    text, script = location_script(results=cells(6), text="Example Heights")
+    checked_by(monkeypatch, script)
+    monkeypatch.setattr(runs, "places_for", lambda url: osm)
+    run, page = area_run(client, text, **extra)
+    return run, page, Store(main.get_settings().cache_db).get_location(location_id(text))
 
 
 def test_a_bare_typed_name_is_shown_as_the_place_qloo_picked(client, monkeypatch):
     # 23 October walkthrough: "Portland" passed with no candidates, and the page said
     # only "Portland". Qloo picked one; OpenStreetMap names where its data centres.
-    text, script = location_script(results=cells(6), text="Example Heights")
-    checked_by(monkeypatch, script)
     osm = PlacesAt("Downtown, Example Heights", "Example Heights, Example State")
-    monkeypatch.setattr(runs, "places_for", lambda url: osm)
-    run, page = area_run(client, text)
-    saved = Store(main.get_settings().cache_db).get_location(location_id(text))
-    assert saved.region == "Example State" and len(osm.asked) == 1
+    run, page, saved = bare_area_run(client, monkeypatch, osm)
+    assert saved.region == "Example State" and run.place.region == "Example State"
     assert "its data centres on Example Heights, Example State" in page
     assert "Example Heights, Example State" in client.get("/", params={"location": saved.id}).text
+    # The spot asked about is the centre of Qloo's cells, rounded as the area's centre is.
+    lats = [40.67 + i * 0.002 for i in range(6)]
+    lons = [-73.98 + i * 0.002 for i in range(6)]
+    assert osm.asked == [(round(sum(lats) / 6, 4), round(sum(lons) / 6, 4))]
+    # The note follows the check that saved the area.
+    texts = [s.text for s in run.log.steps]
+    saved_at = next(i for i, t in enumerate(texts) if "it is saved as an area" in t)
+    assert "Qloo did not say which" in texts[saved_at + 1]
+
+
+def test_the_spot_a_visitor_picked_is_never_the_one_looked_up(client, monkeypatch):
+    osm = PlacesAt("Example Heights, Example State")
+    bare_area_run(client, monkeypatch, osm, pin_lat="40.6801", pin_lon="-73.9702")
+    assert osm.asked and all(spot != (40.6801, -73.9702) for spot in osm.asked)
 
 
 @pytest.mark.parametrize(
     "osm, note",
     [
-        (PlacesAt("Somewhere Else, Example State"), "centres near Somewhere Else"),
-        (PlacesAt(fails=True), None),
+        (PlacesAt("Somewhere Else, Example State"), "centres near Somewhere Else, Example State"),
+        # A label with no wider place says no more than was typed (Berlin, New York).
+        (PlacesAt("Mitte, Example Heights", "Example Heights"), None),
+        (PlacesAt(fails=LookupFailed()), None),
+        (PlacesAt(fails=Throttled()), None),
+        # Anything else that goes wrong only costs the label, never the run.
+        (PlacesAt(fails=RuntimeError("odd")), None),
     ],
 )
 def test_a_pick_osm_cannot_name_keeps_the_typed_name(client, monkeypatch, osm, note):
-    text, script = location_script(results=cells(6), text="Example Heights")
-    checked_by(monkeypatch, script)
-    monkeypatch.setattr(runs, "places_for", lambda url: osm)
-    run, page = area_run(client, text)
-    assert not run.failed
-    assert Store(main.get_settings().cache_db).get_location(location_id(text)).region == ""
+    run, page, saved = bare_area_run(client, monkeypatch, osm)
+    assert not run.failed and saved.region == ""
     assert (note in page) if note else "Qloo did not say which" not in page
 
 
