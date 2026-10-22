@@ -209,6 +209,8 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** a member whose draft cannot be fixed falls back to the template, as any listing does. The result page lists the litter's names with links.
 
+**Revised 22 October:** the first member picks the litter's title among the area's pet-themed titles when there are any, never from the area's general watch list (`name_titles` in `app/agent/pipeline.py`). An outside read as a judge found the Park Slope kittens named Brooke, Cary and Chase from *The Other Two*, an adult comedy 6th in what people there tend to watch, which undercut the pet-themed idea. A lone animal may still take one of its names from the area's local tastes. Saved litter listings keep their names until the examples are rebuilt.
+
 ## 14. Lookalike names: titles with an animal that looks like this one
 
 **Decided** (the author agreed on 17 October):
