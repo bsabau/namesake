@@ -116,7 +116,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
    ![The Park Slope result's "Help her story travel" band: the map of how fans of pet-themed titles compare with fans of the area's top shows, with its key, the dashed circle around the sample shelter and the places numbered; and the three places to ask, each with the reason Namesake's AI gives and, folded under 'Why this place', Qloo's description and rank and Namesake's reading](docs/img/result-map.png)
 
    The `warm` and `classic` skins show the same listing, names, map, places and Why panel with Qloo's part and the AI's at the top, without story's "How Namesake made this" framing, the saved run's step log or the button that starts a run.
-4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software. A result with no listing yet also offers "Write her story with Namesake's AI" (for a member of a litter, naming the litter as a set).
+4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software, or **print a flyer** with a checklist of the places to ask. A result with no listing yet also offers "Write her story with Namesake's AI" (for a member of a litter, naming the litter as a set).
 
 The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 18 to 20 Qloo calls: one more when the venues must be asked again, fewer when titles are already cached, and two or three more to check a typed area first. Each further animal costs at most two.
 

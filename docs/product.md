@@ -33,6 +33,8 @@ The review found no study showing that names or wording speed adoption. Being se
 
 **Volunteer approval.** The volunteer edits and approves the text, then copies a block ready to paste into shelter software.
 
+**Flyer and checklist.** "Print a flyer" prints two pages from the result: the flyer to post (the name, the photo, the listing, and who to ask), and the volunteer's checklist of the places to ask, numbered as on the map, and the other ways to help (decision 35).
+
 ## Output 2: name options
 
 Name options come from three sources. Each option carries a badge with what Qloo returned for its title:
@@ -85,8 +87,9 @@ The result screen must be legible in a single screenshot. It shows:
 - a "Why" drawer with two columns, "Qloo returned" and "How Namesake read it", the Qloo calls behind the result listed under Qloo's
 - in the story skin, the saved run's own step log, folded, each step marked by who did it; and, where the animal has no listing yet, a button that starts a run (for a litter member, the litter's) (decision 27)
 - in the story skin, the outcome first: the listing, then the map and the places to ask, then "How Namesake made this", which ends with the trial the local version would need; each place's evidence and the names' Qloo answers are folded one click away (decision 33)
+- in the story skin, "Print a flyer" under the copy button, for the version and name shown (decision 35)
 
-The skins that render this screen are a separate choice (`docs/decisions.md` #21 for warm and classic, #24 for story); each keeps every item above, except the two marked as the story skin's.
+The skins that render this screen are a separate choice (`docs/decisions.md` #21 for warm and classic, #24 for story); each keeps every item above, except the three marked as the story skin's.
 
 ## Measurement
 

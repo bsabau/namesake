@@ -78,6 +78,7 @@ from app.views.build import (
     area_check_view,
     build_add_animal_view,
     build_approved_view,
+    build_flyer_view,
     build_result_view,
     build_start_view,
     build_working_view,
@@ -507,6 +508,14 @@ def result_view(animal_id: str, location_id: str | None, session: Session | None
         ),
         None,
     )
+    query = urlencode({"animal": animal.id, "location": location.id})
+    available = {v.variant for v in view.listing.versions if v.available}
+    if "generic" in available:
+        view.flyer_generic_url = f"/flyer?{query}&variant=generic"
+    if "local" in available:
+        view.flyer_local_url = f"/flyer?{query}&variant=local"
+        for option in view.name.options:
+            option.flyer_url = f"{view.flyer_local_url}&{urlencode({'name': option.name})}"
     if view.write_label and litter is not None:
         # A litter is named as a set: the button runs the litter, whose members already
         # named keep their names (decision 13).
@@ -578,6 +587,25 @@ def result(
 ) -> HTMLResponse:
     view = result_view(animal, location, session_of(request))
     return render(request, pick_ui(ui), "result.html", view)
+
+
+@app.get("/flyer", response_class=HTMLResponse)
+def flyer(
+    request: Request,
+    animal: str,
+    location: str | None = None,
+    variant: str | None = None,
+    name: str | None = Query(None, max_length=40),
+    ui: str | None = None,
+) -> HTMLResponse:
+    """A printable page from the result: the flyer, then the volunteer's checklist of
+    places to ask (decision 35), for the version and name chosen on the result page."""
+    view = result_view(animal, location, session_of(request))
+    chosen = pick_ui(ui)
+    flyer_view = build_flyer_view(view, variant, f"&ui={chosen}" if ui else "", name)
+    if flyer_view is None:
+        raise HTTPException(404, "This animal has no listing to print here.")
+    return render(request, chosen, "flyer.html", flyer_view)
 
 
 @app.get("/api/start")
@@ -801,6 +829,10 @@ def approve(
                 v.name, v.hook, v.name_source = name, hook, option.header_source
                 v.copy_text, v.choice = option.copy_text, option.version_choice
         view.chosen_name = name if variant == "local" else view.name.value
+        # The flyer follows the restored choice, as the page does.
+        picked = next((o for o in view.name.options if o.name == view.chosen_name), None)
+        if picked is not None and picked.flyer_url:
+            view.flyer_local_url = picked.flyer_url
         return render(request, chosen_ui, "result.html", view)
 
     approval = Approval(

@@ -39,6 +39,8 @@ from app.views.models import (
     AreaCheckView,
     Credits,
     ExampleLink,
+    FlyerPlace,
+    FlyerView,
     Link,
     ListingSentence,
     ListingVersion,
@@ -1798,4 +1800,66 @@ def area_check_view(area, ui_query: str = "") -> AreaCheckView:
         pin_lat=lat,
         pin_lon=lon,
         back_url=f"/?{urlencode({'area': area.text})}{ui_query}#shelter",
+    )
+
+
+def build_flyer_view(
+    result: ResultView, variant: str | None, ui_query: str = "", name: str | None = None
+) -> FlyerView | None:
+    """The flyer for one version of a result: the version asked for when it exists, else
+    the one the result page opens on; for the local one, the name option chosen on the
+    page when `name` is one of them. Built only from the result's own view (decision 35).
+    None when the result has no version to print."""
+    versions = {v.variant: v for v in result.listing.versions if v.available}
+    if not versions:
+        return None
+    opened = next((v for v in result.listing.versions if v.selected and v.available), None)
+    version = versions.get(variant or "") or opened or next(iter(versions.values()))
+    chosen, copy_text = version.name, version.copy_text
+    option = next((o for o in result.name.options if o.name == name), None)
+    if version.variant == "local" and option is not None:
+        chosen, copy_text = option.name, option.copy_text
+    # The copy text opens with "Meet <name>.", which the flyer shows as its heading.
+    paragraphs = [p for p in copy_text.split("\n\n") if p.strip()]
+    if paragraphs and paragraphs[0].startswith("Meet "):
+        paragraphs = paragraphs[1:]
+    query = urlencode({"animal": result.animal.id, "location": result.location.id})
+    other = next((v for v in versions.values() if v.variant != version.variant), None)
+    return FlyerView(
+        title=f"Meet {chosen}" if chosen else "Meet this animal",
+        name=chosen,
+        image_url=result.animal.image_url,
+        image_alt=result.animal.alt,
+        paragraphs=paragraphs,
+        version_label=version.label,
+        ask_line=f"Ask the shelter in {result.location.label} about {chosen or 'this animal'}.",
+        checklist_note=(
+            "Places near the shelter that Qloo returned for fans of pet-themed titles. Each "
+            "says what Namesake found when it compared Qloo's list with a baseline, or that "
+            "it could not. Tick each one once you have asked about a flyer or a stand."
+            if result.venues
+            # The flyer has no Why panel to point to.
+            else result.venues_empty.replace("; the Why panel names them.", ".")
+        ),
+        # Page 1 is posted alone: it says the shelter is a sample, in a short line.
+        sample_line=(
+            "The shelter is a sample."
+            if result.credits.photos == ADDED_PHOTO_CREDIT
+            else result.credits.photos
+        ),
+        places=[
+            FlyerPlace(number=v.number or n, name=v.name, place=v.place, badge=v.badge)
+            for n, v in enumerate(result.venues, start=1)
+        ],
+        other=[item.text for item in result.plan if item.basis != "Qloo"],
+        other_version=(
+            Link(
+                label=f"Print the “{other.label}” version instead",
+                url=f"/flyer?{query}&variant={other.variant}{ui_query}",
+            )
+            if other
+            else None
+        ),
+        back_url=f"/result?{query}{ui_query}",
+        credits=result.credits,
     )

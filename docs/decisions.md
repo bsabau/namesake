@@ -523,3 +523,16 @@ Not done: the character a name refers to ("Bingo, a dog in *Bluey*") is not labe
 - Revised 22 October, after the PR's reviews: the link asks before opening, Remove asks first, the per-visitor photo allowance, the checks-version gate, and the renewal on visits that only read.
 - Not done: sample animals cannot be edited ("add what you know"); a visitor adds their own instead.
 
+## 35. A printable flyer and checklist from each result
+
+**Decided** (Claude, 22 October, under the author's "yeah lets fix everything", item 8 of the product list made with the author: "the exposure plan ends on the screen"):
+- Each result links **Print a flyer** (story skin, under the copy button), for the version shown: the local one when it exists and is chosen, else the generic one, and for the local one the name option chosen on the page. `GET /flyer?animal=&location=&variant=&name=` renders it in any skin; a name that is not one of the options is ignored, and a result with no version to print has no link and no flyer.
+- **Page 1** is the flyer to post: "Meet <name>", the photo, the listing as the volunteer would copy it, and "Ask the shelter in <area> about <name>." **Page 2** is the volunteer's checklist: the places to ask, numbered as on the map, each with Namesake's comparison of Qloo's two lists as its card shows it ("Namesake: stands out for fans of pet-themed titles", "popular nearby generally" or "not compared"), or, when there are none, the result's own reason; then the other ways to help, each with a box to tick. Page 1 says the shelter is a sample (and, for a sample animal, that the photo is AI-generated); the full credits print at the foot of page 2.
+- `build_flyer_view` builds it only from the result's own view model, so it shows nothing the result page does not, and nothing is stored. The print styles are shared by every skin (`app/static/flyer.css`); the button only calls the browser's print (`app/static/flyer.js`).
+
+**Why:** the exposure plan was the one output a volunteer could not take away. A listing can be copied, but the places to ask lived only on the screen; a flyer and a checklist turn the plan into a walk with a printout, which is what a shelter volunteer does with it. It adds no claim: the checklist says where the places come from, and the flyer carries only the listing's own text.
+
+**Follows:**
+- Warm and classic have no link; the page renders in them for comparison.
+- No QR code or shelter contact: the shelter is fictional, and a real one adds its own details by hand.
+- It prints the drafted listing. An edit the volunteer approved is not kept (approvals record the version and name, never the text), so the page says to copy an edit from the approval page instead.

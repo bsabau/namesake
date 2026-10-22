@@ -16,6 +16,8 @@ document.addEventListener("change", (event) => {
   const choice = document.querySelector('input[name="variant"][value="local"]');
   const text = choice && choice.parentElement.querySelector(".version-choice-text");
   if (text) text.textContent = input.dataset.choice;
+  const flyer = document.querySelector(".flyer-link.local-only");
+  if (flyer && input.dataset.flyer) flyer.href = input.dataset.flyer;
   document.querySelectorAll("[data-name-detail]").forEach((pair) => {
     pair.classList.toggle("selected", pair.dataset.nameDetail === input.value);
   });

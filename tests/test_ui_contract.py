@@ -32,6 +32,7 @@ REQUIRED = {
         "qloo-credit",
     ],
     "add_animal": ["add-animal", "photo-credit", "qloo-credit"],
+    "flyer": ["flyer", "name", "flyer-checklist", "photo-credit", "qloo-credit"],
 }
 
 
@@ -83,6 +84,14 @@ def test_result_screen_meets_the_contract(client, ui):
     assert response.status_code == 200
     for role in REQUIRED["result"]:
         assert f'data-role="{role}"' in response.text, f"{ui} result: missing {role}"
+
+
+@pytest.mark.parametrize("ui", main.UIS)
+def test_flyer_meets_the_contract(client, ui):
+    response = client.get("/flyer", params={"animal": "dog-02", "location": "park-slope", "ui": ui})
+    assert response.status_code == 200
+    for role in REQUIRED["flyer"]:
+        assert f'data-role="{role}"' in response.text, f"{ui} flyer: missing {role}"
 
 
 @pytest.mark.parametrize("ui", main.UIS)

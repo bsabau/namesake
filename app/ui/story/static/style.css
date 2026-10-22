@@ -1237,3 +1237,6 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
 .own-actions { display: flex; gap: 16px; margin: 8px 4px 0; }
 .workspace-note { font-size: 0.9rem; margin: 8px 0 0; max-width: 60ch; }
 .workspace-note a { color: var(--primary-ink); font-weight: 700; }
+
+/* The flyer link under the copy and approve buttons (decision 35). */
+.actions .flyer-link { grid-column: 1 / -1; justify-self: start; }
