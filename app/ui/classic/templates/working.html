@@ -15,7 +15,7 @@
       <p class="animal-meta">{{ view.animal.meta }}</p>
       <h1 class="working-title">{{ view.title }}</h1>
       <p class="where-label" data-role="status">
-        {% if view.area %}{{ view.area.status }}{% else %}{{ 'Finished.' if view.finished else 'Working. Each step appears as it happens.' }}{% endif %}</p>
+        {% if view.area %}{{ view.area.status }}{% else %}{{ view.status }}{% endif %}</p>
     </div>
   </div>
 

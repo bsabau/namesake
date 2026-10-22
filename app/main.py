@@ -1323,6 +1323,7 @@ async def run_events(request: Request, run_id: str) -> StreamingResponse:
             "result_url": run.result_url,
             "failed": run.failed,
             "error": run.error,
+            "stopped": run.stopped,
             # A typed area Qloo could not check: the page reloads to offer what it said.
             "area": run.area_failed,
         }

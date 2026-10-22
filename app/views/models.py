@@ -419,6 +419,8 @@ class WorkingView(BaseModel):
     actor_labels: dict[str, str] = {}
     actor_key: list[ActorKey] = []
     finished: bool
+    # The status line: working, finished, or why the run stopped.
+    status: str = "Working. Each step appears as it happens."
     # A sign of life between steps, so a long model call never looks stuck: words to
     # cycle, and the time since the last step ("0:42 since the last step").
     busy_words: list[str] = [

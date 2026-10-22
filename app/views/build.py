@@ -1775,6 +1775,9 @@ def build_working_view(
         actor_labels=dict(ACTOR_LABELS),
         actor_key=[ActorKey(actor=a, label=label) for a, label in ACTOR_LABELS],
         finished=run.log.finished,
+        status=(run.stopped or "Finished.")
+        if run.log.finished
+        else "Working. Each step appears as it happens.",
         seconds_since_step=int(time.time() - run.log.steps[-1].at) if run.log.steps else 0,
     )
 

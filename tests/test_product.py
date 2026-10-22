@@ -335,7 +335,7 @@ async def _wait(run, timeout: float = 10) -> None:
 # Refine
 
 
-def refine(client, monkeypatch, text, rewritten):
+def refine(client, monkeypatch, text, rewritten, animal="dog-02"):
     """A refine whose pipeline hands back `rewritten` (None: as without a model) and
     records the listing it was given to start from."""
     given = []
@@ -351,11 +351,11 @@ def refine(client, monkeypatch, text, rewritten):
 
     monkeypatch.setattr(runs, "run_pipeline", pipeline)
     response = client.post(
-        "/refine", data={"animal": "dog-02", "location": "park-slope", "text": text}
+        "/refine", data={"animal": animal, "location": "park-slope", "text": text}
     )
     run = main.RUNS[response.url.path.rsplit("/", 1)[1]]
     asyncio.run(_wait(run))
-    page = client.get("/result", params={"animal": "dog-02", "location": "park-slope"}).text
+    page = client.get("/result", params={"animal": animal, "location": "park-slope"}).text
     return run, given, page
 
 
@@ -397,6 +397,18 @@ def test_a_refine_that_falls_to_the_template_saves_nothing(client, monkeypatch, 
     assert run.failed and any("the listing is as it was" in s.text for s in run.log.steps)
     assert "Refined at your request" not in page
     assert ("Bingo" in page) is shared
+    working = client.get(f"/runs/{run.id}").text
+    assert "The refine did not finish, so your listing is unchanged." in working
+
+
+def test_a_refine_of_an_added_animal_starts_from_its_own_listing(client, monkeypatch):
+    animal_id = added_id(add(client))
+    session = next(s for s in main.SESSIONS._items.values() if animal_id in s.animals)
+    own = saved_listing(animal_id).model_copy(update={"location_id": "park-slope"})
+    session.listings[f"{animal_id}@park-slope"] = own
+    main.SESSIONS.save(session)
+    _, given, _ = refine(client, monkeypatch, "warmer", own, animal=animal_id)
+    assert given[0] == own
 
 
 @pytest.mark.parametrize("text", ["", "ok", "x" * 201])

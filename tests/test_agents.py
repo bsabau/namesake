@@ -755,6 +755,15 @@ def test_names_the_agent_changes_are_said_to_be_changed(roster):
     # The same names in another order are the names kept.
     result, _, _ = refine(roster, first, "warmer", [REORDERED])
     assert result.names_kept
+    # A name whose title left the area's lists cannot be kept: the names changed.
+    gone = first.draft.names[2].model_copy(
+        update={"entity_id": "00000000-0000-4000-8000-0000000000aa"}
+    )
+    left = first.model_copy(
+        update={"draft": first.draft.model_copy(update={"names": [*first.draft.names[:2], gone]})}
+    )
+    result, _, script = refine(roster, left, "warmer", [DRAFT])
+    assert result.names_kept is False and "Unless the request asks" not in script.instructions[0]
     # A refine of a listing with no names has none to keep.
     result, _, _ = refine(roster, first.model_copy(update={"draft": None}), "warmer", [DRAFT])
     assert result.names_kept is None

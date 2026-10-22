@@ -75,6 +75,15 @@ class Run:
         return self.error is not None
 
     @property
+    def stopped(self) -> str | None:
+        """What the working page says when the run ended without a result to open."""
+        if self.error == "RefineNotFinished":
+            return "The refine did not finish, so your listing is unchanged."
+        if self.failed:
+            return "The run stopped before it finished. The steps above show where."
+        return None
+
+    @property
     def result_url(self) -> str:
         return f"/result?animal={self.animal_id}&location={self.location_id}"
 

@@ -479,8 +479,9 @@ async def write_listing(
         result.hook = hook_text(result.references[0])
         used = {o.entity_id for o in run.output.names}
         result.lookalikes = [v for k, v in deps.lookalikes.items() if k in used]
-        if kept:
-            result.names_kept = same_names(run.output.names, kept)
+        if request is not None and previous is not None and previous.draft is not None:
+            # Also when a title left the area's lists and nothing could be kept.
+            result.names_kept = same_names(run.output.names, previous.draft.names)
             log.add(
                 "check",
                 "The names are kept" if result.names_kept else "Namesake's AI changed the names",
