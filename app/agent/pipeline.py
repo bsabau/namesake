@@ -455,11 +455,15 @@ async def write_listing(
             "Namesake's AI could not be reached, so this is the templated listing."
         )
     except AGENT_FAILURES as exc:
-        logger.warning("listing: the draft failed its checks (%s)", type(exc).__name__)
+        logger.warning("listing: Namesake's AI did not finish (%s)", type(exc).__name__)
         log.add("error", "Namesake's AI did not finish a listing that passes the checks")
+        # Only a draft refused after its repair round is said to fail the checks; an
+        # error on the way (a Qloo lookup, the model's answer) is not.
         result.fallback_reason = (
             "The draft from Namesake's AI did not pass the checks after one repair, so this is "
             "the templated listing."
+            if isinstance(exc, UnexpectedModelBehavior)
+            else "Namesake's AI did not finish the listing, so this is the templated listing."
         )
     return result
 

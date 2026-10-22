@@ -233,10 +233,14 @@ def missing_cautions(animal: Animal, text: str) -> list[str]:
 
 
 def past_or_pity(text: str) -> list[str]:
-    """Each backstory or pity phrase in `text`, lower-cased, once per time it is said."""
-    return [m.group(0).lower() for p in (BACKSTORY, PITY_URGENCY) for m in p.finditer(text)]
+    """Each backstory or pity phrase in `text`, lower-cased, once per time it is said.
+
+    Hyphens and slashes count as spaces, so "previous-owner" is "previous owner"."""
+    plain = re.sub(r"[-‐‑–—/_]", " ", text)
+    return [m.group(0).lower() for p in (BACKSTORY, PITY_URGENCY) for m in p.finditer(plain)]
 
 
 def recorded_past(animal: Animal) -> list[str]:
-    """The animal's recorded temperament and facts that say a backstory or pity phrase."""
-    return [t for t in [animal.temperament, *animal.facts] if past_or_pity(t)]
+    """The animal's recorded temperament, look and facts that say a backstory or pity
+    phrase: every one the listing may restate."""
+    return [t for t in [animal.temperament, animal.look, *animal.facts] if past_or_pity(t)]

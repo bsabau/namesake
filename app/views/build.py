@@ -420,11 +420,11 @@ def listing_view(
         left_out.append(f"Not yet known, so not mentioned: {and_list(unknown)}.")
     past = recorded_past(animal)
     if past:
-        quoted = and_list([f"“{text}”" for text in past])
+        quoted = and_list([f"“{fact}”" for fact in past])
         left_out.append(
-            f"The record tells a past or pleads ({quoted}), so the listing restates it as "
-            "recorded. Listings work best describing the animal as it is now: edit it out "
-            "before approving unless it carries a warning."
+            f"The record mentions a past or pleads for the animal ({quoted}); the listing "
+            "repeats it as recorded. A listing works best describing the animal as it is "
+            "now, so reword or remove it before approving, unless it carries a warning."
         )
     if animal.history:
         left_out.append("Backstory and time in the shelter stay out of the listing.")

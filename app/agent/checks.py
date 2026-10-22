@@ -397,8 +397,9 @@ def agent_fact_keys(animal: Animal) -> list[str]:
 
 
 def _texts_for(animal: Animal, keys: list[str]) -> str:
+    """The cited facts' text, each once: citing a fact twice says it no more often."""
     texts = fact_texts(animal)
-    return " ".join(texts[k] for k in keys if k in texts)
+    return " ".join(texts[k] for k in dict.fromkeys(keys) if k in texts)
 
 
 def check_grounded(
@@ -478,6 +479,15 @@ def check_bio(
             continue
         cited |= set(facts)
         problems += check_grounded(animal, sentence, facts, label)
+    # Over the whole bio too: a recorded "stray" restated in two sentences is said twice.
+    said = Counter(phrase for sentence, _ in sentences for phrase in past_or_pity(sentence))
+    recorded = Counter(past_or_pity(_texts_for(animal, sorted(cited))))
+    for phrase, times in said.items():
+        if times > recorded[phrase]:
+            problems.append(
+                f"the bio says {phrase!r} {times} times and the record {recorded[phrase]}; "
+                "restate a recorded past once, as recorded"
+            )
     missing = [k for k in allowed if k != "look" and k not in cited]
     if missing:
         listed = "; ".join(f"{k} ({texts[k]!r})" for k in missing)

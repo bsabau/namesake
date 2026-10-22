@@ -9,7 +9,7 @@ import json
 from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 
-from app.agent.listing_agent import ListingDraft
+from app.agent.listing_agent import ListingDraft, facts_block
 from app.agent.pipeline import run_pipeline
 from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import StepLog
@@ -681,3 +681,13 @@ def test_a_litter_named_as_a_set_may_take_every_name_from_one_title(roster):
             problems = [str(retry)]
         repeated = any("come from one title" in p for p in problems)
         assert repeated == (not litter)  # the same draft for a lone kitten is sent back
+
+
+def test_the_agent_is_shown_every_recorded_fact(roster):
+    # Hiding one would send every draft back: the 22 October walkthrough's failure.
+    pet = roster.get("dog-02").model_copy(
+        update={"facts": ["knows basic commands", "came in as a stray"]}
+    )
+    block = facts_block(pet)
+    assert '- fact:0: "knows basic commands"' in block
+    assert '- fact:1: "came in as a stray"' in block

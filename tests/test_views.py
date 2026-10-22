@@ -117,7 +117,7 @@ def test_listing_view_points_out_a_recorded_past(roster):
     )
     view = build_result_view(pet, LOCATION, profile())
     assert any(
-        "“came in as a stray”" in line and "edit it out before approving" in line
+        "“came in as a stray”" in line and "reword or remove it before approving" in line
         for line in view.listing.left_out
     )
     assert "came in as a stray" in view.listing.text

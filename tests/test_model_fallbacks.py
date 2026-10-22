@@ -5,6 +5,7 @@ unreachable or refusing endpoint, or by taking longer than the run allows.
 """
 
 import asyncio
+import re
 
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.models.anthropic import AnthropicModel
@@ -65,6 +66,8 @@ def test_with_every_model_unreachable_the_fallbacks_are_the_old_ones(roster):
     assert result.fallback_reason == (
         "Namesake's AI could not be reached, so this is the templated listing."
     )
+    # The visitor reads the step log: no exception names in it (22 October walkthrough).
+    assert not any(re.search(r"[A-Z]\w+(Error|Exception|Behavior)\b", s.text) for s in log.steps)
 
 
 def test_a_draft_that_fails_its_checks_is_not_handed_on(roster):

@@ -89,6 +89,10 @@ def test_a_recorded_past_is_restated_never_dropped():
     assert "chases cars and came in as a stray" in templated_listing(pet).text
     assert recorded_past(pet) == ["chases cars and came in as a stray"]
     assert recorded_past(animal()) == []
+    # Typed into the temperament or the look, it is pointed out too (Flash, PR #77).
+    assert recorded_past(animal(temperament="shy since she was a stray")) == [
+        "shy since she was a stray"
+    ]
 
 
 def test_past_and_pity_match_whole_words():
