@@ -179,3 +179,23 @@ def test_an_older_draft_with_an_unflattering_name_runs_again(roster, tmp_path):
     names = [{**DRAFT["names"][0], "name": "Garbage", "character": "Garbage"}, *DRAFT["names"][1:]]
     save(store, "dog-02", {**DRAFT, "names": names}, CHECKS_VERSION - 1)
     assert recheck(store, roster) == (0, 1)
+
+
+def test_an_older_draft_with_a_name_after_a_tragic_animal_runs_again(roster, tmp_path):
+    # Version 15 refuses an animal that dies in its story, whatever role the model gave it.
+    store = Store(tmp_path / "store.sqlite")
+    save_profile(store)
+    profile = store.get_profile("x", "dog")
+    hooch = Entity(
+        id="00000000-0000-4000-8000-0000000000ab",
+        name="Turner & Hooch",
+        type="urn:entity:movie",
+        description="A made-up buddy film.",
+    )
+    store.put_profile(profile.model_copy(update={"local_tastes": [hooch]}))
+    tragic = {**DRAFT["names"][0], "name": "Hooch", "character": "Hooch"}
+    names = [tragic | {"entity_id": hooch.id, "source": "local"}, *DRAFT["names"][1:]]
+    # Only the name screen fails: every reason is the plain one.
+    names = [{**n, "why": "A short name, easy to say."} for n in names]
+    save(store, "dog-01", {**DRAFT, "names": names, "bio": DOG_01_BIO}, CHECKS_VERSION - 1)
+    assert recheck(store, roster) == (0, 1)

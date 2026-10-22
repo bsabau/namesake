@@ -58,6 +58,18 @@ FAMOUS_VILLAINS = (
     "hades", "mojo jojo", "old yeller",
 )  # fmt: skip
 BAD_ROLES = ("villain", "tragic")
+# Well-known animals that die in their story, by character and, where the name is common,
+# the title it must come from (22 October: the lead dog was offered Hooch, from Turner &
+# Hooch, with the model calling him a friend). Checked whatever role the model declares.
+TRAGIC_ANIMALS: tuple[tuple[str, str | None], ...] = (
+    ("hooch", None), ("hachiko", None), ("hachi", "hachi"), ("old yeller", None),
+    ("yeller", "old yeller"), ("mufasa", None), ("artax", None), ("hedwig", None),
+    ("topthorn", None), ("old dan", None), ("little ann", None), ("marley", "marley"),
+    ("skip", "my dog skip"), ("bailey", "a dog's purpose"), ("bailey", "a dog's journey"),
+    ("enzo", "the art of racing in the rain"), ("charlie", "all dogs go to heaven"),
+    ("charlotte", "charlotte's web"), ("ginger", "black beauty"), ("boxer", "animal farm"),
+    ("sounder", "sounder"), ("dewey", "eight below"), ("old jack", "eight below"),
+)  # fmt: skip
 ANIMAL_ROLES = ("puppy", "dog", "cat", "kitten", "animal")
 
 # Real people, as a code list for the famous ones. Names come only from the characters,
@@ -260,6 +272,16 @@ def identity_coded(name: str, description: str | None) -> bool:
     """A title coded to a religion, race or political identity: by its name, or by words in
     its description that are rarely anyone's name (descriptions name the cast)."""
     return bool(find_word(name, IDENTITY_CODED) or find_word(description or "", IDENTITY_TERMS))
+
+
+def check_tragic(name: str, character: str, title: str) -> list[str]:
+    """A name after a well-known animal that dies in its story (`TRAGIC_ANIMALS`)."""
+    for animal, story in TRAGIC_ANIMALS:
+        if find_word(f"{name} {character}", (animal,)) and (
+            story is None or find_word(title, (story,))
+        ):
+            return [f"name {name!r} refers to {animal.title()}, an animal that dies in its story"]
+    return []
 
 
 def check_title(
