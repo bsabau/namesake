@@ -365,6 +365,24 @@ def litter_theme(location: Location, store: Store, mates: set[str]) -> str | Non
     return None
 
 
+def name_titles(
+    profile: LocationProfile, theme: str | None = None, first_of_litter: bool = False
+) -> dict[str, tuple[Entity, str]]:
+    """The titles a listing may take names from: the area's pet-themed titles, then its
+    local tastes. A litter named as a set keeps to its theme; its first member, which
+    picks the theme, picks among the pet-themed titles when the area has any, so a litter
+    is never named after a show from the area's general watch list (22 October: the Park
+    Slope kittens were named from an adult comedy)."""
+    titles: dict[str, tuple[Entity, str]] = {e.id: (e, "pet") for e in profile.pet_entities}
+    for e in profile.local_tastes:
+        titles.setdefault(e.id, (e, "local"))
+    if theme is not None:
+        return {k: v for k, v in titles.items() if k == theme}
+    if first_of_litter:
+        return {k: v for k, v in titles.items() if v[1] == "pet"} or titles
+    return titles
+
+
 async def write_listing(
     animal: Animal,
     location: Location,
@@ -392,11 +410,7 @@ async def write_listing(
     if not models:
         result.fallback_reason = "No model is configured, so this is the templated listing."
         return result
-    titles: dict[str, tuple[Entity, str]] = {e.id: (e, "pet") for e in profile.pet_entities}
-    for e in profile.local_tastes:
-        titles.setdefault(e.id, (e, "local"))
-    if theme is not None:
-        titles = {k: v for k, v in titles.items() if k == theme}
+    titles = name_titles(profile, theme, first_of_litter)
     if not titles:
         result.fallback_reason = "Qloo returned no titles to draw names from."
         return result
