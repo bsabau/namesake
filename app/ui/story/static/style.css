@@ -348,6 +348,7 @@ button.animal-card:hover, button.animal-card:focus-visible {
 .story-intro { margin-top: 26px; }
 .story-intro .headline { display: inline-block; }
 .story-intro .lead { max-width: 64ch; margin-bottom: 26px; }
+.story-intro .problem { max-width: 64ch; margin: -12px 0 26px; color: var(--muted); font-family: var(--font); font-size: 0.95rem; }
 h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
 .band {
   margin: 8px 0 26px;
@@ -574,7 +575,12 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
   font-weight: 600;
 }
 
-/* Qloo's part and the AI's, under the names (decision 21). */
+/* The one line under the names on what came from Qloo; the rest is in "How Namesake made
+   this" (decision 33). */
+.local-touch { margin: 16px 0 0; font-size: 0.95rem; }
+.local-touch a, .problem a, .trial a { color: var(--primary-ink); font-weight: 700; }
+
+/* Qloo's part and the AI's, at the top of "How Namesake made this" (decisions 21, 33). */
 .qloo-part {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -600,16 +606,16 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
 }
 .evidence { border-color: var(--qloo); color: var(--text); }
 .reading { border-color: var(--ai); color: var(--muted); }
-.evidence span, .reading span {
+.evidence span, .reading span, .venue-rank > span {
   font-weight: 800;
   font-size: 0.72rem;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   margin-right: 4px;
 }
-.evidence span { color: var(--qloo-ink); }
+.evidence span, .venue-rank > span { color: var(--qloo-ink); }
 .reading span { color: var(--ai-ink); }
-.evidence span::before, .reading span::before {
+.evidence span::before, .reading span::before, .venue-rank > span::before {
   content: "";
   display: inline-block;
   width: 0.55em;
@@ -683,7 +689,7 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
 /* On a button filled with the teal, the focus ring is ink rather than teal, so it shows
    against the button itself. */
 .run-button:focus-visible, .copy.primary:focus-visible { outline-color: var(--text); }
-/* The saved run's log under "Behind this story": folded, the working page's timeline. */
+/* The saved run's log under "How Namesake made this": folded, the working page's timeline. */
 .run-log { margin: 18px 0 6px; }
 .run-log > summary { cursor: pointer; font-weight: 800; color: var(--primary-ink); }
 .run-log .steps.timeline { margin-top: 12px; }
@@ -701,7 +707,7 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
 .refine-line { margin-top: 16px; }
 .refine-line label { font-size: 0.95rem; }
 
-/* Behind this story. */
+/* How Namesake made this. */
 .behind { margin-top: 56px; padding-top: 32px; border-top: 1px solid var(--border); }
 .section-head h2 { margin: 0; font-size: clamp(2rem, 3.6vw, 2.8rem); line-height: 1.05; }
 .section-head .lead { margin-top: 6px; }
@@ -727,16 +733,17 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
   .process li + li { border-left: 0; padding-left: 0; border-top: 1px solid var(--border); padding-top: 16px; }
 }
 
-/* Why this name? Qloo's answer and Namesake's choice, side by side and never in one box. */
+/* Why these names? Qloo's answer and Namesake's choice, side by side and never in one box. */
 .why-name { margin-top: 28px; padding: 18px 22px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
-.why-name h3 { margin: 0 0 10px; font-size: 1.3rem; }
+.why-name > summary { cursor: pointer; font-family: var(--display); font-size: 1.3rem; font-weight: 800; color: var(--primary-ink); }
+.why-name[open] > summary { margin-bottom: 10px; }
 .why-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; padding: 12px 14px; border: 1px solid transparent; border-radius: var(--radius-sm); }
 .why-pair + .why-pair { margin-top: 6px; }
 .why-pair h4 { grid-column: 1 / -1; margin: 0; font-size: 1.1rem; }
 .why-pair .picked-mark { display: none; margin-left: 8px; padding: 0 8px; border-radius: 999px; background: var(--highlight); color: var(--on-highlight); font-family: var(--font); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; vertical-align: middle; }
 .why-pair.selected { background: var(--highlight-soft); border-color: var(--highlight); }
 .why-pair.selected .picked-mark { display: inline-block; }
-/* The generic version has no Qloo name, so its view has no "Why this name?". */
+/* The generic version has no Qloo name, so its view has no "Why these names?". */
 body:has(input[name="variant"][value="generic"]:checked) .why-name { display: none; }
 .why-pair .evidence, .why-pair .reading { margin: 0; font-size: 1rem; border-left-width: 4px; padding-left: 14px; }
 .why-pair .reading { color: var(--text); }
@@ -838,6 +845,16 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
 .venue-rank.rank-top strong { color: var(--qloo-ink); }
 .venue-rank.rank-bottom { color: var(--muted); }
 .venue-where { margin: 4px 0 0; }
+/* A place's evidence, folded under its card (decision 33). */
+.venue-why { margin-top: 8px; }
+.venue-why > summary { cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--primary-ink); }
+.venue-why[open] > summary { margin-bottom: 6px; }
+.venue-why > p + p { margin-top: 6px; }
+.map-about > summary { cursor: pointer; font-weight: 700; }
+.map-about[open] > summary { margin-bottom: 6px; }
+.map-about p { margin: 0; }
+/* The trial the local version would need, closing "How Namesake made this". */
+.trial { margin: 28px 0 0; padding: 12px 16px; border-left: 4px solid var(--highlight); background: var(--surface); border-radius: var(--radius-sm); font-size: 0.95rem; }
 .venue-empty { color: var(--muted); }
 .venues-note { margin-top: 14px; font-size: 0.8rem; }
 
@@ -998,6 +1015,8 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
 .listing-form:has(input[name="variant"][value="generic"]:checked) .version-local,
 .listing-form:has(input[name="variant"][value="generic"]:checked) .local-only,
 .listing-form:has(input[name="variant"][value="local"]:checked) .version-generic { display: none; }
+/* With neither version to choose (no draft and no free generic name), one line, not two. */
+.listing-form:not(:has(input[name="variant"]:checked)) .local-touch.version-generic { display: none; }
 
 /* Forms */
 .inline-field { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1200,3 +1219,13 @@ button[type="submit"]:not(.animal-card):not(.link-button):hover { filter: bright
 /* Under the "01 Shelter area" heading the bar's own "Shelter area:" label is for screen
    readers only; the heading says it once. */
 .shelter-heading { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Read by screen readers only: tells each "Why this place" apart. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

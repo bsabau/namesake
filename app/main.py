@@ -948,7 +948,7 @@ async def add_animal(
     ):
         ADD_ALLOWANCE.refund(visitor(request))
         return refuse(
-            "The demo is holding too many photos right now; add the animal without one, "
+            "Namesake is holding too many photos right now; add the animal without one, "
             "or try again later."
         )
     session.animals[animal.id] = animal

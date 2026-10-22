@@ -11,6 +11,7 @@
 <section class="intro story-intro">
   <h1 class="headline">{{ view.title }}<span class="doodle doodle-spark" aria-hidden="true">{% include "_spark.html" %}</span></h1>
   <p class="lead">{{ view.intro }}</p>
+  {% if view.problem %}<p class="problem">{{ view.problem }}{% if view.problem_link %} <a href="{{ view.problem_link.url }}">{{ view.problem_link.label }}</a>{% endif %}</p>{% endif %}
 </section>
 
 

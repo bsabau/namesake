@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-PHOTO_CREDIT = "All animals and the shelter are fictional; the photos are AI-generated."
+PHOTO_CREDIT = "A sample shelter: the animals are fictional and their photos AI-generated."
 QLOO_CREDIT = "Taste data from the Qloo API. Namesake is not affiliated with or endorsed by Qloo."
 
 
@@ -66,8 +66,8 @@ class LocationOption(BaseModel):
     # The spot this visitor picked for the shelter, if any, and what the map says about it.
     pin: Pin | None = None
     map_note: str = (
-        "The circle marks the area around the shelter the animals are adopted from: made up "
-        "for this demo, not a real address."
+        "The circle marks the area around the sample shelter the animals are adopted from, "
+        "not a real address."
     )
 
 
@@ -156,9 +156,18 @@ class ShelterBar(BaseModel):
     open: bool = False
 
 
+class Link(BaseModel):
+    label: str
+    url: str
+
+
 class StartView(BaseModel):
     title: str
     intro: str
+    # The problem in one line, and the research it rests on, so the start page shows why
+    # the listing is plain and the names screened (decision 33).
+    problem: str = ""
+    problem_link: Link | None = None
     examples_heading: str = "Read a finished story"
     examples: list[ExampleLink] = []
     locations: list[LocationOption]
@@ -436,6 +445,17 @@ class ResultView(BaseModel):
     chosen_name: str | None = None
     # What Qloo returned and what the AI did, legible in one screenshot.
     qloo_part: QlooPart | None = None
+    # One plain line under the listing: what in this result comes from Qloo's data for
+    # the area. The detail is in "How Namesake made this" (decision 33).
+    local_touch: str = ""
+    # The same line for the generic version, whose names are not Qloo's: the places and
+    # the map only.
+    local_touch_generic: str = ""
+    # The trial the local version would need, in one line, with the README's design.
+    trial: str = ""
+    trial_link: Link | None = None
+    how_heading: str = "How Namesake made this"
+    how_lead: str = "What came from Qloo, what Namesake's AI did with it, and what code checked."
     name: NameView
     listing: ListingView
     map: MapView
@@ -456,7 +476,7 @@ class ResultView(BaseModel):
     story_lead_generic: str = ""
     introduction_heading: str = ""
     travel_heading: str = ""
-    # "Behind this story": three steps from the actual profile and listing (decision 24).
+    # "How Namesake made this": three steps from the actual profile and listing (decision 24).
     process: list[ProcessStep] = []
     # The saved run's own step log, each step marked by who did it, as the working page
     # showed it: judges who open a saved result never see a live run (decision 27).

@@ -1,5 +1,5 @@
 // Picking another name option shows the local version as it reads with that name, and
-// the "Why this name?" pair for it. Every value comes from the view model, carried on
+// the "Why these names?" pair for it. Every value comes from the view model, carried on
 // the option or already in the page; nothing is built here.
 document.addEventListener("change", (event) => {
   const input = event.target;

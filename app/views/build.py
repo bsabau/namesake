@@ -39,6 +39,7 @@ from app.views.models import (
     AreaCheckView,
     Credits,
     ExampleLink,
+    Link,
     ListingSentence,
     ListingVersion,
     ListingView,
@@ -190,17 +191,34 @@ def location_option(
 
 
 def shelter_radius(location: Location) -> float:
-    """The circle around the fictional shelter, in metres: wider for a city."""
+    """The circle around the sample shelter, in metres: wider for a city."""
     return 800 * 2 ** (14 - location.zoom)
 
 
+REPO_URL = "https://github.com/bsabau/namesake"
+RESEARCH_URL = f"{REPO_URL}/blob/main/docs/research/adoption-evidence-review.md"
+TRIAL_URL = f"{REPO_URL}#measuring-whether-it-works"
+# The problem in one line for the start page, worded within the evidence review's claims.
+PROBLEM = (
+    "Volunteers write a listing for every animal, often with little time. Namesake keeps "
+    "to what the research supports: a plain listing that states only the recorded facts, "
+    "names screened before they are offered, and a plan for getting the animal seen. "
+    "Local taste data is the labelled experiment."
+)
+# Whether the local version helps is untested; the page says so, and what would test it.
+TRIAL = (
+    "Does the local version help? Nobody has tested it yet. Namesake records each "
+    "approved version so a shelter network could: generic against local, assigned at "
+    "random, measured in days to adoption, with about 190 adoptions to detect a 50% "
+    "faster rate, more if several shelters take part."
+)
 CLASSIFIER_CREDIT = (
     "Pet-themed titles sorted with TypeSafe's Jev classifier. Namesake is not affiliated with "
     "TypeSafe."
 )
 ADDED_PHOTO_CREDIT = (
     "The animal and its photo were added by you for this visit and are not stored. "
-    "The shelter is fictional."
+    "The shelter is a sample."
 )
 PLACEHOLDER_PHOTO = "/static/placeholder.svg"
 # The precomputed examples, in the order the start page offers them.
@@ -313,6 +331,8 @@ def build_start_view(
             "facts the shelter recorded, and a plan for getting the animal seen, using Qloo "
             "taste data about pet-themed shows near the shelter."
         ),
+        problem=PROBLEM,
+        problem_link=Link(label="What the research says", url=RESEARCH_URL),
         locations=options,
         map_tiles=map_tiles(),
         animals=(added or []) + [animal_card(a) for a in animals],
@@ -705,7 +725,7 @@ def map_view(
         + (
             " Circle: around the spot you picked for the shelter."
             if pin
-            else " Circle: around the shelter the animals are adopted from (made up for this demo)."
+            else " Circle: around the sample shelter the animals are adopted from."
         )
         if cells
         else None
@@ -1314,6 +1334,38 @@ def ai_searches(profile: LocationProfile) -> list[str]:
     return list(dict.fromkeys(f.signal for f in found if not f.by_tags))
 
 
+def local_touch(
+    location: Location,
+    profile: LocationProfile,
+    listing: ListingResult | None,
+    places_shown: int,
+) -> str:
+    """One plain line under the listing: which parts of this result rest on Qloo's data
+    for the area. Counted from the profile and the listing, like qloo_part; the detail
+    is in "How Namesake made this" (decision 33). A name counts only when its title has
+    Qloo's evidence for the area: ranked here, in Qloo's lists for it, or among what people
+    there tend to watch; a lookalike or a title only looked up does not."""
+    names = listing.draft.names if listing and listing.draft else []
+    local = {e.id for e in profile.pet_entities if e.id in profile.ranked}
+    local |= {e.id for e in profile.pet_entities if e.found_in or e.listed_in}
+    local |= {e.id for e in profile.local_tastes}
+    backed = [o for o in names if o.source != "lookalike" and o.entity_id in local]
+    parts = (
+        (
+            ["the titles behind the names"]
+            if backed and len(backed) == len(names)
+            else [f"the titles behind {len(backed)} of the {len(names)} names"]
+            if backed
+            else []
+        )
+        + ([plural(places_shown, "place") + " to ask"] if places_shown else [])
+        + (["the map"] if profile.cells else [])
+    )
+    if not parts:
+        return ""
+    return f"From Qloo taste data for {location.label}: {and_list(parts)}."
+
+
 def qloo_part(
     location: Location,
     profile: LocationProfile,
@@ -1576,6 +1628,10 @@ def build_result_view(
         litter=litter or [],
         litter_note=("Named as a set with the rest of the litter:" if len(named) > 1 else None),
         qloo_part=qloo_part(location, profile, listing, len(shown)),
+        local_touch=local_touch(location, profile, listing, len(shown)),
+        local_touch_generic=local_touch(location, profile, None, len(shown)),
+        trial=TRIAL,
+        trial_link=Link(label="How the trial would work", url=TRIAL_URL),
         name=name_view(listing, profile, listing_.text),
         listing=listing_,
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
