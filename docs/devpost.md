@@ -30,6 +30,8 @@ A volunteer picks an animal and the shelter's area. In about a minute Namesake's
 
 A **Generic / Local, with Qloo** toggle shows both versions of the listing, each button carrying its version's name. They share the same bio; the local one adds a name from Qloo's titles and one line saying where it comes from. That is exactly what Qloo contributes, visible in one click.
 
+**What makes it Qloo-powered.** Qloo supplies every part of the result that changes with the area: the pet-themed titles people near the shelter tend to watch, and so the names on offer; the nearby places their fans favour, compared with fans of the area's own top shows; and the map of where pet-show fans stand out. Namesake's AI decides which Qloo calls to make (looking up, settling and ranking titles, searching Qloo's lists, asking for places), and code checks that every title and place it keeps came from Qloo in that run. Without Qloo, Namesake still writes the plain listing (the generic version is exactly that), but it has no local names, no places to ask and no map.
+
 A **Why** drawer separates "Qloo returned" from "How Namesake read it" for every choice. The volunteer can refine with one line, edit, approve, and copy a block ready to paste into shelter software. Typing a new area works too: Qloo checks it first, and if the data is thin the app says so instead of producing a weak result.
 
 ## How I built it
@@ -39,7 +41,7 @@ A **Why** drawer separates "Qloo returned" from "How Namesake read it" for every
 - **The official Qloo harness** (`qloo exec`), wrapped in a typed client that handles every envelope status, caches every answer in SQLite, and spaces calls 2 seconds apart, because the hackathon key is rate-limited.
 - **FastAPI, Jinja and a little JavaScript**, with server-sent events for the live step log, Leaflet and OpenStreetMap for the map, and view models also served as JSON so the interface is replaceable.
 - **One Docker image** with Python, Node and the pinned harness, on a long-lived VM behind Caddy, with the cache on a private volume.
-- **Tests that never touch Qloo or a model**: over 650 of them, on hand-written envelopes with invented IDs, plus a test that fails if real Qloo data ever enters the repo.
+- **Tests that never touch Qloo or a model**: over 700 of them, on hand-written envelopes with invented IDs, plus a test that fails if real Qloo data ever enters the repo.
 
 ## Challenges I ran into
 
