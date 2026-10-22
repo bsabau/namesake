@@ -98,9 +98,9 @@ def qloo_pick(
 ) -> tuple[str | None, str | None]:
     """What a bare typed name ("Portland") became in Qloo, which picks one place on its
     own and does not say which: OpenStreetMap's areas at the centre of Qloo's cells. The
-    one carrying the typed name ("Portland, Oregon"), else the widest, as (match, near).
-    Both None when the lookup is off or did not answer; the area then keeps its name as
-    typed (decision 38)."""
+    one carrying the typed name and a wider place ("Portland, Oregon"), else the widest
+    when it is not just the typed name, as (match, near). Both None when the lookup is
+    off or did not answer; the area then keeps its name as typed (decision 38)."""
     try:
         areas = [place.label for place in places.at(latitude, longitude, visitor)]
     except (Throttled, LookupFailed):

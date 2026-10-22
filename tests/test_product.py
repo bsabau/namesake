@@ -890,7 +890,9 @@ def test_a_bare_typed_name_is_shown_as_the_place_qloo_picked(client, monkeypatch
 def test_the_spot_a_visitor_picked_is_never_the_one_looked_up(client, monkeypatch):
     osm = PlacesAt("Example Heights, Example State")
     bare_area_run(client, monkeypatch, osm, pin_lat="40.6801", pin_lon="-73.9702")
-    assert osm.asked and all(spot != (40.6801, -73.9702) for spot in osm.asked)
+    lats = [40.67 + i * 0.002 for i in range(6)]
+    lons = [-73.98 + i * 0.002 for i in range(6)]
+    assert osm.asked == [(round(sum(lats) / 6, 4), round(sum(lons) / 6, 4))]
 
 
 @pytest.mark.parametrize(
