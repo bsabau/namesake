@@ -129,3 +129,13 @@ def test_without_a_version_to_print_the_route_is_a_404(client, monkeypatch):  # 
     )
     monkeypatch.setattr(main, "result_view", lambda *a: empty)
     assert client.get("/flyer", params=PARAMS).status_code == 404
+
+
+def test_page_one_of_an_added_animal_says_only_that_the_shelter_is_a_sample(client):  # noqa: F811
+    from app.views.build import ADDED_PHOTO_CREDIT
+
+    shown = result()
+    added = shown.model_copy(
+        update={"credits": shown.credits.model_copy(update={"photos": ADDED_PHOTO_CREDIT})}
+    )
+    assert build_flyer_view(added, None).sample_line == "The shelter is a sample."

@@ -1834,10 +1834,9 @@ def build_flyer_view(
         version_label=version.label,
         ask_line=f"Ask the shelter in {result.location.label} about {chosen or 'this animal'}.",
         checklist_note=(
-            "Places near the shelter that Qloo returned for fans of pet-themed titles. "
-            "Namesake compared them with the places Qloo returned for the area's top shows: "
-            "each says what that comparison found. Tick each one once you have asked about "
-            "a flyer or a stand."
+            "Places near the shelter that Qloo returned for fans of pet-themed titles. Each "
+            "says what Namesake found when it compared Qloo's list with a baseline, or that "
+            "it could not. Tick each one once you have asked about a flyer or a stand."
             if result.venues
             # The flyer has no Why panel to point to.
             else result.venues_empty.replace("; the Why panel names them.", ".")
