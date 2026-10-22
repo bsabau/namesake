@@ -322,6 +322,7 @@ uv run python scripts/make_web_photos.py      # web-sized photos into app/static
 uv run python scripts/build_profiles.py       # fixed-lookup profiles from the cache; --live fills gaps from Qloo
 uv run python scripts/run_agent.py dog-02 park-slope   # one live agent run (Qloo and the model), steps printed
 uv run python scripts/precompute_examples.py  # the start page's examples into var/cache.sqlite, live
+uv run python scripts/precompute_examples.py --all --dry-run   # every preset animal in every area; drop --dry-run to build
 uv run python -m app.venue_points             # pin saved profiles' venues from OpenStreetMap, once
 uv run python -m app.limits                   # live runs and new areas per day, against the caps
 uv run python -m app.audience                 # who tends to like each saved listing's titles, live, once
