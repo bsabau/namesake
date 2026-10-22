@@ -694,14 +694,31 @@ def map_view(
     )
     base = compared_with(profile) or "a baseline"
     cells = []
+    # A compared cell's two scores are Namesake's ranks of Qloo's (one_scale), so the label
+    # gives each side's place among those cells, never a number that reads as Qloo's.
+    both = [c for c in profile.cells if c.lift is not None]
+
+    def place(score: float, side: str) -> str:
+        # Tied cells share a range of places, whose middle is the rank lift is taken from,
+        # so a label never reads higher on the side whose colour says lower (Codex).
+        first = 1 + sum(getattr(o, side) > score for o in both)
+        last = sum(getattr(o, side) >= score for o in both)
+        return ordinal(first) if first == last else f"joint {ordinal(first)} to {ordinal(last)}"
+
     for c in profile.cells:
         south, west, north, east = bounds(c.geohash)
         if c.lift is None:
             label = f"Scored for {pets}{shows(c.pet_count)} only; no comparison here."
+        elif len(both) == 1:
+            label = (
+                f"Scored for {pets}{shows(c.pet_count)} and {base}{shows(c.baseline_count)}: "
+                "the only such cell, so nothing to compare it with."
+            )
         else:
             label = (
-                f"{cap(pets)}: {c.pet_score:.2f}{shows(c.pet_count)}; "
-                f"{base}: {c.baseline_score:.2f}{shows(c.baseline_count)}."
+                f"{cap(pets)}{shows(c.pet_count)}: {place(c.pet_score, 'pet_score')} "
+                f"of these {len(both)} cells; {base}{shows(c.baseline_count)}: "
+                f"{place(c.baseline_score, 'baseline_score')}."
             )
         cells.append(
             MapCell(
@@ -771,20 +788,24 @@ def map_view(
     warm = sum(lift > 0 for lift in compared)
     which = "" if len(compared) == len(cells) else " with a comparison"
     some = "these" if len(compared) == len(cells) else "the"
+    # Both sides are ranked among the same cells (one_scale), so their differences sum to
+    # zero: some cells are always warmer than others unless the two order them alike. The
+    # count compares parts of the area, never how many fans live anywhere (Flash, Codex).
+    where = (
+        f"Both sides are ranked among the same cells, so this compares parts of "
+        f"{location.label}, not how many fans live there. "
+    )
     if not compared or thin:
         # A thin map already says it says little; a count would read as more.
         count = ""
     elif len(compared) == 1:
-        verb = "stand out" if warm else "do not stand out"
-        count = f"{cap(pets)} {verb} against {base} in the one cell{which}. "
+        count = "Only one cell was scored for both sides, so there is nothing to compare. "
     elif not warm:
-        count = f"{cap(pets)} do not stand out against {base} in any of {some} cells{which}. "
-    elif warm == len(compared):
-        count = f"{cap(pets)} stand out against {base} in all {warm} cells{which}. "
+        count = f"{cap(pets)} order {some} cells{which} as {base} do. "
     else:
         count = (
-            f"{cap(pets)} stand out against {base} in {warm} of {some} "
-            f"{len(compared)} cells{which}. "
+            f"{cap(pets)} rank {warm} of {some} {len(compared)} cells{which} higher than "
+            f"{base} do. " + where
         )
     # Qloo ranks places in a separate answer from the cells, so a reader should not look
     # for them inside warm cells (the author's question, 20 October).
@@ -825,8 +846,8 @@ def map_view(
                 f"Colours: warm where {pets} rank this part of {location.label} higher than "
                 f"{base} do; cool where lower, or level; grey where only the pet-themed titles "
                 "have a score. Where several "
-                "shows scored a cell, their scores are averaged. Scores are ranks within the "
-                "area, so they compare places here, not with other cities."
+                "shows scored a cell, their scores are averaged, then ranked among the cells "
+                "scored for both, so they compare parts of this area, not other cities."
             )
             if any(c.lift is not None for c in cells)
             else f"Cells: where {pets} rank high within {location.label}. No cell was also "
@@ -888,7 +909,8 @@ def cell_reading(
     shelter: tuple[float, float] | None = None,
 ) -> str | None:
     """Where OpenStreetMap places a venue on the lift map, read in the map's own terms:
-    ranks within the area, for fans of pet-themed titles as a group against the comparison shows."""
+    ranks among the cells scored for both, for fans of pet-themed titles as a group against
+    the comparison shows."""
     if v.latitude is None or v.longitude is None:
         return None
     c = cell_of(v, profile)
@@ -1275,7 +1297,8 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         returned.append(
             WhyItem(
                 title=f"{len(profile.cells)} map cells within {location.label}",
-                detail="Scored by Qloo from 0 to 1, as ranks within the area.",
+                detail="Scored by Qloo from 0 to 1, as ranks over the cells it maps for each "
+                "title.",
             )
         )
     if any(c.lift is not None for c in profile.cells):
@@ -1283,8 +1306,9 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
             WhyItem(
                 title="Lift on the map",
                 detail="The pet-themed titles' score minus the score for "
-                f"{compared_with(profile) or 'the baseline'} in the same cell, each averaged over "
-                "the shows that scored it. It is relative: "
+                f"{compared_with(profile) or 'the baseline'} in the same cell. Each is averaged "
+                "over the shows that scored it, then ranked again among the cells scored for "
+                "both, since Qloo ranks each title over its own cells. It is relative: "
                 "where in this area fans of pet-themed titles stand out, not how many there are.",
             )
         )

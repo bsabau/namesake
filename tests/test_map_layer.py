@@ -13,12 +13,16 @@ from app.profile import (
     PROFILE_VERSION,
     Entity,
     LiftCell,
+    LocationProfile,
+    averaged_cells,
     baseline_from_tastes,
     build_profile,
     combine_cells,
     finish_profile,
     needs_finishing,
+    one_scale,
     profile_from,
+    ranked_among,
 )
 from app.views.build import build_result_view, map_view, why
 from tests.qloo_fakes import (
@@ -48,7 +52,7 @@ def test_cells_are_averaged_over_the_maps_that_scored_them():
     dog = {"a": scored(0.9), "b": scored(0.6)}
     cat = {"a": scored(0.7), "c": scored(0.5)}
     drama = {"a": scored(0.4), "c": scored(0.1)}
-    cells = {c.geohash: c for c in combine_cells([dog, cat], [drama])}
+    cells = {c.geohash: c for c in averaged_cells([dog, cat], [drama])}
     assert set(cells) == {"a", "b", "c"}
     assert round(cells["a"].pet_score, 3) == 0.8 and cells["a"].pet_count == 2
     assert round(cells["a"].lift, 3) == 0.4 and cells["a"].baseline_count == 1
@@ -177,7 +181,7 @@ def test_maps_of_different_precision_are_brought_to_the_coarsest():
     # muse, Flash: a 7-character pet map never met a 6-character baseline map.
     pets = {"dr5rks5": scored(0.8), "dr5rks6": scored(0.6), "dr5rk66": scored(0.5)}
     base = {"dr5rks": scored(0.3)}
-    cells = {c.geohash: c for c in combine_cells([pets], [base])}
+    cells = {c.geohash: c for c in averaged_cells([pets], [base])}
     assert set(cells) == {"dr5rks", "dr5rk6"}
     assert round(cells["dr5rks"].pet_score, 3) == 0.7 and round(cells["dr5rks"].lift, 3) == 0.4
 
@@ -256,7 +260,11 @@ def test_version_1_cells_render_with_their_defaults(roster):
         }
     )  # fmt: skip
     label = build_result_view(roster.get("dog-02"), LOCATION, old).map.cells[0].label
-    assert label == "Fans of Example Dog Show: 0.90; fans of Example Drama: 0.40."
+    # One compared cell: on one scale there is nothing to rank it against.
+    assert label == (
+        "Scored for fans of Example Dog Show and fans of Example Drama: the only such cell, "
+        "so nothing to compare it with."
+    )
 
 
 def deps_with_baseline() -> ProfileDeps:
@@ -350,7 +358,7 @@ def test_the_fallback_refills_its_baseline_when_a_seed_title_is_a_top_show():
 def test_a_finer_baseline_map_is_brought_to_the_pet_maps_precision():
     pets = {"dr5rks": scored(0.8)}
     base = {"dr5rks5": scored(0.4), "dr5rks6": scored(0.2)}
-    cells = combine_cells([pets], [base])
+    cells = averaged_cells([pets], [base])
     assert [(c.geohash, round(c.lift, 3)) for c in cells] == [("dr5rks", 0.5)]
 
 
@@ -713,3 +721,37 @@ def test_a_swap_keeps_the_place_note_while_a_comparison_map_is_unplaced():
     _, p = adaptive(script)
     assert p.thin_map is not None
     assert sum("could not tell which place" in n for n in p.notes) == 1
+
+
+def test_both_sides_are_ranked_among_the_cells_scored_for_both():
+    # 22 October: the top shows are mapped far more widely, so their raw scores sat near
+    # the top in every cell and every lift was below zero. On one scale they compare.
+    pets = {"a": scored(0.9), "b": scored(0.6), "c": scored(0.2), "d": scored(0.4)}
+    base = {"a": scored(0.93), "b": scored(0.99), "c": scored(0.95)}
+    raw = {c.geohash: c for c in averaged_cells([pets], [base])}
+    assert all(c.lift < 0 for c in raw.values() if c.lift is not None)
+    cells = {c.geohash: c for c in combine_cells([pets], [base])}
+    # Among a, b and c: pets rank a, b, c; the top shows rank b, c, a.
+    assert [round(cells[g].pet_score, 3) for g in "abc"] == [0.833, 0.5, 0.167]
+    assert [round(cells[g].baseline_score, 3) for g in "abc"] == [0.167, 0.833, 0.5]
+    assert cells["a"].lift > 0 and cells["b"].lift < 0 and cells["c"].lift < 0
+    # A cell with no comparison keeps its score and still has no lift.
+    assert cells["d"].pet_score == 0.4 and cells["d"].lift is None
+
+
+def test_one_scale_ties_share_a_place_and_ranking_again_changes_nothing():
+    assert ranked_among([0.5, 0.5, 0.9]) == [1 / 3, 1 / 3, 5 / 6]
+    pets = {"a": scored(0.9), "b": scored(0.3)}
+    base = {"a": scored(0.8), "b": scored(0.8)}
+    cells = combine_cells([pets], [base])
+    assert [c.baseline_score for c in cells] == [0.5, 0.5]
+    assert one_scale(cells) == cells
+
+
+def test_a_saved_profile_loads_on_one_scale():
+    raw = averaged_cells(
+        [{"a": scored(0.9), "b": scored(0.4)}], [{"a": scored(0.99), "b": scored(0.97)}]
+    )
+    saved = LocationProfile(location_id="x", cells=raw).model_dump(mode="json")
+    loaded = LocationProfile.model_validate(saved)
+    assert [round(c.lift, 3) for c in loaded.cells] == [0.0, 0.0]
