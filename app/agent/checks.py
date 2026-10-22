@@ -284,20 +284,36 @@ def check_tragic(name: str, character: str, title: str) -> list[str]:
 
 
 def check_title(
-    name: str, role: str, title: str, description: str | None, *, real_people: bool = False
+    name: str,
+    role: str,
+    title: str,
+    description: str | None,
+    *,
+    real_people: bool = False,
+    character: str | None = None,
 ) -> list[str]:
     """The title a name comes from, as Qloo returned it: about real people (by its
     description, or by the classifier when `real_people`), or coded to a religion, race or
-    political identity."""
+    political identity. A title about real people gives only an animal Qloo's own text
+    names (Marley in "Marley & Me"): nothing else shows the show has such an animal, so
+    "Max, a cat in" a vet's reality show was a common pet name under a caption no one
+    checked (23 October walkthrough)."""
     problems = []
     text = f"{title} {description or ''}"
     phrase = find_word(text, REAL_PEOPLE_TITLES)
-    if (phrase or real_people) and role not in ANIMAL_ROLES:
+    if phrase or real_people:
         why = f"its description says {phrase!r}" if phrase else "the classifier scores it so"
-        problems.append(
-            f"name {name!r}: {title} is about real people ({why}), so a name from it "
-            "must be an animal's own"
-        )
+        if role not in ANIMAL_ROLES:
+            problems.append(
+                f"name {name!r}: {title} is about real people ({why}), so a name from it "
+                "must be an animal's own"
+            )
+        elif not find_word(text, (character or name,)):
+            problems.append(
+                f"name {name!r}: {title} is about real people ({why}), and Qloo's title and "
+                f"description name no animal {character or name!r}; take the name from "
+                "another title"
+            )
     if identity_coded(title, description):
         problems.append(
             f"name {name!r}: {title} is coded to a religion, race or political identity; "

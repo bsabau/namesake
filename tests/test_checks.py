@@ -172,7 +172,20 @@ def test_only_an_animal_role_may_come_from_a_title_about_real_people(role):
 
 
 def test_an_animal_from_a_title_about_real_people_passes():
-    assert check_title("Marley", "dog", "Example Memoir", "A memoir about a family dog.") == []
+    assert check_title("Marley", "dog", "Example Memoir", "A memoir about Marley, a dog.") == []
+    assert check_title("Marley", "dog", "Marley & Example", "A memoir.") == []
+
+
+def test_an_animal_a_title_about_real_people_does_not_name_fails():
+    # 23 October: "Max, a cat in" a vet's reality show, where nothing names a Max.
+    problems = check_title("Max", "cat", "Example Vet", "A reality series about a vet.")
+    assert len(problems) == 1 and "name no animal 'Max'" in problems[0]
+    # The character is what the story calls the animal; the name may be short for it.
+    named = "A memoir about Marley, a dog."
+    assert check_title("Mar", "dog", "Example Memoir", named, character="Marley") == []
+    assert check_title("Max", "cat", "Example Vet", named, character="Max") != []
+    # A fictional title still gives any animal in it.
+    assert check_title("Max", "cat", "Example Cats", "An animated series.") == []
 
 
 def test_a_fiction_title_passes():

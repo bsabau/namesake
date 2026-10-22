@@ -89,13 +89,21 @@ def test_an_animal_added_in_a_session_runs_again(roster, tmp_path):
 def test_a_saved_name_from_a_title_about_real_people_runs_again(roster, tmp_path):
     # Version 9 screens the title a name comes from, with the saved profile's titles.
     store = Store(tmp_path / "store.sqlite")
-    save_profile(store, cat="A reality show about cat owners.")
+    save_profile(store, cat="A reality show about cat owners and Biscuit, their cat.")
     save(store, "dog-02", DRAFT, CHECKS_VERSION - 1)
-    # "Biscuit" is a cat in the show, so an animal's own name: it still passes.
+    # "Biscuit" is a cat the show's description names, so an animal's own name: it passes.
     assert recheck(store, roster) == (1, 0)
 
     names = [{**DRAFT["names"][1], "role": "character"}, *DRAFT["names"][:1], DRAFT["names"][2]]
     save(store, "dog-02", {**DRAFT, "names": names}, CHECKS_VERSION - 1)
+    assert recheck(store, roster) == (0, 1)
+
+
+def test_a_saved_animal_name_a_real_people_title_does_not_name_runs_again(roster, tmp_path):
+    # Version 16: the show may have no cat called Biscuit; nothing Qloo returned says so.
+    store = Store(tmp_path / "store.sqlite")
+    save_profile(store, cat="A reality show about a vet and the cats she treats.")
+    save(store, "dog-02", DRAFT, CHECKS_VERSION - 1)
     assert recheck(store, roster) == (0, 1)
 
 

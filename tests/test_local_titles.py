@@ -477,7 +477,10 @@ def test_a_title_the_classifier_marks_as_about_real_people_gives_only_animal_nam
     problems = screen_names([host], {DOG_DOCS: show_}, False)
     assert any("the classifier scores it so" in p for p in problems)
     dog = NameOption(**{**DRAFT["names"][0], "source": "pet", "entity_id": DOG_DOCS})
-    assert screen_names([dog], {DOG_DOCS: show_}, False) == []
+    # Only an animal Qloo's text names: this description names none.
+    assert any("name no animal 'Bingo'" in p for p in screen_names([dog], {DOG_DOCS: show_}, False))
+    named = show_.model_copy(update={"description": "A made-up series about Bingo, a dog."})
+    assert screen_names([dog], {DOG_DOCS: named}, False) == []
 
 
 def test_a_ranked_found_title_shows_both_badges():

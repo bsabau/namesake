@@ -47,7 +47,7 @@ def test_a_dogs_venues_rest_on_dog_and_pet_titles_before_cat_ones():
 
 def test_a_title_whose_own_name_does_not_suit_a_listing_gives_no_names():
     problems = checks.check_title("Smokey", "cat", "My Cat from Hell", "A reality series.")
-    assert problems and "does not suit an adoption listing" in problems[0]
+    assert any("does not suit an adoption listing" in p for p in problems)
     assert not open_title(Entity(id="x", name="My Cat from Hell", type="urn:entity:tv_show"))
     assert checks.check_title("Bingo", "dog", "Bluey", "A puppy and her family.") == []
     # The description may mention a villain; only the title's own name counts.

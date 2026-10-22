@@ -292,7 +292,10 @@ def test_the_name_screen_reads_the_title_qloo_returned():
     from app.profile import Entity
 
     talk = Entity(
-        id=BASELINE, name="Example Talk", type="urn:entity:tv_show", description="A talk show."
+        id=BASELINE,
+        name="Example Talk",
+        type="urn:entity:tv_show",
+        description="A talk show with Bingo, the studio dog.",
     )
     host = NameOption(
         **{**DRAFT["names"][0], "source": "local", "entity_id": BASELINE, "role": "character"}

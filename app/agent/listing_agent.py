@@ -162,7 +162,8 @@ Rules:
   that dies in the story is tragic), weapons, real people, names coded to a race,
   religion or political identity, or names that put an animal down (dirt, waste, pests,
   insults: "Garbage", "Scat"). From a title about real people (a talk show, reality
-  show, documentary or biopic), only an animal's name.
+  show, documentary or biopic), only an animal its title or description names (Marley
+  in "Marley & Me"); if they name none, it gives no names.
 - Take each option from a different title; repeat a title only once every title you may
   name from is used, since a listing needs three names. A litter named as a set is the
   exception.
@@ -579,7 +580,12 @@ def screen_names(names: list[NameOption], titles: dict[str, Entity], strict: boo
         if title is not None:
             real = title.verdict is not None and title.verdict.real_people >= REAL_PEOPLE
             problems += checks.check_title(
-                option.name, option.role, title.name, title.description, real_people=real
+                option.name,
+                option.role,
+                title.name,
+                title.description,
+                real_people=real,
+                character=option.character,
             )
             problems += checks.check_tragic(option.name, option.character, title.name)
     return problems
