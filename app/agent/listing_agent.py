@@ -162,8 +162,8 @@ Rules:
   that dies in the story is tragic), weapons, real people, names coded to a race,
   religion or political identity, or names that put an animal down (dirt, waste, pests,
   insults: "Garbage", "Scat"). From a title about real people (a talk show, reality
-  show, documentary or biopic), only an animal its title or description names; if they
-  name none, it gives no names.
+  show, documentary or biopic), only an animal its title or description names, by that
+  name or its first words; if they name none, it gives no names.
 - Take each option from a different title; repeat a title only once every title you may
   name from is used, since a listing needs three names. A litter named as a set is the
   exception.
@@ -242,8 +242,7 @@ def about_real_people(entity: Entity) -> bool:
     """By the classifier or by Qloo's own name and description, as checks.check_title
     reads them."""
     real = entity.verdict is not None and entity.verdict.real_people >= REAL_PEOPLE
-    text = f"{entity.name} {entity.description or ''}"
-    return real or checks.find_word(text, checks.REAL_PEOPLE_TITLES) is not None
+    return real or checks.real_people_phrase(entity.name, entity.description) is not None
 
 
 def look_words(text: str) -> set[str]:

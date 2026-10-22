@@ -194,10 +194,20 @@ def test_a_named_animal_is_found_whatever_the_punctuation_or_a_shortening():
     assert check_title("Scooby", "dog", "Example Vet", short, character="Scooby-Doo") == []
 
 
+def test_a_possessive_names_the_animal():
+    # Re-check of PR #80: "Biscuit's" read as "biscuits".
+    assert check_title("Biscuit", "dog", "Biscuit’s Journey", "A memoir about a dog.") == []
+    named = "A documentary about Biscuit's recovery."
+    assert check_title("Biscuit", "dog", "Example Vet", named) == []
+    # A plural or another spelling still is not the animal's name.
+    assert check_title("Biscuits", "dog", "Example Vet", named) != []
+
+
 def test_a_name_unrelated_to_the_animal_the_text_names_fails():
     # Review of PR #80: the character is named, but the animal would be called Max.
     named = "A reality show about a vet and Biscuit, their cat."
-    assert check_title("Max", "cat", "Example Vet", named, character="Biscuit") != []
+    problems = check_title("Max", "cat", "Example Vet", named, character="Biscuit")
+    assert len(problems) == 1 and "the animal's own, 'Biscuit'" in problems[0]
 
 
 def test_a_fiction_title_passes():

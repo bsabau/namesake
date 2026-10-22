@@ -300,13 +300,18 @@ def check_title(
     checked (23 October walkthrough)."""
     problems = []
     text = f"{title} {description or ''}"
-    phrase = find_word(text, REAL_PEOPLE_TITLES)
+    phrase = real_people_phrase(title, description)
     if phrase or real_people:
         why = f"its description says {phrase!r}" if phrase else "the classifier scores it so"
         if role not in ANIMAL_ROLES:
             problems.append(
                 f"name {name!r}: {title} is about real people ({why}), so a name from it "
                 "must be an animal's own"
+            )
+        elif not shortens_to(name, character or name):
+            problems.append(
+                f"name {name!r}: {title} is about real people ({why}), so the name must be "
+                f"the animal's own, {character!r}, or its first words"
             )
         elif not names_animal(text, name, character or name):
             problems.append(
@@ -328,23 +333,36 @@ def check_title(
     return problems
 
 
+def real_people_phrase(title: str, description: str | None) -> str | None:
+    """The phrase in Qloo's name or description that marks a title as about real people.
+    The prompt (listing_agent.titles_block) and check_title both read it from here."""
+    return find_word(f"{title} {description or ''}", REAL_PEOPLE_TITLES)
+
+
 def name_words(text: str) -> list[str]:
-    """Letters and digits only, so "Mr. Pickles" and "Mr Pickles" read alike."""
-    return re.findall(r"[a-z0-9]+", text.lower().translate(APOSTROPHES).replace("'", ""))
+    """Letters and digits only, so "Mr. Pickles" and "Mr Pickles" read alike, with a
+    possessive dropped ("Biscuit's Journey" says Biscuit) and other apostrophes joined
+    ("O'Malley")."""
+    text = re.sub(r"'s(?![a-z])", "", text.lower().translate(APOSTROPHES))
+    return re.findall(r"[a-z0-9]+", text.replace("'", ""))
+
+
+def shortens_to(name: str, character: str) -> bool:
+    """The name is the character's own or its first words ("Scooby" for "Scooby-Doo")."""
+    said, own = name_words(name), name_words(character)
+    return bool(said) and own[: len(said)] == said
 
 
 def names_animal(text: str, name: str, character: str) -> bool:
-    """Qloo's text names this animal: the name is the character's own, perhaps shortened
-    ("Scooby" for "Scooby-Doo"), and the text says the character or the name, whatever
-    the punctuation. A name unrelated to its character ("Max" for a show's "Biscuit") is
-    never named by it."""
-    said, own, words = name_words(name), name_words(character), name_words(text)
+    """Qloo's text names this animal: the text says the character or the name, whatever
+    the punctuation. check_title has made sure the name is the character's own first."""
+    words = name_words(text)
 
     def says(phrase: list[str]) -> bool:
         n = len(phrase)
-        return any(words[i : i + n] == phrase for i in range(len(words) - n + 1))
+        return bool(phrase) and any(words[i : i + n] == phrase for i in range(len(words) - n + 1))
 
-    return bool(said) and own[: len(said)] == said and (says(own) or says(said))
+    return says(name_words(character)) or says(name_words(name))
 
 
 STOPWORDS = frozenset((
