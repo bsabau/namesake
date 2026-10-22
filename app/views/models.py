@@ -190,7 +190,7 @@ class StartView(BaseModel):
     sample_animals: list[AnimalCard] = []
     workspace_note: str = ""
     workspace_link: str = ""
-    workspace_link_label: str = "Keep this workspace"
+    workspace_link_label: str = "Link to this workspace"
     credits: Credits = Credits()
 
 
@@ -202,15 +202,17 @@ class Question(BaseModel):
 class AddAnimalView(BaseModel):
     title: str = "Add an animal"
     intro: str = (
-        "Describe one animal as the shelter has observed it. It is kept in your workspace, "
-        "in this browser and its link, for 7 days after your last visit, and never shown "
-        "to anyone else. The listing will say only what you enter here, so leave out "
-        "anything unconfirmed, and leave out people's names and personal details."
+        "Describe one animal as the shelter has observed it. It is kept in your workspace "
+        "for 7 days after your last visit, and anyone with the workspace's link can open "
+        "it. The listing will say only what you enter here, so leave out anything "
+        "unconfirmed, and leave out people's names and personal details."
     )
     action: str = "/animals"
     # The added animal being edited, if any: its record is replaced, its listings dropped.
     edit: str = ""
     submit_label: str = "Add the animal"
+    # Under the photo field when editing an animal that has one.
+    photo_kept_note: str = ""
     location_id: str
     # The typed area's name, when it is the choice, and the way back to the animals.
     area: str = ""
@@ -223,8 +225,8 @@ class AddAnimalView(BaseModel):
     answers: list[str] = ["yes", "no", "unknown"]
     max_facts: int
     photo_note: str = (
-        "Optional: a JPEG, PNG or WebP photo, up to 3 MB. It is shown back to you only, "
-        "kept with your workspace, and never read by a model."
+        "Optional: a JPEG, PNG or WebP photo, up to 3 MB. It is kept with your workspace, "
+        "shown to whoever opens it, and never read by a model."
     )
     error: str | None = None
     credits: Credits = Credits()
@@ -532,6 +534,11 @@ class NoticeView(BaseModel):
     title: str
     message: str
     links: list[tuple[str, str]] = []
+    # One button that posts to `action_url`, for a step the visitor must confirm.
+    action_url: str = ""
+    action_label: str = ""
+    # Sent with the button, as hidden fields.
+    action_fields: dict[str, str] = {}
     credits: Credits = Credits()
 
 

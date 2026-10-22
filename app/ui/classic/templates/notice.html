@@ -6,6 +6,12 @@
 <section class="notice" data-role="notice">
   <h1>{{ view.title }}</h1>
   <p>{{ view.message }}</p>
+  {% if view.action_url %}
+  <form method="post" action="{{ view.action_url }}">
+    {% for name, value in view.action_fields.items() %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    <button type="submit">{{ view.action_label }}</button>
+  </form>
+  {% endif %}
   <ul>
     {% for label, url in view.links %}<li><a href="{{ url }}">{{ label }}</a></li>{% endfor %}
   </ul>

@@ -221,8 +221,8 @@ ADDED_PHOTO_CREDIT = (
     "The shelter is a sample."
 )
 WORKSPACE_NOTE = (
-    "No sign-up: your workspace lives in this browser and this link, for 7 days after your "
-    "last visit. Anyone with the link can open it."
+    "No sign-up: your workspace lives in this browser for 7 days after your last visit. "
+    "Copy its link to open it on another device; anyone with the link can open it."
 )
 PLACEHOLDER_PHOTO = "/static/placeholder.svg"
 # The precomputed examples, in the order the start page offers them.
@@ -1768,6 +1768,7 @@ def build_add_animal_view(
         title="Edit your animal" if edit else "Add an animal",
         edit=edit,
         submit_label="Save the changes" if edit else "Add the animal",
+        photo_kept_note="Choose none to keep the photo it has, if any." if edit else "",
         location_id=location_id,
         area=area if typed else "",
         back_url=f"/?{urlencode({'area': area} if typed else {'location': location_id})}",

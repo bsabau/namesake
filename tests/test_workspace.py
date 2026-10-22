@@ -2,13 +2,15 @@
 emptied by its visitor only (decision 34). No test reaches Qloo or a model."""
 
 import time
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 
 import app.main as main
-from app.workspace import TTL, Workspaces
-from tests.test_product import ADDED, add, added_id, client, profile  # noqa: F401
+from app.session import Session, session_from, workspace_data
+from app.workspace import RENEW, TTL, Workspaces
+from tests.test_product import ADDED, add, added_id, client, profile, saved_listing  # noqa: F401
 
 PHOTO = b"\xff\xd8\xff\xe0 a photo"
 
@@ -42,9 +44,41 @@ def test_the_link_opens_the_workspace_in_another_browser(client):  # noqa: F811
     assert link in client.get("/").text
     forget_memory()
     other = TestClient(main.app)
-    response = other.get(link, follow_redirects=False)
+    # The link asks first: on its own it never moves a browser into a workspace.
+    asked = other.get(link, follow_redirects=False)
+    assert asked.status_code == 200 and "Open this workspace?" in asked.text
+    assert f'action="{link}"' in asked.text and animal_id not in other.get("/").text
+    response = other.post(link, follow_redirects=False)
     assert response.status_code == 303 and response.headers["location"] == "/"
     assert animal_id in other.get("/").text
+
+
+def test_a_link_from_another_site_cannot_open_a_workspace(client):  # noqa: F811
+    add(client)
+    link = f"/workspace/{workspace_id(client)}"
+    other = TestClient(main.app)
+    refused = other.post(link, headers={"sec-fetch-site": "cross-site"}, follow_redirects=False)
+    assert refused.status_code == 403 and "set-cookie" not in refused.headers
+
+
+def test_a_workspace_past_its_time_does_not_open(client, monkeypatch):  # noqa: F811
+    add(client)
+    link = f"/workspace/{workspace_id(client)}"
+    forget_memory()
+    now = time.time()
+    monkeypatch.setattr(time, "time", lambda: now + TTL + RENEW + 60)
+    assert TestClient(main.app).get(link).status_code == 404
+
+
+def test_a_visit_that_only_reads_renews_the_workspace_on_disk(client, monkeypatch):  # noqa: F811
+    add(client)
+    session_id = workspace_id(client)
+    db = Workspaces(main.get_settings().workspace_db)._connect()
+    db.execute("UPDATE workspaces SET last_seen = last_seen - 86400")
+    main.SESSIONS.get(session_id).disk_seen = 0
+    client.get("/")
+    seen = db.execute("SELECT last_seen FROM workspaces WHERE id = ?", (session_id,)).fetchone()
+    assert seen[0] > time.time() - 60
 
 
 @pytest.mark.parametrize("link", ["/workspace/not-made-by-the-server-12345", "/workspace/x"])
@@ -59,7 +93,7 @@ def test_a_workspace_ends_7_days_after_the_last_visit(tmp_path, monkeypatch):
     now = time.time()
     monkeypatch.setattr(time, "time", lambda: now + TTL - 60)
     assert workspaces.load("ws-1") is not None
-    monkeypatch.setattr(time, "time", lambda: now + TTL + 60)
+    monkeypatch.setattr(time, "time", lambda: now + TTL + RENEW + 60)
     assert workspaces.load("ws-1") is None
     # The next write anywhere deletes it, photo and all.
     workspaces.save("ws-2", {"animals": {}})
@@ -89,10 +123,14 @@ def test_an_edit_replaces_the_record_keeps_the_photo_and_drops_old_listings(clie
 
 def test_removing_an_animal_takes_its_photo_and_listings_off_disk(client):  # noqa: F811
     animal_id = added_id(add(client, photo=PHOTO))
+    asked = client.post("/animals/remove", data={"remove": animal_id, "location": "park-slope"})
+    assert "Remove this animal?" in asked.text and 'value="yes"' in asked.text
+    assert animal_id in main.SESSIONS.get(workspace_id(client)).animals
     response = client.post(
-        "/animals/remove", data={"remove": animal_id, "location": "park-slope"},
+        "/animals/remove",
+        data={"remove": animal_id, "location": "park-slope", "confirm": "yes"},
         follow_redirects=False,
-    )  # fmt: skip
+    )
     assert response.status_code == 303 and response.headers["location"].startswith("/?location=")
     forget_memory()
     assert animal_id not in client.get("/").text
@@ -107,7 +145,11 @@ def test_only_its_visitor_edits_or_removes_an_animal(client):  # noqa: F811
     assert stranger.get("/animals/new", params={"edit": animal_id}).status_code == 404
     edited = stranger.post("/animals", data={**ADDED, "edit": animal_id}, follow_redirects=False)
     assert edited.status_code == 404
-    stranger.post("/animals/remove", data={"remove": animal_id, "location": "park-slope"})
+    stranger.post("/animals/remove", data={"remove": animal_id, "confirm": "yes"})
+    cross = {"sec-fetch-site": "cross-site"}
+    refused = client.post("/animals/remove", data={"remove": animal_id, "confirm": "yes"},
+                          headers=cross)  # fmt: skip
+    assert refused.status_code == 403
     assert animal_id in main.SESSIONS.get(workspace_id(client)).animals
 
 
@@ -138,4 +180,119 @@ def test_the_start_page_puts_your_animals_and_workspace_before_the_samples(clien
              'data-role="workspace"', "Or try a sample animal", 'id="dog-02"']  # fmt: skip
     positions = [page.index(m) for m in marks]
     assert positions == sorted(positions)
-    assert "Anyone with the link can open it." in page
+    assert "anyone with the link can open it." in page
+
+
+def test_a_listing_outlives_a_restart_and_one_from_older_checks_runs_again(client):  # noqa: F811
+    animal_id = added_id(add(client))
+    session = main.SESSIONS.get(workspace_id(client))
+    listing = saved_listing(animal_id)
+    session.listings[f"{animal_id}@park-slope"] = listing
+    session.listings[f"{animal_id}@astoria"] = listing.model_copy(update={"checks_version": 1})
+    session.requests[f"{animal_id}@astoria"] = "less childish"
+    session.requests[f"{animal_id}@park-slope"] = "shorter names"
+    main.SESSIONS.save(session)
+    forget_memory()
+    kept = main.SESSIONS.get(session.id)
+    assert list(kept.listings) == [f"{animal_id}@park-slope"]
+    assert kept.requests == {f"{animal_id}@park-slope": "shorter names"}
+    assert kept.listings[f"{animal_id}@park-slope"] == listing
+
+
+def test_a_listing_for_an_animal_no_longer_kept_is_dropped_on_load():
+    data = workspace_data(Session(id="ws"))
+    data["listings"] = {
+        "added-gone@park-slope": saved_listing("added-gone").model_dump(mode="json")
+    }
+    assert not session_from("ws", data, {}).listings
+
+
+def test_an_unreadable_workspace_row_starts_afresh(tmp_path):
+    workspaces = Workspaces(tmp_path / "w.sqlite")
+    workspaces.save("ws-1", {"animals": {}})
+    workspaces._connect().execute("UPDATE workspaces SET data_json = 'not json'")
+    assert workspaces.load("ws-1") is None
+
+
+def test_an_edit_takes_no_add_allowance(client, monkeypatch):  # noqa: F811
+    from app.places import Allowance
+
+    animal_id = added_id(add(client))
+    monkeypatch.setattr(main, "ADD_ALLOWANCE", Allowance(per_minute=0))
+    edited = client.post("/animals", data={**ADDED, "edit": animal_id}, follow_redirects=False)
+    assert edited.status_code == 303
+
+
+def test_photos_have_an_hourly_allowance_per_visitor(client, monkeypatch):  # noqa: F811
+    from app.places import Allowance
+
+    monkeypatch.setattr(main, "PHOTO_ALLOWANCE", Allowance(per_minute=1, window=3600))
+    assert add(client, photo=PHOTO).status_code == 303
+    refused = add(client, photo=PHOTO)
+    assert refused.status_code == 429 and "last hour" in refused.text
+    # The animal itself may still be added, without a photo.
+    assert add(client).status_code == 303
+
+
+def test_a_refused_photo_leaves_no_animal_behind(client, monkeypatch):  # noqa: F811
+    monkeypatch.setattr(main, "PHOTO_BUDGET", 1)
+    assert add(client, photo=PHOTO).status_code == 400
+    session = main.SESSIONS.get(workspace_id(client))
+    assert session is None or not session.animals
+    forget_memory()
+    assert 'id="added-' not in client.get("/").text
+
+
+def test_a_run_for_an_edited_or_removed_animal_keeps_nothing(client, monkeypatch):  # noqa: F811
+    from app import runs
+
+    animal_id = added_id(add(client))
+    session = main.SESSIONS.get(workspace_id(client))
+    animal = session.animals[animal_id]
+    kept = []
+    monkeypatch.setattr(runs, "run_pipeline", lambda *a, save, **k: kept.append(save))
+    run = SimpleNamespace(log=None)  # the pipeline is replaced, so nothing logs
+    runs._listing_work(animal, main.find_location("park-slope"), main.get_settings(), run, session)
+    session.animals[animal_id] = animal.model_copy(update={"look": "short brindle coat"})
+    kept[0](saved_listing(animal_id))
+    assert not session.listings
+
+
+def test_crawlers_stay_off_workspace_links(client):  # noqa: F811
+    assert "Disallow: /workspace/" in client.get("/robots.txt").text
+
+
+def test_asking_about_a_link_does_not_renew_it_and_opening_keeps_the_ui(client):  # noqa: F811
+    add(client)
+    session_id = workspace_id(client)
+    link = f"/workspace/{session_id}"
+    db = Workspaces(main.get_settings().workspace_db)._connect()
+    db.execute("UPDATE workspaces SET last_seen = last_seen - 86400")
+    forget_memory()
+    other = TestClient(main.app)
+    asked = other.get(link, params={"ui": "warm"})
+    assert 'name="ui" value="warm"' in asked.text
+    seen = db.execute("SELECT last_seen FROM workspaces").fetchone()[0]
+    assert seen < time.time() - 86000
+    opened = other.post(link, data={"ui": "warm"}, follow_redirects=False)
+    assert opened.headers["location"] == "/?ui=warm"
+
+
+def test_a_workspace_is_kept_past_its_last_hourly_renewal(tmp_path, monkeypatch):
+    workspaces = Workspaces(tmp_path / "w.sqlite")
+    workspaces.save("ws-1", {"animals": {}})
+    now = time.time()
+    monkeypatch.setattr(time, "time", lambda: now + TTL + RENEW - 60)
+    assert workspaces.load("ws-1") is not None
+
+
+def test_asking_about_a_link_keeps_nothing_alive(client, monkeypatch):  # noqa: F811
+    add(client)
+    link = f"/workspace/{workspace_id(client)}"
+    forget_memory()
+    other = TestClient(main.app)
+    assert other.get(link).status_code == 200
+    assert not main.SESSIONS._items
+    now = time.time()
+    monkeypatch.setattr(time, "time", lambda: now + TTL + RENEW + 60)
+    assert other.post(link, follow_redirects=False).status_code == 404

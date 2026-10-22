@@ -19,9 +19,9 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from app.agent.results import ListingResult
+from app.agent.results import CHECKS_VERSION, ListingResult
 from app.animals import ADDED_PREFIX, Animal
-from app.workspace import Workspaces
+from app.workspace import RENEW, Workspaces
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +34,10 @@ TTL = 2 * 3600
 MAX_SESSIONS = 500
 MAX_ANIMALS = 3
 MAX_PHOTO_BYTES = 3 * 1024 * 1024
-# All visitors' photos together, in memory (19 October audit: 500 sessions of three 3 MB
-# photos could take the demo down). Past it, an add with a photo is refused, and the
-# visitor may add the animal again without one.
+# All visitors' photos together, counted over every workspace on disk, which also bounds
+# the copies held in memory (19 October audit: 500 sessions of three 3 MB photos could
+# take the demo down). Past it, an add with a photo is refused, and the visitor may add
+# the animal without one. Without a disk (only in tests) it counts sessions in memory.
 PHOTO_BUDGET = 64 * 1024 * 1024
 
 # Only these formats, recognised from their first bytes, never from a name or a header.
@@ -74,6 +75,9 @@ class Session:
     # The spot the visitor picked on the map for the shelter, by location ID. Shown on
     # their maps only; Qloo gets the area's name, never this point.
     pins: dict[str, tuple[float, float]] = field(default_factory=dict)
+    # When this visit last renewed the workspace on disk (wall clock), so a visitor who
+    # only reads still keeps it 7 days from their last visit, at most one write an hour.
+    disk_seen: float = 0.0
 
 
 def drop_listings(session: Session, animal_id: str) -> None:
@@ -84,17 +88,20 @@ def drop_listings(session: Session, animal_id: str) -> None:
 
 
 def workspace_data(session: Session) -> dict:
-    """What a workspace keeps on disk: never the map pin."""
+    """What a workspace keeps on disk: never the map pin. Each dict is copied in one step
+    first, so a run's thread adding a listing meanwhile cannot break the iteration."""
     return {
-        "animals": {k: a.model_dump(mode="json") for k, a in session.animals.items()},
-        "listings": {k: r.model_dump(mode="json") for k, r in session.listings.items()},
-        "requests": dict(session.requests),
+        "animals": {k: a.model_dump(mode="json") for k, a in list(session.animals.items())},
+        "listings": {k: r.model_dump(mode="json") for k, r in list(session.listings.items())},
+        "requests": dict(list(session.requests.items())),
     }
 
 
 def session_from(session_id: str, data: dict, photos: dict[str, tuple[str, bytes]]) -> Session:
     """A session rebuilt from its workspace. An entry today's models no longer read is
-    dropped, with the listings made for it, rather than failing the visit."""
+    dropped, with the listings made for it, rather than failing the visit. A listing that
+    passed older checks is dropped too, so it runs again under today's (the shared
+    results are held to CHECKS_VERSION, decision 16)."""
     session = Session(id=session_id)
     for key, raw in data.get("animals", {}).items():
         try:
@@ -102,11 +109,21 @@ def session_from(session_id: str, data: dict, photos: dict[str, tuple[str, bytes
         except ValidationError:
             logger.warning("workspace animal no longer readable; dropped")
     for key, raw in data.get("listings", {}).items():
+        animal_id = key.split("@", 1)[0]
+        if animal_id.startswith(ADDED_PREFIX) and animal_id not in session.animals:
+            continue
         try:
-            session.listings[key] = ListingResult.model_validate(raw)
+            result = ListingResult.model_validate(raw)
         except ValidationError:
             logger.warning("workspace listing no longer readable; dropped")
-    session.requests = {k: v for k, v in data.get("requests", {}).items() if isinstance(v, str)}
+            continue
+        if result.checks_version == CHECKS_VERSION:
+            session.listings[key] = result
+    session.requests = {
+        k: v
+        for k, v in data.get("requests", {}).items()
+        if isinstance(v, str) and k in session.listings
+    }
     session.photos = {
         k: Photo(content_type=t, data=d) for k, (t, d) in photos.items() if k in session.animals
     }
@@ -124,6 +141,9 @@ class Sessions:
         self.limit = limit
         self._items: OrderedDict[str, Session] = OrderedDict()
         self._lock = threading.Lock()
+        # Snapshot and write together, so two saves of one Session object (a run's thread
+        # and a request) land in the order they were taken.
+        self._save_lock = threading.Lock()
         # Where workspaces are written, read when needed so a test can point it elsewhere;
         # None keeps sessions in memory only.
         self._disk = disk or (lambda: None)
@@ -136,44 +156,65 @@ class Sessions:
     def new_id() -> str:
         return secrets.token_urlsafe(18)
 
-    def get(self, session_id: str | None) -> Session | None:
+    def get(self, session_id: str | None, renew: bool = True) -> Session | None:
         """The session with this ID, from memory or else from its workspace on disk, if
-        any; looking it up keeps it alive."""
+        any; looking it up keeps it alive, unless `renew` is false (a look before the
+        visitor confirms opening it)."""
         if not session_id:
             return None
+        if not renew:
+            # Only a look: nothing is kept alive, in memory or on disk, and a workspace
+            # past its time on disk is gone even if this process still holds it.
+            return self._load(session_id)
         with self._lock:
-            self._expire()
-            session = self._items.get(session_id)
-            if session is not None and session.last_seen < time.monotonic() - self.ttl:
-                del self._items[session_id]
-                session = None
-            if session is None:
-                session = self._load(session_id)
-                if session is None:
-                    return None
-                self._items[session_id] = session
+            session = self._held(session_id)
+        if session is None:
+            # Read from disk outside the lock, so a slow disk never holds up other visits.
+            loaded = self._load(session_id)
+            if loaded is None:
+                return None
+            with self._lock:
+                # Another request may have loaded it meanwhile; keep the first.
+                session = self._items.setdefault(session_id, loaded)
                 while len(self._items) > self.limit:
                     self._items.popitem(last=False)
+                session.last_seen = time.monotonic()
+        self._renew(session)
+        return session
+
+    def _held(self, session_id: str) -> Session | None:
+        """The session in memory, if it is still within its time (under the lock)."""
+        self._expire()
+        session = self._items.get(session_id)
+        if session is not None and session.last_seen < time.monotonic() - self.ttl:
+            del self._items[session_id]
+            session = None
+        if session is not None:
             session.last_seen = time.monotonic()
             self._items.move_to_end(session_id)
-            return session
+        return session
 
     def _load(self, session_id: str) -> Session | None:
         workspaces = self._workspaces()
         if workspaces is None:
             return None
         found = workspaces.load(session_id)
-        if found is None:
-            return None
-        # Opened again: kept another 7 days from now.
-        workspaces.touch(session_id)
-        return session_from(session_id, *found)
+        return session_from(session_id, *found) if found is not None else None
+
+    def _renew(self, session: Session) -> None:
+        """A visit keeps the workspace 7 days from now: written at most once an hour."""
+        workspaces = self._workspaces()
+        if workspaces is not None and time.time() - session.disk_seen > RENEW:
+            session.disk_seen = time.time()
+            workspaces.touch(session.id)
 
     def save(self, session: Session) -> None:
         """Write the session to its workspace, after any change to what it keeps."""
         workspaces = self._workspaces()
         if workspaces is not None:
-            workspaces.save(session.id, workspace_data(session))
+            with self._save_lock:
+                workspaces.save(session.id, workspace_data(session))
+                session.disk_seen = time.time()
 
     def remove_animal(self, session: Session, animal_id: str) -> None:
         """The animal, its photo, and every listing made for it, gone from the workspace."""

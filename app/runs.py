@@ -311,6 +311,10 @@ def _listing_work(
     key = f"{animal.id}@{location.id}"
 
     def keep(result: ListingResult) -> None:
+        if animal.id.startswith(ADDED_PREFIX) and session.animals.get(animal.id) != animal:
+            # Removed or edited while the run worked: this listing describes a record the
+            # workspace no longer holds, so it is not kept (review of the workspace PR).
+            return
         session.listings[key] = result
         if request is None:
             session.requests.pop(key, None)

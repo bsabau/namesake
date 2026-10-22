@@ -46,7 +46,7 @@
 
     <label for="photo">Photo</label>
     <input id="photo" type="file" name="photo" accept="image/jpeg,image/png,image/webp">
-    <p class="hint">{{ view.photo_note }}</p>
+    <p class="hint">{{ view.photo_note }}{% if view.photo_kept_note %} {{ view.photo_kept_note }}{% endif %}</p>
 
     <button type="submit">{{ view.submit_label }}</button>
   </form>

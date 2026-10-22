@@ -176,13 +176,18 @@ def render(request: Request, ui: str, template: str, view, **extra) -> HTMLRespo
 
 # Uploads up to this size stay in memory: Starlette spools larger ones to disk, so the
 # limit is raised past the largest request accepted, and larger requests are refused
-# before they are read (decision 9: added photos are never written to disk).
+# before they are read. A photo reaches disk only in its workspace (decision 34), never
+# as a temporary file.
 MAX_UPLOAD_REQUEST = MAX_PHOTO_BYTES + 64 * 1024
 MultiPartParser.spool_max_size = MAX_UPLOAD_REQUEST
 
 
 # Animals added per visitor per minute: a few to fix a mistake, too few to fill memory.
 ADD_ALLOWANCE = Allowance(per_minute=5)
+# Photos per visitor per hour. The photo budget now counts every workspace on disk and
+# empties only as workspaces end, so one visitor must not fill it in minutes for a week
+# (review of the workspace PR): at 6 an hour, 64 MB takes a single address 4 hours.
+PHOTO_ALLOWANCE = Allowance(per_minute=6, window=3600)
 
 # Any other request body (a form, a refine line, an edited listing of up to 3000
 # characters) is far smaller; a larger one is refused before it is read (19 October audit:
@@ -337,9 +342,10 @@ def visitor(request: Request) -> str:
 
 
 def notice(
-    request: Request, ui: str, title: str, message: str, status: int, links=()
+    request: Request, ui: str, title: str, message: str, status: int, links=(), **action
 ) -> HTMLResponse:
-    view = NoticeView(title=title, message=message, links=list(links))
+    """`action_url` and `action_label` add one button that posts, to confirm a step."""
+    view = NoticeView(title=title, message=message, links=list(links), **action)
     response = render(request, ui, "notice.html", view)
     response.status_code = status
     return response
@@ -532,8 +538,11 @@ def working_view(run, ui_query: str = "") -> WorkingView:
 
 @app.get("/robots.txt", response_class=Response)
 def robots() -> Response:
-    """Crawlers may read the pages, not start runs or walk the API."""
-    return Response("User-agent: *\nDisallow: /api/\nDisallow: /runs\n", media_type="text/plain")
+    """Crawlers may read the pages, not start runs, walk the API or index a workspace."""
+    return Response(
+        "User-agent: *\nDisallow: /api/\nDisallow: /runs\nDisallow: /workspace/\n",
+        media_type="text/plain",
+    )
 
 
 @app.get("/health")
@@ -875,10 +884,29 @@ def remove_animal(
     location: str | None = Form(None),
     area: str = Form("", max_length=200),
     ui: str | None = Form(None),
-) -> RedirectResponse:
+    confirm: str = Form("", max_length=3),
+):
     """One of the visitor's own animals, gone from their workspace with its photo and
-    listings. Sent from the start page's form, so its chosen area comes back."""
+    listings, once they confirm: nothing brings it back. Sent from the start page's
+    form, so its chosen area comes back."""
     session = session_of(request)
+    if session is not None and remove in session.animals and confirm != "yes":
+        animal = session.animals[remove]
+        fields = {"remove": remove, "area": area, "confirm": "yes"}
+        fields.update({"location": location} if location else {})
+        fields.update({"ui": ui} if ui else {})
+        return notice(
+            request,
+            pick_ui(ui),
+            "Remove this animal?",
+            f"The {animal.look} {animal.species}, its photo and every listing made for it "
+            "leave your workspace for good.",
+            200,
+            [("Keep it", "/" + (f"?ui={pick_ui(ui)}" if ui else ""))],
+            action_url="/animals/remove",
+            action_label="Remove it",
+            action_fields=fields,
+        )
     if session is not None and remove in session.animals:
         SESSIONS.remove_animal(session, remove)
     location_id, typed = chosen_area(location, area)
@@ -886,15 +914,55 @@ def remove_animal(
     return RedirectResponse(f"/?{back}{ui_suffix(request, ui)}", status_code=303)
 
 
-@app.get("/workspace/{workspace_id}")
-def open_workspace(request: Request, workspace_id: str) -> RedirectResponse:
-    """The "Keep this workspace" link: opens that workspace in this browser. Only a
-    workspace the server made and still keeps can be opened; anything else is a 404."""
-    known = SESSIONS.get(workspace_id) if re.fullmatch(r"[\w-]{20,40}", workspace_id) else None
+def kept_workspace(workspace_id: str, renew: bool = True) -> Session:
+    """A workspace the server made and still keeps; anything else is a 404."""
+    valid = re.fullmatch(r"[\w-]{20,40}", workspace_id)
+    known = SESSIONS.get(workspace_id, renew=renew) if valid else None
     if known is None:
         raise HTTPException(404, "This workspace has ended, or the link is not complete.")
+    return known
+
+
+@app.get("/workspace/{workspace_id}", response_class=HTMLResponse)
+def workspace_link(request: Request, workspace_id: str, ui: str | None = None):
+    """The workspace link asks before it opens anything, so a link alone never moves a
+    visitor into a workspace and a page elsewhere cannot fix one on them (review of the
+    workspace PR). Opening it is the POST below, behind the same-site check."""
+    # Only looked at: the workspace is renewed when it is opened, not when it is asked about.
+    known = kept_workspace(workspace_id, renew=False)
+    current = session_of(request)
+    if current is not None and current.id == known.id:
+        return RedirectResponse("/" + (f"?ui={pick_ui(ui)}" if ui else ""), status_code=303)
+    count = len(known.animals)
+    holds = f"It holds {count} animal{'' if count == 1 else 's'}." if count else "It is empty."
+    leaving = (
+        " The workspace this browser has now stays open from its own link."
+        if current is not None and current.animals
+        else ""
+    )
+    chosen = pick_ui(ui)
+    return notice(
+        request,
+        chosen,
+        "Open this workspace?",
+        f"{holds} Anyone with its link can open and change it, so open it only if it is "
+        f"yours.{leaving}",
+        200,
+        [("Back to the start", "/" + (f"?ui={chosen}" if ui else ""))],
+        action_url=f"/workspace/{known.id}",
+        action_label="Open it in this browser",
+        action_fields={"ui": chosen} if ui else {},
+    )
+
+
+@app.post("/workspace/{workspace_id}")
+def open_workspace(
+    request: Request, workspace_id: str, ui: str | None = Form(None)
+) -> RedirectResponse:
+    """Open the workspace in this browser, as the visitor confirmed."""
+    known = kept_workspace(workspace_id)
     request.state.session_id = request.state.new_session_id = known.id
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/" + (f"?ui={pick_ui(ui)}" if ui else ""), status_code=303)
 
 
 def _short(value: str, label: str, required: bool = True) -> str:
@@ -997,19 +1065,37 @@ async def add_animal(
     else:
         photo_kept = None
     # Only an animal actually added counts against the allowance, so refused attempts
-    # never lock a visitor out of the corrected one (review of PR #46).
-    if not ADD_ALLOWANCE.take(visitor(request)):
+    # never lock a visitor out of the corrected one (review of PR #46); an edit adds none.
+    who = visitor(request)
+    if not edit and not ADD_ALLOWANCE.take(who):
         return refuse(
             "Too many animals added from here in the last minute; try again shortly.", 429
         )
-    if photo_kept is not None and not SESSIONS.add_photo(
-        session, animal.id, photo_kept, PHOTO_BUDGET
-    ):
-        ADD_ALLOWANCE.refund(visitor(request))
-        return refuse(
-            "Namesake is holding too many photos right now; add the animal without one, "
-            "or try again later."
-        )
+    if photo_kept is not None:
+        if not PHOTO_ALLOWANCE.take(who):
+            if not edit:
+                ADD_ALLOWANCE.refund(who)
+            return refuse(
+                "Too many photos added from here in the last hour; save the animal without "
+                "one, or try again later.",
+                429,
+            )
+        previous = session.animals.get(animal.id)
+        # The record first, so the workspace written with the photo names its animal.
+        session.animals[animal.id] = animal
+        if not SESSIONS.add_photo(session, animal.id, photo_kept, PHOTO_BUDGET):
+            if previous is None:
+                session.animals.pop(animal.id, None)
+            else:
+                session.animals[animal.id] = previous
+            SESSIONS.save(session)
+            PHOTO_ALLOWANCE.refund(who)
+            if not edit:
+                ADD_ALLOWANCE.refund(who)
+            return refuse(
+                "Namesake is holding too many photos right now; save the animal without "
+                "one, or try again later."
+            )
     if edit:
         # A new record: what was written from the old one no longer holds.
         drop_listings(session, edit)

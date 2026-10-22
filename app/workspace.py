@@ -2,7 +2,8 @@
 made for them alone, kept for `TTL` seconds after their last visit (decision 34).
 
 The workspace is anonymous. Its key is the random ID in the visitor's cookie, and the
-"Keep this workspace" link carries the same ID, so anyone with the link can open it.
+"Link to this workspace" carries the same ID: anyone with the link can open it, after
+the page asks them to confirm.
 It holds what the visitor typed about their animals and nothing about the visitor.
 The spot picked on the map is not kept here: it stays in memory for the visit
 (decision 17). Rows past their time are deleted on the next write.
@@ -14,6 +15,9 @@ import time
 from pathlib import Path
 
 TTL = 7 * 24 * 3600
+# A visit renews the workspace at most this often, so it is kept this much longer than
+# `TTL` and never ends early (review of the workspace PR).
+RENEW = 3600
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS workspaces (
@@ -49,7 +53,7 @@ class Workspaces:
         try:
             row = db.execute(
                 "SELECT data_json FROM workspaces WHERE id = ? AND last_seen >= ?",
-                (workspace_id, time.time() - self.ttl),
+                (workspace_id, time.time() - self.ttl - RENEW),
             ).fetchone()
             if row is None:
                 return None
@@ -61,7 +65,12 @@ class Workspaces:
                     (workspace_id,),
                 )
             }
-            return json.loads(row[0]), photos
+            try:
+                data = json.loads(row[0])
+            except ValueError:
+                # A row that cannot be read is no workspace: the visit starts afresh.
+                return None
+            return (data, photos) if isinstance(data, dict) else None
         finally:
             db.close()
 
@@ -82,7 +91,7 @@ class Workspaces:
             db.close()
 
     def touch(self, workspace_id: str) -> None:
-        """A visit keeps the workspace for another `ttl` from now."""
+        """A visit keeps the workspace for another `ttl` (and `RENEW`) from now."""
         db = self._connect()
         try:
             db.execute(
@@ -128,7 +137,7 @@ class Workspaces:
             db.close()
 
     def _expire(self, db: sqlite3.Connection) -> None:
-        cutoff = time.time() - self.ttl
+        cutoff = time.time() - self.ttl - RENEW
         db.execute(
             "DELETE FROM workspace_photos WHERE workspace_id IN "
             "(SELECT id FROM workspaces WHERE last_seen < ?)",
