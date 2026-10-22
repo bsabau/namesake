@@ -57,7 +57,7 @@ class ListingResult(BaseModel):
     # Titles the agent looked up for this animal's look, as Qloo returned them.
     lookalikes: list[Lookalike] = []
     fallback_reason: str | None = None
-    # True when a refine kept the earlier listing's names and rewrote only the bio.
+    # True when a refine kept the earlier listing's names, in order (decision 37).
     names_kept: bool = False
     steps: list[Step] = []
     # Who tends to like each name's title, by Qloo's title ID (app/audience.py). Shown

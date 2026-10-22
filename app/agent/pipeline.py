@@ -24,7 +24,6 @@ from app.agent.listing_agent import (
     ListingDeps,
     NameOption,
     Source,
-    about_names,
     build_listing_agent,
     reference_for,
     shown_bio,
@@ -390,15 +389,19 @@ def kept_names(
     previous: ListingResult | None,
     titles: dict[str, tuple[Entity, Source]],
 ) -> list[NameOption]:
-    """The previous listing's names, when a refine is not about the names and every one's
-    title is still on offer (an area title, or a lookalike the first run found)."""
-    if request is None or about_names(request) or previous is None or previous.draft is None:
+    """The previous listing's names, on a refine, when every one's title is still on offer
+    (an area title, or a lookalike the first run found)."""
+    if request is None or previous is None or previous.draft is None:
         return []
     found = {k.entity.id for k in previous.lookalikes}
     names = previous.draft.names
     if all(o.entity_id in titles or o.entity_id in found for o in names):
         return list(names)
     return []
+
+
+def same_names(names: list[NameOption], kept: list[NameOption]) -> bool:
+    return [(o.name, o.entity_id) for o in names] == [(o.name, o.entity_id) for o in kept]
 
 
 async def write_listing(
@@ -418,8 +421,8 @@ async def write_listing(
     qloo: QlooClient | None = None,
     fallbacks: Fallbacks = (),
 ) -> ListingResult:
-    """One listing. `request` is a volunteer's refine request; unless it is about the
-    names, the `previous` listing's names are kept and only the bio is rewritten. For a
+    """One listing. `request` is a volunteer's refine request; the agent keeps the
+    `previous` listing's names unless it asks for other ones. For a
     litter named as a set, `theme` limits the names to the litter's title, and the first
     member's names must all come from one title, which becomes the theme. With `qloo`, the
     agent may look up titles featuring an animal that looks like this one."""
@@ -437,7 +440,7 @@ async def write_listing(
 
     kept = kept_names(request, previous, titles)
     if kept:
-        log.add("start", f"Rewriting the {animal.species}'s listing as asked, keeping its names")
+        log.add("start", f"Rewriting the {animal.species}'s listing as asked")
     else:
         log.add("start", f"Writing the listing and name options for the {animal.species}")
     # A kept lookalike name keeps the title and evidence its first run found.
@@ -455,8 +458,7 @@ async def write_listing(
             kept=list(kept),
             litter_title=titles[theme][0].name if theme else None,
             first_of_litter=first_of_litter,
-            # Kept names need no lookups: a wording refine makes no Qloo call.
-            qloo=None if kept else qloo,
+            qloo=qloo,
             lookalikes=dict(found),
         )
         # The lookup tool is synchronous and runs `qloo` as a subprocess; PydanticAI
@@ -476,7 +478,12 @@ async def write_listing(
         result.hook = hook_text(result.references[0])
         used = {o.entity_id for o in run.output.names}
         result.lookalikes = [v for k, v in deps.lookalikes.items() if k in used]
-        result.names_kept = bool(deps.kept)
+        result.names_kept = bool(kept) and same_names(run.output.names, kept)
+        if kept:
+            log.add(
+                "check",
+                "The names are kept" if result.names_kept else "The names are changed, as asked",
+            )
     except MODEL_FAILURES as exc:
         # No model answered: there was no draft to check (Flash review, PR #42).
         # The visitor reads the step; the exception's name is for the server's log only.

@@ -10,10 +10,11 @@ import pytest
 from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 
-from app.agent.listing_agent import ListingDraft, facts_block
-from app.agent.pipeline import run_pipeline
+from app.agent.listing_agent import ListingDraft, Lookalike, facts_block
+from app.agent.pipeline import kept_names, run_pipeline
 from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import StepLog
+from app.profile import Entity
 from app.store import Store
 from tests.qloo_fakes import (
     BASELINE,
@@ -422,7 +423,6 @@ def test_a_degraded_ranking_is_not_used(roster):
 def test_venues_from_an_earlier_search_cannot_be_picked():
     from types import SimpleNamespace
 
-    import pytest
     from pydantic_ai import ModelRetry
 
     from app.agent.profile_agent import ProfileDeps, ProfilePlan, check_plan
@@ -694,46 +694,9 @@ def test_the_agent_is_shown_every_recorded_fact(roster):
     assert '- fact:1: "came in as a stray"' in block
 
 
-# A refine keeps the names unless it is about them (decision 37).
+# A refine keeps the names unless it asks for other ones (decision 37).
 
 REORDERED = {**DRAFT, "names": [DRAFT["names"][1], DRAFT["names"][2], DRAFT["names"][0]]}
-
-
-def refine(roster, previous, request, answers, also_taken=frozenset()):
-    log = StepLog()
-    result = asyncio.run(
-        run_pipeline(
-            roster.get("dog-02"),
-            LOCATION,
-            qloo=FakeQloo(full_script()),
-            store=Store(_tmp_db()),
-            seeds=SEEDS,
-            model_factory=lambda: FunctionModel(Script([PLAN], answers)),
-            log=log,
-            request=request,
-            previous=previous,
-            also_taken=also_taken,
-        )
-    )
-    return result, log
-
-
-def test_a_wording_refine_keeps_the_names_whatever_the_model_returns(roster):
-    first, _, _ = run(Script([PLAN], [DRAFT]), roster)
-    result, log = refine(roster, first, "shorter sentences, a bit warmer", [REORDERED])
-    assert result.names_kept
-    assert [o.name for o in result.draft.names] == ["Bingo", "Biscuit", "Scout"]
-    assert any("keeping its names" in s.text for s in log.steps)
-
-
-@pytest.mark.parametrize("request_", ["other names please", "less childish", "a cuter name"])
-def test_a_refine_about_the_names_gives_new_ones(roster, request_):
-    first, _, _ = run(Script([PLAN], [DRAFT]), roster)
-    result, _ = refine(roster, first, request_, [REORDERED])
-    assert not result.names_kept
-    assert [o.name for o in result.draft.names] == ["Biscuit", "Scout", "Bingo"]
-
-
 WITHOUT_BINGO = {
     **DRAFT,
     "names": [
@@ -744,11 +707,78 @@ WITHOUT_BINGO = {
 }
 
 
-def test_kept_names_that_no_longer_pass_give_way_to_new_ones(roster):
-    # Another animal here took "Bingo" since the first run.
+class Seen(Script):
+    """A Script that keeps the listing agent's instructions, as the model saw them."""
+
+    instructions: list[str]
+
+    def __call__(self, messages, info):
+        if "look_up_title" not in {t.name for t in info.function_tools}:
+            self.__dict__.setdefault("instructions", []).append(
+                " ".join(getattr(m, "instructions", None) or "" for m in messages)
+            )
+        return super().__call__(messages, info)
+
+
+def refine(roster, previous, request, answers, also_taken=frozenset()):
+    log, script = StepLog(), Seen([PLAN], answers)
+    result = asyncio.run(
+        run_pipeline(
+            roster.get("dog-02"),
+            LOCATION,
+            qloo=FakeQloo(full_script()),
+            store=Store(_tmp_db()),
+            seeds=SEEDS,
+            model_factory=lambda: FunctionModel(script),
+            log=log,
+            request=request,
+            previous=previous,
+            also_taken=also_taken,
+        )
+    )
+    return result, log, script
+
+
+def test_a_refine_shows_the_agent_the_names_to_keep(roster):
     first, _, _ = run(Script([PLAN], [DRAFT]), roster)
-    result, log = refine(
+    result, log, script = refine(roster, first, "shorter sentences, a bit warmer", [DRAFT])
+    assert "Unless the request asks for" in script.instructions[0]
+    assert '"name":"Bingo"' in script.instructions[0]
+    assert result.names_kept and any(s.text == "The names are kept" for s in log.steps)
+
+
+def test_names_the_agent_changes_are_said_to_be_changed(roster):
+    first, _, _ = run(Script([PLAN], [DRAFT]), roster)
+    result, log, _ = refine(roster, first, "other names please", [REORDERED])
+    assert not result.names_kept and result.draft.names[0].name == "Biscuit"
+    assert any(s.text == "The names are changed, as asked" for s in log.steps)
+
+
+def test_kept_names_are_checked_like_new_ones(roster):
+    # Another animal here took "Bingo" since the first run: keeping it is refused.
+    first, _, _ = run(Script([PLAN], [DRAFT]), roster)
+    result, log, _ = refine(
         roster, first, "shorter sentences", [DRAFT, WITHOUT_BINGO], also_taken=frozenset({"bingo"})
     )
-    assert not result.names_kept and result.draft.names[0].name == "Biscuit"
-    assert any("earlier names no longer pass" in s.text for s in log.steps)
+    assert not result.names_kept and result.draft.names[2].name == "Rusty"
+    assert any("'Bingo' is already used" in s.text for s in log.steps)
+
+
+def test_no_names_are_offered_to_keep_without_a_refine_or_a_draft(roster):
+    first, _, _ = run(Script([PLAN], [DRAFT]), roster)
+    titles = {o.entity_id: (None, "pet") for o in first.draft.names}
+    assert kept_names(None, first, titles) == []
+    assert kept_names("warmer", first.model_copy(update={"draft": None}), titles) == []
+    # A title no longer on offer: the agent names afresh.
+    assert kept_names("warmer", first, {}) == []
+    assert kept_names("warmer", first, titles) == first.draft.names
+    # A lookalike title its first run found is still on offer to keep.
+    look = "00000000-0000-4000-8000-00000000f00d"
+    found = Lookalike(
+        entity=Entity(id=look, name="Example Film", type="movie"), animal="a dog", shared_look=[]
+    )
+    names = [*first.draft.names[:2], first.draft.names[2].model_copy(update={"entity_id": look})]
+    earlier = first.model_copy(
+        update={"draft": first.draft.model_copy(update={"names": names}), "lookalikes": [found]}
+    )
+    assert kept_names("warmer", earlier, titles) == names

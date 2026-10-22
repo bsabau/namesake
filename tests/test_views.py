@@ -132,6 +132,13 @@ def test_the_refined_note_says_the_names_were_kept(roster):
         "Refined at your request (“warmer”): the bio is rewritten and the names are kept. "
         "Only you see this version."
     )
+    # A refine with no draft says nothing about names it has none of.
+    none = saved_listing().model_copy(update={"draft": None})
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile(), none, refined="warmer")
+    assert (
+        view.listing.refined_note
+        == "Refined at your request (“warmer”). Only you see this version."
+    )
 
 
 def baseline_key():

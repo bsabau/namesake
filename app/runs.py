@@ -311,11 +311,22 @@ def _listing_work(
     store = Store(settings.cache_db)
     personal = animal.id.startswith(ADDED_PREFIX) or request is not None
     key = f"{animal.id}@{location.id}"
+    # The listing the visitor is looking at: a refine keeps its names unless asked.
+    previous = (
+        (session.listings.get(key) or store.get_listing(animal.id, location.id))
+        if request is not None
+        else None
+    )
 
     def keep(result: ListingResult) -> None:
         if animal.id.startswith(ADDED_PREFIX) and session.animals.get(animal.id) != animal:
             # Removed or edited while the run worked: this listing describes a record the
             # workspace no longer holds, so it is not kept (review of the workspace PR).
+            return
+        if request is not None and result.draft is None and previous and previous.draft:
+            # A refine that fell to the template would replace a listing that has names
+            # with one that has none: the visitor keeps what they had (decision 37).
+            run.log.add("note", "The refine did not finish, so the listing is as it was")
             return
         session.listings[key] = result
         if request is None:
@@ -337,12 +348,7 @@ def _listing_work(
         classifier=classifier_from(settings),
         litter_mates=roster_litter_mates(animal, settings),
         request=request,
-        # The listing the visitor is looking at: a refine keeps its names unless asked.
-        previous=(
-            (session.listings.get(key) or store.get_listing(animal.id, location.id))
-            if request is not None
-            else None
-        ),
+        previous=previous,
         save=keep if personal else None,
         # A visit's own names bind only its own listings, never a shared one.
         also_taken=visit_names(session, animal.id, location.id, store) if personal else frozenset(),

@@ -452,7 +452,7 @@ class ResultView(BaseModel):
     location: LocationOption
     approve_url: str = "/approve"
     refine_url: str = "/refine"
-    refine_placeholder: str = "Ask for a change, such as “shorter names” or “less childish”"
+    refine_placeholder: str = "Ask for a change, such as “shorter sentences” or “other names”"
     # Other members of a litter named as a set, with links to their results.
     litter: list["LitterMateView"] = []
     litter_note: str | None = None
