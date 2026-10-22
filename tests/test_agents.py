@@ -502,7 +502,7 @@ def test_the_hook_carries_no_free_text_from_the_model():
         "up to four words" in p for p in check_character("Bingo and she enjoys cuddles", "dog")
     )
     assert any("temperament" in p for p in check_character("Playful Bingo", "dog"))
-    assert reference_text("Bingo", "puppy", "Bluey") == "Bingo, a puppy in Bluey"
+    assert reference_text("Bingo", "puppy", "Bluey") == "Bingo, a dog in Bluey"
     assert reference_text("Bluey", "title", "Bluey") == "Bluey"
 
 

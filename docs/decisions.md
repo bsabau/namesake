@@ -96,7 +96,7 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 **Decided:**
 - The listing agent writes the bio from the temperament, look and recorded facts only. Every fact must appear, and no word may appear that the cited facts lack. That includes new negations, and anything about children, other animals, house-training or bites.
 - The sentences for the shelter's confirmed checks (children, dogs, cats, house-training, bite history) come from fixed templates appended by code.
-- The hook is built by code from the first name's reference: "Named after Bingo, a puppy in Bluey."
+- The hook is built by code from the first name's reference: "Named after Bingo, a dog in Bluey."
 - Each name's reason must restate the facts (since 18 October, the look only: see the revision below). Its reference must name its title. A name already given to another animal at the same shelter is refused, except within a litter.
 
 **Why:** the review of milestone 3 showed that word-overlap checks alone could not stop a model from contradicting a fact ("no bite on record" when a bite was recorded; "aggressive" citing "strong but gentle") or from making claims in the hook and the reasons. The safest sentence is one the model never writes. The rest are held to the facts' own words: both real drafts already met that standard, so the cost in quality is small.
@@ -114,6 +114,8 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 **Revised 18 October** (the author, after the screenshot review): a name's reason may use only the recorded look's words, or be "A short name, easy to say." (or a near form, such as "Short and easy to say.") ("short" alone could claim a short coat the record lacks); "It suits a dog who leans on people for attention" tied the reference to temperament one line from the hook, which the hook rule exists to stop. And an animal's options come from different titles while another of the area's titles open to it is unused (Bingo and Bluey both from *Bluey* read as the same evidence twice). Open means no identity coding and not about real people, so the name screen allows any character from it; a bully-type dog counts only its pet-themed titles; lookalikes never count, since a saved result keeps only the lookalikes it used. A litter named as a set is the exception, and repeats are allowed once every open title is used, since a draft needs three names; the refusal names a title to use. Both are rechecked on saved drafts (`CHECKS_VERSION` 11), as is the lookalike quote rule (decision 14). The listing instructions also keep what the animal does and what it needs from an adopter in separate sentences ("She needs an owner comfortable with a big dog and knows basic commands" read as the owner knowing them); that one is an instruction only.
 
 **Remaining risk, stated plainly:** checking text by rule cannot prove that the meaning was kept, only that the words were. The rules make the safe path the easy one: copy the shelter's phrases, add only joining words. A volunteer still reviews the listing before using it (milestone 4 adds approval).
+
+**Revised 22 October:** a reference names the character's kind, not its age: "Bluey, a dog in Bluey", never "a puppy", since the animal named after it may be grown (an outside read as a judge found "Bluey, a puppy" for the 4-year-old lead dog). The model still declares "puppy" or "kitten" as the role; code words it as "dog" or "cat" (`REFERENCE_KIND` in `app/agent/checks.py`). Saved listings get the new wording from the deploy's recheck, which now rebuilds each reference and the hook from the saved draft (checks version 14).
 
 ## 8. The generic version gets a plain pet name, so the toggle isolates Qloo
 
@@ -208,6 +210,8 @@ The refusal keeps the edit and names the missing words.
 **Why:** "two animals in one shelter never share a reference, except a litter named as a set." Letting the first listing choose keeps the agent's judgement, and restricting the others to one title is a check code can enforce: a name from another title is refused like any invented ID.
 
 **Follows:** a member whose draft cannot be fixed falls back to the template, as any listing does. The result page lists the litter's names with links.
+
+**Revised 22 October:** the first member picks the litter's title among the area's pet-themed titles when there are any, never from the area's general watch list (`name_titles` in `app/agent/pipeline.py`). An outside read as a judge found the Park Slope kittens named Brooke, Cary and Chase from *The Other Two*, an adult comedy 6th in what people there tend to watch, which undercut the pet-themed idea. A lone animal may still take one of its names from the area's local tastes. Saved litter listings keep their names until the examples are rebuilt.
 
 ## 14. Lookalike names: titles with an animal that looks like this one
 
@@ -425,7 +429,7 @@ The refusal keeps the edit and names the missing words.
 - A result page for an animal with no listing yet offers "Write her story with Namesake's AI", posting to `/runs` (`ResultView.write_label`); for a litter member it names the litter as a set instead (`write_animal`), keeping members already named. A templated listing gets no button: a run over a saved listing returns it as it is (decision 9). Warm and classic render neither the log nor the button.
 - A name from the area's general top tastes shows its place in that list ("Watched locally: 2nd of 15 in Qloo's list of what people here tend to watch").
 
-Not done: the character a name refers to ("Bingo, a puppy in *Bluey*") is not labelled separately as the AI's reading; it already sits on the reading side ("Namesake selected") of "Why this name?", with Qloo's side showing the title only.
+Not done: the character a name refers to ("Bingo, a dog in *Bluey*") is not labelled separately as the AI's reading; it already sits on the reading side ("Namesake selected") of "Why this name?", with Qloo's side showing the title only.
 
 ## 28. The live demo's defences, after the final audits
 
