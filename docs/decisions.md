@@ -480,3 +480,19 @@ Not done: the character a name refers to ("Bingo, a puppy in *Bluey*") is not la
 - "Add your own animal" takes the typed area's name to its form and back (`/animals/new?location=typed&area=…`); a spot picked on the map stays behind, since that link is a GET. A spot more than 15 km from an area already saved is dropped with a note in the run; the start page's `?pin=far` note is gone.
 - Suggestions for the typed area are ranked near the preset chosen before it.
 - `POST /locations` is gone.
+
+## 33. The result page leads with the outcome; "demo" is said once
+
+**Decided** (the author, 22 October, worried the app "may say 'is a technical demo'", after Devpost's criteria judged design as "a complete, coherent product experience, not just a technical proof of concept"; the author chose "outcome first, how folded" from three layouts):
+- **The story skin's result page** reads: the name options and the listing; one line under the names saying what in the result came from Qloo's data for the area ("From Qloo taste data for Park Slope: the titles behind the names, 3 places to ask and the map", `ResultView.local_touch`, counted like Qloo's part), linking to the section below; the map and the places to ask; the other ways to help; then **How Namesake made this** (was "Behind this story"), which opens with Qloo's part and the AI's, apart, and holds the three process steps, the run's step log, "Why these names?" (now folded) and the Why drawer.
+- **Each place** shows its name, badge, address and the reason Namesake's AI gives; its rank, Qloo's description and evidence, and Namesake's reading of the map sit under "Why this place", one click away, each still under its own label. The map's long key folds under "About this map"; the key drawn on the map stays.
+- **The trial** closes the section in one line, linking to the README's measurement design: nobody has tested whether the local version helps; generic against local at random, days to adoption, about 190 adoptions to detect a 50% faster rate (`ResultView.trial`).
+- **The start page** states the problem in one line and links to the evidence review on GitHub (`StartView.problem`).
+- **"Demo" is said once:** the photo credit reads "A sample shelter: the animals are fictional and their photos AI-generated"; the map's circle is "around the sample shelter"; the photo-storage refusal names Namesake, not "the demo".
+
+**Why:** an outside read by muse as a judge (22 October) called the app "a polished technical demo with product skin". A volunteer reads the reasoning before what to do with the animal, and every place card carried three dense paragraphs. Folding keeps every one of Qloo's answers apart from the readings (the provenance rule) while the page reads as a tool. The trial line puts the impact case where a judge can see it, since judges are expected to use the app.
+
+**Follows:**
+- The warm and classic skins keep their layout; the new fields are in the shared view models and the JSON API.
+- The README screenshots are retaken with the examples' rebuild (`TODO.md`).
+

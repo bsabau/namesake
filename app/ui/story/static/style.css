@@ -348,6 +348,7 @@ button.animal-card:hover, button.animal-card:focus-visible {
 .story-intro { margin-top: 26px; }
 .story-intro .headline { display: inline-block; }
 .story-intro .lead { max-width: 64ch; margin-bottom: 26px; }
+.story-intro .problem { max-width: 64ch; margin: -12px 0 26px; color: var(--muted); font-family: var(--font); font-size: 0.95rem; }
 h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
 .band {
   margin: 8px 0 26px;
@@ -574,7 +575,13 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
   font-weight: 600;
 }
 
-/* Qloo's part and the AI's, under the names (decision 21). */
+/* The one line under the names on what came from Qloo; the rest is in "How Namesake made
+   this" (decision 33). */
+.local-touch { margin: 16px 0 0; font-size: 0.95rem; }
+.local-touch a { font-weight: 700; white-space: nowrap; }
+.local-touch a, .problem a, .trial a { color: var(--primary-ink); font-weight: 700; }
+
+/* Qloo's part and the AI's, at the top of "How Namesake made this" (decisions 21, 33). */
 .qloo-part {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -729,7 +736,8 @@ h2.step-heading.numbered { margin: 34px 0 14px; font-size: 1.6rem; }
 
 /* Why this name? Qloo's answer and Namesake's choice, side by side and never in one box. */
 .why-name { margin-top: 28px; padding: 18px 22px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
-.why-name h3 { margin: 0 0 10px; font-size: 1.3rem; }
+.why-name > summary { cursor: pointer; font-family: var(--display); font-size: 1.3rem; font-weight: 800; color: var(--primary-ink); }
+.why-name[open] > summary { margin-bottom: 10px; }
 .why-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; padding: 12px 14px; border: 1px solid transparent; border-radius: var(--radius-sm); }
 .why-pair + .why-pair { margin-top: 6px; }
 .why-pair h4 { grid-column: 1 / -1; margin: 0; font-size: 1.1rem; }
@@ -838,6 +846,16 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
 .venue-rank.rank-top strong { color: var(--qloo-ink); }
 .venue-rank.rank-bottom { color: var(--muted); }
 .venue-where { margin: 4px 0 0; }
+/* A place's evidence, folded under its card (decision 33). */
+.venue-why { margin-top: 8px; }
+.venue-why > summary { cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--primary-ink); }
+.venue-why[open] > summary { margin-bottom: 6px; }
+.venue-why > p + p { margin-top: 6px; }
+.map-about > summary { cursor: pointer; font-weight: 700; }
+.map-about[open] > summary { margin-bottom: 6px; }
+.map-about p { margin: 0; }
+/* The trial the local version would need, closing "How Namesake made this". */
+.trial { margin: 28px 0 0; padding: 12px 16px; border-left: 4px solid var(--highlight); background: var(--surface); border-radius: var(--radius-sm); font-size: 0.95rem; }
 .venue-empty { color: var(--muted); }
 .venues-note { margin-top: 14px; font-size: 0.8rem; }
 

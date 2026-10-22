@@ -12,6 +12,7 @@ from app.views.build import (
     build_result_view,
     build_start_view,
     for_children,
+    local_touch,
     map_view,
     result_id,
     sentences,
@@ -432,6 +433,42 @@ def test_the_qloo_part_says_plainly_when_nothing_came_back(roster):
     assert part.ai.startswith("Not used here")
 
 
+def test_the_local_touch_names_only_what_came_from_qloo_here(roster):
+    # Decision 33: one plain line under the names; each part rests on the area's data.
+    from types import SimpleNamespace
+
+    p = profile()
+    named = SimpleNamespace(draft=SimpleNamespace(names=["one"]))
+    assert local_touch(LOCATION, p, named, 3) == (
+        f"From Qloo taste data for {LOCATION.label}: the titles behind the names, "
+        "3 places to ask and the map."
+    )
+    # The fixed template names nothing from Qloo; no places, no cells: nothing to claim.
+    assert local_touch(LOCATION, p, None, 1) == (
+        f"From Qloo taste data for {LOCATION.label}: 1 place to ask and the map."
+    )
+    empty = LocationProfile(location_id=LOCATION.id)
+    assert local_touch(LOCATION, empty, None, 0) == ""
+    view = build_result_view(roster.get("dog-02"), LOCATION, p)
+    assert view.local_touch.startswith(f"From Qloo taste data for {LOCATION.label}:")
+
+
+def test_the_result_says_the_local_version_is_untested_and_how_to_test_it(roster):
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    assert view.trial.startswith("Does the local version help? Nobody has tested it yet.")
+    assert view.trial_link.url.endswith("#measuring-whether-it-works")
+    # Claims stay within the evidence: a trial size, never a promise of faster adoption.
+    assert "would detect" not in view.trial and "detect a 50% faster rate" in view.trial
+
+
+def test_the_start_page_states_the_problem_and_links_the_research(roster):
+    from app.config import get_settings
+
+    view = build_start_view(roster, load_locations(get_settings().locations_file), None)
+    assert view.problem.startswith("Volunteers write a listing for every animal")
+    assert view.problem_link.url.endswith("docs/research/adoption-evidence-review.md")
+
+
 def test_an_agent_profile_with_nothing_else_to_say_still_credits_the_ai(roster):
     from app.profile import FoundIn, PetVerdict
 
@@ -523,9 +560,7 @@ def test_no_warm_cell_says_so():
     note = map_view(
         LOCATION, map_with([(0.5, 0.9), (0.4, 0.8), (0.3, 0.7), (0.2, 0.6), (0.1, 0.5)])
     ).note
-    assert note.endswith(
-        "Circle: around the shelter the animals are adopted from (made up for this demo)."
-    )
+    assert note.endswith("Circle: around the sample shelter the animals are adopted from.")
     # Codex and flash: around a spot the visitor picked, the circle is not made up.
     picked = map_view(
         LOCATION,

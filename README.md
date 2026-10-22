@@ -16,7 +16,7 @@ Built for the [Qloo Agentic Hackathon](https://qloo-hackathon.devpost.com/). Tas
 
 ![The first screen of the result for the lead dog in Park Slope, in the story skin: her photo, the local name Comet with its line "Named after Comet in Dogs in Space." and the start of what the shelter recorded on the left; "Let's tell her story" with the Generic and Local version toggle; three name options (Comet, Scooby, Hooch), each with its Qloo title under it; a strip with what Qloo returned beside what Namesake's AI did, including the title it searched Qloo's lists with; and the start of her introduction](docs/img/result-first-screen.png)
 
-The whole result page, with "Behind this story", the map and the places to ask: [`docs/img/result.png`](docs/img/result.png).
+The whole result page, with the map, the places to ask and "How Namesake made this": [`docs/img/result.png`](docs/img/result.png).
 
 ## The problem
 
@@ -107,16 +107,15 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
 2. **Working.** A live log streams each step: Qloo's pet-themed lists for the area, titles proposed, each one looked up in Qloo, which were ambiguous and how they were settled, the venues found and how many stand out against the baseline, and the checks on the answer from Namesake's AI.
 3. **Result**, legible as one screen, told as the animal's story:
    - a **Generic / Local, with Qloo** toggle whose buttons show each version's name; both share the same bio, and the local one adds a name from Qloo's titles and one line saying where it comes from
-   - the **name options**, each with its Qloo title under it
-   - **Qloo's part and the AI's**, apart: what Qloo returned for this result (titles with Qloo's evidence for the area, the places near the shelter, the heatmaps' map cells) and what Namesake's AI did with it (the titles it searched Qloo's lists with, titles it proposed or judged, places it picked, the names and bio)
+   - the **name options**, each with its Qloo title under it, and one line saying what in the result came from Qloo's data for the area ("the titles behind the names, 3 places to ask and the map")
    - the **introduction**, the listing written from the shelter's records
-   - **Behind this story**: the facts, Qloo's local context, and the interpretation and checks; the saved run's own step log, folded, each step marked Qloo, Namesake's AI, Classifier or Code; then for each name what Qloo returned beside what Namesake selected, and a **Why** drawer with two columns, "Qloo returned" (the Qloo calls behind the result: Qloo's pet-tag lists and the AI's own lookups, searches and ranking, then the assembly's) and "How Namesake read it" (Namesake's AI and its code)
-   - a **map** of how fans of pet-themed titles compare within the area, and the **places to ask**, under a note on which kinds of place were asked for and why, each with Qloo's description, its rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline on one Qloo line, numbered on the map, with the cell it sits in and its distance from the shelter (points from OpenStreetMap)
+   - a **map** of how fans of pet-themed titles compare within the area, and the **places to ask**, under a note on which kinds of place were asked for and why, each with the reason Namesake's AI gives and, one click away under "Why this place", Qloo's description, its rank ("2nd of 15 · near the top of Qloo's list") and its comparison with the baseline on one Qloo line, numbered on the map, with the cell it sits in and its distance from the shelter (points from OpenStreetMap)
    - the **other ways to help**, each labelled Research, Qloo or Our suggestion; for an animal recorded as not good with children, places whose name or Qloo description mentions children are skipped, and the list says so
+   - **How Namesake made this**, after the places: **Qloo's part and the AI's**, apart (what Qloo returned for this result, and what Namesake's AI did with it: the titles it searched Qloo's lists with, titles it proposed or judged, places it picked, the names and bio); the facts, Qloo's local context, and the interpretation and checks; the saved run's own step log, folded, each step marked Qloo, Namesake's AI, Classifier or Code; for each name what Qloo returned beside what Namesake selected, folded; a **Why** drawer with two columns, "Qloo returned" (the Qloo calls behind the result) and "How Namesake read it" (Namesake's AI and its code); and the trial the local version would need
 
    ![The Park Slope result's "Help her story travel" band: the map of how fans of pet-themed titles compare with fans of the area's top shows, with its key, the dashed circle around the fictional shelter and the places numbered; and the three places to ask, each with Qloo's description and rank, Namesake's reading and the reason Namesake's AI gives](docs/img/result-map.png)
 
-   The `warm` and `classic` skins show the same listing, names, map, places and Why panel with Qloo's part and the AI's at the top, without story's "Behind this story" framing, the saved run's step log or the button that starts a run.
+   The `warm` and `classic` skins show the same listing, names, map, places and Why panel with Qloo's part and the AI's at the top, without story's "How Namesake made this" framing, the saved run's step log or the button that starts a run.
 4. **Refine** with one line ("less childish"), **edit**, **approve**, and copy a block ready to paste into shelter software. A result with no listing yet also offers "Write her story with Namesake's AI" (for a member of a litter, naming the litter as a set).
 
 The area's Qloo work runs once per area and species and is shared by every animal there, so a new area costs about 18 to 20 Qloo calls: one more when the venues must be asked again, fewer when titles are already cached, and two or three more to check a typed area first. Each further animal costs at most two.

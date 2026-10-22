@@ -112,11 +112,9 @@
       {% endif %}
     </section>
 
-    {% if view.qloo_part %}
-    <aside class="qloo-part" data-role="qloo-part" aria-label="Qloo's part and Namesake's AI's part">
-      <p class="evidence"><span>Qloo:</span> {{ view.qloo_part.qloo }}</p>
-      <p class="reading"><span>Namesake's AI:</span> {{ view.qloo_part.ai }}</p>
-    </aside>
+    {% if view.local_touch %}
+    {# One plain line; the detail is in "How Namesake made this", below the places. #}
+    <p class="local-touch"><span class="from-qloo">Qloo</span> {{ view.local_touch }} <a href="#how">{{ view.how_heading }}</a></p>
     {% endif %}
 
     <section class="step" aria-labelledby="step-intro">
@@ -187,11 +185,70 @@
   {% if ui_query %}<input type="hidden" name="ui" value="{{ ui }}">{% endif %}
 </form>
 
-<section class="behind" aria-labelledby="behind-heading">
-  <div class="section-head">
-    <h2 id="behind-heading">Behind this story</h2>
-    <p class="lead">What came from Qloo. What Namesake did with it.</p>
+<section class="travel" aria-labelledby="travel-heading">
+  <div class="travel-inner">
+    <div class="section-head">
+      <h2 id="travel-heading">{{ view.travel_heading }}</h2>
+      <p class="lead">How fans of pet-themed titles compare around {{ view.location.label }}, and the places to ask.</p>
+    </div>
+    <div class="travel-grid">
+      <figure class="result-map">
+        <h3>The map</h3>
+        <div id="result-map" data-role="map" role="region"
+             aria-label="Map of how fans of pet-themed titles compare around {{ view.location.label }}{% if view.map.venues %}, with the places to ask numbered as in the list{% endif %}"></div>
+        {% if view.map.empty_message %}<figcaption>{{ view.map.empty_message }}</figcaption>
+        {% else %}<figcaption><details class="map-about"><summary>About this map</summary><p>{{ view.map.legend }}</p></details></figcaption>{% endif %}
+      </figure>
+      <script type="application/json" id="map-data">{{ view.map|plain|tojson }}</script>
+
+      <section class="places" aria-labelledby="places-heading">
+        <h3 id="places-heading">Places to ask</h3>
+        <ol class="venues">
+          {% for venue in view.venues %}
+          <li class="venue">
+            <p class="venue-head">{% if venue.number %}<span class="venue-number">{{ venue.number }}</span>{% endif %}<strong>{{ venue.name }}</strong>
+              <span class="tag {{ 'tag-strong' if venue.stands_out }}">{{ venue.badge }}</span></p>
+            <p class="venue-place">{{ venue.place }}</p>
+            {% if venue.reason %}<p class="reading"><span>Namesake's AI:</span> {{ venue.reason }}</p>{% endif %}
+            {# What Qloo returned for the place and Namesake's reading of it, one click away. #}
+            <details class="venue-why">
+              <summary>Why this place</summary>
+              <p class="venue-rank rank-{{ venue.rank_band }}" data-role="venue-rank">
+                <strong>{{ venue.rank }}</strong> · {{ venue.rank_note }}</p>
+              <p class="evidence"><span>Qloo:</span> {% if venue.description %}{{ venue.description }} {% endif %}{{ venue.evidence }}</p>
+              {% if venue.where %}<p class="reading venue-where"><span>Namesake:</span> {{ venue.where }}{% if venue.distance %} {{ venue.distance }}{% endif %}</p>{% endif %}
+            </details>
+          </li>
+          {% else %}
+          <li class="venue venue-empty">{{ view.venues_empty }}</li>
+          {% endfor %}
+        </ol>
+        {% if view.venues_note %}<p class="reading venues-note" data-role="venues-note"><span>Namesake:</span> {{ view.venues_note }}</p>{% endif %}
+      </section>
+    </div>
+
+    <section class="other-ways" aria-labelledby="plan-heading">
+      <h3 id="plan-heading">Other ways to help: {{ view.plan_heading|lower }}</h3>
+      <ol class="plan">
+        {% for item in view.plan %}
+        <li><span class="basis basis-{{ item.basis|lower|replace(' ', '-') }}">{{ item.basis }}</span> <span class="plan-text">{{ item.text }}</span></li>
+        {% endfor %}
+      </ol>
+    </section>
   </div>
+</section>
+
+<section class="behind" id="how" aria-labelledby="how-heading">
+  <div class="section-head">
+    <h2 id="how-heading">{{ view.how_heading }}</h2>
+    <p class="lead">{{ view.how_lead }}</p>
+  </div>
+  {% if view.qloo_part %}
+  <aside class="qloo-part" data-role="qloo-part" aria-label="Qloo's part and Namesake's AI's part">
+    <p class="evidence"><span>Qloo:</span> {{ view.qloo_part.qloo }}</p>
+    <p class="reading"><span>Namesake's AI:</span> {{ view.qloo_part.ai }}</p>
+  </aside>
+  {% endif %}
   {# The three steps are worded from the actual profile and listing (view.process). #}
   <ol class="process">
     {% for step in view.process %}
@@ -214,8 +271,8 @@
   {% endif %}
 
   {% if view.name.options %}
-  <section class="why-name" aria-labelledby="why-name-heading">
-    <h3 id="why-name-heading">Why this name?</h3>
+  <details class="why-name">
+    <summary id="why-name-heading">Why these names?</summary>
     {# Every option's pair, so the names can be compared; the picked one is marked. #}
     {% for option in view.name.options %}
     <div class="why-pair{% if option.name == view.chosen_name %} selected{% endif %}" id="why-name-{{ loop.index }}" data-name-detail="{{ option.name }}">
@@ -230,7 +287,7 @@
     </div>
     {% endfor %}
     {% if view.name.audience_note %}<p class="hint">{{ view.name.audience_note }}</p>{% endif %}
-  </section>
+  </details>
   {% endif %}
 
   {% if view.notes %}
@@ -257,53 +314,9 @@
       </div>
     </div>
   </details>
-</section>
 
-<section class="travel" aria-labelledby="travel-heading">
-  <div class="travel-inner">
-    <div class="section-head">
-      <h2 id="travel-heading">{{ view.travel_heading }}</h2>
-      <p class="lead">How fans of pet-themed titles compare around {{ view.location.label }}, and the places to ask.</p>
-    </div>
-    <div class="travel-grid">
-      <figure class="result-map">
-        <h3>The map</h3>
-        <div id="result-map" data-role="map" role="region"
-             aria-label="Map of how fans of pet-themed titles compare around {{ view.location.label }}{% if view.map.venues %}, with the places to ask numbered as in the list{% endif %}"></div>
-        <figcaption>{{ view.map.empty_message or view.map.legend }}</figcaption>
-      </figure>
-      <script type="application/json" id="map-data">{{ view.map|plain|tojson }}</script>
-
-      <section class="places" aria-labelledby="places-heading">
-        <h3 id="places-heading">Places to ask</h3>
-        <ol class="venues">
-          {% for venue in view.venues %}
-          <li class="venue">
-            <p class="venue-head">{% if venue.number %}<span class="venue-number">{{ venue.number }}</span>{% endif %}<strong>{{ venue.name }}</strong>
-              <span class="tag {{ 'tag-strong' if venue.stands_out }}">{{ venue.badge }}</span></p>
-            <p class="venue-rank rank-{{ venue.rank_band }}" data-role="venue-rank">
-              <strong>{{ venue.rank }}</strong> · {{ venue.rank_note }}</p>
-            <p class="venue-place">{{ venue.place }}</p>
-            <p class="evidence"><span>Qloo:</span> {% if venue.description %}{{ venue.description }} {% endif %}{{ venue.evidence }}</p>
-            {% if venue.where %}<p class="reading venue-where"><span>Namesake:</span> {{ venue.where }}{% if venue.distance %} {{ venue.distance }}{% endif %}</p>{% endif %}
-            {% if venue.reason %}<p class="reading"><span>Namesake's AI:</span> {{ venue.reason }}</p>{% endif %}
-          </li>
-          {% else %}
-          <li class="venue venue-empty">{{ view.venues_empty }}</li>
-          {% endfor %}
-        </ol>
-        {% if view.venues_note %}<p class="reading venues-note" data-role="venues-note"><span>Namesake:</span> {{ view.venues_note }}</p>{% endif %}
-      </section>
-    </div>
-
-    <section class="other-ways" aria-labelledby="plan-heading">
-      <h3 id="plan-heading">Other ways to help: {{ view.plan_heading|lower }}</h3>
-      <ol class="plan">
-        {% for item in view.plan %}
-        <li><span class="basis basis-{{ item.basis|lower|replace(' ', '-') }}">{{ item.basis }}</span> <span class="plan-text">{{ item.text }}</span></li>
-        {% endfor %}
-      </ol>
-    </section>
-  </div>
+  {% if view.trial %}
+  <p class="trial">{{ view.trial }}{% if view.trial_link %} <a href="{{ view.trial_link.url }}">{{ view.trial_link.label }}</a>{% endif %}</p>
+  {% endif %}
 </section>
 {% endblock %}

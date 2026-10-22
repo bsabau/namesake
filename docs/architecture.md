@@ -246,7 +246,7 @@ The start, result and working screens' view models are also served as JSON, so a
 | Method and path | Returns |
 |---|---|
 | `GET /api/start?location=` | `StartView`: animals, areas, the shelter bar, examples |
-| `GET /api/results/{animal}@{location}` | `ResultView`: Qloo's part and the AI's (`qloo_part`), listing versions, names, map, venues, plan, Why panel |
+| `GET /api/results/{animal}@{location}` | `ResultView`: Qloo's part and the AI's (`qloo_part`), the one line on what came from Qloo (`local_touch`), listing versions, names, map, venues, plan, Why panel, the trial line (`trial`) |
 | `GET /api/runs/{id}` | `WorkingView`: the run's steps so far |
 | `GET /api/runs/{id}/events` | the step log as server-sent events: a `step` per step with its `kind`, `text` and `actor` (`qloo`, `ai`, `classifier` or `code`, given where the step is logged), then `done` |
 | `GET /api/places?q=&lat=&lon=` | area names for the typed field (ranked near the map's area) and the search above the start map (unbiased) |

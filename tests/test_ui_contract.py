@@ -251,26 +251,29 @@ def test_story_maps_take_their_tiles_from_the_view_model(client, monkeypatch):
 
 
 def test_the_story_result_tells_the_story_in_order(client):
-    # The structure the skin was built to (docs/img/story-structure.png, decision 24).
+    # The structure the skin was built to (docs/img/story-structure.png, decision 24),
+    # with the outcome first and the how after the places (decision 33).
     page = client.get(
         "/result", params={"animal": "dog-02", "location": "park-slope", "ui": "story"}
     ).text
     marks = [
         "tell her story.",
         "Choose a name",
-        'data-role="qloo-part"',
+        'class="local-touch"',
         "Her introduction",
         'data-role="approve"',
         "Want to adjust the wording?",
         "Not yet known, so not mentioned",
-        "Behind this story",
-        'data-role="qloo-returned"',
-        'data-role="our-reading"',
         "Help her story travel",
         'data-role="map"',
         "Places to ask",
         'data-role="venues-note"',
         "Other ways to help",
+        'id="how-heading"',
+        'data-role="qloo-part"',
+        'data-role="qloo-returned"',
+        'data-role="our-reading"',
+        'class="trial"',
         'data-role="qloo-credit"',
     ]
     positions = [page.index(mark) for mark in marks]

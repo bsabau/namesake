@@ -74,7 +74,7 @@ Steps A to E run once per location and every animal reuses them, so quota cost g
 ## The result screen
 
 The result screen must be legible in a single screenshot. It shows:
-- on the first screen, Qloo's part and Namesake's AI's part, apart: what Qloo returned for this result and what the AI did with it (at the top in the warm and classic skins; under the name options in story, `docs/decisions.md` #24)
+- on the first screen, what Qloo returned for this result and what Namesake's AI did with it, apart: at the top in the warm and classic skins; in story, one line under the name options saying what came from Qloo's data for the area, with the two parts at the top of "How Namesake made this", after the places (`docs/decisions.md` #24, #33)
 - the photo and chosen name
 - the generic/local toggle, each button showing its version's name
 - the name options with what Qloo returned for each title
@@ -82,6 +82,7 @@ The result screen must be legible in a single screenshot. It shows:
 - the exposure checklist
 - a "Why" drawer with two columns, "Qloo returned" and "How Namesake read it", the Qloo calls behind the result listed under Qloo's
 - in the story skin, the saved run's own step log, folded, each step marked by who did it; and, where the animal has no listing yet, a button that starts a run (for a litter member, the litter's) (decision 27)
+- in the story skin, the outcome first: the listing, then the map and the places to ask, then "How Namesake made this", which ends with the trial the local version would need; each place's evidence and the names' Qloo answers are folded one click away (decision 33)
 
 The skins that render this screen are a separate choice (`docs/decisions.md` #21 for warm and classic, #24 for story); each keeps every item above, except the two marked as the story skin's.
 
