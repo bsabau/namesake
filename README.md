@@ -16,7 +16,7 @@ Built for the [Qloo Agentic Hackathon](https://qloo-hackathon.devpost.com/). Tas
 
 ![The first screen of the result for the lead dog in Park Slope, in the story skin: her photo, the local name Loaf with its line "Named after Loaf, a dog in Dogs in Space." and the start of what the shelter recorded on the left; "Let's tell her story" with the Generic and Local version toggle; three name options (Loaf, Hercules, Chance), each with its Qloo title under it; the line saying what came from Qloo's data for Park Slope; and the start of her introduction](docs/img/result-first-screen.png)
 
-The whole result page, with the map, the places to ask and what is now "How Namesake made this": [`docs/img/result.png`](docs/img/result.png).
+The whole result page, with the map, the places to ask and "How Namesake made this": [`docs/img/result.png`](docs/img/result.png).
 
 ## The problem
 
