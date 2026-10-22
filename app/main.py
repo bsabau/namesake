@@ -815,7 +815,11 @@ def checked_choice(
         name, hook = option.name, option.hook
         source = option.approved_source
     else:
-        version = next(v for v in view.listing.versions if v.variant == variant)
+        version = next(
+            (v for v in view.listing.versions if v.variant == variant and v.available), None
+        )
+        if version is None:
+            raise HTTPException(400, "that version is not available")
         name, source = version.name, "a fixed list of common pet names, not Qloo"
         # The generic name is worked out afresh; approve only the one the volunteer saw.
         if not generic_name:

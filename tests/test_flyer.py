@@ -196,7 +196,7 @@ def test_the_flyer_has_a_contact_line_that_is_never_sent(client):  # noqa: F811
     assert "<form" not in sheet and " name=" not in field
 
 
-def test_every_skins_approval_page_prints_the_approved_text(client):  # noqa: F811
+def test_every_skin_s_approval_page_prints_the_approved_text(client):  # noqa: F811
     from tests.test_product import approve
 
     save(saved_listing())
