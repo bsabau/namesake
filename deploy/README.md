@@ -7,7 +7,7 @@ The demo runs as one container on a long-lived Linux host with Docker, behind a 
   compose.yml   copied from deploy/compose.yml on every deploy
   .env          keys and settings, mode 600, written by `deploy.sh --env`
   src/          the committed source of the running version
-  var/          the SQLite cache, saved results and approvals: private, mode 700
+  var/          the SQLite cache, saved results and approvals, and visitors' workspaces: private, mode 700
 ```
 
 The Qloo cache in `var/` holds Qloo response data. It stays on this host and is never committed or published.

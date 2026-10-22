@@ -11,6 +11,7 @@
 <section class="intro story-intro">
   <h1 class="headline">{{ view.title }}<span class="doodle doodle-spark" aria-hidden="true">{% include "_spark.html" %}</span></h1>
   <p class="lead">{{ view.intro }}</p>
+  {% if view.problem %}<p class="problem">{{ view.problem }}{% if view.problem_link %} <a href="{{ view.problem_link.url }}">{{ view.problem_link.label }}</a>{% endif %}</p>{% endif %}
 </section>
 
 
@@ -104,9 +105,48 @@
 
   <h2 class="numbered step-heading"><span class="step-no" aria-hidden="true">02</span> Pick an animal</h2>
 
+  {# The visitor's own animals first, with their workspace; then the samples (decision 34). #}
+  <section class="yours" aria-labelledby="yours-heading" data-role="your-animals">
+    <h3 id="yours-heading">{{ view.your_heading }}</h3>
+    {% if view.your_animals %}
+    <ul class="animal-grid taped">
+      {% for animal in view.your_animals %}
+    <li id="{{ animal.id }}">
+      <button class="animal-card" type="submit" name="animal" value="{{ animal.id }}">
+        <img src="{{ animal.image_url }}" alt="{{ animal.alt }}" width="800" height="800" loading="lazy">
+        <span class="animal-body">
+          <span class="animal-meta">
+            {{ animal.meta }}
+            {% for badge in animal.badges %}<span class="badge">{{ badge }}</span>{% endfor %}
+          </span>
+          <span class="animal-look">{{ animal.look }}</span>
+          <span class="animal-temperament">{{ animal.temperament }}</span>
+        </span>
+      </button>
+        <p class="own-actions">
+          <button type="submit" class="link-button" formaction="{{ view.add_animal_url }}" formmethod="get"
+                  name="edit" value="{{ animal.id }}">Edit<span class="visually-hidden">: {{ animal.look }}</span></button>
+          <button type="submit" class="link-button" formaction="/animals/remove" formmethod="post"
+                  name="remove" value="{{ animal.id }}">Remove<span class="visually-hidden">: {{ animal.look }}</span></button>
+        </p>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <p class="add-animal">
+      <button type="submit" class="{{ 'link-button' if view.your_animals else 'primary-add' }}" formaction="{{ view.add_animal_url }}"
+              formmethod="get">{{ view.add_animal_label }}</button>
+    </p>
+    {% if view.workspace_note %}
+    <p class="workspace-note" data-role="workspace">{{ view.workspace_note }}
+      <a href="{{ view.workspace_link }}">{{ view.workspace_link_label }}</a></p>
+    {% endif %}
+  </section>
+
+  <h3 class="samples-heading">{{ view.sample_heading }}</h3>
   {# Each card a taped photo, tilted a little; picking one opens the result. #}
   <ul class="animal-grid taped">
-    {% for animal in view.animals %}
+    {% for animal in view.sample_animals %}
     <li id="{{ animal.id }}">
       <button class="animal-card" type="submit" name="animal" value="{{ animal.id }}">
         <img src="{{ animal.image_url }}" alt="{{ animal.alt }}" width="800" height="800" loading="lazy">
@@ -134,10 +174,6 @@
   </section>
   {% endfor %}
 
-  <p class="add-animal">
-    <button type="submit" class="link-button" formaction="{{ view.add_animal_url }}"
-            formmethod="get">{{ view.add_animal_label }}</button>
-  </p>
 </form>
 {% if view.location_form.map_search %}<form id="map-search-form" method="dialog" hidden></form>{% endif %}
 {% endblock %}

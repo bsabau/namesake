@@ -321,22 +321,25 @@ class Places:
 
 
 class Allowance:
-    """Lookups per visitor per minute, in memory: enough to type and click around, too
-    few to use this server as a free geocoder."""
+    """Lookups per visitor per minute (or per `window` seconds), in memory: enough to
+    type and click around, too few to use this server as a free geocoder."""
 
-    def __init__(self, per_minute: int = PER_MINUTE):
+    def __init__(self, per_minute: int = PER_MINUTE, window: float = 60):
+        # `per_minute` is the count allowed in each window: a minute unless `window`
+        # gives another length in seconds.
         self.per_minute = per_minute
+        self.window = window
         self._seen: dict[str, deque[float]] = {}
         self._lock = threading.Lock()
 
     def take(self, visitor: str) -> bool:
         now = time.monotonic()
         with self._lock:
-            # Forget visitors with nothing in the last minute, so the map stays small.
-            for key in [k for k, q in self._seen.items() if not q or q[-1] < now - 60]:
+            # Forget visitors with nothing in the last window, so the map stays small.
+            for key in [k for k, q in self._seen.items() if not q or q[-1] < now - self.window]:
                 del self._seen[key]
             times = self._seen.setdefault(visitor, deque())
-            while times and times[0] < now - 60:
+            while times and times[0] < now - self.window:
                 times.popleft()
             if len(times) >= self.per_minute:
                 return False

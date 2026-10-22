@@ -135,7 +135,7 @@ def saved_listing(animal_id="dog-02") -> ListingResult:
         draft=draft,
         bio=list(draft.bio),
         references=["Bingo, a dog in Example Dog Show", "Biscuit, a cat in Example Cat Show",
-                    "Scout, a puppy in Example Dog Show"],
+                    "Scout, a dog in Example Dog Show"],
         hook="Named after Bingo, a dog in Example Dog Show.",
     )  # fmt: skip
 
@@ -529,6 +529,25 @@ def test_a_litter_shares_one_title_and_never_repeats_a_name(roster):
     assert "takes all its names from one title" in messages
     assert "cites a title that was not offered" in messages
     assert store.get_listing("dog-02b", LOCATION.id).draft.names[0].name == "Scout"
+
+
+def test_a_litter_is_named_only_from_pet_themed_titles(roster):
+    # 22 October: the Park Slope kittens were named from an adult comedy in the area's
+    # general watch list. The first member picks the litter's title among the pet-themed
+    # ones; a lone animal may still take a name from the area's local tastes.
+    from app.agent.pipeline import name_titles
+    from app.profile import Entity
+
+    profile = build_profile(FakeQloo(standard_script()), LOCATION, SEEDS)
+    local = Entity(id="00000000-0000-4000-8000-000000000777", name="Example Sitcom", type="tv_show")
+    profile.local_tastes = [local]
+    alone = name_titles(profile)
+    assert alone[local.id][1] == "local"
+    first = name_titles(profile, first_of_litter=True)
+    assert first and local.id not in first and {s for _, s in first.values()} == {"pet"}
+    # An area with no pet-themed titles still names the litter, from what it has.
+    profile.pet_entities = []
+    assert name_titles(profile, first_of_litter=True) == {local.id: (local, "local")}
 
 
 def _db():

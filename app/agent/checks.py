@@ -50,14 +50,27 @@ TITLE_UNFIT = (
     "hate", "hates", "hated", "monstrous",
 )  # fmt: skip
 
-# Well-known villains and tragic animals: the model also declares each reference's role,
+# Well-known villains: the model also declares each reference's role,
 # but a code list catches the famous ones even when it gets that wrong.
 FAMOUS_VILLAINS = (
     "scar", "shere khan", "cruella", "cujo", "jafar", "ursula", "maleficent", "voldemort",
     "thanos", "vader", "sauron", "pennywise", "chucky", "hannibal", "lecter", "gaston",
-    "hades", "mojo jojo", "old yeller",
+    "hades", "mojo jojo",
 )  # fmt: skip
 BAD_ROLES = ("villain", "tragic")
+# Well-known animals that die in their story, by character and, where the name is common,
+# the title it must come from (22 October: the lead dog was offered Hooch, from Turner &
+# Hooch, with the model calling him a friend). Checked whatever role the model declares.
+TRAGIC_ANIMALS: tuple[tuple[str, str | None], ...] = (
+    ("hooch", None), ("hachiko", None), ("hachi", "hachi"), ("hachi", "hachiko"),
+    ("old yeller", None),
+    ("yeller", "old yeller"), ("mufasa", None), ("artax", None), ("hedwig", None),
+    ("topthorn", None), ("old dan", None), ("little ann", None), ("marley", "marley"),
+    ("skip", "my dog skip"), ("bailey", "a dog's purpose"), ("bailey", "a dog's journey"),
+    ("enzo", "art of racing in the rain"), ("charlie", "all dogs go to heaven"),
+    ("charlotte", "charlotte's web"), ("ginger", "black beauty"), ("boxer", "animal farm"),
+    ("dewey", "eight below"), ("old jack", "eight below"),
+)  # fmt: skip
 ANIMAL_ROLES = ("puppy", "dog", "cat", "kitten", "animal")
 
 # Real people, as a code list for the famous ones. Names come only from the characters,
@@ -150,10 +163,16 @@ FIRST_PERSON = re.compile(r"\b(I|I'm|I've|I'll|me|my|mine)\b")
 ABBREVIATIONS = re.compile(r"\b(Mr|Mrs|Ms|Dr|St|Jr|Sr)\.")
 
 
+APOSTROPHES = str.maketrans({"\u2019": "'", "\u2018": "'", "\u02bc": "'", "`": "'"})
+
+
 def find_word(text: str, words: tuple[str, ...]) -> str | None:
-    """The first of `words` (or phrases) that appears in `text` as a whole word."""
+    """The first of `words` (or phrases) that appears in `text` as a whole word. Curly
+    apostrophes read as straight ones, so "A Dog\u2019s Purpose" matches "a dog's purpose"."""
+    text = text.lower().translate(APOSTROPHES)
     for word in words:
-        if re.search(rf"(?<![a-z]){re.escape(word)}(?![a-z])", text.lower()):
+        word = word.lower().translate(APOSTROPHES)
+        if re.search(rf"(?<![a-z]){re.escape(word)}(?![a-z])", text):
             return word
     return None
 
@@ -205,7 +224,7 @@ def check_name(
         problems.append(f"name {name!r} is unflattering for an adoption listing ({unflattering!r})")
     villain = find_word(f"{name} {reference}", FAMOUS_VILLAINS)
     if villain:
-        problems.append(f"name {name!r} refers to {villain!r}, a villain or tragic animal")
+        problems.append(f"name {name!r} refers to {villain!r}, a villain")
     if reference_role in BAD_ROLES:
         problems.append(f"name {name!r} refers to a {reference_role} character")
     person = find_word(f"{name} {reference}", FAMOUS_PEOPLE)
@@ -260,6 +279,16 @@ def identity_coded(name: str, description: str | None) -> bool:
     """A title coded to a religion, race or political identity: by its name, or by words in
     its description that are rarely anyone's name (descriptions name the cast)."""
     return bool(find_word(name, IDENTITY_CODED) or find_word(description or "", IDENTITY_TERMS))
+
+
+def check_tragic(name: str, character: str, title: str) -> list[str]:
+    """A name after a well-known animal that dies in its story (`TRAGIC_ANIMALS`)."""
+    for animal, story in TRAGIC_ANIMALS:
+        if find_word(f"{name} {character}", (animal,)) and (
+            story is None or find_word(title, (story,))
+        ):
+            return [f"name {name!r} refers to {animal.title()}, an animal that dies in its story"]
+    return []
 
 
 def check_title(
@@ -498,14 +527,20 @@ def check_why(animal: Animal, why: str, name: str) -> list[str]:
 NAME_JOINERS = ("in", "of", "the", "and", "de", "da", "von", "van", "le", "la")
 
 
+# The reference names the character's kind, not its age: "Bluey, a puppy in Bluey" read
+# as a claim about a 4-year-old dog (22 October, an outside read as a judge).
+REFERENCE_KIND = {"puppy": "dog", "kitten": "cat"}
+
+
 def reference_text(character: str, role: str, title: str) -> str:
     """What a name refers to, assembled by code from a name, a fixed role and Qloo's title."""
     if role == "title":
         return title
     if role in ("character", "object"):
         return f"{character} in {title}"
-    article = "an" if role[0] in "aeiou" else "a"
-    return f"{character}, {article} {role} in {title}"
+    kind = REFERENCE_KIND.get(role, role)
+    article = "an" if kind[0] in "aeiou" else "a"
+    return f"{character}, {article} {kind} in {title}"
 
 
 def check_character(character: str, role: str) -> list[str]:

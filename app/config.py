@@ -98,6 +98,8 @@ class Settings(BaseSettings):
     seeds_file: Path = ROOT / "data" / "seeds.json"
     # Real Qloo data: git-ignored, never committed, deployed privately.
     cache_db: Path = ROOT / "var" / "cache.sqlite"
+    # Visitors' workspaces: the animals they added and their listings, 7 days (decision 34).
+    workspace_db: Path = ROOT / "var" / "workspaces.sqlite"
     qloo_recordings: Path = ROOT / "var" / "qloo-recordings"
 
 

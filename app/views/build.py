@@ -39,6 +39,9 @@ from app.views.models import (
     AreaCheckView,
     Credits,
     ExampleLink,
+    FlyerPlace,
+    FlyerView,
+    Link,
     ListingSentence,
     ListingVersion,
     ListingView,
@@ -190,17 +193,38 @@ def location_option(
 
 
 def shelter_radius(location: Location) -> float:
-    """The circle around the fictional shelter, in metres: wider for a city."""
+    """The circle around the sample shelter, in metres: wider for a city."""
     return 800 * 2 ** (14 - location.zoom)
 
 
+REPO_URL = "https://github.com/bsabau/namesake"
+RESEARCH_URL = f"{REPO_URL}/blob/main/docs/research/adoption-evidence-review.md"
+TRIAL_URL = f"{REPO_URL}#measuring-whether-it-works"
+# The problem in one line for the start page, worded within the evidence review's claims.
+PROBLEM = (
+    "Volunteers write a listing for every animal, often with little time. Namesake keeps "
+    "to what the research supports: a plain listing that states only the recorded facts, "
+    "names screened before they are offered, and a plan for getting the animal seen. "
+    "Local taste data is the labelled experiment."
+)
+# Whether the local version helps is untested; the page says so, and what would test it.
+TRIAL = (
+    "Does the local version help? Nobody has tested it yet. Namesake records each "
+    "approved version so a shelter network could: generic against local, assigned at "
+    "random, measured in days to adoption, with about 190 adoptions to detect a 50% "
+    "faster rate, more if several shelters take part."
+)
 CLASSIFIER_CREDIT = (
     "Pet-themed titles sorted with TypeSafe's Jev classifier. Namesake is not affiliated with "
     "TypeSafe."
 )
 ADDED_PHOTO_CREDIT = (
-    "The animal and its photo were added by you for this visit and are not stored. "
-    "The shelter is fictional."
+    "The animal and its photo were added by you and are kept in your workspace only. "
+    "The shelter is a sample."
+)
+WORKSPACE_NOTE = (
+    "No sign-up: your workspace lives in this browser for 7 days after your last visit. "
+    "Copy its link to open it on another device; anyone with the link can open it."
 )
 PLACEHOLDER_PHOTO = "/static/placeholder.svg"
 # The precomputed examples, in the order the start page offers them.
@@ -209,8 +233,8 @@ EXAMPLES = (
     # one animal in two areas, not a second one.
     ("dog-02", "park-slope", "The brindle dog in Park Slope"),
     ("dog-02", "astoria", "The same brindle dog in Astoria"),
-    ("kitten-01", "park-slope", "Four kittens, named as a set, in Park Slope"),
-    ("kitten-01", "astoria", "The same four kittens in Astoria"),
+    ("cat-01", "park-slope", "The shy black cat in Park Slope"),
+    ("cat-01", "astoria", "The same black cat in Astoria"),
 )
 
 
@@ -257,6 +281,7 @@ def animal_card(animal: Animal, image_url: str | None = None) -> AnimalCard:
         temperament=animal.temperament[:1].upper() + animal.temperament[1:],
         litter=animal.litter is not None,
         featured=animal.id == FEATURED,
+        own=added,
         badges=(["added by you"] if added else [])
         + (["litter"] if animal.litter else [])
         + (["long stay"] if any("months" in h for h in animal.history) else []),
@@ -292,8 +317,12 @@ def build_start_view(
     examples: list[ExampleLink] | None = None,
     added: list[AnimalCard] | None = None,
     pins: dict[str, tuple[float, float]] | None = None,
+    workspace_link: str = "",
 ) -> StartView:
+    """`workspace_link` opens the visitor's workspace in another browser; shown with their
+    own animals only."""
     animals = sorted(roster.animals, key=lambda a: a.id != FEATURED)
+    samples = [animal_card(a) for a in animals]
     options = [
         location_option(loc, loc.id == selected_id, (pins or {}).get(loc.id)) for loc in locations
     ]
@@ -313,9 +342,16 @@ def build_start_view(
             "facts the shelter recorded, and a plan for getting the animal seen, using Qloo "
             "taste data about pet-themed shows near the shelter."
         ),
+        problem=PROBLEM,
+        problem_link=Link(label="What the research says", url=RESEARCH_URL),
         locations=options,
         map_tiles=map_tiles(),
-        animals=(added or []) + [animal_card(a) for a in animals],
+        animals=(added or []) + samples,
+        your_animals=added or [],
+        sample_animals=samples,
+        workspace_note=WORKSPACE_NOTE if added else "",
+        workspace_link=workspace_link if added else "",
+        add_animal_label="Add another animal" if added else "Add your own animal",
         litters=[litter_card(lit) for lit in roster.litters],
     )
 
@@ -658,14 +694,31 @@ def map_view(
     )
     base = compared_with(profile) or "a baseline"
     cells = []
+    # A compared cell's two scores are Namesake's ranks of Qloo's (one_scale), so the label
+    # gives each side's place among those cells, never a number that reads as Qloo's.
+    both = [c for c in profile.cells if c.lift is not None]
+
+    def place(score: float, side: str) -> str:
+        # Tied cells share a range of places, whose middle is the rank lift is taken from,
+        # so a label never reads higher on the side whose colour says lower (Codex).
+        first = 1 + sum(getattr(o, side) > score for o in both)
+        last = sum(getattr(o, side) >= score for o in both)
+        return ordinal(first) if first == last else f"joint {ordinal(first)} to {ordinal(last)}"
+
     for c in profile.cells:
         south, west, north, east = bounds(c.geohash)
         if c.lift is None:
             label = f"Scored for {pets}{shows(c.pet_count)} only; no comparison here."
+        elif len(both) == 1:
+            label = (
+                f"Scored for {pets}{shows(c.pet_count)} and {base}{shows(c.baseline_count)}: "
+                "the only such cell, so nothing to compare it with."
+            )
         else:
             label = (
-                f"{cap(pets)}: {c.pet_score:.2f}{shows(c.pet_count)}; "
-                f"{base}: {c.baseline_score:.2f}{shows(c.baseline_count)}."
+                f"{cap(pets)}{shows(c.pet_count)}: {place(c.pet_score, 'pet_score')} "
+                f"of these {len(both)} cells; {base}{shows(c.baseline_count)}: "
+                f"{place(c.baseline_score, 'baseline_score')}."
             )
         cells.append(
             MapCell(
@@ -705,7 +758,7 @@ def map_view(
         + (
             " Circle: around the spot you picked for the shelter."
             if pin
-            else " Circle: around the shelter the animals are adopted from (made up for this demo)."
+            else " Circle: around the sample shelter the animals are adopted from."
         )
         if cells
         else None
@@ -735,20 +788,24 @@ def map_view(
     warm = sum(lift > 0 for lift in compared)
     which = "" if len(compared) == len(cells) else " with a comparison"
     some = "these" if len(compared) == len(cells) else "the"
+    # Both sides are ranked among the same cells (one_scale), so their differences sum to
+    # zero: some cells are always warmer than others unless the two order them alike. The
+    # count compares parts of the area, never how many fans live anywhere (Flash, Codex).
+    where = (
+        f"Both sides are ranked among the same cells, so this compares parts of "
+        f"{location.label}, not how many fans live there. "
+    )
     if not compared or thin:
         # A thin map already says it says little; a count would read as more.
         count = ""
     elif len(compared) == 1:
-        verb = "stand out" if warm else "do not stand out"
-        count = f"{cap(pets)} {verb} against {base} in the one cell{which}. "
+        count = "Only one cell was scored for both sides, so there is nothing to compare. "
     elif not warm:
-        count = f"{cap(pets)} do not stand out against {base} in any of {some} cells{which}. "
-    elif warm == len(compared):
-        count = f"{cap(pets)} stand out against {base} in all {warm} cells{which}. "
+        count = f"{cap(pets)} order {some} cells{which} as {base} do. "
     else:
         count = (
-            f"{cap(pets)} stand out against {base} in {warm} of {some} "
-            f"{len(compared)} cells{which}. "
+            f"{cap(pets)} rank {warm} of {some} {len(compared)} cells{which} higher than "
+            f"{base} do. " + where
         )
     # Qloo ranks places in a separate answer from the cells, so a reader should not look
     # for them inside warm cells (the author's question, 20 October).
@@ -789,8 +846,8 @@ def map_view(
                 f"Colours: warm where {pets} rank this part of {location.label} higher than "
                 f"{base} do; cool where lower, or level; grey where only the pet-themed titles "
                 "have a score. Where several "
-                "shows scored a cell, their scores are averaged. Scores are ranks within the "
-                "area, so they compare places here, not with other cities."
+                "shows scored a cell, their scores are averaged, then ranked among the cells "
+                "scored for both, so they compare parts of this area, not other cities."
             )
             if any(c.lift is not None for c in cells)
             else f"Cells: where {pets} rank high within {location.label}. No cell was also "
@@ -852,7 +909,8 @@ def cell_reading(
     shelter: tuple[float, float] | None = None,
 ) -> str | None:
     """Where OpenStreetMap places a venue on the lift map, read in the map's own terms:
-    ranks within the area, for fans of pet-themed titles as a group against the comparison shows."""
+    ranks among the cells scored for both, for fans of pet-themed titles as a group against
+    the comparison shows."""
     if v.latitude is None or v.longitude is None:
         return None
     c = cell_of(v, profile)
@@ -1239,7 +1297,8 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         returned.append(
             WhyItem(
                 title=f"{len(profile.cells)} map cells within {location.label}",
-                detail="Scored by Qloo from 0 to 1, as ranks within the area.",
+                detail="Scored by Qloo from 0 to 1, as ranks over the cells it maps for each "
+                "title.",
             )
         )
     if any(c.lift is not None for c in profile.cells):
@@ -1247,8 +1306,9 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
             WhyItem(
                 title="Lift on the map",
                 detail="The pet-themed titles' score minus the score for "
-                f"{compared_with(profile) or 'the baseline'} in the same cell, each averaged over "
-                "the shows that scored it. It is relative: "
+                f"{compared_with(profile) or 'the baseline'} in the same cell. Each is averaged "
+                "over the shows that scored it, then ranked again among the cells scored for "
+                "both, since Qloo ranks each title over its own cells. It is relative: "
                 "where in this area fans of pet-themed titles stand out, not how many there are.",
             )
         )
@@ -1312,6 +1372,38 @@ def ai_searches(profile: LocationProfile) -> list[str]:
     are code's own."""
     found = [f for e in profile.pet_entities for f in (e.found_in, e.listed_in) if f]
     return list(dict.fromkeys(f.signal for f in found if not f.by_tags))
+
+
+def local_touch(
+    location: Location,
+    profile: LocationProfile,
+    listing: ListingResult | None,
+    places_shown: int,
+) -> str:
+    """One plain line under the listing: which parts of this result rest on Qloo's data
+    for the area. Counted from the profile and the listing, like qloo_part; the detail
+    is in "How Namesake made this" (decision 33). A name counts only when its title has
+    Qloo's evidence for the area: ranked here, in Qloo's lists for it, or among what people
+    there tend to watch; a lookalike or a title only looked up does not."""
+    names = listing.draft.names if listing and listing.draft else []
+    local = {e.id for e in profile.pet_entities if e.id in profile.ranked}
+    local |= {e.id for e in profile.pet_entities if e.found_in or e.listed_in}
+    local |= {e.id for e in profile.local_tastes}
+    backed = [o for o in names if o.source != "lookalike" and o.entity_id in local]
+    parts = (
+        (
+            ["the titles behind the names"]
+            if backed and len(backed) == len(names)
+            else [f"the titles behind {len(backed)} of the {len(names)} names"]
+            if backed
+            else []
+        )
+        + ([plural(places_shown, "place") + " to ask"] if places_shown else [])
+        + (["the map"] if profile.cells else [])
+    )
+    if not parts:
+        return ""
+    return f"From Qloo taste data for {location.label}: {and_list(parts)}."
 
 
 def qloo_part(
@@ -1576,6 +1668,10 @@ def build_result_view(
         litter=litter or [],
         litter_note=("Named as a set with the rest of the litter:" if len(named) > 1 else None),
         qloo_part=qloo_part(location, profile, listing, len(shown)),
+        local_touch=local_touch(location, profile, listing, len(shown)),
+        local_touch_generic=local_touch(location, profile, None, len(shown)),
+        trial=TRIAL,
+        trial_link=Link(label="How the trial would work", url=TRIAL_URL),
         name=name_view(listing, profile, listing_.text),
         listing=listing_,
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
@@ -1689,10 +1785,16 @@ def build_add_animal_view(
     error: str | None = None,
     values: dict[str, str] | None = None,
     area: str = "",
+    edit: str = "",
 ) -> AddAnimalView:
-    """With the typed area (`location_id` is TYPED_AREA), its name goes along, and back."""
+    """With the typed area (`location_id` is TYPED_AREA), its name goes along, and back.
+    With `edit`, the form changes that added animal: its record is replaced."""
     typed = location_id == TYPED_AREA
     return AddAnimalView(
+        title="Edit your animal" if edit else "Add an animal",
+        edit=edit,
+        submit_label="Save the changes" if edit else "Add the animal",
+        photo_kept_note="Choose none to keep the photo it has, if any." if edit else "",
         location_id=location_id,
         area=area if typed else "",
         back_url=f"/?{urlencode({'area': area} if typed else {'location': location_id})}",
@@ -1722,4 +1824,88 @@ def area_check_view(area, ui_query: str = "") -> AreaCheckView:
         pin_lat=lat,
         pin_lon=lon,
         back_url=f"/?{urlencode({'area': area.text})}{ui_query}#shelter",
+    )
+
+
+def build_flyer_view(
+    result: ResultView,
+    variant: str | None,
+    ui_query: str = "",
+    name: str | None = None,
+    approved: str | None = None,
+) -> FlyerView | None:
+    """The flyer for one version of a result: the version asked for when it exists, else
+    the one the result page opens on; for the local one, the name option chosen on the
+    page when `name` is one of them. Built only from the result's own view (decision 35).
+    With `approved`, the text the volunteer approved (checked by the caller) replaces the
+    drafted listing, for exactly that version and name. None when there is nothing to
+    print."""
+    versions = {v.variant: v for v in result.listing.versions if v.available}
+    if not versions:
+        return None
+    opened = next((v for v in result.listing.versions if v.selected and v.available), None)
+    if approved is not None and (variant or "") not in versions:
+        return None
+    version = versions.get(variant or "") or opened or next(iter(versions.values()))
+    chosen, hook, copy_text = version.name, version.hook, version.copy_text
+    option = next((o for o in result.name.options if o.name == name), None)
+    if version.variant == "local" and option is not None:
+        chosen, hook, copy_text = option.name, option.hook, option.copy_text
+    elif approved is not None and version.variant == "local":
+        return None
+    if approved is not None:
+        copy_text = copy_block(None, hook, approved)
+    # The drafted copy text opens with "Meet <name>.", which the flyer shows as its heading.
+    # Only that generated line goes: an approved text is printed whole, whatever it says.
+    paragraphs = [p for p in copy_text.split("\n\n") if p.strip()]
+    if approved is None and paragraphs and paragraphs[0] == f"Meet {chosen}.":
+        paragraphs = paragraphs[1:]
+    query = urlencode({"animal": result.animal.id, "location": result.location.id})
+    other = next((v for v in versions.values() if v.variant != version.variant), None)
+    return FlyerView(
+        title=f"Meet {chosen}" if chosen else "Meet this animal",
+        name=chosen,
+        image_url=result.animal.image_url,
+        image_alt=result.animal.alt,
+        paragraphs=paragraphs,
+        version_label=version.label,
+        ask_line=f"Ask the shelter in {result.location.label} about {chosen or 'this animal'}.",
+        checklist_note=(
+            "Places near the shelter that Qloo returned for fans of pet-themed titles. Each "
+            "says what Namesake found when it compared Qloo's list with a baseline, or that "
+            "it could not. Tick each one once you have asked about a flyer or a stand."
+            if result.venues
+            # The flyer has no Why panel to point to.
+            else result.venues_empty.replace("; the Why panel names them.", ".")
+        ),
+        # Page 1 is posted alone: it says the shelter is a sample, in a short line.
+        sample_line=(
+            "The shelter is a sample."
+            if result.credits.photos == ADDED_PHOTO_CREDIT
+            else result.credits.photos
+        ),
+        places=[
+            FlyerPlace(number=v.number or n, name=v.name, place=v.place, badge=v.badge)
+            for n, v in enumerate(result.venues, start=1)
+        ],
+        other=[item.text for item in result.plan if item.basis != "Qloo"],
+        # An approved text is one version's: the other would be a draft.
+        other_version=(
+            Link(
+                label=f"Print the “{other.label}” version instead",
+                url=f"/flyer?{query}&variant={other.variant}{ui_query}",
+            )
+            if other and approved is None
+            else None
+        ),
+        **(
+            {
+                "print_note": "Page 1 is the flyer to post; page 2 is your checklist. It "
+                "prints the listing you approved."
+            }
+            if approved is not None
+            else {}
+        ),
+        back_url=f"/result?{query}{ui_query}",
+        credits=result.credits,
     )

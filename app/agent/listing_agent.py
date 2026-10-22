@@ -151,10 +151,11 @@ Rules:
 - Offer 3 to 5 name options. Each comes from one of the titles below (a character, the
   title, or an object in it), with that title's entity_id and source, the character's own
   name as it appears in the story, and its role from the list. Short and easy to
-  say: one to three syllables. No villains, violent or tragic characters, weapons, real
-  people, names coded to a race, religion or political identity, or names that put an
-  animal down (dirt, waste, pests, insults: "Garbage", "Scat"). From a title about
-  real people (a talk show, reality show, documentary or biopic), only an animal's name.
+  say: one to three syllables. No villains, violent or tragic characters (an animal
+  that dies in the story is tragic), weapons, real people, names coded to a race,
+  religion or political identity, or names that put an animal down (dirt, waste, pests,
+  insults: "Garbage", "Scat"). From a title about real people (a talk show, reality
+  show, documentary or biopic), only an animal's name.
 - Take each option from a different title; repeat a title only once every title you may
   name from is used, since a listing needs three names. A litter named as a set is the
   exception.
@@ -555,6 +556,7 @@ def screen_names(names: list[NameOption], titles: dict[str, Entity], strict: boo
             problems += checks.check_title(
                 option.name, option.role, title.name, title.description, real_people=real
             )
+            problems += checks.check_tragic(option.name, option.character, title.name)
     return problems
 
 

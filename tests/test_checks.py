@@ -8,6 +8,7 @@ from app.agent.checks import (
     check_hook,
     check_name,
     check_title,
+    check_tragic,
     check_why,
     fact_keys,
     is_bully_type,
@@ -369,6 +370,30 @@ def test_a_famous_villain_in_the_reference_fails():
     assert any("'cruella'" in p for p in problems)
 
 
+@pytest.mark.parametrize(
+    ("name", "character", "title", "animal"),
+    [
+        # 22 October: offered on the lead dog with the model calling Hooch a friend.
+        ("Hooch", "Hooch", "Turner & Hooch", "Hooch"),
+        ("Bailey", "Bailey", "A Dog's Purpose", "Bailey"),
+        ("Yeller", "Old Yeller", "Old Yeller", "Old Yeller"),
+        # Review: Qloo's titles may carry a curly apostrophe or a year.
+        ("Bailey", "Bailey", "A Dog\u2019s Purpose (2017)", "Bailey"),
+        ("Hachi", "Hachi", "Hachiko: A Dog's Story", "Hachi"),
+    ],
+)
+def test_a_name_after_an_animal_that_dies_in_its_story_fails(name, character, title, animal):
+    assert check_tragic(name, character, title) == [
+        f"name {name!r} refers to {animal}, an animal that dies in its story"
+    ]
+
+
+def test_a_common_name_from_another_title_passes():
+    # Bailey dies in A Dog's Purpose; a Bailey from an invented title is just a name.
+    assert check_tragic("Bailey", "Bailey", "Example Puppy Club") == []
+    assert check_tragic("Charlotte", "Charlotte", "Example Cat Show") == []
+
+
 def test_a_restatement_passes_and_an_invention_fails():
     pet = animal()
     assert check_bio(pet, clean_bio()) == []
@@ -417,7 +442,10 @@ def test_a_character_is_a_plain_name():
 
 
 def test_references_are_written_by_code():
-    assert reference_text("Bingo", "puppy", "Bluey") == "Bingo, a puppy in Bluey"
+    # The character's kind, never its age: the animal named after it may be grown.
+    assert reference_text("Bingo", "puppy", "Bluey") == "Bingo, a dog in Bluey"
+    assert reference_text("Marie", "kitten", "The Aristocats") == "Marie, a cat in The Aristocats"
+    assert reference_text("Odie", "animal", "Garfield") == "Odie, an animal in Garfield"
     assert reference_text("Rubble", "character", "PAW Patrol") == "Rubble in PAW Patrol"
     assert reference_text("x", "title", "Lassie") == "Lassie"
 

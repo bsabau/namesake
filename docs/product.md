@@ -11,8 +11,10 @@ The review found no study showing that names or wording speed adoption. Being se
 ## Demo
 
 - **Lead animal:** `dog-02`, a large brindle adult with a broad head, eight months in the shelter. That's the profile the research names as the US bottleneck, and it exercises the strictest name screening.
-- **Second example:** the kitten litter, named as a set, listed for two neighbourhoods side by side. (On 19 October the Astoria one briefly gave way to the lead dog in Barcelona, decision 30.)
+- **Second example:** `cat-01`, a shy black senior five months in the shelter, listed for two neighbourhoods side by side. Older cats are among those that wait longest (`docs/research/adoption-evidence-review.md`), and her listing has to stay honest about shyness. The kitten litter, the second example until 22 October, is still named as a set when a visitor picks a kitten (decision 30).
 - **Locations:** two New York neighbourhoods and one other US city, from `data/locations.json`, confirmed in milestone 1, and Barcelona outside the US (decision 30).
+
+- **Your own animals:** a volunteer can add up to three of their own, with an optional photo, and edit or remove them. They are kept in a workspace in that browser for 7 days after the last visit, with a link that opens it elsewhere; there is no sign-up (decision 34).
 
 ## Output 1: the listing
 
@@ -31,6 +33,8 @@ The review found no study showing that names or wording speed adoption. Being se
 
 **Volunteer approval.** The volunteer edits and approves the text, then copies a block ready to paste into shelter software.
 
+**Flyer and checklist.** "Print a flyer" prints two pages from the result: the flyer to post (the name, the photo, the listing, who to ask, and a contact line the volunteer types in, which is printed and never saved), and the volunteer's checklist of the places to ask, numbered as on the map, and the other ways to help (decision 35). After approving, the approval page prints the same flyer with the approved text.
+
 ## Output 2: name options
 
 Name options come from three sources. Each option carries a badge with what Qloo returned for its title:
@@ -41,7 +45,7 @@ Name options come from three sources. Each option carries a badge with what Qloo
 | Loved here generally | The area's top TV shows (step E). Screened harder, because these lists lean on national hits and identity-coded titles. |
 | Title found, or Offered as a candidate (a lookalike) | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Qloo's line says only that it found the title, or offered it among candidates when it asked which was meant; the match ("A lookalike, matched on this animal's recorded look (brindle coat).", after the reference that names the character) is on the AI's line. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
 
-Each option shows the Qloo title, its kind and Qloo's evidence for the area (its rank here, or its place in one of the area's lists); a lookalike has no area evidence, only the title. Our reading, how the name fits the animal's recorded look, is shown separately; it never mentions temperament, so the reference cannot imply how the animal behaves. Each option comes from a different title while another of the area's open titles is unused (lookalike titles never count), except a litter named as a set. Where Qloo returns a clear lean, an option also says who tends to like its title, from Qloo's audience demographics: the age bands and gender its fans lean toward, with Qloo's skew, across all of Qloo's audiences (never the area's or a person's), and only leans of +0.15 or more; a title with no answer or no clear lean says nothing. Warm and classic show it beside the option, story in "Why this name?". It is there for the volunteer to read and plays no part in choosing names (decision 31). The volunteer picks one. The titles come in the order Qloo's `rank` gave them for the area, or the AI's when ranking is unavailable; raw affinity is never used to order them.
+Each option shows the Qloo title, its kind and Qloo's evidence for the area (its rank here, or its place in one of the area's lists); a lookalike has no area evidence, only the title. Our reading, how the name fits the animal's recorded look, is shown separately; it never mentions temperament, so the reference cannot imply how the animal behaves. Each option comes from a different title while another of the area's open titles is unused (lookalike titles never count), except a litter named as a set. Where Qloo returns a clear lean, an option also says who tends to like its title, from Qloo's audience demographics: the age bands and gender its fans lean toward, with Qloo's skew, across all of Qloo's audiences (never the area's or a person's), and only leans of +0.15 or more; a title with no answer or no clear lean says nothing. Warm and classic show it beside the option, story in "Why these names?". It is there for the volunteer to read and plays no part in choosing names (decision 31). The volunteer picks one. The titles come in the order Qloo's `rank` gave them for the area, or the AI's when ranking is unavailable; raw affinity is never used to order them.
 
 ## Output 3: the exposure plan
 
@@ -61,7 +65,7 @@ The plan's success measure is adoptions and returns; likes and reach are left ou
 |---|---|---|---|
 | A. Pet-themed titles the area likes | `recommend` per type with the four pet tags as signals plus `signal_location` (decision 22). As filters the tags returned almost nothing (milestone 1) | code asks; a classifier sorts; agent judges the unclear ones | location |
 | B. More pet-themed entities strong here | `describe` for titles the agent adds; then `recommend` with one of them as the signal plus `signal_location`, per type (decision 20) | agent adds and searches; a classifier sorts the search results; agent judges the unclear ones; code keeps only titles Qloo ranks or lists here | location |
-| C. Local lift against a baseline | `where_popular` for the top two entities (a thin first one gives way to the next) and the area's top two shows (decision 18); lift = the entities' averaged score in a cell minus the baseline shows' | code computes; nothing is dropped by lift: the map shows it | entity and city |
+| C. Local lift against a baseline | `where_popular` for the top two entities (a thin first one gives way to the next) and the area's top two shows (decision 18); lift = the entities' averaged score in a cell minus the baseline shows', both ranked among the cells scored for both | code computes; nothing is dropped by lift: the map shows it | entity and city |
 | D. Venues fans favour | `recommend` for places, up to three entities with the strongest evidence as signals, titles about another animal only last, never an identity-coded one (code picks them), location near the shelter | agent picks about three venues, with reasons | location |
 | E. General local tastes | `recommend` for TV shows with `signal_location` | code asks; they are the names' second source, screened like the rest | location |
 | F. Check each name's reference | resolve and `describe`; on `needs_input` the agent picks a candidate with a stated reason (candidate buttons are for typed areas only) | agent | entity |
@@ -74,16 +78,18 @@ Steps A to E run once per location and every animal reuses them, so quota cost g
 ## The result screen
 
 The result screen must be legible in a single screenshot. It shows:
-- on the first screen, Qloo's part and Namesake's AI's part, apart: what Qloo returned for this result and what the AI did with it (at the top in the warm and classic skins; under the name options in story, `docs/decisions.md` #24)
+- on the first screen, what Qloo returned for this result and what Namesake's AI did with it, apart: at the top in the warm and classic skins; in story, one line under the name options saying what came from Qloo's data for the area, with the two parts at the top of "How Namesake made this", after the places (`docs/decisions.md` #24, #33)
 - the photo and chosen name
 - the generic/local toggle, each button showing its version's name
 - the name options with what Qloo returned for each title
-- a map of local lift, its caption counting the cells where fans of pet-themed titles stand out (unless the map is thin or has no comparison), with the venues listed beside it under a note on which kinds of place were asked for and why (decision 23), and pinned on it by number, each card saying which cell it sits in and how far it is from the shelter (`docs/decisions.md` #4)
+- a map of local lift, its caption (folded under "About this map" in story, decision 33) counting the cells fans of pet-themed titles rank higher than fans of the area's top shows, a comparison of parts of the area rather than of how many fans (unless the map is thin or has one compared cell or none), with the venues listed beside it under a note on which kinds of place were asked for and why (decision 23), and pinned on it by number, each card saying which cell it sits in and how far it is from the shelter (`docs/decisions.md` #4)
 - the exposure checklist
 - a "Why" drawer with two columns, "Qloo returned" and "How Namesake read it", the Qloo calls behind the result listed under Qloo's
 - in the story skin, the saved run's own step log, folded, each step marked by who did it; and, where the animal has no listing yet, a button that starts a run (for a litter member, the litter's) (decision 27)
+- in the story skin, the outcome first: the listing, then the map and the places to ask, then "How Namesake made this", which ends with the trial the local version would need; each place's evidence and the names' Qloo answers are folded one click away (decision 33)
+- in the story skin, "Print a flyer" under the copy button, for the version and name shown (decision 35)
 
-The skins that render this screen are a separate choice (`docs/decisions.md` #21 for warm and classic, #24 for story); each keeps every item above, except the two marked as the story skin's.
+The skins that render this screen are a separate choice (`docs/decisions.md` #21 for warm and classic, #24 for story); each keeps every item above, except the three marked as the story skin's.
 
 ## Measurement
 

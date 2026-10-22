@@ -55,7 +55,7 @@ These shape most decisions below, so keep them in mind when making trade-offs. C
   - The cultural reference appears only in the name and one hook line, and neither the hook nor a name's reason says anything about temperament.
 - **Names are screened.**
   - Names are short and easy to say, at one to three syllables.
-  - Every option passes a screen for villains, violent or tragic characters, weapon and aggression words, words that put an animal down (garbage, scat, rat), living celebrities, and references coded to a race, religion or political identity.
+  - Every option passes a screen for villains, violent or tragic characters (including well-known animals that die in their story), weapon and aggression words, words that put an animal down (garbage, scat, rat), living celebrities, and references coded to a race, religion or political identity.
   - Dogs of bully-breed type get the strictest screen, because research found a measured penalty for names perceived as Black on pit-bull-type dogs.
   - A title whose own name would introduce the animal badly ("My Cat from Hell") gives no names.
   - Two animals in one shelter never share a reference (a title's character), except a litter named as a set, whose mates share a title but never a character. One animal's options come from different titles while another of the area's open titles is unused (lookalike titles never count).
@@ -239,7 +239,7 @@ Twelve fictional animals plus one group photo of a litter, all AI-generated. The
 
 - Fields per animal: `id`, `species`, `group`, `sex`, `age`, `look`, `temperament`, `facts` (a list), `history`, `checks` (the five `yes`/`no`/`unknown` answers listed in `docs/product.md`), `image`. The four kittens share `litter: "litter-a"`. The `litter-group` entry has `members` and no profile.
 - Animals have no names on purpose. Naming them is the app's job.
-- `dog-02` leads the demo and the litter is the second example; `docs/product.md` says why.
+- `dog-02` leads the demo and `cat-01` is the second example; `docs/product.md` says why. The litter stays in the app, out of the examples (decision 30, revised 22 October).
 - The photos and JSON were produced by a separate project outside this repo (`../image_generation`, which also holds `ANIMALS.md` with each animal's role in the demo). It is not part of this app; do not import from it or run it.
 - The app serves web-sized copies from `app/static/animals`, made by `scripts/make_web_photos.py`. The UI labels the photos as AI-generated, and the app never edits or generates animal images.
 
@@ -251,13 +251,13 @@ The shelter is fictional too. Do not use real shelter names, logos or photos.
 
 **Screens**
 
-1. **Start:** a grid of the animals, a choice of four preset locations, a custom location field, and "Read a finished story" links that load precomputed results instantly. There is no tone setting: the listing rules fix the voice, and the refine line takes follow-ups (`docs/decisions.md` #15).
+1. **Start:** a grid of the animals, a choice of four preset locations, a custom location field, and "Read a finished story" links that load precomputed results instantly. The visitor's own animals come first, kept in a workspace in their browser for 7 days, which they can edit, remove from, and open elsewhere by its link (`docs/decisions.md` #34). There is no tone setting: the listing rules fix the voice, and the refine line takes follow-ups (`docs/decisions.md` #15).
 2. **Working:** a live log of the agent's steps, streamed as they happen: entities proposed, each one checked against Qloo, which were kept and which dropped.
-3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges, and who tends to like each one's title, from Qloo's audience demographics (`docs/decisions.md` #31); a map of local lift; the venues as a list with their evidence, under a note on which kinds of place were asked for and why, and that listed national chains are left out (`docs/decisions.md` #23), and as numbered pins on the map from OpenStreetMap (`docs/decisions.md` #4, revised), skipping those that mention children for an animal recorded as not good with them (`docs/decisions.md` #2); the exposure checklist; in the story skin, the saved run's step log and, with no listing yet, a button that starts a run (`docs/decisions.md` #27).
+3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges, and who tends to like each one's title, from Qloo's audience demographics (`docs/decisions.md` #31); a map of local lift; the venues as a list with their evidence, under a note on which kinds of place were asked for and why, and that listed national chains are left out (`docs/decisions.md` #23), and as numbered pins on the map from OpenStreetMap (`docs/decisions.md` #4, revised), skipping those that mention children for an animal recorded as not good with them (`docs/decisions.md` #2); the exposure checklist; in the story skin, the saved run's step log and, with no listing yet, a button that starts a run (`docs/decisions.md` #27). The story skin leads with the outcome: the names and listing, one line saying what came from Qloo's data for the area, the map and places (each place's evidence folded under "Why this place"), the other ways to help, then "How Namesake made this" with Qloo's part and the AI's, the step log, the Why drawer and a line on the untested trial (`docs/decisions.md` #33). "Print a flyer" opens a printable page: the flyer to post, with a contact line the volunteer types in, then a checklist of the places to ask and the other ways to help; the approval page prints it with the approved text (`docs/decisions.md` #35).
 4. **Why:** for each choice, the Qloo result behind it, separate from the app's reading of it.
 5. **Refine:** one text line for follow-ups such as "less childish". When Qloo returns `needs_input` for a typed area, the run stops there and its candidates show as buttons on the working page (`docs/decisions.md` #32); an ambiguous title is settled by the agent with a stated reason.
 
-**Preset locations.** The start screen offers four: two New York City neighbourhoods, one other US city, and one city outside the US (Barcelona, decision 30). Two neighbourhoods in the same city show that results change at fine detail; the third shows it is not only a New York effect, and the fourth that it is not only a US one. Do not choose them by reputation. Milestone 1 kept the three that Qloo resolves cleanly and whose results differ most. Candidates: Park Slope, Bushwick, Astoria, Harlem and the Upper West Side in New York; Tampa, Austin and Portland elsewhere. Each preset is a place name plus a centre point for the fictional shelter, never a real shelter or a street address. The presets live in `data/locations.json`: `query` is the text sent to Qloo as the location signal and the heatmap's area, and `city` names the wider city (only New York's rescue-partner plan item reads it). The current four are Park Slope, Astoria, Austin and Barcelona; the precomputed examples (`EXAMPLES` in `app/views/build.py`) are the lead dog and the litter, each in Park Slope and Astoria.
+**Preset locations.** The start screen offers four: two New York City neighbourhoods, one other US city, and one city outside the US (Barcelona, decision 30). Two neighbourhoods in the same city show that results change at fine detail; the third shows it is not only a New York effect, and the fourth that it is not only a US one. Do not choose them by reputation. Milestone 1 kept the three that Qloo resolves cleanly and whose results differ most. Candidates: Park Slope, Bushwick, Astoria, Harlem and the Upper West Side in New York; Tampa, Austin and Portland elsewhere. Each preset is a place name plus a centre point for the fictional shelter, never a real shelter or a street address. The presets live in `data/locations.json`: `query` is the text sent to Qloo as the location signal and the heatmap's area, and `city` names the wider city (only New York's rescue-partner plan item reads it). The current four are Park Slope, Astoria, Austin and Barcelona; the precomputed examples (`EXAMPLES` in `app/views/build.py`) are the lead dog and `cat-01`, each in Park Slope and Astoria.
 
 **The agent's job.** Given an animal's facts and a location:
 1. Find pet-themed entities that are strong locally, and check each one's lift against a baseline. Keep the strong ones, and try again once if too few survive.
@@ -292,13 +292,14 @@ app/
   audience.py        who tends to like each name's title (Qloo's demographics), and its backfill
   agent/             the two PydanticAI agents, their checks, the step log and the run pipeline
   runs.py, store.py  web runs (background task + step log), saved agent results, approvals
-  session.py         per-visitor state in memory: added animals, photos, refined listings
+  session.py         per-visitor state: added animals, photos, refined listings, the map pin
+  workspace.py       the visitor's workspace on disk, 7 days after the last visit (decision 34)
   limits.py          per-visitor and daily limits on live runs and new locations
   custom_location.py checks a typed shelter area with Qloo, as the run's first step
   qloo/              exec wrapper, envelope types, cache, geohash helpers
   views/             UI-neutral view models, one per screen, also served as JSON
   ui/<name>/         one folder per UI: templates/ and static/ (story is the default; warm and classic are kept)
-  static/            shared assets: web-sized animal photos, the favicon
+  static/            shared assets: web-sized animal photos, the favicon, the flyer's print styles and button
 data/animals/        animals.json and original photos
 data/locations.json  the preset shelter locations
 docs/                architecture.md, decisions.md, product.md, qloo-findings.md, research/, img/
@@ -355,11 +356,11 @@ Work on one milestone at a time, in order, and stop at the end of each for revie
 **4. Product (25–27 October).** Done 17 October.
 - The generic-versus-local toggle, the Why panel, the refine line, and candidate buttons for `needs_input`.
 - Edit and approve, and a copy-ready block.
-- Precomputed examples, built by a script into the cache database: `dog-02` and the litter in two neighbourhoods.
+- Precomputed examples, built by a script into the cache database: `dog-02` and the litter in two neighbourhoods (since 22 October `cat-01` in place of the litter).
 - A per-visitor rate limit and a daily cap on live runs.
 - The "try your own" path:
   - A custom location field. A custom location goes to Qloo as typed; on `needs_input`, show the candidates as buttons. Where the data is thin, say so instead of producing a weak listing. The field suggests area names as you type, and a spot picked on the map becomes an area's name, with the spot kept as that visit's pin (`docs/decisions.md` #17).
-  - A form to add one animal: species, age, look, temperament, a couple of facts, the `yes`/`no`/`unknown` fields, and an optional photo. The added animal and its photo are kept for the session only and never stored.
+  - A form to add one animal: species, age, look, temperament, a couple of facts, the `yes`/`no`/`unknown` fields, and an optional photo. The added animal and its photo were kept for the session only; since 22 October they are kept in the visitor's workspace for 7 days (decision 34).
 
 Out of scope: accounts, an admin area, creating, editing or deleting stored animals, and reading or altering photos with a model.
 

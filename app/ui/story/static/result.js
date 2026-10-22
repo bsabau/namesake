@@ -1,5 +1,5 @@
 // Picking another name option shows the local version as it reads with that name, and
-// the "Why this name?" pair for it. Every value comes from the view model, carried on
+// the "Why these names?" pair for it. Every value comes from the view model, carried on
 // the option or already in the page; nothing is built here.
 document.addEventListener("change", (event) => {
   const input = event.target;
@@ -16,6 +16,8 @@ document.addEventListener("change", (event) => {
   const choice = document.querySelector('input[name="variant"][value="local"]');
   const text = choice && choice.parentElement.querySelector(".version-choice-text");
   if (text) text.textContent = input.dataset.choice;
+  const flyer = document.querySelector(".flyer-link.local-only");
+  if (flyer && input.dataset.flyer) flyer.href = input.dataset.flyer;
   document.querySelectorAll("[data-name-detail]").forEach((pair) => {
     pair.classList.toggle("selected", pair.dataset.nameDetail === input.value);
   });

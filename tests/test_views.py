@@ -12,6 +12,7 @@ from app.views.build import (
     build_result_view,
     build_start_view,
     for_children,
+    local_touch,
     map_view,
     result_id,
     sentences,
@@ -432,6 +433,61 @@ def test_the_qloo_part_says_plainly_when_nothing_came_back(roster):
     assert part.ai.startswith("Not used here")
 
 
+def test_the_local_touch_names_only_what_came_from_qloo_here(roster):
+    # Decision 33: one plain line under the names; each part rests on the area's data.
+    from types import SimpleNamespace
+
+    p = profile()
+    p.ranked = [p.pet_entities[0].id]
+    ranked, looked_up = p.pet_entities[0].id, p.pet_entities[1].id
+
+    def drafted(*options):
+        names = [SimpleNamespace(entity_id=i, source=s) for i, s in options]
+        return SimpleNamespace(draft=SimpleNamespace(names=names))
+
+    assert local_touch(LOCATION, p, drafted((ranked, "pet")), 3) == (
+        f"From Qloo taste data for {LOCATION.label}: the titles behind the names, "
+        "3 places to ask and the map."
+    )
+    # A title only looked up, or a lookalike, has no evidence for the area: not claimed.
+    some = drafted((ranked, "pet"), (looked_up, "pet"), (ranked, "lookalike"))
+    assert local_touch(LOCATION, p, some, 3).startswith(
+        f"From Qloo taste data for {LOCATION.label}: the titles behind 1 of the 3 names, "
+    )
+    none = drafted((looked_up, "pet"), ("x", "lookalike"))
+    assert "names" not in local_touch(LOCATION, p, none, 3)
+    # The fixed template names nothing from Qloo; no places, no cells: nothing to claim.
+    assert local_touch(LOCATION, p, None, 1) == (
+        f"From Qloo taste data for {LOCATION.label}: 1 place to ask and the map."
+    )
+    empty = LocationProfile(location_id=LOCATION.id)
+    assert local_touch(LOCATION, empty, None, 0) == ""
+    # With a listing whose names have Qloo's evidence, only the local version's line
+    # names them: the generic version's names are a fixed list.
+    from tests.test_product import saved_listing
+
+    agent = agent_profile()
+    view = build_result_view(roster.get("dog-02"), LOCATION, agent, saved_listing())
+    assert "the titles behind" in view.local_touch
+    assert "names" not in view.local_touch_generic and view.local_touch_generic.endswith("map.")
+
+
+def test_the_result_says_the_local_version_is_untested_and_how_to_test_it(roster):
+    view = build_result_view(roster.get("dog-02"), LOCATION, profile())
+    assert view.trial.startswith("Does the local version help? Nobody has tested it yet.")
+    assert view.trial_link.url.endswith("#measuring-whether-it-works")
+    # Claims stay within the evidence: a trial size, never a promise of faster adoption.
+    assert "would detect" not in view.trial and "detect a 50% faster rate" in view.trial
+
+
+def test_the_start_page_states_the_problem_and_links_the_research(roster):
+    from app.config import get_settings
+
+    view = build_start_view(roster, load_locations(get_settings().locations_file), None)
+    assert view.problem.startswith("Volunteers write a listing for every animal")
+    assert view.problem_link.url.endswith("docs/research/adoption-evidence-review.md")
+
+
 def test_an_agent_profile_with_nothing_else_to_say_still_credits_the_ai(roster):
     from app.profile import FoundIn, PetVerdict
 
@@ -473,7 +529,8 @@ def test_a_fixed_lookup_with_a_saved_listing_says_both(roster):
 
 
 def map_with(scores: list[tuple[float, float | None]]) -> LocationProfile:
-    """A profile whose cells have these (pet, baseline) scores; None is a grey cell."""
+    """A profile whose cells have these (pet, baseline) scores; None is a grey cell. Built
+    through validation, as a saved one loads, so the cells are on one scale (one_scale)."""
     shaped = profile().model_copy(deep=True)
     first = shaped.cells[0]
     shaped.cells = [
@@ -483,39 +540,65 @@ def map_with(scores: list[tuple[float, float | None]]) -> LocationProfile:
         )
         for i, (pet, base) in enumerate(scores)
     ]  # fmt: skip
-    return shaped
+    return LocationProfile.model_validate(shaped.model_dump())
 
 
-def test_the_map_caption_counts_the_warm_cells():
-    # Decided 18 October: a mostly cool map says how many cells are warm, as coloured.
+def test_the_map_caption_counts_the_warm_cells_and_says_what_they_mean():
+    # Decided 18 October: the caption counts the warm cells, as coloured. Since 22 October
+    # both sides are ranked among the same cells, so it says that shows where, not how many.
     view = map_view(
         LOCATION, map_with([(0.9, 0.5), (0.5, 0.9), (0.4, 0.8), (0.3, 0.7), (0.2, 0.6)])
     )
     assert view.legend.startswith(
-        "Fans of Example Dog Show and Example Cat Show stand out against fans of this area's "
-        "top shows in 1 of these 5 cells. "
+        "Fans of Example Dog Show and Example Cat Show rank 1 of these 5 cells higher than "
+        "fans of this area's top shows do. Both sides are ranked among the same cells, so "
+        "this compares parts of "
     )
+    assert "compares parts of Example Slope, not how many fans live there." in view.legend
+
+
+def test_a_cell_label_gives_places_not_rescaled_scores():
+    # Flash: the re-ranked numbers are Namesake's; a label showing them reads as Qloo's.
+    view = map_view(
+        LOCATION, map_with([(0.9, 0.5), (0.5, 0.9), (0.4, 0.8), (0.3, 0.7), (0.2, 0.6)])
+    )
+    assert view.cells[0].label == (
+        "Fans of Example Dog Show and Example Cat Show (2 shows): 1st of these 5 cells; "
+        "fans of this area's top shows (2 shows): 5th."
+    )
+
+
+def test_tied_places_read_as_a_range_that_agrees_with_the_colour():
+    # Codex: four cells tie on the pet side; the first is 2nd for the baseline. Its pet
+    # place, 1st to 4th, centres below 2nd, as its cool colour says.
+    view = map_view(
+        LOCATION, map_with([(0.9, 0.8), (0.9, 0.9), (0.9, 0.7), (0.9, 0.6), (0.1, 0.1)])
+    )
+    first = view.cells[0]
+    assert first.lift is not None and first.lift < 0
+    assert "joint 1st to 4th of these 5 cells" in first.label and first.label.endswith(": 2nd.")
 
 
 def test_a_tie_is_cool_in_the_count_and_the_key():
     view = map_with([(0.5, 0.5), (0.9, 0.5), (0.5, 0.9), (0.4, 0.8), (0.3, 0.7)])
     legend = map_view(LOCATION, view).legend
-    assert "in 1 of these 5 cells. " in legend and "cool where lower, or level" in legend
+    assert "rank 2 of these 5 cells higher" in legend and "cool where lower, or level" in legend
 
 
 def test_grey_cells_are_left_out_of_the_count():
     legend = map_view(
         LOCATION, map_with([(0.9, 0.5), (0.8, None), (0.5, 0.9), (0.4, 0.8), (0.3, 0.7)])
     ).legend
-    assert "in 1 of the 4 cells with a comparison. " in legend
+    assert "rank 1 of the 4 cells with a comparison higher" in legend
 
 
-def test_no_warm_cell_says_so():
+def test_two_sides_that_order_the_cells_alike_say_so():
     legend = map_view(
         LOCATION, map_with([(0.5, 0.9), (0.4, 0.8), (0.3, 0.7), (0.2, 0.6), (0.1, 0.5)])
     ).legend
     assert (
-        "do not stand out against fans of this area's top shows in any of these cells. " in legend
+        "Fans of Example Dog Show and Example Cat Show order these cells as fans of this "
+        "area's top shows do. " in legend
     )
     # Review of PR #48: the colour key follows as a key, never as a second finding, and
     # the shelter's circle is explained.
@@ -523,9 +606,7 @@ def test_no_warm_cell_says_so():
     note = map_view(
         LOCATION, map_with([(0.5, 0.9), (0.4, 0.8), (0.3, 0.7), (0.2, 0.6), (0.1, 0.5)])
     ).note
-    assert note.endswith(
-        "Circle: around the shelter the animals are adopted from (made up for this demo)."
-    )
+    assert note.endswith("Circle: around the sample shelter the animals are adopted from.")
     # Codex and flash: around a spot the visitor picked, the circle is not made up.
     picked = map_view(
         LOCATION,
@@ -535,43 +616,25 @@ def test_no_warm_cell_says_so():
     assert picked.endswith("Circle: around the spot you picked for the shelter.")
 
 
-def test_one_compared_cell_among_grey_ones_reads_in_the_singular():
-    legend = map_view(
+def test_one_compared_cell_has_nothing_to_compare():
+    view = map_view(
         LOCATION, map_with([(0.9, 0.5), (0.8, None), (0.7, None), (0.6, None), (0.5, None)])
-    ).legend
-    assert "in the one cell with a comparison. " in legend
-
-
-def test_one_compared_cell_that_is_cool_says_so():
-    legend = map_view(
-        LOCATION, map_with([(0.5, 0.5), (0.8, None), (0.7, None), (0.6, None), (0.5, None)])
-    ).legend
-    assert "do not stand out against fans of this area's top shows in the one cell with" in legend
-
-
-def test_every_cell_warm_says_all_these():
-    legend = map_view(
-        LOCATION, map_with([(0.9, 0.5), (0.8, 0.4), (0.7, 0.3), (0.6, 0.2), (0.5, 0.1)])
-    ).legend
-    assert "in all 5 cells. " in legend
+    )
+    assert "Only one cell was scored for both sides, so there is nothing to compare. " in (
+        view.legend
+    )
+    assert view.cells[0].label.endswith("the only such cell, so nothing to compare it with.")
 
 
 def test_an_all_grey_map_gets_no_count():
     legend = map_view(LOCATION, map_with([(0.9, None)] * 5)).legend
-    assert "stand out against" not in legend and "no comparison here" in legend
-
-
-def test_every_compared_cell_warm_says_all():
-    legend = map_view(
-        LOCATION, map_with([(0.9, 0.5), (0.8, 0.4), (0.7, 0.3), (0.6, 0.2), (0.5, None)])
-    ).legend
-    assert "in all 4 cells with a comparison. " in legend
+    assert "cells higher than" not in legend and "no comparison here" in legend
 
 
 def test_a_thin_map_gets_no_count():
     # Fewer than five cells: the thin note says the map says little, so no count.
     legend = map_view(LOCATION, profile()).legend
-    assert legend.startswith("Only 2 map cells here") and "stand out against" not in legend
+    assert legend.startswith("Only 2 map cells here") and "cells higher than" not in legend
 
 
 def test_each_version_button_shows_its_name(roster):

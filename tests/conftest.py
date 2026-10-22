@@ -1,12 +1,18 @@
+from pathlib import Path
+
 import pytest
 
 from app.animals import Roster, load_roster
 from app.config import get_settings
 
+# A frozen copy of the demo roster, so the author can edit the animals' records in
+# data/animals/ without rewriting the tests' scripted drafts, which cite these facts.
+ANIMALS = Path(__file__).parent / "fixtures" / "animals.json"
+
 
 @pytest.fixture(scope="session")
 def roster() -> Roster:
-    return load_roster(get_settings().animals_file)
+    return load_roster(ANIMALS)
 
 
 @pytest.fixture(autouse=True)
@@ -19,6 +25,8 @@ def isolated_settings(tmp_path, monkeypatch):
     """
     settings = get_settings()
     monkeypatch.setattr(settings, "cache_db", tmp_path / "cache.sqlite")
+    monkeypatch.setattr(settings, "animals_file", ANIMALS)
+    monkeypatch.setattr(settings, "workspace_db", tmp_path / "workspaces.sqlite")
     monkeypatch.setattr(settings, "qloo_recordings", tmp_path / "recordings")
     monkeypatch.setattr(settings, "allow_live_qloo", False)
     monkeypatch.setattr(settings, "agent_base_url", None)
@@ -30,6 +38,9 @@ def isolated_settings(tmp_path, monkeypatch):
     from app.places import Allowance
 
     monkeypatch.setattr(main, "ADD_ALLOWANCE", Allowance(per_minute=5))
+    monkeypatch.setattr(main, "PHOTO_ALLOWANCE", Allowance(per_minute=6, window=3600))
+    # No visitor's session carries over from another test: each starts from its own disk.
+    monkeypatch.setattr(main.SESSIONS, "_items", type(main.SESSIONS._items)())
     for name in type(settings).model_fields:
         if name.startswith("agent_fallback_") and name.endswith(("_api_key", "_model")):
             monkeypatch.setattr(settings, name, None)

@@ -96,7 +96,7 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 **Decided:**
 - The listing agent writes the bio from the temperament, look and recorded facts only. Every fact must appear, and no word may appear that the cited facts lack. That includes new negations, and anything about children, other animals, house-training or bites.
 - The sentences for the shelter's confirmed checks (children, dogs, cats, house-training, bite history) come from fixed templates appended by code.
-- The hook is built by code from the first name's reference: "Named after Bingo, a puppy in Bluey."
+- The hook is built by code from the first name's reference: "Named after Bingo, a dog in Bluey."
 - Each name's reason must restate the facts (since 18 October, the look only: see the revision below). Its reference must name its title. A name already given to another animal at the same shelter is refused, except within a litter.
 
 **Why:** the review of milestone 3 showed that word-overlap checks alone could not stop a model from contradicting a fact ("no bite on record" when a bite was recorded; "aggressive" citing "strong but gentle") or from making claims in the hook and the reasons. The safest sentence is one the model never writes. The rest are held to the facts' own words: both real drafts already met that standard, so the cost in quality is small.
@@ -114,6 +114,8 @@ Design decisions that shape the code, newest last. Each says what was decided, w
 **Revised 18 October** (the author, after the screenshot review): a name's reason may use only the recorded look's words, or be "A short name, easy to say." (or a near form, such as "Short and easy to say.") ("short" alone could claim a short coat the record lacks); "It suits a dog who leans on people for attention" tied the reference to temperament one line from the hook, which the hook rule exists to stop. And an animal's options come from different titles while another of the area's titles open to it is unused (Bingo and Bluey both from *Bluey* read as the same evidence twice). Open means no identity coding and not about real people, so the name screen allows any character from it; a bully-type dog counts only its pet-themed titles; lookalikes never count, since a saved result keeps only the lookalikes it used. A litter named as a set is the exception, and repeats are allowed once every open title is used, since a draft needs three names; the refusal names a title to use. Both are rechecked on saved drafts (`CHECKS_VERSION` 11), as is the lookalike quote rule (decision 14). The listing instructions also keep what the animal does and what it needs from an adopter in separate sentences ("She needs an owner comfortable with a big dog and knows basic commands" read as the owner knowing them); that one is an instruction only.
 
 **Remaining risk, stated plainly:** checking text by rule cannot prove that the meaning was kept, only that the words were. The rules make the safe path the easy one: copy the shelter's phrases, add only joining words. A volunteer still reviews the listing before using it (milestone 4 adds approval).
+
+**Revised 22 October:** a reference names the character's kind, not its age: "Bluey, a dog in Bluey", never "a puppy", since the animal named after it may be grown (an outside read as a judge found "Bluey, a puppy" for the 4-year-old lead dog). The model still declares "puppy" or "kitten" as the role; code words it as "dog" or "cat" (`REFERENCE_KIND` in `app/agent/checks.py`). Saved listings get the new wording from the deploy's recheck, which now rebuilds each reference and the hook from the saved draft (checks version 14).
 
 ## 8. The generic version gets a plain pet name, so the toggle isolates Qloo
 
@@ -135,6 +137,8 @@ Revised 18 October (the author, after the screenshot review): each toggle button
 - The cookie is set only when a visit has something to keep. Its ID is always made by the server: an ID a client presents is used only if the server issued it. Over HTTPS the cookie takes the `__Host-` prefix, so a sibling subdomain cannot plant one.
 - Precomputed and shared listings change only through a run for an animal that has none, or through `scripts/precompute_examples.py`.
 - Approval records the approval ID, animal, area, version, name, the name's source, whether the text was edited, and the time. The text itself is never recorded. An added animal is recorded by its random ID, which identifies nothing outside the visit.
+
+**Revised 22 October** (decision 34): added animals, their photos, and the listings made for them or refined, are now written to the visitor's workspace on disk (`var/workspaces.sqlite`) and kept for 7 days after the last visit; the map pin still stays in memory. A workspace link (`/workspace/{id}`) is the one way to adopt an ID the server made.
 
 **Why:** the demo has no accounts, and every judge sees the same examples. If one visitor's "less childish" overwrote the shared result, the next visitor would see it. Keeping the text out of the log keeps free text, which could contain anything, out of storage. The trial needs only the version and the name.
 
@@ -208,6 +212,8 @@ The refusal keeps the edit and names the missing words.
 **Why:** "two animals in one shelter never share a reference, except a litter named as a set." Letting the first listing choose keeps the agent's judgement, and restricting the others to one title is a check code can enforce: a name from another title is refused like any invented ID.
 
 **Follows:** a member whose draft cannot be fixed falls back to the template, as any listing does. The result page lists the litter's names with links.
+
+**Revised 22 October:** the first member picks the litter's title among the area's pet-themed titles when there are any, never from the area's general watch list (`name_titles` in `app/agent/pipeline.py`). An outside read as a judge found the Park Slope kittens named Brooke, Cary and Chase from *The Other Two*, an adult comedy 6th in what people there tend to watch, which undercut the pet-themed idea. A lone animal may still take one of its names from the area's local tastes. Saved litter listings keep their names until the examples are rebuilt.
 
 ## 14. Lookalike names: titles with an animal that looks like this one
 
@@ -285,7 +291,9 @@ The refusal keeps the edit and names the missing words.
 
 **Follows:** Qloo's `trends` was considered for a "rising lately" signal and dropped: it has no location, returned nothing for July to October 2026, and was flat for 2025 (`docs/qloo-findings.md`).
 
-**Revised 20 October, the key** (the author asked why the numbered places sat outside the warm cells): the key now says Qloo ranks the places separately from the cells, so they need not sit in a warm cell. The circle reads as the area around the shelter the animals are adopted from, made up for this demo, or, where the visitor picked a spot, the area around that spot; the key grows by about 55 characters, to about 330 with places (the OpenStreetMap aside went, since each place's card names it); "shelter" and "cell" stay the page's only words for them.
+**Revised 20 October, the key** (the author asked why the numbered places sat outside the warm cells): the key now says Qloo ranks the places separately from the cells, so they need not sit in a warm cell. The circle reads as the area around the shelter the animals are adopted from, made up for this demo ("the sample shelter" since 22 October, decision 33), or, where the visitor picked a spot, the area around that spot; the key grows by about 55 characters, to about 330 with places (the OpenStreetMap aside went, since each place's card names it); "shelter" and "cell" stay the page's only words for them.
+
+**Revised 22 October, one scale** (the author, "yeah lets address these", after two judge reads both cited the Park Slope dog's map, where no cell stood out): the two sides were on different scales. A heatmap's scores are ranks over every cell Qloo maps for that title, and the area's top shows are mapped far more widely than pet titles, so within the cells the pet titles scored, the top shows sat at 0.77 to 1.00 while the pet titles spread from 0 to 1. Nearly every lift came out below zero in all four examples, whatever the area: the comparison measured the scales, not taste. Now both sides are ranked again among the cells scored for both (`one_scale` in `app/profile.py`; ties share a place), so a cell is warm where fans of the pet titles rank it higher than fans of the top shows do, which is what the key always said. Ranking ranks changes nothing, so saved profiles are put on the scale as they load, with no call and no rerun. On one scale the differences sum to zero, so some cells are always warmer than others unless both sides order them alike (Flash): the map compares parts of the area, against fans of its top shows, never how many fans live anywhere, and the caption says so. It counts the cells pet-title fans rank higher (on the saved examples, 3 of 6 for the Park Slope dog, where none were before), and each cell's label gives both sides' places among the compared cells ("2nd of these 6 cells"; tied cells share a range, "joint 1st to 3rd", whose middle is the rank lift uses), not the re-ranked numbers, which are Namesake's and would read as Qloo's. A single compared cell has nothing to rank against, and says so.
 
 ## 19. The name screen checks real people and identity-coded references in code
 
@@ -300,6 +308,8 @@ The refusal keeps the edit and names the missing words.
 **Follows:** lists cannot be complete. The model is still told to avoid real people and identity-coded names, and the volunteer chooses and approves; the lists catch the famous cases when the model does not.
 
 **Revised 18 October** (the author, "yeah lets go for it", after a rebuild offered "Garbage" for the lead dog and "Scat", Scat Cat from *The Aristocats*, as the Astoria dog's first name): the screen also refuses names that put an animal down: dirt, waste, pests and insults (`UNFLATTERING` in `app/agent/checks.py`: garbage, trash, scat, poop, stinky, smelly, dirty, rat and the like, with their plurals and variants, since matching is by whole word; "mutt" and "runt" are everyday shelter words and stay allowed), on the name alone, since a character may be "Scat Cat" while the animal is called "Scat". The model is told the same. `CHECKS_VERSION` 12; saved drafts are rechecked with the name screen.
+
+**Revised 22 October** (the author, "yeah lets address these", after two judge reads; Codex: the lead dog was offered Hooch, from *Turner & Hooch*, though Hooch dies in the film, and the model had called him a friend): the screen also refuses a name after a well-known animal that dies in its story, from a code list (`TRAGIC_ANIMALS` in `app/agent/checks.py`), whatever role the model declares. A name common outside its story (Bailey, Charlotte, Marley) is refused only from that story's title. The model is told that an animal that dies in its story counts as tragic. Checks version 15; the deploy's recheck applies it to saved listings. The Park Slope dog's listing fails it and is no longer shown, so this deploys together with the examples' rebuild, which also brings the README's example names and its two screenshots up to date.
 
 ## 20. Pet titles from the area's own lists, sorted by a classifier; the Qloo spacing revisited
 
@@ -387,6 +397,8 @@ The refusal keeps the edit and names the missing words.
 
 **Revised 19 October, the screenshots, after the audits:** the README leads with the result's first screen at 1440 × 900 (`docs/img/result-first-screen.png`), whose headline and names read at README width, and links the whole page (`docs/img/result.png`, 1440 wide); `docs/img/two-neighbourhoods.png` stacks the lead dog's Park Slope and Astoria results, each pane cropped to the names and the strip so it reads at README width, and `docs/img/result-map.png` shows the map and the places to ask inline: the same record, a local name from a pet-themed title Qloo ranks in each area, and the other options from the area's titles or lookalike titles. All four were taken from the live site after the examples were rebuilt under decision 26. The map's caption now reads its colours as a key ("Colours: warm where …") and the map's own key explains the dashed circle on every map with cells, the travel band's lead asks how fans compare rather than claiming they stand out, the strip counts titles "in its ranking here" (the badge's "2nd of 3" counts the whole ranking), and a place's map line says the map compares areas, not places: the screenshots showed each of these reading as a contradiction, most where the data was thin (Park Slope's dog map has no warm cell).
 
+**Revised 22 October, the result page's order** (decision 33): the story result now leads with the names and listing, then the map and places, then "How Namesake made this" (was "Behind this story"), which holds Qloo's part and the AI's; "Why this name?" became the folded "Why these names?". `docs/img/story-structure.png` is the original mockup and still shows the old order; the order test follows the page.
+
 ## 25. The demo's model: Muse Spark first, then Claude Opus 5.5, then DeepSeek Flash
 
 **Decided** (the author, 19 October: "can we use muse free with two fallbacks? claude -> deepseek?"; both final audits of 19 October (`docs/audit-2026-10-19-fable.md`, `docs/audit-2026-10-19-flash.md`, tracked in `docs/audit-2026-10-19-fixes.md`) flagged the coding-plan model as the judged demo's weak point):
@@ -423,7 +435,7 @@ The refusal keeps the edit and names the missing words.
 - A result page for an animal with no listing yet offers "Write her story with Namesake's AI", posting to `/runs` (`ResultView.write_label`); for a litter member it names the litter as a set instead (`write_animal`), keeping members already named. A templated listing gets no button: a run over a saved listing returns it as it is (decision 9). Warm and classic render neither the log nor the button.
 - A name from the area's general top tastes shows its place in that list ("Watched locally: 2nd of 15 in Qloo's list of what people here tend to watch").
 
-Not done: the character a name refers to ("Bingo, a puppy in *Bluey*") is not labelled separately as the AI's reading; it already sits on the reading side ("Namesake selected") of "Why this name?", with Qloo's side showing the title only.
+Not done: the character a name refers to ("Bingo, a dog in *Bluey*") is not labelled separately as the AI's reading; it already sits on the reading side ("Namesake selected") of "Why this name?", with Qloo's side showing the title only.
 
 ## 28. The live demo's defences, after the final audits
 
@@ -451,6 +463,7 @@ Not done: the character a name refers to ("Bingo, a puppy in *Bluey*") is not la
 - **What the area changes:** the plan's posting-time item now says its data is from US shelters ("In US shelter data, adoptions cluster on Saturdays…"); the rescue-partner item stays New York's only. The venue screen for animals not good with children also reads Spanish and Catalan words (decision 2), and the README names the chain list as mostly American.
 - **How it is built:** `scripts/precompute_examples.py` now builds whatever `EXAMPLES` lists (an animal in a litter with its litter), with `--only` for one area; a test holds every example to a known animal at a preset area. The start page links an example once its result is saved, reading the same `EXAMPLES` (`example_links`). The deployed demo gets it from a one-off build on the host (`deploy/README.md`, "Building the examples").
 - **Revised 19 October, the same evening:** the built example was weak (US pet titles again, a flat map, landmark places; `docs/qloo-findings.md`, "The lead dog in Barcelona"), so the author put the litter in Astoria back as the fourth example ("lets go back to astoria"). Barcelona stays a preset, and its saved result stays in the cache for a visitor who picks it.
+- **Revised 22 October** (the author, after two outside reads as a judge: "maybe remove the litter?", then the recommended cat): the litter leaves the examples for `cat-01`, the shy black senior, in Park Slope and Astoria. A single hard-case cat shows the same screen and listing rules on a second species. The litter stays in the app. The examples are rebuilt on the host together with the fuller records (#67) and the tragic-animal screen (#72).
 
 ## 31. Who tends to like each name's title: Qloo's audience demographics
 
@@ -480,3 +493,55 @@ Not done: the character a name refers to ("Bingo, a puppy in *Bluey*") is not la
 - "Add your own animal" takes the typed area's name to its form and back (`/animals/new?location=typed&area=…`); a spot picked on the map stays behind, since that link is a GET. A spot more than 15 km from an area already saved is dropped with a note in the run; the start page's `?pin=far` note is gone.
 - Suggestions for the typed area are ranked near the preset chosen before it.
 - `POST /locations` is gone.
+
+## 33. The result page leads with the outcome; "demo" is said once
+
+**Decided** (the author, 22 October, worried the app "may say 'is a technical demo'", after Devpost's criteria judged design as "a complete, coherent product experience, not just a technical proof of concept"; the author chose "outcome first, how folded" from three layouts):
+- **The story skin's result page** reads: the name options and the listing; one line under the names saying what in the result came from Qloo's data for the area ("From Qloo taste data for Park Slope: the titles behind the names, 3 places to ask and the map", `ResultView.local_touch`; it counts the places the cards show and only names whose titles have Qloo's evidence for the area, so it can say fewer than Qloo's part does; under the generic version, whose names are not Qloo's, it names only the places and the map, `ResultView.local_touch_generic`), linking to the section below; the map and the places to ask; the other ways to help; then **How Namesake made this** (was "Behind this story"), which opens with Qloo's part and the AI's, apart, and holds the three process steps, the run's step log, "Why these names?" (now folded) and the Why drawer.
+- **Each place** shows its name, badge, address and the reason Namesake's AI gives; its rank, Qloo's description and evidence, and Namesake's reading of the map sit under "Why this place", one click away, each still under its own label. The map's long key folds under "About this map"; the key drawn on the map stays.
+- **The trial** closes the section in one line, linking to the README's measurement design: nobody has tested whether the local version helps; generic against local at random, days to adoption, about 190 adoptions to detect a 50% faster rate (`ResultView.trial`).
+- **The start page** states the problem in one line, says local taste data is the labelled experiment, and links to the evidence review on GitHub (`StartView.problem`).
+- **"Demo" is said once:** the photo credit reads "A sample shelter: the animals are fictional and their photos AI-generated"; the map's circle is "around the sample shelter"; the photo-storage refusal and the daily-limit refusal name Namesake, not "the demo".
+
+**Why:** an outside read by muse as a judge (22 October) called the app "a polished technical demo with product skin". A volunteer reads the reasoning before what to do with the animal, and every place card carried three dense paragraphs. Folding keeps every one of Qloo's answers apart from the readings (the provenance rule) while the page reads as a tool. The trial line puts the impact case where a judge can see it, since judges are expected to use the app.
+
+**Follows:**
+- The warm and classic skins keep their layout; the new fields are in the shared view models and the JSON API.
+- The README screenshots are retaken with the examples' rebuild (`TODO.md`).
+
+## 34. A workspace per browser, kept 7 days, with a link; no accounts
+
+**Decided** (the author, 22 October, after asking "should we now have a proper crud?" and "should we use login with password? and say use demo/demo?"; chose "SQLite, 7 days, + link"):
+- No sign-up, no password and no shared demo account. A visitor's added animals, their photos and the listings made for them alone are their **workspace**, kept in `var/workspaces.sqlite` for 7 days after the last visit (`app/workspace.py`), written through from the in-memory session after each change (`Sessions.save`).
+- The cookie holds the workspace's random ID and lasts as long as the workspace; each visit renews it, and renews the workspace on disk (at most once an hour, so a workspace is kept an hour past the 7 days and never ends early; asking about a link does not renew it). **"Link to this workspace"** points to `/workspace/{id}`, which asks "Open this workspace?" and opens it in that browser only when the visitor confirms (a `POST`, behind the same-site check), so a link alone never moves a visitor into another workspace. It opens only a workspace the server made and still keeps, and the start page says anyone with the link can open it. `robots.txt` keeps crawlers off `/workspace/`.
+- A visitor can **edit** an added animal (its record is replaced, the listings made from the old one are dropped, its photo is kept unless a new one is sent) and **remove** it, after a confirmation, since nothing brings it back (its photo and listings go too). Only the workspace that holds an animal can edit or remove it. An edit does not count against the allowance for adding animals.
+- The story skin's start page puts **Your animals** first, with "Add your own animal", the workspace line and the link, then "Or try a sample animal". Warm and classic list the visitor's animals first in the one grid, as before.
+- The map pin is not written: it stays in memory for the visit (decision 17). The photo budget (64 MB) now counts every workspace's photos on disk, and empties only as workspaces end, so each visitor may add 6 photos an hour; past the budget an animal is saved without its photo. A workspace still holds up to three animals.
+- What is written: the animals, their photos, the listings made for them, and refined listings with the refine line behind each, the one piece of free text now stored, for the workspace's 7 days. A listing that passed an older version of the checks is not read back, so it runs again when opened (shared results are held to the same version and rechecked on deploy, decision 16), and an unfinished run does not save a listing for an animal edited or removed meanwhile.
+
+**Why:** Devpost judges design as "a complete, coherent product experience, not just a technical proof of concept", and a volunteer's animal vanishing after two hours or a restart read as a demo. An account would ask judges for a password, and a shared demo/demo login would mix every judge's animals. A workspace per browser keeps each visitor's own, survives restarts, and needs nothing from them. The workspace holds only what the visitor typed about an animal, and the form already asks them to leave out people's names and personal details.
+
+**Follows:**
+- Shared results are unchanged: the precomputed examples and saved listings still change only through runs (decision 9).
+- An expired workspace no longer opens; it is deleted, with its photos, on the next write anywhere.
+- Warm and classic have no edit, remove or link; they are kept for comparison, and the story skin is the default.
+- Revised 22 October, after the PR's reviews: the link asks before opening, Remove asks first, the per-visitor photo allowance, the checks-version gate, and the renewal on visits that only read.
+- Not done: sample animals cannot be edited ("add what you know"); a visitor adds their own instead.
+
+## 35. A printable flyer and checklist from each result
+
+**Decided** (Claude, 22 October, under the author's "yeah lets fix everything", item 8 of the product list made with the author: "the exposure plan ends on the screen"):
+- Each result links **Print a flyer** (story skin, under the copy button), for the version shown: the local one when it exists and is chosen, else the generic one, and for the local one the name option chosen on the page. `GET /flyer?animal=&location=&variant=&name=` renders it in any skin; a name that is not one of the options is ignored, and a result with no version to print has no link and no flyer.
+- **Page 1** is the flyer to post: "Meet <name>", the photo, the listing as the volunteer would copy it, and "Ask the shelter in <area> about <name>." **Page 2** is the volunteer's checklist: the places to ask, numbered as on the map, each with Namesake's comparison of Qloo's two lists as its card shows it ("Namesake: stands out for fans of pet-themed titles", "popular nearby generally" or "not compared"), or, when there are none, the result's own reason; then the other ways to help, each with a box to tick. Page 1 says the shelter is a sample (and, for a sample animal, that the photo is AI-generated); the full credits print at the foot of page 2.
+- `build_flyer_view` builds it only from the result's own view model, so it shows nothing the result page does not, and nothing is stored (since 22 October, a flyer printed from the approval page carries the approved text instead of the draft). The print styles are shared by every skin (`app/static/flyer.css`); the button only calls the browser's print (`app/static/flyer.js`).
+
+**Why:** the exposure plan was the one output a volunteer could not take away. A listing can be copied, but the places to ask lived only on the screen; a flyer and a checklist turn the plan into a walk with a printout, which is what a shelter volunteer does with it. It adds no claim: the checklist says where the places come from, and the flyer carries only the listing's own text.
+
+**Follows:**
+- Warm and classic have no link from the result; the page renders in them for comparison (since 22 October, every skin's approval page has the print button).
+- No QR code: the shelter is fictional, and a real one adds its own details by hand (since 22 October, in the contact line; see the revision below).
+- It prints the drafted listing. An edit the volunteer approved is not kept (approvals record the version and name, never the text), so the page said to copy an edit from the approval page instead (until 22 October; see the revision below).
+
+**Revised 22 October** (the author, "yeah lets address these", after Codex's judge read: "A volunteer should not have to choose between the approved wording and the printable artifact", and the flyer names no way to reach the shelter):
+- The approval page has **Print a flyer with this text**, in every skin: a form that posts the approved text, version and name to `POST /flyer`. The route holds them to the approval's own checks (`checked_choice`, shared with `/approve`: the name is one of the options or the generic name shown, neither it nor what it refers to has been taken by another animal here since; and `missing_cautions`), prints the approved text whole, and records and keeps nothing; the flyer then has no link to the other version, which would be a draft.
+- Page 1 has a **shelter contact** line under "Ask the shelter…": a two-line field the volunteer types into on the page (a phone, an email or a website), printed as plain text that wraps, and left out when empty. No form holds it, so it is never sent or saved. A QR code stays out: it would need the shelter's own address.

@@ -32,7 +32,7 @@ from app.places import MAX_PIN_KM, places_for
 from app.profile import load_seeds
 from app.qloo.cache import Cache
 from app.qloo.exec import QlooClient, harness_env
-from app.session import ADDED_PREFIX, Session
+from app.session import ADDED_PREFIX, SESSIONS, Session
 from app.store import Store
 from app.venue_points import locate_saved
 
@@ -311,11 +311,16 @@ def _listing_work(
     key = f"{animal.id}@{location.id}"
 
     def keep(result: ListingResult) -> None:
+        if animal.id.startswith(ADDED_PREFIX) and session.animals.get(animal.id) != animal:
+            # Removed or edited while the run worked: this listing describes a record the
+            # workspace no longer holds, so it is not kept (review of the workspace PR).
+            return
         session.listings[key] = result
         if request is None:
             session.requests.pop(key, None)
         else:
             session.requests[key] = request
+        SESSIONS.save(session)
 
     return run_pipeline(
         animal,
