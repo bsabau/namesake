@@ -168,7 +168,7 @@ def test_a_failing_audience_call_never_costs_the_checked_listing(roster):
 
 
 def test_each_litter_member_keeps_its_titles_audience(roster):
-    # flash: the litter, one of the demo's two examples, had no test of this step.
+    # flash: the litter, then one of the demo's two examples, had no test of this step.
     import asyncio
 
     from pydantic_ai.models.function import FunctionModel

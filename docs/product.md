@@ -11,7 +11,7 @@ The review found no study showing that names or wording speed adoption. Being se
 ## Demo
 
 - **Lead animal:** `dog-02`, a large brindle adult with a broad head, eight months in the shelter. That's the profile the research names as the US bottleneck, and it exercises the strictest name screening.
-- **Second example:** `cat-01`, a shy black senior five months in the shelter, listed for two neighbourhoods side by side. Black cats and older cats are the ones that wait longest, and her listing has to stay honest about shyness. The kitten litter, the second example until 22 October, is still named as a set when a visitor picks a kitten (decision 30).
+- **Second example:** `cat-01`, a shy black senior five months in the shelter, listed for two neighbourhoods side by side. Older cats are among those that wait longest (`docs/research/adoption-evidence-review.md`), and her listing has to stay honest about shyness. The kitten litter, the second example until 22 October, is still named as a set when a visitor picks a kitten (decision 30).
 - **Locations:** two New York neighbourhoods and one other US city, from `data/locations.json`, confirmed in milestone 1, and Barcelona outside the US (decision 30).
 
 - **Your own animals:** a volunteer can add up to three of their own, with an optional photo, and edit or remove them. They are kept in a workspace in that browser for 7 days after the last visit, with a link that opens it elsewhere; there is no sign-up (decision 34).
