@@ -570,7 +570,7 @@ class FlyerPlace(BaseModel):
     number: int
     name: str
     place: str
-    # Qloo's comparison for the place, as its card on the result page shows it.
+    # Namesake's comparison of Qloo's two lists for the place, as its card shows it.
     badge: str = ""
 
 
@@ -587,6 +587,7 @@ class FlyerView(BaseModel):
     paragraphs: list[str]
     version_label: str
     ask_line: str
+    sample_line: str = ""
     checklist_heading: str = "Where to take this flyer"
     checklist_note: str = ""
     places: list[FlyerPlace] = []

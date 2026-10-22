@@ -90,12 +90,12 @@ def test_with_no_places_the_checklist_gives_the_results_own_reason(client):  # n
     assert view.checklist_note == "None suits this dog." and not view.places
 
 
-def test_each_place_carries_qloos_comparison(client):  # noqa: F811
+def test_each_place_carries_namesakes_comparison(client):  # noqa: F811
     shown = result()
     view = build_flyer_view(shown, None)
     assert [p.badge for p in view.places] == [v.badge for v in shown.venues]
     page = client.get("/flyer", params=PARAMS).text
-    assert f"Qloo: {shown.venues[0].badge}" in page
+    assert f"Namesake: {shown.venues[0].badge}" in page
 
 
 def test_a_result_with_no_version_to_print_has_no_flyer(client):  # noqa: F811
@@ -111,3 +111,21 @@ def test_page_one_says_the_animal_is_a_sample(client):  # noqa: F811
     html = client.get("/flyer", params=PARAMS).text
     sheet = html[html.index('data-role="flyer"') : html.index('data-role="flyer-checklist"')]
     assert result().credits.photos in sheet
+
+
+def test_the_checklist_points_to_nothing_the_flyer_lacks(client):  # noqa: F811
+    empty = "Every place Qloo listed here was screened out; the Why panel names them."
+    shown = result().model_copy(update={"venues": [], "venues_empty": empty})
+    assert build_flyer_view(shown, None).checklist_note == (
+        "Every place Qloo listed here was screened out."
+    )
+
+
+def test_without_a_version_to_print_the_route_is_a_404(client, monkeypatch):  # noqa: F811
+    shown = result()
+    versions = [v.model_copy(update={"available": False}) for v in shown.listing.versions]
+    empty = shown.model_copy(
+        update={"listing": shown.listing.model_copy(update={"versions": versions})}
+    )
+    monkeypatch.setattr(main, "result_view", lambda *a: empty)
+    assert client.get("/flyer", params=PARAMS).status_code == 404
