@@ -18,7 +18,7 @@ flowchart LR
         places["Place lookups<br/>app/places.py"]
         classify["Title classifier<br/>app/classify.py"]
         db[("SQLite<br/>var/cache.sqlite")]
-        sessions[("Sessions<br/>in memory")]
+        sessions[("Sessions in memory,<br/>workspaces in var/workspaces.sqlite")]
     end
     harness["qloo exec<br/>(pinned harness)"]
     qloo["Qloo API"]
@@ -151,7 +151,7 @@ sequenceDiagram
 ```
 
 - **The step log** (`StepLog`) is what the Working page streams over server-sent events. Each step records who did it (`actor`: Qloo's calls and answers, a decision of Namesake's AI, the classifier, or the run's own code), given where it is logged. A follower gets every step exactly once, including those logged before it connected. A saved listing keeps its run's steps (a litter member, the area's steps and its own, not its mates'), and the story skin's result page shows them folded under "How Namesake made this" (`ResultView.run_steps`); a result with no listing yet offers a button that starts a run (`ResultView.write_label`, posting to `/runs`; for a litter member `write_animal` names the litter, so it is named as a set).
-- **Refine** (`POST /refine`) reruns the listing with a volunteer's request, for that visitor only. **Approve** (`POST /approve`) records the chosen name and version for the measurement log. A listing for an animal a visitor added, and any refined listing, stays in their session and is never saved.
+- **Refine** (`POST /refine`) reruns the listing with a volunteer's request, for that visitor only. **Approve** (`POST /approve`) records the chosen name and version for the measurement log. A listing for an animal a visitor added, and any refined listing, stays in their workspace and is never saved to the shared results.
 
 ## Typed areas and the map pick
 
@@ -235,9 +235,10 @@ Saved listings carry the version of the checks they passed. When the checks chan
 | `usage` | live runs and new typed areas per day (UTC), for the daily caps | server only |
 | Memory | live runs per visitor in the last hour; runs and their step logs (an hour after they finish; past 300, the oldest finished go first) | server only, reset on restart |
 | `var/qloo-recordings/` | raw Qloo answers, for replay in development | never committed |
-| Session (memory) | added animals, their photos and listings; refined listings; the map pin | one visitor; ends 2 hours after the last visit, on a restart, or when over 500 sessions are open |
+| Session (memory) | the visitor's workspace while in use, and the map pin | one visitor; 2 hours after the last visit, on a restart, or when over 500 sessions are open, the workspace is read again from disk and the pin is gone |
+| `var/workspaces.sqlite` | the workspace: added animals, their photos and listings; refined listings and the refine line behind each (decision 34) | one visitor and whoever has their workspace link; 7 days after the last visit (plus up to the hour between renewals) it no longer opens, and the next write anywhere deletes it |
 
-No account exists. The session cookie holds a random ID and nothing else. Qloo receives cultural entities and place names only; Photon receives area names, rounded points, and the names and public street addresses of venues Qloo returned (to pin them, once per saved profile); the classifier receives a title's name, kind and Qloo's description; none gets anything about a visitor. `tests/test_no_qloo_data.py` fails if real Qloo data appears in the repository.
+No account exists. The session cookie holds the workspace's random ID and nothing else. Qloo receives cultural entities and place names only; Photon receives area names, rounded points, and the names and public street addresses of venues Qloo returned (to pin them, once per saved profile); the classifier receives a title's name, kind and Qloo's description; none gets anything about a visitor. `tests/test_no_qloo_data.py` fails if real Qloo data appears in the repository.
 
 ## The API
 
@@ -245,16 +246,16 @@ The start, result and working screens' view models are also served as JSON, so a
 
 | Method and path | Returns |
 |---|---|
-| `GET /api/start?location=` | `StartView`: animals, areas, the shelter bar, examples, the problem line and its research link |
+| `GET /api/start?location=` | `StartView`: animals (the visitor's own, then the samples), areas, the shelter bar, examples, the problem line and its research link, the workspace line and link |
 | `GET /api/results/{animal}@{location}` | `ResultView`: Qloo's part and the AI's (`qloo_part`), the one line on what came from Qloo (`local_touch`, and `local_touch_generic` for the generic version), listing versions, names, map, venues, plan, Why panel, the trial line (`trial`) |
 | `GET /api/runs/{id}` | `WorkingView`: the run's steps so far |
 | `GET /api/runs/{id}/events` | the step log as server-sent events: a `step` per step with its `kind`, `text` and `actor` (`qloo`, `ai`, `classifier` or `code`, given where the step is logged), then `done` |
 | `GET /api/places?q=&lat=&lon=` | area names for the typed field (ranked near the map's area) and the search above the start map (unbiased) |
 | `GET /api/places/at?lat=&lon=` | the areas a picked spot lies in |
 | `GET /health` | `{"status": "ok"}` |
-| `GET /robots.txt` | keeps crawlers off `/api/` and `/runs` |
+| `GET /robots.txt` | keeps crawlers off `/api/`, `/runs` and `/workspace/` |
 
-The HTML routes render the same view models through the chosen UI: `/`, `/result`, `POST /runs`, `/runs/{id}`, `POST /refine` and `/refine/reset`, `POST /approve`, `/animals/new` and `POST /animals`, and `/photos/{animal_id}` for a visitor's own photo. `tests/test_ui_contract.py` checks that every UI renders what each screen must show, found by `data-role`: the name, Qloo's part and the AI's, Qloo's answer and Namesake's reading, the map, the photo credit and the Qloo credit, and that the note on the kinds of place carries Namesake's label. It also checks that a UI's scripts only ever fetch the app's own `/api/`.
+The HTML routes render the same view models through the chosen UI: `/`, `/result`, `POST /runs`, `/runs/{id}`, `POST /refine` and `/refine/reset`, `POST /approve`, `/animals/new` (with `?edit=` for one of the visitor's own) and `POST /animals`, `POST /animals/remove` (asks first, then removes), `/workspace/{id}` (the workspace link, which asks first) and `POST /workspace/{id}` (opens it), and `/photos/{animal_id}` for a visitor's own photo. `tests/test_ui_contract.py` checks that every UI renders what each screen must show, found by `data-role`: the name, Qloo's part and the AI's, Qloo's answer and Namesake's reading, the map, the photo credit and the Qloo credit, and that the note on the kinds of place carries Namesake's label. It also checks that a UI's scripts only ever fetch the app's own `/api/`.
 
 ## Configuration
 
@@ -279,7 +280,7 @@ Everything that differs between machines is an environment variable (`.env` loca
 ## Limits and safety
 
 - **Qloo**: the hackathon key was refused after about 12 calls in 20 minutes on 15 October (30 calls 10 seconds apart passed on 17 October; after Qloo raised the limits on 21 October, 50 calls at 2 and 1 second apart passed), so every live call goes through `QlooClient`: cached in SQLite, spaced at least `QLOO_MIN_INTERVAL` apart across processes, with a 90-second timeout. An error is retried only when Qloo says it is retryable: once, after 5 seconds, or 20 after a rate limit; `rank`, which runs once per profile, gets a second retry with the wait doubled (40 seconds after a second rate limit) (decision 20). Pages read Qloo from the cache only; runs and the typed-area check call it live, within the caps.
-- **Visitors**: live runs are capped per visitor per hour, and per day for everyone together; new typed areas per day. Place lookups have their own allowance (30 a minute per visitor, 120 for everyone), and only calls that reach Photon count. Adding an animal has one too (5 animals added a minute per visitor; refused attempts do not count), on top of three per visit; all visitors' photos together are held to 64 MB, past which an add with a photo is refused.
+- **Visitors**: live runs are capped per visitor per hour, and per day for everyone together; new typed areas per day. Place lookups have their own allowance (30 a minute per visitor, 120 for everyone), and only calls that reach Photon count. Adding an animal has one too (5 animals added a minute per visitor; refused attempts do not count), on top of three per visit; photos have their own (6 an hour per visitor). All visitors' photos together, counted over every workspace on disk, are held to 64 MB, which empties only as workspaces end; past it an add with a photo is refused, and the animal can be saved without one.
 - **Requests**: a form body over 64 KB (and a photo upload over 3 MB plus 64 KB for the form) is refused before it is read; a POST another site's page sends (by `Sec-Fetch-Site`, or an `Origin` naming another host) is refused, so no page elsewhere can spend a visitor's run allowance. Every response carries a Content-Security-Policy (scripts and styles from the app and Leaflet's pinned copy on unpkg, tiles from CARTO and OpenStreetMap, no framing), `nosniff`, a referrer policy and `X-Frame-Options`. A missing page is the skin's notice for a browser and JSON for the API. Finished runs are kept in memory for an hour after they finish, and the oldest finished ones go first once there are more than 300; a run still working is never dropped. FastAPI's interactive `/docs` and `/redoc` are off (their pages need a CDN and inline scripts the policy refuses); `/openapi.json` stays.
 - **The AI's own Qloo calls**: within a run, up to 10 title lookups and 3 venue searches (counted within the run's tool budget of 20 calls), 3 searches of the area's lists, and one ranking. A partial or degraded list of places is not picked from.
 - **Classifier**: a 10-second timeout per title; any failure of Jev or its cache leaves the title to the AI, and after the first failed call a run uses saved answers only, so a slow classifier costs one timeout.

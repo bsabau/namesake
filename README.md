@@ -103,7 +103,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
 
 ## From request to result
 
-1. **Start.** Pick one of twelve fictional animals, or the litter of four kittens, or add your own animal for this visit only. Pick a shelter area: Park Slope or Astoria in New York, Austin, Barcelona, or type one.
+1. **Start.** Pick one of twelve fictional animals, or the litter of four kittens, or add your own animal, kept in a workspace in your browser for 7 days, with a link to open it elsewhere and no sign-up. Pick a shelter area: Park Slope or Astoria in New York, Austin, Barcelona, or type one.
 2. **Working.** A live log streams each step: Qloo's pet-themed lists for the area, titles proposed, each one looked up in Qloo, which were ambiguous and how they were settled, the venues found and how many stand out against the baseline, and the checks on the answer from Namesake's AI.
 3. **Result**, legible as one screen, told as the animal's story:
    - a **Generic / Local, with Qloo** toggle whose buttons show each version's name; both share the same bio, and the local one adds a name from Qloo's titles and one line saying where it comes from

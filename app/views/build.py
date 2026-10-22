@@ -217,8 +217,12 @@ CLASSIFIER_CREDIT = (
     "TypeSafe."
 )
 ADDED_PHOTO_CREDIT = (
-    "The animal and its photo were added by you for this visit and are not stored. "
+    "The animal and its photo were added by you and are kept in your workspace only. "
     "The shelter is a sample."
+)
+WORKSPACE_NOTE = (
+    "No sign-up: your workspace lives in this browser for 7 days after your last visit. "
+    "Copy its link to open it on another device; anyone with the link can open it."
 )
 PLACEHOLDER_PHOTO = "/static/placeholder.svg"
 # The precomputed examples, in the order the start page offers them.
@@ -275,6 +279,7 @@ def animal_card(animal: Animal, image_url: str | None = None) -> AnimalCard:
         temperament=animal.temperament[:1].upper() + animal.temperament[1:],
         litter=animal.litter is not None,
         featured=animal.id == FEATURED,
+        own=added,
         badges=(["added by you"] if added else [])
         + (["litter"] if animal.litter else [])
         + (["long stay"] if any("months" in h for h in animal.history) else []),
@@ -310,8 +315,12 @@ def build_start_view(
     examples: list[ExampleLink] | None = None,
     added: list[AnimalCard] | None = None,
     pins: dict[str, tuple[float, float]] | None = None,
+    workspace_link: str = "",
 ) -> StartView:
+    """`workspace_link` opens the visitor's workspace in another browser; shown with their
+    own animals only."""
     animals = sorted(roster.animals, key=lambda a: a.id != FEATURED)
+    samples = [animal_card(a) for a in animals]
     options = [
         location_option(loc, loc.id == selected_id, (pins or {}).get(loc.id)) for loc in locations
     ]
@@ -335,7 +344,12 @@ def build_start_view(
         problem_link=Link(label="What the research says", url=RESEARCH_URL),
         locations=options,
         map_tiles=map_tiles(),
-        animals=(added or []) + [animal_card(a) for a in animals],
+        animals=(added or []) + samples,
+        your_animals=added or [],
+        sample_animals=samples,
+        workspace_note=WORKSPACE_NOTE if added else "",
+        workspace_link=workspace_link if added else "",
+        add_animal_label="Add another animal" if added else "Add your own animal",
         litters=[litter_card(lit) for lit in roster.litters],
     )
 
@@ -1745,10 +1759,16 @@ def build_add_animal_view(
     error: str | None = None,
     values: dict[str, str] | None = None,
     area: str = "",
+    edit: str = "",
 ) -> AddAnimalView:
-    """With the typed area (`location_id` is TYPED_AREA), its name goes along, and back."""
+    """With the typed area (`location_id` is TYPED_AREA), its name goes along, and back.
+    With `edit`, the form changes that added animal: its record is replaced."""
     typed = location_id == TYPED_AREA
     return AddAnimalView(
+        title="Edit your animal" if edit else "Add an animal",
+        edit=edit,
+        submit_label="Save the changes" if edit else "Add the animal",
+        photo_kept_note="Choose none to keep the photo it has, if any." if edit else "",
         location_id=location_id,
         area=area if typed else "",
         back_url=f"/?{urlencode({'area': area} if typed else {'location': location_id})}",

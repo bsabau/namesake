@@ -245,7 +245,7 @@ The shelter is fictional too. Do not use real shelter names, logos or photos.
 
 **Screens**
 
-1. **Start:** a grid of the animals, a choice of four preset locations, a custom location field, and "Read a finished story" links that load precomputed results instantly. There is no tone setting: the listing rules fix the voice, and the refine line takes follow-ups (`docs/decisions.md` #15).
+1. **Start:** a grid of the animals, a choice of four preset locations, a custom location field, and "Read a finished story" links that load precomputed results instantly. The visitor's own animals come first, kept in a workspace in their browser for 7 days, which they can edit, remove from, and open elsewhere by its link (`docs/decisions.md` #34). There is no tone setting: the listing rules fix the voice, and the refine line takes follow-ups (`docs/decisions.md` #15).
 2. **Working:** a live log of the agent's steps, streamed as they happen: entities proposed, each one checked against Qloo, which were kept and which dropped.
 3. **Result:** the listing with a toggle between the generic and the locally tuned version; name options with source badges, and who tends to like each one's title, from Qloo's audience demographics (`docs/decisions.md` #31); a map of local lift; the venues as a list with their evidence, under a note on which kinds of place were asked for and why, and that listed national chains are left out (`docs/decisions.md` #23), and as numbered pins on the map from OpenStreetMap (`docs/decisions.md` #4, revised), skipping those that mention children for an animal recorded as not good with them (`docs/decisions.md` #2); the exposure checklist; in the story skin, the saved run's step log and, with no listing yet, a button that starts a run (`docs/decisions.md` #27). The story skin leads with the outcome: the names and listing, one line saying what came from Qloo's data for the area, the map and places (each place's evidence folded under "Why this place"), the other ways to help, then "How Namesake made this" with Qloo's part and the AI's, the step log, the Why drawer and a line on the untested trial (`docs/decisions.md` #33).
 4. **Why:** for each choice, the Qloo result behind it, separate from the app's reading of it.
@@ -286,7 +286,8 @@ app/
   audience.py        who tends to like each name's title (Qloo's demographics), and its backfill
   agent/             the two PydanticAI agents, their checks, the step log and the run pipeline
   runs.py, store.py  web runs (background task + step log), saved agent results, approvals
-  session.py         per-visitor state in memory: added animals, photos, refined listings
+  session.py         per-visitor state: added animals, photos, refined listings, the map pin
+  workspace.py       the visitor's workspace on disk, 7 days after the last visit (decision 34)
   limits.py          per-visitor and daily limits on live runs and new locations
   custom_location.py checks a typed shelter area with Qloo, as the run's first step
   qloo/              exec wrapper, envelope types, cache, geohash helpers
@@ -353,7 +354,7 @@ Work on one milestone at a time, in order, and stop at the end of each for revie
 - A per-visitor rate limit and a daily cap on live runs.
 - The "try your own" path:
   - A custom location field. A custom location goes to Qloo as typed; on `needs_input`, show the candidates as buttons. Where the data is thin, say so instead of producing a weak listing. The field suggests area names as you type, and a spot picked on the map becomes an area's name, with the spot kept as that visit's pin (`docs/decisions.md` #17).
-  - A form to add one animal: species, age, look, temperament, a couple of facts, the `yes`/`no`/`unknown` fields, and an optional photo. The added animal and its photo are kept for the session only and never stored.
+  - A form to add one animal: species, age, look, temperament, a couple of facts, the `yes`/`no`/`unknown` fields, and an optional photo. The added animal and its photo were kept for the session only; since 22 October they are kept in the visitor's workspace for 7 days (decision 34).
 
 Out of scope: accounts, an admin area, creating, editing or deleting stored animals, and reading or altering photos with a model.
 

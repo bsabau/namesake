@@ -65,9 +65,9 @@ from app.session import (
     PHOTO_BUDGET,
     SECURE_COOKIE,
     SESSIONS,
-    TTL,
     Photo,
     Session,
+    drop_listings,
     photo_type,
 )
 from app.store import Approval, Store
@@ -95,6 +95,7 @@ from app.views.models import (
     StartView,
     WorkingView,
 )
+from app.workspace import TTL as WORKSPACE_TTL
 
 HERE = Path(__file__).resolve().parent
 UI_ROOT = HERE / "ui"
@@ -175,13 +176,18 @@ def render(request: Request, ui: str, template: str, view, **extra) -> HTMLRespo
 
 # Uploads up to this size stay in memory: Starlette spools larger ones to disk, so the
 # limit is raised past the largest request accepted, and larger requests are refused
-# before they are read (decision 9: added photos are never written to disk).
+# before they are read. A photo reaches disk only in its workspace (decision 34), never
+# as a temporary file.
 MAX_UPLOAD_REQUEST = MAX_PHOTO_BYTES + 64 * 1024
 MultiPartParser.spool_max_size = MAX_UPLOAD_REQUEST
 
 
 # Animals added per visitor per minute: a few to fix a mistake, too few to fill memory.
 ADD_ALLOWANCE = Allowance(per_minute=5)
+# Photos per visitor per hour. The photo budget now counts every workspace on disk and
+# empties only as workspaces end, so one visitor must not fill it in minutes for a week
+# (review of the workspace PR): at 6 an hour, 64 MB takes a single address 4 hours.
+PHOTO_ALLOWANCE = Allowance(per_minute=6, window=3600)
 
 # Any other request body (a form, a refine line, an edited listing of up to 3000
 # characters) is far smaller; a larger one is refused before it is read (19 October audit:
@@ -289,8 +295,9 @@ def cookie_name(request: Request) -> str:
 @app.middleware("http")
 async def session_cookie(request: Request, call_next):
     """Find the visitor's session. Only IDs the server made are used: an unknown ID is
-    ignored, and a new session always gets a new ID (no fixation). The cookie is set only
-    when a session is created, and holds nothing but its random ID."""
+    ignored, and a new session always gets a new ID. The cookie holds nothing but its
+    random ID; the workspace link (/workspace/{id}) is the one way to adopt an existing
+    one (decision 34)."""
     presented = request.cookies.get(cookie_name(request), "")
     known = SESSIONS.get(presented) if re.fullmatch(r"[\w-]{20,40}", presented) else None
     request.state.session_id = known.id if known else None
@@ -302,11 +309,13 @@ async def session_cookie(request: Request, call_next):
     shared_file = request.url.path.startswith(("/static/", "/ui/"))
     if session_bound and not shared_file and "cache-control" not in response.headers:
         response.headers["Cache-Control"] = "private, no-store"
-    if request.state.new_session_id:
+    # Set when a session is made, and renewed on each visit, as long as the workspace.
+    cookie_id = request.state.new_session_id or (known.id if known else None)
+    if cookie_id and not shared_file:
         response.set_cookie(
             cookie_name(request),
-            request.state.new_session_id,
-            max_age=TTL,
+            cookie_id,
+            max_age=WORKSPACE_TTL,
             httponly=True,
             samesite="lax",
             secure=request.url.scheme == "https",
@@ -333,9 +342,10 @@ def visitor(request: Request) -> str:
 
 
 def notice(
-    request: Request, ui: str, title: str, message: str, status: int, links=()
+    request: Request, ui: str, title: str, message: str, status: int, links=(), **action
 ) -> HTMLResponse:
-    view = NoticeView(title=title, message=message, links=list(links))
+    """`action_url` and `action_label` add one button that posts, to confirm a step."""
+    view = NoticeView(title=title, message=message, links=list(links), **action)
     response = render(request, ui, "notice.html", view)
     response.status_code = status
     return response
@@ -423,6 +433,8 @@ def start_view(
         examples=example_links(ready, ui_query),
         added=added,
         pins=session.pins if session else None,
+        # Relative: the visitor copies or bookmarks it as the browser shows it.
+        workspace_link=f"/workspace/{session.id}" if session else "",
     )
     if form is not None:
         view.location_form = form
@@ -526,8 +538,11 @@ def working_view(run, ui_query: str = "") -> WorkingView:
 
 @app.get("/robots.txt", response_class=Response)
 def robots() -> Response:
-    """Crawlers may read the pages, not start runs or walk the API."""
-    return Response("User-agent: *\nDisallow: /api/\nDisallow: /runs\n", media_type="text/plain")
+    """Crawlers may read the pages, not start runs, walk the API or index a workspace."""
+    return Response(
+        "User-agent: *\nDisallow: /api/\nDisallow: /runs\nDisallow: /workspace/\n",
+        media_type="text/plain",
+    )
 
 
 @app.get("/health")
@@ -706,6 +721,7 @@ def refine_reset(
     if session is not None and key in session.requests:
         session.listings.pop(key, None)
         session.requests.pop(key, None)
+        SESSIONS.save(session)
     return RedirectResponse(
         f"/result?animal={animal}&location={location}{ui_suffix(request, ui)}", status_code=303
     )
@@ -834,13 +850,119 @@ def new_animal(
     request: Request,
     location: str | None = None,
     area: str = Query("", max_length=200),
+    edit: str | None = Query(None, max_length=40),
     ui: str | None = None,
 ):
     """The form for one animal, opened from the start page with its chosen area, which
-    may be the typed one (its name in `area`)."""
+    may be the typed one (its name in `area`). With `edit`, one of the visitor's own
+    animals, filled in with its record."""
     location_id, typed = chosen_area(location, area)
-    view = build_add_animal_view(location_id, MAX_FACTS, area=typed)
+    values = None
+    if edit:
+        session = session_of(request)
+        animal = session.animals.get(edit) if session else None
+        if animal is None:
+            raise HTTPException(404, "That animal is not in your workspace.")
+        values = animal_values(animal)
+    view = build_add_animal_view(location_id, MAX_FACTS, values=values, area=typed, edit=edit or "")
     return render(request, pick_ui(ui), "add_animal.html", view)
+
+
+def animal_values(animal: Animal) -> dict[str, str]:
+    """An added animal's record as the form's fields, to edit it."""
+    return {
+        "species": animal.species, "sex": animal.sex or "", "age": animal.age,
+        "look": animal.look, "temperament": animal.temperament,
+        "facts": "\n".join(animal.facts), **animal.checks.model_dump(),
+    }  # fmt: skip
+
+
+@app.post("/animals/remove")
+def remove_animal(
+    request: Request,
+    remove: str = Form(..., max_length=40),
+    location: str | None = Form(None),
+    area: str = Form("", max_length=200),
+    ui: str | None = Form(None),
+    confirm: str = Form("", max_length=3),
+):
+    """One of the visitor's own animals, gone from their workspace with its photo and
+    listings, once they confirm: nothing brings it back. Sent from the start page's
+    form, so its chosen area comes back."""
+    session = session_of(request)
+    if session is not None and remove in session.animals and confirm != "yes":
+        animal = session.animals[remove]
+        fields = {"remove": remove, "area": area, "confirm": "yes"}
+        fields.update({"location": location} if location else {})
+        fields.update({"ui": ui} if ui else {})
+        return notice(
+            request,
+            pick_ui(ui),
+            "Remove this animal?",
+            f"The {animal.look} {animal.species}, its photo and every listing made for it "
+            "leave your workspace for good.",
+            200,
+            [("Keep it", "/" + (f"?ui={pick_ui(ui)}" if ui else ""))],
+            action_url="/animals/remove",
+            action_label="Remove it",
+            action_fields=fields,
+        )
+    if session is not None and remove in session.animals:
+        SESSIONS.remove_animal(session, remove)
+    location_id, typed = chosen_area(location, area)
+    back = urlencode({"area": typed} if location_id == TYPED_AREA else {"location": location_id})
+    return RedirectResponse(f"/?{back}{ui_suffix(request, ui)}", status_code=303)
+
+
+def kept_workspace(workspace_id: str, renew: bool = True) -> Session:
+    """A workspace the server made and still keeps; anything else is a 404."""
+    valid = re.fullmatch(r"[\w-]{20,40}", workspace_id)
+    known = SESSIONS.get(workspace_id, renew=renew) if valid else None
+    if known is None:
+        raise HTTPException(404, "This workspace has ended, or the link is not complete.")
+    return known
+
+
+@app.get("/workspace/{workspace_id}", response_class=HTMLResponse)
+def workspace_link(request: Request, workspace_id: str, ui: str | None = None):
+    """The workspace link asks before it opens anything, so a link alone never moves a
+    visitor into a workspace and a page elsewhere cannot fix one on them (review of the
+    workspace PR). Opening it is the POST below, behind the same-site check."""
+    # Only looked at: the workspace is renewed when it is opened, not when it is asked about.
+    known = kept_workspace(workspace_id, renew=False)
+    current = session_of(request)
+    if current is not None and current.id == known.id:
+        return RedirectResponse("/" + (f"?ui={pick_ui(ui)}" if ui else ""), status_code=303)
+    count = len(known.animals)
+    holds = f"It holds {count} animal{'' if count == 1 else 's'}." if count else "It is empty."
+    leaving = (
+        " The workspace this browser has now stays open from its own link."
+        if current is not None and current.animals
+        else ""
+    )
+    chosen = pick_ui(ui)
+    return notice(
+        request,
+        chosen,
+        "Open this workspace?",
+        f"{holds} Anyone with its link can open and change it, so open it only if it is "
+        f"yours.{leaving}",
+        200,
+        [("Back to the start", "/" + (f"?ui={chosen}" if ui else ""))],
+        action_url=f"/workspace/{known.id}",
+        action_label="Open it in this browser",
+        action_fields={"ui": chosen} if ui else {},
+    )
+
+
+@app.post("/workspace/{workspace_id}")
+def open_workspace(
+    request: Request, workspace_id: str, ui: str | None = Form(None)
+) -> RedirectResponse:
+    """Open the workspace in this browser, as the visitor confirmed."""
+    known = kept_workspace(workspace_id)
+    request.state.session_id = request.state.new_session_id = known.id
+    return RedirectResponse("/" + (f"?ui={pick_ui(ui)}" if ui else ""), status_code=303)
 
 
 def _short(value: str, label: str, required: bool = True) -> str:
@@ -869,12 +991,17 @@ async def add_animal(
     house_trained: str = Form("unknown"),
     bite_history: str = Form("unknown"),
     photo: UploadFile | None = File(None),
+    edit: str | None = Form(None, max_length=40),
     ui: str | None = Form(None),
 ):
-    """Add one animal for this visit only: kept in memory, never stored."""
+    """Add one animal to the visitor's workspace, or with `edit` change one already
+    there: its record is replaced, the listings made from the old one are dropped, and
+    its photo is kept unless a new one is sent."""
     chosen_ui = pick_ui(ui)
     location_id, typed = chosen_area(location, area)
     session = own_session(request)
+    if edit and edit not in session.animals:
+        raise HTTPException(404, "That animal is not in your workspace.")
     entered = {
         "species": species, "sex": sex, "age": age, "look": look,
         "temperament": temperament, "facts": facts,
@@ -889,14 +1016,14 @@ async def add_animal(
         if photo is not None and photo.filename and "without one" not in message:
             message += " Add the photo again."
         view = build_add_animal_view(
-            location_id, MAX_FACTS, error=message, values=entered, area=typed
+            location_id, MAX_FACTS, error=message, values=entered, area=typed, edit=edit or ""
         )
         response = render(request, chosen_ui, "add_animal.html", view)
         response.status_code = status
         return response
 
-    if len(session.animals) >= MAX_ANIMALS:
-        return refuse(f"One visit can add up to {MAX_ANIMALS} animals.")
+    if not edit and len(session.animals) >= MAX_ANIMALS:
+        return refuse(f"A workspace holds up to {MAX_ANIMALS} animals.")
     try:
         if species not in ("dog", "cat") or sex not in ("female", "male"):
             raise ValueError("pick a species and a sex")
@@ -905,7 +1032,7 @@ async def add_animal(
             raise ValueError(f"up to {MAX_FACTS} facts, one per line")
         age_text = _short(age, "The age")
         animal = Animal(
-            id=ADDED_PREFIX + uuid.uuid4().hex[:8],
+            id=edit or ADDED_PREFIX + uuid.uuid4().hex[:8],
             species=species,
             group=stage_for(species, age_text) or f"adult {species}",
             sex=sex,
@@ -938,20 +1065,42 @@ async def add_animal(
     else:
         photo_kept = None
     # Only an animal actually added counts against the allowance, so refused attempts
-    # never lock a visitor out of the corrected one (review of PR #46).
-    if not ADD_ALLOWANCE.take(visitor(request)):
+    # never lock a visitor out of the corrected one (review of PR #46); an edit adds none.
+    who = visitor(request)
+    if not edit and not ADD_ALLOWANCE.take(who):
         return refuse(
             "Too many animals added from here in the last minute; try again shortly.", 429
         )
-    if photo_kept is not None and not SESSIONS.add_photo(
-        session, animal.id, photo_kept, PHOTO_BUDGET
-    ):
-        ADD_ALLOWANCE.refund(visitor(request))
-        return refuse(
-            "Namesake is holding too many photos right now; add the animal without one, "
-            "or try again later."
-        )
+    if photo_kept is not None:
+        if not PHOTO_ALLOWANCE.take(who):
+            if not edit:
+                ADD_ALLOWANCE.refund(who)
+            return refuse(
+                "Too many photos added from here in the last hour; save the animal without "
+                "one, or try again later.",
+                429,
+            )
+        previous = session.animals.get(animal.id)
+        # The record first, so the workspace written with the photo names its animal.
+        session.animals[animal.id] = animal
+        if not SESSIONS.add_photo(session, animal.id, photo_kept, PHOTO_BUDGET):
+            if previous is None:
+                session.animals.pop(animal.id, None)
+            else:
+                session.animals[animal.id] = previous
+            SESSIONS.save(session)
+            PHOTO_ALLOWANCE.refund(who)
+            if not edit:
+                ADD_ALLOWANCE.refund(who)
+            return refuse(
+                "Namesake is holding too many photos right now; save the animal without "
+                "one, or try again later."
+            )
+    if edit:
+        # A new record: what was written from the old one no longer holds.
+        drop_listings(session, edit)
     session.animals[animal.id] = animal
+    SESSIONS.save(session)
     back = urlencode({"area": typed} if location_id == TYPED_AREA else {"location": location_id})
     return RedirectResponse(f"/?{back}{ui_suffix(request, ui)}#{animal.id}", status_code=303)
 
