@@ -489,7 +489,13 @@ def listing_view(
         ),
         fallback_note=result.fallback_reason if result else None,
         refined_note=(
-            f"Refined at your request (“{refined}”). Only you see this version."
+            f"Refined at your request (“{refined}”): "
+            + (
+                "the bio is rewritten and the names are kept."
+                if result and result.names_kept
+                else "the bio and the names are new."
+            )
+            + " Only you see this version."
             if refined
             else None
         ),

@@ -337,6 +337,12 @@ def _listing_work(
         classifier=classifier_from(settings),
         litter_mates=roster_litter_mates(animal, settings),
         request=request,
+        # The listing the visitor is looking at: a refine keeps its names unless asked.
+        previous=(
+            (session.listings.get(key) or store.get_listing(animal.id, location.id))
+            if request is not None
+            else None
+        ),
         save=keep if personal else None,
         # A visit's own names bind only its own listings, never a shared one.
         also_taken=visit_names(session, animal.id, location.id, store) if personal else frozenset(),

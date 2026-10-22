@@ -6,6 +6,7 @@ No test reaches a real model or Qloo: FunctionModel plays the model's turns.
 import asyncio
 import json
 
+import pytest
 from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 
@@ -691,3 +692,63 @@ def test_the_agent_is_shown_every_recorded_fact(roster):
     block = facts_block(pet)
     assert '- fact:0: "knows basic commands"' in block
     assert '- fact:1: "came in as a stray"' in block
+
+
+# A refine keeps the names unless it is about them (decision 37).
+
+REORDERED = {**DRAFT, "names": [DRAFT["names"][1], DRAFT["names"][2], DRAFT["names"][0]]}
+
+
+def refine(roster, previous, request, answers, also_taken=frozenset()):
+    log = StepLog()
+    result = asyncio.run(
+        run_pipeline(
+            roster.get("dog-02"),
+            LOCATION,
+            qloo=FakeQloo(full_script()),
+            store=Store(_tmp_db()),
+            seeds=SEEDS,
+            model_factory=lambda: FunctionModel(Script([PLAN], answers)),
+            log=log,
+            request=request,
+            previous=previous,
+            also_taken=also_taken,
+        )
+    )
+    return result, log
+
+
+def test_a_wording_refine_keeps_the_names_whatever_the_model_returns(roster):
+    first, _, _ = run(Script([PLAN], [DRAFT]), roster)
+    result, log = refine(roster, first, "shorter sentences, a bit warmer", [REORDERED])
+    assert result.names_kept
+    assert [o.name for o in result.draft.names] == ["Bingo", "Biscuit", "Scout"]
+    assert any("keeping its names" in s.text for s in log.steps)
+
+
+@pytest.mark.parametrize("request_", ["other names please", "less childish", "a cuter name"])
+def test_a_refine_about_the_names_gives_new_ones(roster, request_):
+    first, _, _ = run(Script([PLAN], [DRAFT]), roster)
+    result, _ = refine(roster, first, request_, [REORDERED])
+    assert not result.names_kept
+    assert [o.name for o in result.draft.names] == ["Biscuit", "Scout", "Bingo"]
+
+
+WITHOUT_BINGO = {
+    **DRAFT,
+    "names": [
+        DRAFT["names"][1],
+        DRAFT["names"][2],
+        {**DRAFT["names"][0], "name": "Rusty", "character": "Rusty"},
+    ],
+}
+
+
+def test_kept_names_that_no_longer_pass_give_way_to_new_ones(roster):
+    # Another animal here took "Bingo" since the first run.
+    first, _, _ = run(Script([PLAN], [DRAFT]), roster)
+    result, log = refine(
+        roster, first, "shorter sentences", [DRAFT, WITHOUT_BINGO], also_taken=frozenset({"bingo"})
+    )
+    assert not result.names_kept and result.draft.names[0].name == "Biscuit"
+    assert any("earlier names no longer pass" in s.text for s in log.steps)

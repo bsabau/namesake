@@ -562,3 +562,16 @@ Not done: the character a name refers to ("Bingo, a dog in *Bluey*") is not labe
 - `CHECKS_VERSION` stays. No demo animal's record says such a phrase, so no shared listing changes verdict. The whole-word match now also catches "sad" before punctuation, so a visitor's own saved draft whose record says "sad" once and whose bio says "sad." twice would pass under the old check and fail under this one; raising the version for that would make every saved listing, the four examples included, run again, so it is accepted (the review of PR #77).
 - A listing that falls to the template says the draft failed its checks only when it did; another error on the way says Namesake's AI did not finish the listing.
 - The same walkthrough's smaller fixes ship with it: the step log and the run's stream no longer carry Python exception names (they go to the server log), nor does a profile note carry Qloo's error text; descriptions are no longer cut at an initial ("Michael J. Fox"); the approval record keeps "Qloo" capitalised; and the story skin styles "Print a flyer" and the flyer page's tools.
+
+## 37. A refine keeps the names unless it is about them
+
+**Decided** (Claude, 22 October, under the author's "do what you want on F3" after the walkthrough):
+- A refine request that is not about the names keeps the listing's name options, in order, and Namesake's AI rewrites only the bio. Code puts the kept names back in every draft, whatever the model returns, so a wording request can never change them.
+- A request is about the names when it says "name", "named", "rename", "call", "nickname", "title", "character", "reference", "childish" or "cute" (`ABOUT_NAMES` in `app/agent/listing_agent.py`). "Childish" and "cute" are in because the refine line's own example, "less childish", may mean the names as much as the wording.
+- The kept names still go through every name check. If one no longer passes (another animal here took it since), the step log says so and Namesake's AI offers new names under the rules.
+- A kept name from a lookalike title keeps the title and evidence its first run found, so a wording refine makes no Qloo lookup.
+- The refined note says which it was: "the bio is rewritten and the names are kept" or "the bio and the names are new".
+
+**Why:** in the 22 October walkthrough, "shorter sentences, a bit warmer" turned Loaf, Hercules and Chance into Cheese, Bolt and Scooby. A volunteer asking for wording changes who gets three new names would read it as the app ignoring them. Two separate actions ("Reword the bio", "Other names") were clearer, but would have added UI and taught the approval and workspace code about both; leaving it as it was kept the surprise.
+
+**Follows:** a wording refine is a little faster, since it skips the lookalike lookups. `CHECKS_VERSION` stays: no saved listing changes.

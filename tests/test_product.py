@@ -344,7 +344,8 @@ def test_a_refined_listing_is_for_this_visitor_only(client):
     asyncio.run(_wait(run))
     assert run.session_id is not None
     page = client.get("/result", params={"animal": "dog-02", "location": "park-slope"}).text
-    assert "Refined at your request (“shorter names”)" in page
+    # "names" makes it a request about the names (decision 37).
+    assert "Refined at your request (“shorter names”): the bio and the names are new." in page
     # The shared listing is untouched, and another visitor still sees it.
     assert Store(main.get_settings().cache_db).get_listing("dog-02", "park-slope").draft
     other = TestClient(main.app).get(

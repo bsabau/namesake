@@ -22,6 +22,9 @@ from pydantic_ai.usage import UsageLimits
 from app.agent.checks import hook_text, reference_key
 from app.agent.listing_agent import (
     ListingDeps,
+    NameOption,
+    Source,
+    about_names,
     build_listing_agent,
     reference_for,
     shown_bio,
@@ -382,6 +385,22 @@ def name_titles(
     return titles
 
 
+def kept_names(
+    request: str | None,
+    previous: ListingResult | None,
+    titles: dict[str, tuple[Entity, Source]],
+) -> list[NameOption]:
+    """The previous listing's names, when a refine is not about the names and every one's
+    title is still on offer (an area title, or a lookalike the first run found)."""
+    if request is None or about_names(request) or previous is None or previous.draft is None:
+        return []
+    found = {k.entity.id for k in previous.lookalikes}
+    names = previous.draft.names
+    if all(o.entity_id in titles or o.entity_id in found for o in names):
+        return list(names)
+    return []
+
+
 async def write_listing(
     animal: Animal,
     location: Location,
@@ -393,15 +412,17 @@ async def write_listing(
     taken: frozenset[str] = frozenset(),
     taken_refs: dict[tuple[str, tuple[str, ...]], str] | None = None,
     request: str | None = None,
+    previous: ListingResult | None = None,
     theme: str | None = None,
     first_of_litter: bool = False,
     qloo: QlooClient | None = None,
     fallbacks: Fallbacks = (),
 ) -> ListingResult:
-    """One listing. `request` is a volunteer's refine request. For a litter named as a
-    set, `theme` limits the names to the litter's title, and the first member's names
-    must all come from one title, which becomes the theme. With `qloo`, the agent may
-    look up titles featuring an animal that looks like this one."""
+    """One listing. `request` is a volunteer's refine request; unless it is about the
+    names, the `previous` listing's names are kept and only the bio is rewritten. For a
+    litter named as a set, `theme` limits the names to the litter's title, and the first
+    member's names must all come from one title, which becomes the theme. With `qloo`, the
+    agent may look up titles featuring an animal that looks like this one."""
     result = ListingResult(
         animal_id=animal.id, location_id=location.id, checks_version=CHECKS_VERSION
     )
@@ -414,20 +435,29 @@ async def write_listing(
         result.fallback_reason = "Qloo returned no titles to draw names from."
         return result
 
-    log.add("start", f"Writing the listing and name options for the {animal.species}")
+    kept = kept_names(request, previous, titles)
+    if kept:
+        log.add("start", f"Rewriting the {animal.species}'s listing as asked, keeping its names")
+    else:
+        log.add("start", f"Writing the listing and name options for the {animal.species}")
+    # A kept lookalike name keeps the title and evidence its first run found.
+    found = {k.entity.id: k for k in previous.lookalikes} if kept and previous else {}
 
     async def attempt(choice: ModelChoice):
         agent = build_listing_agent(choice.make(), choice.output_mode)
         deps = ListingDeps(
             animal=animal,
-            titles=dict(titles),
+            titles=dict(titles) | {k: (v.entity, "lookalike") for k, v in found.items()},
             log=log,
             taken_names=taken,
             taken_references=taken_refs or {},
             request=request,
+            kept=list(kept),
             litter_title=titles[theme][0].name if theme else None,
             first_of_litter=first_of_litter,
-            qloo=qloo,
+            # Kept names need no lookups: a wording refine makes no Qloo call.
+            qloo=None if kept else qloo,
+            lookalikes=dict(found),
         )
         # The lookup tool is synchronous and runs `qloo` as a subprocess; PydanticAI
         # runs sync tools in a worker thread.
@@ -446,6 +476,7 @@ async def write_listing(
         result.hook = hook_text(result.references[0])
         used = {o.entity_id for o in run.output.names}
         result.lookalikes = [v for k, v in deps.lookalikes.items() if k in used]
+        result.names_kept = bool(deps.kept)
     except MODEL_FAILURES as exc:
         # No model answered: there was no draft to check (Flash review, PR #42).
         # The visitor reads the step; the exception's name is for the server's log only.
@@ -483,6 +514,7 @@ async def run_pipeline(
     output_mode: str = "native",
     litter_mates: set[str] | None = None,
     request: str | None = None,
+    previous: ListingResult | None = None,
     save: Save | None = None,
     also_taken: frozenset[str] = frozenset(),
     classifier: JevClassifier | None = None,
@@ -491,7 +523,8 @@ async def run_pipeline(
     """Profile, then listing. The caller finishes the log, after reporting any error.
 
     `save` keeps the listing somewhere other than the shared store: a refined listing
-    or an added animal's listing belongs to one visitor's session.
+    or an added animal's listing belongs to one visitor's session. `previous` is the
+    listing a refine starts from.
     """
     profile = await get_profile(
         animal,
@@ -517,6 +550,7 @@ async def run_pipeline(
             taken=taken_names(animal, location, store, also_taken),
             taken_refs=taken_references(animal, location, store),
             request=request,
+            previous=previous,
             # A litter member written on its own keeps to the title its mates share,
             # or, as the first one named, takes all its names from one title.
             theme=theme,
