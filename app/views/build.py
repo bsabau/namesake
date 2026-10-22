@@ -233,8 +233,8 @@ EXAMPLES = (
     # one animal in two areas, not a second one.
     ("dog-02", "park-slope", "The brindle dog in Park Slope"),
     ("dog-02", "astoria", "The same brindle dog in Astoria"),
-    ("kitten-01", "park-slope", "Four kittens, named as a set, in Park Slope"),
-    ("kitten-01", "astoria", "The same four kittens in Astoria"),
+    ("cat-01", "park-slope", "The shy black cat in Park Slope"),
+    ("cat-01", "astoria", "The same black cat in Astoria"),
 )
 
 

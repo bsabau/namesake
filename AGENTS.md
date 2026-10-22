@@ -233,7 +233,7 @@ Twelve fictional animals plus one group photo of a litter, all AI-generated. The
 
 - Fields per animal: `id`, `species`, `group`, `sex`, `age`, `look`, `temperament`, `facts` (a list), `history`, `checks` (the five `yes`/`no`/`unknown` answers listed in `docs/product.md`), `image`. The four kittens share `litter: "litter-a"`. The `litter-group` entry has `members` and no profile.
 - Animals have no names on purpose. Naming them is the app's job.
-- `dog-02` leads the demo and the litter is the second example; `docs/product.md` says why.
+- `dog-02` leads the demo and `cat-01` is the second example; `docs/product.md` says why. The litter stays in the app, out of the examples (decision 30, revised 22 October).
 - The photos and JSON were produced by a separate project outside this repo (`../image_generation`, which also holds `ANIMALS.md` with each animal's role in the demo). It is not part of this app; do not import from it or run it.
 - The app serves web-sized copies from `app/static/animals`, made by `scripts/make_web_photos.py`. The UI labels the photos as AI-generated, and the app never edits or generates animal images.
 
@@ -251,7 +251,7 @@ The shelter is fictional too. Do not use real shelter names, logos or photos.
 4. **Why:** for each choice, the Qloo result behind it, separate from the app's reading of it.
 5. **Refine:** one text line for follow-ups such as "less childish". When Qloo returns `needs_input` for a typed area, the run stops there and its candidates show as buttons on the working page (`docs/decisions.md` #32); an ambiguous title is settled by the agent with a stated reason.
 
-**Preset locations.** The start screen offers four: two New York City neighbourhoods, one other US city, and one city outside the US (Barcelona, decision 30). Two neighbourhoods in the same city show that results change at fine detail; the third shows it is not only a New York effect, and the fourth that it is not only a US one. Do not choose them by reputation. Milestone 1 kept the three that Qloo resolves cleanly and whose results differ most. Candidates: Park Slope, Bushwick, Astoria, Harlem and the Upper West Side in New York; Tampa, Austin and Portland elsewhere. Each preset is a place name plus a centre point for the fictional shelter, never a real shelter or a street address. The presets live in `data/locations.json`: `query` is the text sent to Qloo as the location signal and the heatmap's area, and `city` names the wider city (only New York's rescue-partner plan item reads it). The current four are Park Slope, Astoria, Austin and Barcelona; the precomputed examples (`EXAMPLES` in `app/views/build.py`) are the lead dog and the litter, each in Park Slope and Astoria.
+**Preset locations.** The start screen offers four: two New York City neighbourhoods, one other US city, and one city outside the US (Barcelona, decision 30). Two neighbourhoods in the same city show that results change at fine detail; the third shows it is not only a New York effect, and the fourth that it is not only a US one. Do not choose them by reputation. Milestone 1 kept the three that Qloo resolves cleanly and whose results differ most. Candidates: Park Slope, Bushwick, Astoria, Harlem and the Upper West Side in New York; Tampa, Austin and Portland elsewhere. Each preset is a place name plus a centre point for the fictional shelter, never a real shelter or a street address. The presets live in `data/locations.json`: `query` is the text sent to Qloo as the location signal and the heatmap's area, and `city` names the wider city (only New York's rescue-partner plan item reads it). The current four are Park Slope, Astoria, Austin and Barcelona; the precomputed examples (`EXAMPLES` in `app/views/build.py`) are the lead dog and `cat-01`, each in Park Slope and Astoria.
 
 **The agent's job.** Given an animal's facts and a location:
 1. Find pet-themed entities that are strong locally, and check each one's lift against a baseline. Keep the strong ones, and try again once if too few survive.
@@ -350,7 +350,7 @@ Work on one milestone at a time, in order, and stop at the end of each for revie
 **4. Product (25–27 October).** Done 17 October.
 - The generic-versus-local toggle, the Why panel, the refine line, and candidate buttons for `needs_input`.
 - Edit and approve, and a copy-ready block.
-- Precomputed examples, built by a script into the cache database: `dog-02` and the litter in two neighbourhoods.
+- Precomputed examples, built by a script into the cache database: `dog-02` and the litter in two neighbourhoods (since 22 October `cat-01` in place of the litter).
 - A per-visitor rate limit and a daily cap on live runs.
 - The "try your own" path:
   - A custom location field. A custom location goes to Qloo as typed; on `needs_input`, show the candidates as buttons. Where the data is thin, say so instead of producing a weak listing. The field suggests area names as you type, and a spot picked on the map becomes an area's name, with the spot kept as that visit's pin (`docs/decisions.md` #17).
