@@ -86,13 +86,14 @@ The start page's "Read a finished story" links (`EXAMPLES` in `app/views/build.p
 ssh deploy@host 'cd /opt/namesake && docker compose run --rm --no-deps -e QLOO_MIN_INTERVAL=10 -v /opt/namesake/src/scripts:/app/scripts:ro app python scripts/precompute_examples.py --only astoria'
 ```
 
-`--all` builds every animal in the roster, each litter named as a set, in every preset area (or those in `--only`), so judges open saved listings instead of waiting minutes for a live run; what is saved and current is skipped. `--dry-run` lists what it would build. A full run is about 50 listings and takes an hour or more, so it runs detached, after a backup of the cache:
+`--all` builds every animal in the roster, each litter named as a set, in every preset area (or those in `--only`), so judges open saved listings instead of waiting minutes for a live run; what is saved and current is skipped. `--dry-run` lists what it would build, reading the cache only (no model, no Qloo). A full run is about 50 listings and takes an hour or more, so it runs detached, after a dated backup of the cache. It paces Qloo at the host's `QLOO_MIN_INTERVAL` (2 since Qloo raised the limits on 21 October); add `-e QLOO_MIN_INTERVAL=10` if Qloo starts refusing.
 
 ```sh
-ssh deploy@host 'cd /opt/namesake && docker compose exec -T app python -c "import sqlite3; sqlite3.connect(\"var/cache.sqlite\").backup(sqlite3.connect(\"var/cache-before-precompute.sqlite\"))"'
+ssh deploy@host 'cd /opt/namesake && docker compose exec -T app python -c "import sqlite3, time; sqlite3.connect(\"var/cache.sqlite\").backup(sqlite3.connect(time.strftime(\"var/cache-backup-%Y%m%d-%H%M.sqlite\")))"'
 ssh deploy@host 'cd /opt/namesake && docker compose run --rm --no-deps -v /opt/namesake/src/scripts:/app/scripts:ro app python scripts/precompute_examples.py --all --dry-run'
-ssh deploy@host 'cd /opt/namesake && docker compose run -d --rm --no-deps --name namesake-precompute -v /opt/namesake/src/scripts:/app/scripts:ro app python scripts/precompute_examples.py --all'
+ssh deploy@host 'cd /opt/namesake && docker compose run -d --no-deps --name namesake-precompute -v /opt/namesake/src/scripts:/app/scripts:ro app python scripts/precompute_examples.py --all'
 ssh deploy@host 'docker logs -f namesake-precompute'
+ssh deploy@host 'docker rm namesake-precompute'    # once it has finished, before running it again
 ```
 
 ## Placing saved profiles' venues on the map

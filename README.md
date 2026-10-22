@@ -147,6 +147,7 @@ Open http://localhost:8000. A fresh clone has an empty cache, so the first run f
 
 ```sh
 uv run python scripts/precompute_examples.py          # live: Qloo and the model
+uv run python scripts/precompute_examples.py --all    # every preset animal in every area (--dry-run lists it)
 uv run python scripts/run_agent.py dog-02 park-slope  # one run, steps printed
 ```
 
