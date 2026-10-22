@@ -22,7 +22,7 @@ Done and live, each reviewed by muse and DeepSeek Flash (Codex was out of usage)
 
 Changed from the list: the paid-model item became fallbacks behind Muse (decision 25); "Label the character as the AI's reading" was left out, since the character already sits on the "Namesake selected" side (decision 27).
 
-Still open, for the author: the video, making the repo public (with the branch cleanup), and the optional outside voice and outreach channel.
+Still open, for the author: ~~the video~~ (dropped 22 October: Devpost asks for none), making the repo public (with the branch cleanup), and the optional outside voice and outreach channel.
 
 ## 1. Example quality (judges open these first)
 
@@ -113,5 +113,5 @@ Still open, for the author: the video, making the repo public (with the branch c
 - **D2, the screenshot as a Qloo data leak:** Qloo allowed names and scores in screenshots, the live app shows the same text, and Fable's scan of the whole history found no response data. The two real cases (the heatmap image and the geohash table) are in section 5.
 - **D4, refusing a volunteer's edit that adds facts:** the volunteer is the person who keeps the record. The rule binds what the AI writes. A soft warning could come later.
 - **D14, a JSON write API:** reword AGENTS.md and the architecture doc to "read the same data" instead (in the AGENTS.md docs item).
-- **D24, self-hosting Leaflet:** it's pinned with SRI on unpkg. Low risk for two weeks of judging.
+- **D24, self-hosting Leaflet:** it's pinned with SRI on unpkg. Low risk for the few days of judging (2 to 5 November, revised 22 October).
 - **D32, street names in the area field:** no personal data reaches Qloo, so just soften the hint if it comes up.
