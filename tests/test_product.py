@@ -135,7 +135,7 @@ def saved_listing(animal_id="dog-02") -> ListingResult:
         draft=draft,
         bio=list(draft.bio),
         references=["Bingo, a dog in Example Dog Show", "Biscuit, a cat in Example Cat Show",
-                    "Scout, a puppy in Example Dog Show"],
+                    "Scout, a dog in Example Dog Show"],
         hook="Named after Bingo, a dog in Example Dog Show.",
     )  # fmt: skip
 

@@ -429,7 +429,7 @@ The refusal keeps the edit and names the missing words.
 - A result page for an animal with no listing yet offers "Write her story with Namesake's AI", posting to `/runs` (`ResultView.write_label`); for a litter member it names the litter as a set instead (`write_animal`), keeping members already named. A templated listing gets no button: a run over a saved listing returns it as it is (decision 9). Warm and classic render neither the log nor the button.
 - A name from the area's general top tastes shows its place in that list ("Watched locally: 2nd of 15 in Qloo's list of what people here tend to watch").
 
-Not done: the character a name refers to ("Bingo, a puppy in *Bluey*") is not labelled separately as the AI's reading; it already sits on the reading side ("Namesake selected") of "Why this name?", with Qloo's side showing the title only.
+Not done: the character a name refers to ("Bingo, a dog in *Bluey*") is not labelled separately as the AI's reading; it already sits on the reading side ("Namesake selected") of "Why this name?", with Qloo's side showing the title only.
 
 ## 28. The live demo's defences, after the final audits
 
