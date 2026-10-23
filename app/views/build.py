@@ -15,6 +15,7 @@ from app.config import get_settings
 from app.custom_location import MIN_CELLS
 from app.listing import (
     CHECK_SENTENCES,
+    MAX_WORDS,
     MIN_WORDS,
     cautions,
     pronouns,
@@ -255,7 +256,7 @@ EXAMPLES = (
     ("cat-01", "park-slope", "The shy black cat in Park Slope"),
     ("cat-01", "astoria", "The same black cat in Astoria"),
     # A bite on record and not for a home with children: the listing says both (decision 41).
-    ("dog-03", "park-slope", "The border collie mix with a bite on record, in Park Slope"),
+    ("dog-03", "park-slope", "The border collie-type mix with a bite on record, in Park Slope"),
 )
 
 
@@ -509,6 +510,12 @@ def listing_view(
             "(behaviour with people, other animals, on the lead) for a full listing of "
             f"{MIN_WORDS} words or more."
             if word_count < MIN_WORDS
+            # A saved draft passed the bound with the answers as they were; today's may be
+            # longer (decision 41), and they are never cut.
+            else f"Over {MAX_WORDS} words because the shelter's confirmed answers changed "
+            "after this listing was written. Keep them, and trim another sentence when you "
+            "edit it."
+            if draft is not None and word_count > MAX_WORDS
             else None
         ),
         left_out=left_out,

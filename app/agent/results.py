@@ -50,7 +50,8 @@ class ListingResult(BaseModel):
     # None when the agent's draft failed its checks or the model was unavailable;
     # the page then shows the templated listing and says why.
     draft: ListingDraft | None = None
-    # The bio as shown: the agent's sentences, then the confirmed checks added by code.
+    # The bio as saved: the agent's sentences, then the confirmed checks as they were then.
+    # Pages rebuild it with today's answers (shown_bio, decision 41).
     bio: list[BioSentence] = []
     # Built by code from each name's character, role and Qloo title, in name order.
     references: list[str] = []

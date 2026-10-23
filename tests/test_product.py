@@ -164,6 +164,21 @@ def test_a_saved_listing_shows_todays_confirmed_answers(roster, profile):
     assert "no bite on record" not in local.copy_text.lower()
 
 
+def test_a_saved_listing_that_todays_answers_take_past_150_words_says_so(roster, profile):
+    from app.agent.listing_agent import BioSentence
+
+    dog = roster.get("dog-02")
+    saved = saved_listing()
+    filler = BioSentence(text=" ".join(["word"] * 140) + ".", facts=["temperament"])
+    saved.draft.bio = [*saved.draft.bio, filler]
+    bitten = dog.model_copy(
+        update={"checks": dog.checks.model_copy(update={"bite_history": "yes"})}
+    )
+    listing = build_result_view(bitten, LOCATION, profile, saved, generic="Pepper").listing
+    assert listing.word_count > 150 and "Over 150 words" in listing.short_note
+    assert "She has a bite on record" in listing.text
+
+
 def test_the_local_version_adds_only_the_name_and_the_hook(roster, profile):
     view = build_result_view(
         roster.get("dog-02"), LOCATION, profile, saved_listing(), generic="Pepper"

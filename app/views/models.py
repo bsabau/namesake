@@ -301,7 +301,8 @@ class ListingView(BaseModel):
     text: str
     sentences: list[ListingSentence]
     word_count: int
-    # Set when the recorded facts cannot fill a full listing; the text is never padded.
+    # Set when the recorded facts cannot fill a full listing (the text is never padded),
+    # or when today's confirmed answers take a saved draft past 150 words (decision 41).
     short_note: str | None = None
     left_out: list[str]
     versions: list[ListingVersion]
