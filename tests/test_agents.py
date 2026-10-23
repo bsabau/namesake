@@ -195,13 +195,25 @@ def test_full_run_uses_the_agents_choices(roster):
     assert saved.references[1] == "Biscuit, a cat in Example Cat Show"
     kinds = [s.kind for s in log.steps]
     assert "qloo" in kinds and kinds[-1] == "done"
+    # The calls Namesake's AI chose are credited to it, and so are its answers.
+    by_ai = [s.text for s in log.steps if s.actor == "ai"]
+    assert any(t.startswith("Namesake's AI asks Qloo to rank") for t in by_ai)
+    assert any(t.startswith("Namesake's AI asks Qloo for places near") for t in by_ai)
+    assert any(t.startswith("Namesake's AI answered:") for t in by_ai)
+    # Code's fixed calls stay Qloo's: the baseline and what the area tends to watch.
+    fixed = [s for s in log.steps if s.text.startswith(("Baseline:", "Looking up what people"))]
+    assert len(fixed) == 2 and all(s.actor == "qloo" for s in fixed)
 
 
 def test_invented_ids_are_sent_back_once_then_accepted_when_fixed(roster):
     bad = {**PLAN, "venues": [{"entity_id": venue_id(99), "reason": "made up"}]}
     result, store, log = run(Script([bad, PLAN], [DRAFT]), roster)
     assert store.get_profile(LOCATION.id, "dog").made_by == "agent"
-    assert any("was not returned by find_venues" in s.text for s in log.steps)
+    # The log words it plainly (tool names reworded); the model got the original.
+    assert any("was not among the places Qloo returned" in s.text for s in log.steps)
+    sent_back = next(s.text for s in log.steps if "was not among the places" in s.text)
+    assert sent_back.startswith("Code sent the answer back to Namesake's AI, asking: “")
+    assert "find_venues" not in sent_back and venue_id(99) not in sent_back
 
 
 def test_a_screened_venue_cannot_be_picked(roster):
@@ -253,7 +265,8 @@ def test_a_contradicting_bio_is_sent_back(roster):
     }
     result, _, log = run(Script([PLAN], [bad, DRAFT]), roster)
     assert result.draft is not None
-    assert any("'aggressive'" in s.text for s in log.steps)
+    # The log prints the model's list as words: "… not in its facts: aggressive".
+    assert any(s.kind == "check" and "aggressive" in s.text for s in log.steps)
 
 
 def test_a_name_used_at_the_shelter_is_refused(roster):
@@ -800,3 +813,42 @@ def test_no_names_are_offered_to_keep_without_a_refine_or_a_draft(roster):
         update={"draft": first.draft.model_copy(update={"names": names}), "lookalikes": [found]}
     )
     assert kept_names("warmer", earlier, titles) == names
+
+
+def test_a_fix_request_is_logged_in_plain_words():
+    from app.agent.steps import fix_request
+
+    known = "00000000-0000-4000-8000-000000000001"
+    cafe = "00000000-0000-4000-8000-000000000002"
+    unknown = "00000000-0000-4000-8000-0000000000ff"
+    names = {known: "Example Dog Show", cafe: "Example Cafe"}
+    text = fix_request(
+        [
+            f"title {known} came back as candidates; give choice_reason",
+            f"venue {unknown} is not among your latest find_venues results",
+        ],
+        names,
+    )
+    assert text == (
+        "Code sent the answer back to Namesake's AI, asking: “title ‘Example Dog Show’ came "
+        "back as candidates; say which one you meant, and why; venue with an ID this run's "
+        "results do not name is not among the places Qloo returned last”"
+    )
+    # Reviewers, PR #87: a name followed by its own ID shows once, a list prints as words,
+    # and the plan's own field is reworded.
+    text = fix_request(
+        [
+            f"pick one of these that stand out (Example Cafe ({cafe})), or add each to "
+            "rejected_venues with its reason",
+            f"venues {sorted([cafe, known])} are both picked and rejected; choose one",
+        ],
+        names,
+    )
+    assert "(Example Cafe)" in text and "set each aside with a reason" in text
+    assert "venues ‘Example Dog Show’ and ‘Example Cafe’ are both" in text
+    # An item with an apostrophe comes as a double-quoted repr; it prints as words too.
+    looks = ["broad head", "cat's eyes"]
+    assert fix_request([f"not in the record: {looks}"]).endswith(
+        "not in the record: broad head and cat's eyes”"
+    )
+    assert "rejected_venues" not in text and "[" not in text and cafe not in text

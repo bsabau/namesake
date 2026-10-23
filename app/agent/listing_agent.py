@@ -16,7 +16,7 @@ from pydantic_ai.models import Model
 
 from app.agent import checks
 from app.agent.profile_agent import StoryKind, qloo_call
-from app.agent.steps import StepLog
+from app.agent.steps import StepLog, and_words, fix_request
 from app.animals import Animal
 from app.classify import REAL_PEOPLE
 from app.listing import check_sentences, look_text, pronouns
@@ -338,10 +338,12 @@ def look_up_lookalike(
         if deps.lookups >= MAX_LOOKALIKE_LOOKUPS:
             return {"status": f"unavailable: at most {MAX_LOOKALIKE_LOOKUPS} lookups per listing"}
         deps.lookups += 1
+        # The AI chose this lookup; Qloo's answer is logged as Qloo's below.
         deps.log.add(
             "qloo",
-            f"Looking up “{title}” ({kind.replace('_', ' ')}) in Qloo: {animal_in_it} shares "
-            f"this {deps.animal.species}'s look ({', '.join(quoted)})",
+            f"Namesake's AI looks up “{title}” ({kind.replace('_', ' ')}) in Qloo: "
+            f"{animal_in_it} shares this {deps.animal.species}'s look ({', '.join(quoted)})",
+            actor="ai",
         )
         # Failures are remembered too: QlooClient already retried a retryable error once,
         # and a call Qloo marked not retryable must not be sent again.
@@ -450,12 +452,23 @@ def same_animal(said: str, animal: str) -> bool:
     return bool(shorter) and longer[: len(shorter)] == shorter
 
 
+def known_names(deps: ListingDeps) -> dict[str, str]:
+    """The titles this run knows by Qloo ID, for the step log's plain words."""
+    names = {i: e.name for i, (e, _) in deps.titles.items()}
+    return names | {i: look.entity.name for i, look in deps.lookalikes.items()}
+
+
 def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDraft:
     deps = ctx.deps
     # Kept names are checked like new ones: one another animal here took since is refused.
+    names = [o.name for o in draft.names]
+    deps.log.add(
+        "decision",
+        f"Namesake's AI answered: the names {and_words(names)}, and a draft introduction",
+    )
     problems = name_problems(deps, draft) + record_problems(deps.animal, draft)
     if problems:
-        deps.log.add("check", "Sent back for a fix: " + "; ".join(problems))
+        deps.log.add("check", fix_request(problems, known_names(deps)))
         raise ModelRetry("Fix these and answer again: " + "; ".join(problems))
     deps.log.add("check", "Listing checked: built from the recorded facts, names pass the screen")
     return draft

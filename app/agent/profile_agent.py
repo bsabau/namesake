@@ -13,7 +13,7 @@ from pydantic_ai import Agent, ModelRetry, NativeOutput, PromptedOutput, RunCont
 from pydantic_ai.models import Model
 
 from app.agent.checks import check_choice_reason, identity_coded
-from app.agent.steps import StepLog
+from app.agent.steps import StepLog, fix_request
 from app.classify import JevClassifier, bucket
 from app.locations import Location
 from app.profile import (
@@ -213,7 +213,9 @@ def look_up_title(ctx: RunContext[ProfileDeps], name: str, kind: TitleKind) -> d
         deps.log.add("note", f"Not looked up: “{name}” (this run's {MAX_LOOKUPS} lookups are used)")
         return {"status": f"limit reached: this run may look up {MAX_LOOKUPS} titles"}
     deps.lookups += 1
-    deps.log.add("qloo", f"Looking up “{name}” ({kind.replace('_', ' ')}) in Qloo")
+    deps.log.add(
+        "qloo", f"Namesake's AI looks up “{name}” ({kind.replace('_', ' ')}) in Qloo", actor="ai"
+    )
     env = qloo_call(
         deps,
         "describe",
@@ -304,8 +306,9 @@ def find_local_titles(
     what = KIND_WORDS[kind]
     deps.log.add(
         "qloo",
-        f"Asking Qloo which {what} people around {deps.location.label} who like "
+        f"Namesake's AI asks Qloo which {what} people around {deps.location.label} who like "
         f"{signal.name} also like",
+        actor="ai",
     )
     env = qloo_call(
         deps,
@@ -507,7 +510,11 @@ def rank_titles(
         return refusal
     ids = entity_ids[:MAX_RANKED]
     deps.rank_attempted = True
-    deps.log.add("qloo", f"Ranking {len(ids)} titles for {deps.location.label}")
+    deps.log.add(
+        "qloo",
+        f"Namesake's AI asks Qloo to rank {len(ids)} titles for {deps.location.label}",
+        actor="ai",
+    )
     env = qloo_call(
         deps,
         "rank",
@@ -612,8 +619,12 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
         return {"status": f"limit reached: venues may be asked {MAX_VENUE_SEARCHES} times per run"}
     deps.venue_searches += 1
     names = [deps.titles_seen[i].name for i in ids]
+    # The AI asks for places; code picks which of its titles are sent (by Qloo's evidence).
     deps.log.add(
-        "qloo", f"Finding places near {deps.location.label} for fans of {', '.join(names)}"
+        "qloo",
+        f"Namesake's AI asks Qloo for places near {deps.location.label}; code sends fans of "
+        f"{', '.join(names)}",
+        actor="ai",
     )
     filtered = deps.venue_filter is not False
     env = qloo_call(deps, "recommend", venue_input(ids, deps.location, filtered))
@@ -715,6 +726,11 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
     """Everything in the plan must come from Qloo during this run, pass the screens, and
     keep each title the venues were asked for."""
     deps = ctx.deps
+    deps.log.add(
+        "decision",
+        f"Namesake's AI answered: {len(plan.titles)} title{'s' * (len(plan.titles) != 1)} "
+        f"to keep and {len(plan.venues)} place{'s' * (len(plan.venues) != 1)} to ask",
+    )
     problems = []
     for t in plan.titles:
         if t.entity_id in deps.baseline_titles:  # logged with the other problems below
@@ -785,7 +801,9 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
             "your titles, or call find_venues again with the titles you keep"
         )
     if problems:
-        deps.log.add("check", "Sent back for a fix: " + "; ".join(problems))
+        known = {i: t.name for i, t in deps.titles_seen.items()}
+        known |= {i: v["name"] for i, v in deps.venues_seen.items()}
+        deps.log.add("check", fix_request(problems, known))
         raise ModelRetry("Fix these and answer again: " + "; ".join(problems))
     deps.log.add("check", "Plan checked: every title and venue came from Qloo")
     return plan
