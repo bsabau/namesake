@@ -801,9 +801,9 @@ def check_plan(ctx: RunContext[ProfileDeps], plan: ProfilePlan) -> ProfilePlan:
             "your titles, or call find_venues again with the titles you keep"
         )
     if problems:
-        names = {i: t.name for i, t in deps.titles_seen.items()}
-        names |= {i: v["name"] for i, v in deps.venues_seen.items()}
-        deps.log.add("check", fix_request(problems, names))
+        known = {i: t.name for i, t in deps.titles_seen.items()}
+        known |= {i: v["name"] for i, v in deps.venues_seen.items()}
+        deps.log.add("check", fix_request(problems, known))
         raise ModelRetry("Fix these and answer again: " + "; ".join(problems))
     deps.log.add("check", "Plan checked: every title and venue came from Qloo")
     return plan

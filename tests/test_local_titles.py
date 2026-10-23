@@ -289,6 +289,9 @@ def test_a_kept_local_title_joins_the_ranking_and_shows_its_evidence(roster, mon
     puppy = profile.pet_entities[0]
     assert puppy.found_in.signal == "Example Dog Show" and puppy.verdict.pets == 0.97
     assert any("Asking Qloo which TV shows people around" in s.text for s in log.steps)
+    # Code's fixed lists are Qloo's steps, never credited to Namesake's AI (PR #87).
+    fixed = [s for s in log.steps if s.text.startswith("Asking Qloo which")]
+    assert fixed and all(s.actor == "qloo" for s in fixed)
 
 
 def test_the_page_keeps_qloos_list_apart_from_the_classifiers_reading(roster):

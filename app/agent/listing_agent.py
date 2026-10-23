@@ -464,7 +464,7 @@ def check_draft(ctx: RunContext[ListingDeps], draft: ListingDraft) -> ListingDra
     names = [o.name for o in draft.names]
     deps.log.add(
         "decision",
-        f"Namesake's AI answered: the names {and_words(names)}, and the introduction",
+        f"Namesake's AI answered: the names {and_words(names)}, and a draft introduction",
     )
     problems = name_problems(deps, draft) + record_problems(deps.animal, draft)
     if problems:

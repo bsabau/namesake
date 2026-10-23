@@ -27,40 +27,53 @@ ACTOR_BY_KIND: dict[str, str] = {"qloo": "qloo", "decision": "ai"}
 # The model is asked in the original words; only the log is reworded.
 PLAIN_WORDS = [
     ("give choice_reason", "say which one you meant, and why"),
+    ("the choice_reason for", "the reason given for"),
+    ("choice_reason", "the reason for the choice"),
     ("your latest find_venues results", "the places Qloo returned last"),
     ("not returned by find_venues", "not among the places Qloo returned"),
     ("call find_venues before answering", "ask Qloo for places before answering"),
-    ("(look_up_title or find_local_titles)", "(from a lookup or a search)"),
-    ("the choice_reason for", "the reason given for"),
-    ("choice_reason", "the reason for the choice"),
     ("call find_venues again", "ask for places again"),
     ("find_venues", "the search for places"),
+    ("(look_up_title or find_local_titles)", "(from a lookup or a search)"),
     ("look_up_lookalike", "a lookup"),
     ("look_up_title", "a lookup"),
     ("find_local_titles", "a search of Qloo's lists"),
     ("rank_titles", "the ranking"),
+    ("add each to rejected_venues with its reason", "set each aside with a reason"),
+    ("rejected_venues", "the places set aside"),
     ("entity_ids", "Qloo IDs"),
     ("entity_id", "Qloo ID"),
 ]
 QLOO_ID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
+# A Python list of strings, as some problems print one: ['a', 'b'].
+QUOTED_LIST = re.compile(r"\[((?:'[^']*'(?:, )?)+)\]")
 
 
 def and_words(items: list[str]) -> str:
-    """ "A", "A and B", "A, B and C"."""
-    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+    """ "A", "A and B", "A, B and C"; nothing for no items."""
+    if len(items) <= 1:
+        return "".join(items)
+    return ", ".join(items[:-1]) + " and " + items[-1]
 
 
 def fix_request(problems: list[str], names: dict[str, str] | None = None) -> str:
-    """The step for a draft sent back to Namesake's AI, in plain words: tool and field names
-    reworded, and a Qloo ID shown as the title or place it stands for (dropped if unknown)."""
+    """The step for a draft sent back to Namesake's AI, in plain words, quoting what it was
+    asked: tool and field names reworded, a list printed as words, a Qloo ID after its own
+    name dropped, any other shown as the title or place it stands for, or said to be one this
+    run's results do not name."""
     text = "; ".join(problems)
     for word, plain in PLAIN_WORDS:
         text = text.replace(word, plain)
+    text = QUOTED_LIST.sub(lambda m: and_words(re.findall(r"'([^']*)'", m[1])), text)
+    text = re.sub(r" \(" + QLOO_ID.pattern + r"\)", "", text)
     known = names or {}
     text = QLOO_ID.sub(
-        lambda m: f"“{known[m[0]]}”" if m[0] in known else "with an ID Qloo never returned", text
+        lambda m: (
+            f"“{known[m[0]]}”" if m[0] in known else "with an ID this run's results do not name"
+        ),
+        text,
     )
-    return f"Code sent the answer back to Namesake's AI to fix: {text}"
+    return f"Code sent the answer back to Namesake's AI, asking: “{text}”"
 
 
 def actor_for(kind: str) -> str:
