@@ -1,6 +1,6 @@
 # Devpost submission text
 
-What was submitted on Devpost on 24 October 2026, kept here so the repository and the submission say the same thing. Same claim rules as the README: no "adopted faster", no "saves lives", no "matching".
+What was submitted on Devpost on 24 October 2026, with the same day's corrections after three reviews against the evidence, kept here so the repository and the submission say the same thing. Same claim rules as the README: no "adopted faster", no "saves lives", no "matching".
 
 **Project name:** Namesake
 
@@ -11,10 +11,10 @@ What was submitted on Devpost on 24 October 2026, kept here so the repository an
 **Began:** October 15, 2026
 **Created by (solo):** I chose the problem, read the research behind the design, made the product and design decisions, and directed the AI coding agents (Claude Code building, Codex and other models reviewing), checking and merging every change. I also run the deployment.
 
-**Gallery** (five images at 1800 × 1200, taken from the live demo on 24 October; the README's screenshots in `docs/img/` show the same pages):
+**Gallery** (five images at 1800 × 1200, taken from the live demo on 24 October; the README's screenshots in `docs/img/` show the same result pages, though not the start page):
 
 1. The same dog in Park Slope and Astoria: each area gets its own names, each labelled with the Qloo title it comes from.
-2. Places to ask near the shelter: Qloo's rank first, then why Namesake's AI picked it, on a map of where pet-title fans stand out.
+2. Places to ask, each with Qloo's rank and why Namesake's AI picked it; the map compares pet-title fans with fans of top local shows.
 3. The result: name options labelled with their Qloo titles, a Generic / Local toggle, and a listing written only from recorded facts.
 4. How Namesake made this: what Qloo returned, kept apart from what Namesake's AI did with it and what code checked.
 5. Start: pick a shelter area and an animal, add your own, or open one of five finished stories. Photos are AI-generated.
@@ -25,31 +25,31 @@ What was submitted on Devpost on 24 October 2026, kept here so the repository an
 
 ## Inspiration
 
-Shelter volunteers write a listing for every animal, usually in a hurry, and AI bio writers are already everywhere. None of them has evidence that it helps, and one is known for inventing backstories.
+US shelters and rescues took in about 5.8 million dogs and cats in 2025, and volunteers write a listing for every animal, usually in a hurry, and AI bio writers are already everywhere. None of them has evidence that it helps, and one is known for inventing backstories.
 
-So before writing any code, I read the research. No study shows that a name speeds up adoption. What does measurably hurt is overselling: adopters who found a dog harder than expected were about ten times as likely to return it. What helps most is being seen, in person and through people's own networks. And nobody had tested whether local taste data helps at all.
+So before writing any code, I read the research. No study shows that a name speeds up adoption. The clearest risk is overselling: adopters who found a dog harder than expected had about ten times the odds of returning it. The largest associations, though only observational, are with being seen: in person, and through foster carers' own networks. And nobody had tested whether local taste data helps at all.
 
-That set the goal: listings that stick to the facts, carefully screened names, and Qloo used for what it can plausibly do, which is finding the people and places near a shelter who care about pets.
+That set the goal: listings that stick to the facts, carefully screened names, and Qloo used for what it can plausibly do, which is finding the pet-themed titles people near a shelter tend to like, and the places their fans favour.
 
 ## What it does
 
 A volunteer picks an animal and the shelter's area. In about a minute for an area it already knows (a few minutes for a new one), Namesake's AI produces:
 
 - **a listing written only from the shelter's recorded facts**, with a bite history always stated (one of the five finished examples has one)
-- **name options from Qloo taste data**: pet-themed shows and films popular near the shelter, each name labelled with what Qloo returned and screened for villains, tragic characters, real people and coded references
-- **a plan to get the animal seen**: local places within 5 km of the shelter that fans of those titles favour (never a national chain or a theme park), on a map, plus foster networks, outings (or a quiet meeting when the record says busy places are hard) and timing
+- **name options from Qloo taste data**: pet-themed shows, films and books Qloo ranks near the shelter, plus titles with a lookalike animal that Namesake's AI finds in Qloo, each name labelled with what Qloo returned and screened for villains, tragic characters, real people and coded references
+- **a plan to get the animal seen**: local places that fans of those titles favour, with listed national chains, theme parks and places mapped more than 5 km from the shelter left out, on a map, plus foster networks, outings (or a quiet meeting when the record says busy places are hard) and timing
 
-A Generic / Local toggle shows the listing with and without Qloo, so you can see exactly what Qloo adds; when Qloo's data for the area doesn't back a name's title, the button says With Qloo instead of Local. A Why drawer keeps what Qloo returned separate from how the app read it. Refine, edit, approve, copy, or print a flyer.
+A Generic / Local toggle shows the listing with and without Qloo, so you can see exactly what Qloo adds; when Qloo's data for the area doesn't back a name's title, the button says With Qloo instead of Local. Qloo's data is behind the local names, the places to ask and the map: without Qloo, Namesake still writes the generic listing, but with no local names, no places and no map. A Why drawer keeps what Qloo returned separate from how the app read it. Refine, edit, approve, copy, or print a flyer.
 
 ## How we built it
 
-Two PydanticAI agents do the open-ended work. One finds pet-themed titles popular in the area, settles which *Bluey* is meant, ranks them and asks Qloo for places their fans go. The other writes the listing and the names. Plain code makes the fixed Qloo calls and checks everything the agents return: every title and place must come from Qloo, every bio sentence must trace to the recorded facts, and every name must pass the screen. A draft that fails gets one repair round, then falls back to a template.
+Two PydanticAI agents do the open-ended work. One finds pet-themed titles popular in the area, settles which *Bluey* is meant, ranks them and asks Qloo for places their fans go. The other writes the listing and the names. Plain code makes the fixed Qloo calls and checks everything the agents return: every title and place must be one Qloo returned, every bio sentence must trace to the recorded facts, and every name must pass the screen. A draft that fails gets one repair round, then falls back to a template.
 
 It's FastAPI and Jinja, Leaflet for the map, SQLite caching every Qloo answer, and one Docker image on a VM. AI agents built and reviewed it under my direction: one wrote the code, and two or three other models reviewed every change before it merged.
 
 ## Challenges we ran into
 
-Most of them came from the data. Qloo's pet tags left almost nothing when used as filters, but worked well as signals. Names were ambiguous: 6 of 10 titles came back with several candidates, and a bare "Portland" resolves without saying which one. Popular isn't the same as pet-loving: 9 of the first 15 venues near Park Slope also came back for *Yellowstone*, so every place is now compared with what the neighbourhood watches anyway. Name screening was subtler than expected: famous animals that die in their story, and reality shows whose "characters" are real people.
+Most of them came from the data. Qloo's pet tags left almost nothing when used as filters, but worked well as signals. Names were ambiguous: 6 of 10 titles came back with several candidates, and a bare "Portland" resolves without saying which one. Popular isn't the same as pet-loving: 9 of the 15 venues Qloo returned near Park Slope for two pet-themed shows also came back for *Yellowstone*, so every place is now compared with what the neighbourhood watches anyway. Name screening was subtler than expected: famous animals that die in their story, and reality shows whose "characters" are real people.
 
 ## Accomplishments that we're proud of
 
@@ -64,9 +64,9 @@ Read the evidence first; it changed what I built. Qloo's signal is in order and 
 
 ## What's next for Namesake
 
-- **Run the trial:** randomise generic against local listings at intake and measure days to adoption, with returns as a safety check. It needs about 190 adoptions, so a network of rescues rather than one shelter.
+- **Run the trial:** randomise generic against local listings at intake and measure days to adoption, with returns as a safety check. About 190 adoptions would detect a 50% faster rate, more with several shelters, so it needs a network of rescues rather than one shelter.
 - **A cheap test before the trial:** ask people who live near a shelter whether they recognise the titles Qloo picked for their area. If they don't, local names can't help, and the big trial isn't worth running.
-- **Paste straight into shelter software**, where listings go out to every adoption site.
+- **Paste straight into shelter software**, where listings go out to the adoption sites.
 
 ---
 
