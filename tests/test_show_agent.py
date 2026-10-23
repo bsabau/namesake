@@ -60,7 +60,7 @@ def test_a_local_taste_name_shows_its_place_in_qloos_list():
     assert name_badge("local", "b", p) == (
         "Watched locally: 2nd of 2 in Qloo's list of what people here tend to watch"
     )
-    assert name_badge("local", "zzz", p) == "Watched locally"
+    assert name_badge("local", "zzz", p) == "Not in Qloo's list of what people here tend to watch"
 
 
 def test_the_ais_own_qloo_calls_reach_the_why_panel(roster):

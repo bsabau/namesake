@@ -917,7 +917,7 @@ def approve(
     approved = build_approved_view(
         approval.id,
         view,
-        version.label,
+        option.version_label if variant == "local" and option is not None else version.label,
         copy_block(name, hook, edited),
         name,
         source,

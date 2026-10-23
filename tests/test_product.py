@@ -208,7 +208,8 @@ def test_approving_records_the_choice_but_never_the_text(client):
     assert record.variant == "local" and record.name == "Biscuit" and record.edited
     assert "Example Cat Show" in record.name_source
     assert "She is calm" not in record.model_dump_json()
-    assert "The version: local, with Qloo." in response.text
+    # The fake profile ranks no title, so the version is not called local.
+    assert "The version: with Qloo." in response.text
 
 
 def test_the_generic_version_never_carries_a_qloo_name_or_hook(client):
@@ -1289,7 +1290,7 @@ def test_a_refused_edit_keeps_the_chosen_name_on_the_toggle(client, profile):
         client, animal="cat-03", variant="local", local_name="Biscuit", text="She loves toys."
     )
     toggle = response.text.split('data-role="version-toggle"')[1].split("</fieldset>")[0]
-    assert "Local, with Qloo · Biscuit" in toggle and "· Bingo" not in toggle
+    assert "With Qloo · Biscuit" in toggle and "· Bingo" not in toggle
 
 
 @pytest.mark.parametrize("ui", main.UIS)
@@ -1299,8 +1300,9 @@ def test_each_name_option_carries_its_toggle_text(client, ui):
         "/result", params={"animal": "dog-02", "location": "park-slope", "ui": ui}
     ).text
     toggle = page.split('data-role="version-toggle"')[1].split("</fieldset>")[0]
-    assert "Local, with Qloo · Bingo" in toggle and "Generic · " in toggle
-    assert 'data-choice="Local, with Qloo · Biscuit"' in page
+    # The fake profile ranks no title, so no name is called local (test_views has both).
+    assert "With Qloo · Bingo" in toggle and "Generic · " in toggle
+    assert 'data-choice="With Qloo · Biscuit"' in page
 
 
 def test_a_reference_taken_since_the_page_loaded_cannot_be_approved(client):

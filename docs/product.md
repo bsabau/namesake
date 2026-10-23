@@ -83,7 +83,7 @@ Steps A to E run once per location and every animal reuses them, so quota cost g
 The result screen must be legible in a single screenshot. It shows:
 - on the first screen, what Qloo returned for this result and what Namesake's AI did with it, apart: at the top in the warm and classic skins; in story, one line under the name options saying what came from Qloo's data for the area, with the two parts at the top of "How Namesake made this", after the places (`docs/decisions.md` #24, #33)
 - the photo and chosen name
-- the generic/local toggle, each button showing its version's name
+- the generic/local toggle, each button showing its version's name; the local one reads "With Qloo" when the name's title has no Qloo evidence for the area
 - the name options with what Qloo returned for each title
 - a map of local lift, its caption (folded under "About this map" in story, decision 33) counting the cells fans of pet-themed titles rank higher than fans of the area's top shows, a comparison of parts of the area rather than of how many fans (unless the map is thin or has one compared cell or none), with the venues listed beside it under a note on which kinds of place were asked for and why (decision 23), and pinned on it by number, each card saying which cell it sits in and how far it is from the shelter (`docs/decisions.md` #4)
 - the exposure checklist
