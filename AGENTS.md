@@ -307,7 +307,7 @@ scripts/             probe scripts, photo and example builders
 tests/
   fixtures/qloo/synthetic/   hand-written envelopes, invented data
 var/                 git-ignored: real Qloo recordings, never committed
-deploy/              deploy.sh, compose.yml, the Caddy snippet, the hourly watch and their README
+deploy/              deploy.sh and its helpers (make_env.py, prepare_var.py), compose.yml, the Caddy snippet, the hourly watch (watch.py), README.md
 .github/workflows/   CI, the deploy after CI passes on main, the hourly watch
 Dockerfile
 .env.example
