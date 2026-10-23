@@ -48,7 +48,7 @@ QLOO_ID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 # A Python list of strings, as some problems print one: ['a', 'b'].
 # Python quotes an item holding an apostrophe with double quotes: ["cat's eyes"].
 QUOTED_LIST = re.compile(r"""\[((?:(?:'[^']*'|"[^"]*")(?:, )?)+)\]""")
-LIST_ITEM = re.compile(r"""'([^']*)'|"([^"]*)\"""")
+LIST_ITEM = re.compile(r"'([^']*)'" + r'|"([^"]*)"')
 
 
 def and_words(items: list[str]) -> str:
