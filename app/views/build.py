@@ -1067,9 +1067,10 @@ NEGATION = r"(?:\bnot|n't|\bnever|\bno longer)"
 # word that turns the sentence ("not aggressive but scared").
 BETWEEN = r"(?:(?!(?:but|yet|while|though|although)\b)\w+\s+){0,2}?"
 FEAR_WORD = re.compile(rf"\b{FEAR}\b")
-NEGATED_FEAR = re.compile(
-    rf"{NEGATION}\s+{BETWEEN}{FEAR}\b(?:\s*(?:,|\bor\b|\band\b|\bnor\b)\s*{FEAR}\b)*"
-)
+# A listed fear word may carry an adverb ("not nervous or easily startled"), never a verb
+# ("never hides, is scared" is two statements).
+LISTED = r"\s*(?:,\s*(?:(?:or|and|nor)\s+)?|(?:or|and|nor)\s+)(?:(?:\w+ly|very|too)\s+)?"
+NEGATED_FEAR = re.compile(rf"{NEGATION}\s+{BETWEEN}{FEAR}\b(?:{LISTED}{FEAR}\b)*")
 # Noise, crowds or busy places say so only beside a difficulty in the same clause ("not
 # comfortable in crowds", "dislikes loud noises"), never alone ("has a loud bark",
 # "enjoys crowds", "calm in noisy places") nor beside a negated one ("never struggles

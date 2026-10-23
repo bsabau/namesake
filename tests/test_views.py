@@ -1157,6 +1157,8 @@ def test_the_plan_skips_busy_events_when_the_record_says_they_are_hard(roster):
         "no longer avoids busy places",
         "not shy, nervous or scared around crowds",
         "is not at all shy",
+        "not nervous or easily startled by noise",
+        "not anxious, fearful, or stressed in noisy places",
     ]:
         assert said(fine) is None, fine
     for hard in [
