@@ -11,7 +11,7 @@ in the app's log (`docker compose logs app` on the host).
 
 Standard library only, so the workflow needs no install step.
 
-    python3 deploy/watch.py https://namesake.bogdansabau.eu --examples 4
+    python3 deploy/watch.py https://namesake.bogdansabau.eu --examples 5
 """
 
 import argparse

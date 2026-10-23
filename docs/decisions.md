@@ -622,3 +622,17 @@ Revised 22 October: a refine now keeps the listing's names unless the request as
 **Why:** the plan says to ask these places in person; one across the city, or a water park, is advice a volunteer cannot use, and a judge reading the page sees the app did not check.
 
 **Follows:** Park Güell stays: it is a park a volunteer can walk to, though ticketed in part. The 5 km is a straight line from the area's centre, not a walk.
+
+## 41. A demo animal with a bite on record, not for children, as a fifth example
+
+*23 October.* A judge read asked to see how a listing handles a bite history, and no demo animal had one; the venue skip for an animal not good with children (decision 2) showed in no example either. The author chose to change `dog-03`, the border collie mix who needs a job to do, over generating a new animal and photo.
+
+- `dog-03`'s record now says "no" to good with children and "yes" to bite history. Its facts, temperament and photo are unchanged, so his listing gains two fixed sentences, "He is not a match for a home with children." and "He has a bite on record; ask the shelter for the details.", and keeps its names; his card says "Not for a home with children" and "A bite on record".
+- `dog-03` in Park Slope joins `EXAMPLES` as the fifth "Read a finished story" link, so a judge sees both sentences without a live run. None of the places Namesake's AI picked for dogs in Park Slope mentions children, so none is left out there; on the live site the only dog pick that does is a gift shop in Barcelona whose description lists "children's items", which the author passed over as an example (it would leave one place to ask, and reads as a crude cut).
+- A page shows the confirmed answers from today's record, never those saved with a draft: `listing_view` rebuilds the bio from the draft's sentences and today's fixed sentences (`shown_bio`). So the saved `dog-03` listings, and any visitor's refined one kept in a workspace, say "a bite on record" with no rerun and no write; the copy-ready text and the flyer follow, and an approved text is held to today's cautions as before.
+
+**Why:** "a bite history or guarding is stated plainly, every time" is a rule judges can only see on an animal that has one, and the author chose the New York neighbourhood the other examples share. The saved listings would otherwise have kept saying "He has no bite on record."
+
+- With today's answers a saved bio can pass 150 words (it passed the bound with the answers as they were). The answers are never cut; the page says the listing is over 150 words and asks the volunteer to trim a sentence that repeats another when editing, keeping every recorded fact.
+
+**Follows:** only the confirmed answers reach saved listings this way, in today's pronouns. An edit to an animal's facts, temperament, look, age or sex leaves the agent's saved sentences as written, so that animal's listings are rebuilt (`scripts/precompute_examples.py --force`). The image project's copy of the roster (`../image_generation`) still has `dog-03`'s old answers; it is outside this repo and is not run. The first review of this change (Codex, muse) found that a recheck on deploy missed visitors' refined listings, which is why the answers are rebuilt where pages are drawn instead.

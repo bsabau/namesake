@@ -7,9 +7,9 @@
     uv run python scripts/precompute_examples.py --all --dry-run   # what --all would build
 
 The examples are `EXAMPLES` in `app/views/build.py`: `dog-02` and `cat-01`, each in
-Park Slope and Astoria. `--all` builds every animal in the roster, each litter named as
-a set, in every preset area (or those in `--only`), so judges open saved listings
-instead of waiting for a live run.
+Park Slope and Astoria, and `dog-03` in Park Slope. `--all` builds every animal in the
+roster, each litter named as a set, in every preset area (or those in `--only`), so
+judges open saved listings instead of waiting for a live run.
 The results hold Qloo data and model output, so they stay in `var/`, which is never committed; the
 deployed demo gets them on its private volume. Qloo calls are cached, recorded and
 spaced; the model is the one in AGENT_*.

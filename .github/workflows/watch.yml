@@ -25,4 +25,4 @@ jobs:
         with:
           persist-credentials: false
       # --examples matches EXAMPLES in app/views/build.py (tests/test_watch.py checks it).
-      - run: python3 deploy/watch.py https://namesake.bogdansabau.eu --examples 4
+      - run: python3 deploy/watch.py https://namesake.bogdansabau.eu --examples 5

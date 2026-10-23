@@ -5,7 +5,7 @@ import time
 from urllib.parse import urlencode
 
 from app.agent.checks import hook_text, mentions_identity
-from app.agent.listing_agent import Lookalike, NameOption
+from app.agent.listing_agent import Lookalike, NameOption, shown_bio
 from app.agent.results import ListingResult
 from app.animals import Animal, LitterPhoto, Roster
 from app.audience import NOTE as AUDIENCE_NOTE
@@ -15,6 +15,7 @@ from app.config import get_settings
 from app.custom_location import MIN_CELLS
 from app.listing import (
     CHECK_SENTENCES,
+    MAX_WORDS,
     MIN_WORDS,
     cautions,
     pronouns,
@@ -254,6 +255,8 @@ EXAMPLES = (
     ("dog-02", "astoria", "The same brindle dog in Astoria"),
     ("cat-01", "park-slope", "The shy black cat in Park Slope"),
     ("cat-01", "astoria", "The same black cat in Astoria"),
+    # A bite on record and not for a home with children: the listing says both (decision 41).
+    ("dog-03", "park-slope", "The border collie-type mix with a bite on record, in Park Slope"),
 )
 
 
@@ -425,7 +428,10 @@ def listing_view(
 ) -> ListingView:
     draft = result.draft if result else None
     if draft is not None:
-        bio = [(s.text, s.facts) for s in result.bio]
+        # Today's confirmed answers, never those saved with the draft, so a record
+        # changed since (a bite added, decision 41) shows on every page, the visitor's
+        # refined listings included.
+        bio = [(s.text, s.facts) for s in shown_bio(animal, draft)]
         written_by = (
             "Written by Namesake's AI from the shelter's records; code adds the confirmed "
             "answers and checks every sentence."
@@ -504,6 +510,12 @@ def listing_view(
             "(behaviour with people, other animals, on the lead) for a full listing of "
             f"{MIN_WORDS} words or more."
             if word_count < MIN_WORDS
+            # A saved draft passed the bound with the answers as they were; today's may be
+            # longer (decision 41), and they are never cut.
+            else f"Over {MAX_WORDS} words because the shelter's confirmed answers changed "
+            "after this listing was written. Keep them, and trim a sentence that repeats "
+            "another when you edit it, keeping every recorded fact."
+            if draft is not None and word_count > MAX_WORDS
             else None
         ),
         left_out=left_out,

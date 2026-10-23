@@ -336,11 +336,11 @@
     "image": "dog-03.jpg",
     "history": [],
     "checks": {
-      "good_with_children": "unknown",
+      "good_with_children": "no",
       "good_with_dogs": "unknown",
       "good_with_cats": "unknown",
       "house_trained": "yes",
-      "bite_history": "no"
+      "bite_history": "yes"
     }
   }
 ]

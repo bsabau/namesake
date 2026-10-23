@@ -239,7 +239,7 @@ Twelve fictional animals plus one group photo of a litter, all AI-generated. The
 
 - Fields per animal: `id`, `species`, `group`, `sex`, `age`, `look`, `temperament`, `facts` (a list), `history`, `checks` (the five `yes`/`no`/`unknown` answers listed in `docs/product.md`), `image`. The four kittens share `litter: "litter-a"`. The `litter-group` entry has `members` and no profile.
 - Animals have no names on purpose. Naming them is the app's job.
-- `dog-02` leads the demo and `cat-01` is the second example; `docs/product.md` says why. The litter stays in the app, out of the examples (decision 30, revised 22 October).
+- `dog-02` leads the demo, `cat-01` is the second example and `dog-03`, with a bite on record and not for a home with children, the third (decision 41); `docs/product.md` says why. The litter stays in the app, out of the examples (decision 30, revised 22 October).
 - The photos and JSON were produced by a separate project outside this repo (`../image_generation`, which also holds `ANIMALS.md` with each animal's role in the demo). It is not part of this app; do not import from it or run it.
 - The app serves web-sized copies from `app/static/animals`, made by `scripts/make_web_photos.py`. The UI labels the photos as AI-generated, and the app never edits or generates animal images.
 
@@ -257,7 +257,7 @@ The shelter is fictional too. Do not use real shelter names, logos or photos.
 4. **Why:** for each choice, the Qloo result behind it, separate from the app's reading of it.
 5. **Refine:** one text line for follow-ups such as "less childish". Namesake's AI keeps the names unless the request asks for other ones, and the refined note says which (`docs/decisions.md` #37). When Qloo returns `needs_input` for a typed area, the run stops there and its candidates show as buttons on the working page (`docs/decisions.md` #32); an ambiguous title is settled by the agent with a stated reason.
 
-**Preset locations.** The start screen offers four: two New York City neighbourhoods, one other US city, and one city outside the US (Barcelona, decision 30). Two neighbourhoods in the same city show that results change at fine detail; the third shows it is not only a New York effect, and the fourth that it is not only a US one. Do not choose them by reputation. Milestone 1 kept the three that Qloo resolves cleanly and whose results differ most. Candidates: Park Slope, Bushwick, Astoria, Harlem and the Upper West Side in New York; Tampa, Austin and Portland elsewhere. Each preset is a place name plus a centre point for the fictional shelter, never a real shelter or a street address. The presets live in `data/locations.json`: `query` is the text sent to Qloo as the location signal and the heatmap's area, and `city` names the wider city (only New York's rescue-partner plan item reads it). The current four are Park Slope, Astoria, Austin and Barcelona; the precomputed examples (`EXAMPLES` in `app/views/build.py`) are the lead dog and `cat-01`, each in Park Slope and Astoria.
+**Preset locations.** The start screen offers four: two New York City neighbourhoods, one other US city, and one city outside the US (Barcelona, decision 30). Two neighbourhoods in the same city show that results change at fine detail; the third shows it is not only a New York effect, and the fourth that it is not only a US one. Do not choose them by reputation. Milestone 1 kept the three that Qloo resolves cleanly and whose results differ most. Candidates: Park Slope, Bushwick, Astoria, Harlem and the Upper West Side in New York; Tampa, Austin and Portland elsewhere. Each preset is a place name plus a centre point for the fictional shelter, never a real shelter or a street address. The presets live in `data/locations.json`: `query` is the text sent to Qloo as the location signal and the heatmap's area, and `city` names the wider city (only New York's rescue-partner plan item reads it). The current four are Park Slope, Astoria, Austin and Barcelona; the precomputed examples (`EXAMPLES` in `app/views/build.py`) are the lead dog and `cat-01`, each in Park Slope and Astoria, and `dog-03` in Park Slope, with a bite on record and not for a home with children (decision 41).
 
 **The agent's job.** Given an animal's facts and a location:
 1. Find pet-themed entities that are strong locally, and check each one's lift against a baseline. Keep the strong ones, and try again once if too few survive.
@@ -328,7 +328,7 @@ uv run python scripts/precompute_examples.py --all --dry-run   # every preset an
 uv run python -m app.venue_points             # pin saved profiles' venues from OpenStreetMap, once
 uv run python -m app.limits                   # live runs and new areas per day, against the caps
 uv run python -m app.audience                 # who tends to like each saved listing's titles, live, once
-python3 deploy/watch.py https://namesake.bogdansabau.eu --examples 4   # the hourly check of the live demo
+python3 deploy/watch.py https://namesake.bogdansabau.eu --examples 5   # the hourly check of the live demo
 uv run pytest
 uv run pytest tests/test_app.py::test_health   # one test (-k <expr> also works)
 uv run ruff check . && uv run ruff format --check .
