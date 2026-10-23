@@ -283,3 +283,40 @@ def test_a_saved_venue_meets_words_added_to_the_screen_since():
     ]
     assert p.venues[0].unsuitable is None  # saved before the word was on the list
     assert [v.name for v in venue_order(p)] == ["Corner Books"]
+
+
+def test_distance_is_measured_from_the_pin_and_said_only_when_measured(roster):
+    from app.views.build import FAR_NOTE, empty_venues, venues_note
+
+    p = profile()
+    p.venues = [Venue(entity_id=f"v{k}", name=f"Place {k}", rank=k) for k in range(1, 4)]
+    # Nothing pinned: no place was measured, so the note does not claim a distance check.
+    assert FAR_NOTE not in venues_note(p, "dog")
+    for v in p.venues:  # all about 11 km north of the area's centre
+        v.latitude, v.longitude = LOCATION.latitude + 0.1, LOCATION.longitude
+    assert FAR_NOTE in venues_note(p, "dog")
+    view = build_result_view(roster.get("dog-02"), LOCATION, p)
+    assert view.venues == []
+    assert view.venues_empty == empty_venues(p, NEAR)
+    assert "more than 5 km from the shelter" in view.venues_empty
+    # A visitor's pin beside them measures from there, as the cards do.
+    pin = (LOCATION.latitude + 0.1, LOCATION.longitude + 0.001)
+    view = build_result_view(roster.get("dog-02"), LOCATION, p, pin=pin)
+    assert [v.name for v in view.venues] == ["Place 1", "Place 2", "Place 3"]
+    assert not any(i.title.startswith("Left out as more than") for i in view.our_reading)
+
+
+def test_a_far_chain_is_named_once_and_a_name_is_screened_too(roster):
+    p = profile()
+    p.venues = [
+        Venue(entity_id="v1", name="Starbucks", rank=1, latitude=LOCATION.latitude + 0.1,
+              longitude=LOCATION.longitude),
+        Venue(entity_id="v2", name="Splash Water Park", rank=2),
+        Venue(entity_id="v3", name="Corner Books", rank=3),
+    ]  # fmt: skip
+    view = build_result_view(roster.get("dog-02"), LOCATION, p)
+    why = {i.title: i.detail for i in view.our_reading}
+    assert "Starbucks" in why["Left out as national chains"]
+    assert "Left out as more than 5 km from the shelter" not in why
+    assert why["Left out as event venues"] == "Splash Water Park (water park)."
+    assert [v.name for v in view.venues] == ["Corner Books"]

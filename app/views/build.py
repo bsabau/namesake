@@ -667,24 +667,35 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
 
 # What decision 23's chain rule enforces: listed chains are never suggested; fast food is
 # the AI's judgement from a place's description, so said only where the AI picked.
-CHAINS_NOTE = (
-    "National chains Namesake knows by name are left out, and so are places more than "
-    f"{MAX_VENUE_KM} km from the shelter."
+CHAINS_NOTE = "National chains Namesake knows by name are left out."
+FAR_NOTE = (
+    "National chains Namesake knows by name are left out, and so are places found more "
+    f"than {MAX_VENUE_KM} km from the shelter."
 )
 FAST_FOOD_NOTE = "Namesake's AI is asked to pass over fast food."
 
 
 def chains_note(profile: LocationProfile) -> str:
-    return CHAINS_NOTE + (f" {FAST_FOOD_NOTE}" if profile.made_by == "agent" else "")
+    # The distance is said only once a place has a pin to measure (decision 40).
+    measured = any(v.latitude is not None for v in profile.venues)
+    return (FAR_NOTE if measured else CHAINS_NOTE) + (
+        f" {FAST_FOOD_NOTE}" if profile.made_by == "agent" else ""
+    )
 
 
-def empty_venues(profile: LocationProfile) -> str:
+def empty_venues(profile: LocationProfile, shelter: tuple[float, float] | None = None) -> str:
     """Why no place is suggested, as far as the profile shows it."""
     suitable = [v for v in profile.venues if unsuitable(v) is None]
     if suitable and all(chain_name(v.name) for v in suitable):
         return (
             "Every suitable place Qloo listed here is a national chain Namesake leaves out; "
             "the Why panel names them."
+        )
+    near = [v for v in suitable if not chain_name(v.name) and too_far(v, shelter) is None]
+    if suitable and not near:
+        return (
+            f"Every suitable place Qloo listed here is more than {MAX_VENUE_KM} km from the "
+            "shelter or a national chain; the Why panel names them."
         )
     if profile.venues and not suitable:
         return "Every place Qloo listed here was screened out; the Why panel names them."
@@ -940,7 +951,7 @@ RANK_NOTES = {
 def unsuitable(v: Venue) -> str | None:
     """The screen's word for a venue, as saved or under today's list, so a saved profile
     gets words added since (decision 40)."""
-    return v.unsuitable or screen(v.description)
+    return v.unsuitable or screen(f"{v.name} {v.description or ''}")
 
 
 def too_far(v: Venue, shelter: tuple[float, float] | None) -> float | None:
@@ -1353,7 +1364,9 @@ def who_chose(profile: LocationProfile) -> str:
     )
 
 
-def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], list[WhyItem]]:
+def why(
+    location: Location, profile: LocationProfile, shelter: tuple[float, float] | None = None
+) -> tuple[list[WhyItem], list[WhyItem]]:
     returned, reading = [], []
     # A saved comparison show today's screen would not choose is never named (decision 18);
     # the next run chooses the comparison again.
@@ -1455,11 +1468,14 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
     excluded = [f"{v.name} ({unsuitable(v)})" for v in profile.venues if unsuitable(v)]
     if excluded:
         reading.append(WhyItem(title="Left out as event venues", detail=and_list(excluded) + "."))
-    centre = (location.latitude, location.longitude)
+    # Measured from where the cards measure: the visitor's pin, else the area's centre.
+    centre = shelter or (location.latitude, location.longitude)
     far = [
         f"{v.name} ({km:.1f} km)"
         for v in profile.venues
-        if unsuitable(v) is None and (km := too_far(v, centre)) is not None
+        if unsuitable(v) is None
+        and not chain_name(v.name)
+        and (km := too_far(v, centre)) is not None
     ]
     if far:
         reading.append(
@@ -1812,14 +1828,15 @@ def build_result_view(
     image_url: str | None = None,
     pin: tuple[float, float] | None = None,
 ) -> ResultView:
-    every = venue_order(profile, (location.latitude, location.longitude))
+    shelter = pin or (location.latitude, location.longitude)
+    every = venue_order(profile, shelter)
     ordered, skipped = venues_for_animal(animal, every)
     named_skips = skipped_shown(every, ordered, skipped)
     shown = ordered[:VENUES_SHOWN]
     # Whether a venue the page would not have shown now takes a slot.
     first = {v.entity_id for v in every[:VENUES_SHOWN]}
     moved_up = any(v.entity_id not in first for v in ordered[:VENUES_SHOWN])
-    returned, reading = why(location, profile)
+    returned, reading = why(location, profile, shelter)
     if named_skips:
         # Our reading of Qloo's venues for this animal; Qloo's column stays as it was.
         reading.append(
@@ -1875,7 +1892,7 @@ def build_result_view(
             f"Every place Namesake would suggest here mentions children, so none is suggested "
             f"for this {animal.species}."
             if every and not ordered
-            else empty_venues(profile)
+            else empty_venues(profile, shelter)
         ),
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
         plan=plan(animal, location, ordered, named_skips),

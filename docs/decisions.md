@@ -614,10 +614,10 @@ Revised 22 October: a refine now keeps the listing's names unless the request as
 
 *23 October.* A judge read found Amy's Ice Creams suggested 11.1 km from the Austin shelter, and Illa Fantasia, an outdoor water park, among Barcelona's places.
 
-- `venue_order` takes the shelter's centre and leaves out a place pinned more than `MAX_VENUE_KM` (5) from it (`too_far` in `app/views/build.py`). A volunteer does not cross a city to put up a flyer. A place OpenStreetMap could not pin keeps its slot, without a distance, as before.
-- The Why panel names each place left out this way with its distance, under "Left out as more than 5 km from the shelter", and the note under "Places to ask" says so beside the chains.
+- `venue_order` takes the shelter's point and leaves out a place pinned more than `MAX_VENUE_KM` (5) from it (`too_far` in `app/views/build.py`). The point is the visitor's pin when there is one, else the area's centre, so the cards' distances and the cut agree. A volunteer does not cross a city to put up a flyer. A place OpenStreetMap could not pin keeps its slot, without a distance, as before; so does one matched only more than 12 km away, which the pinning reads as another place of that name.
+- The Why panel names each place left out this way with its distance, under "Left out as more than 5 km from the shelter" (a chain is named once, as a chain). The note under "Places to ask" says so beside the chains once any place has a pin to measure; when every suitable place is too far or a chain, the empty state says that instead of "found no place".
 - Pinning follows the page: when a pinned place lands too far, the next one moves into the page's first five, so `locate_venues` looks that one up too, until every place the page may show has been tried.
-- "water park", "theme park" and "amusement park" join the screen's words (`UNSUITABLE` in `app/profile.py`): too big or ticketed to take a flyer or a stand. A saved profile meets words added since: `unsuitable` reads the saved mark or today's screen.
+- "water park", "theme park" and "amusement park" join the screen's words (`UNSUITABLE` in `app/profile.py`): too big or ticketed to take a flyer or a stand. A saved profile meets words added since: `unsuitable` reads the saved mark or today's screen, over the place's name as well as its description.
 
 **Why:** the plan says to ask these places in person; one across the city, or a water park, is advice a volunteer cannot use, and a judge reading the page sees the app did not check.
 
