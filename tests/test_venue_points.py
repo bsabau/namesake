@@ -183,13 +183,16 @@ def test_a_far_pin_is_not_drawn_and_the_key_counts_only_drawn_ones():
     shown = [v for v in p.venues if v.unsuitable is None]
     shown[0].latitude, shown[0].longitude = 40.9, -73.5  # about 40 km away
     view = map_view(LOCATION, p, None, shown)
-    assert view.venues == [] and "Numbers:" not in (view.note or "")
+    assert view.venues == [] and "numbers:" not in (view.note or "")
+    assert (view.note or "").count(". ") <= 1  # still two sentences at most
+    assert "need not sit in a warm cell" not in view.legend
     shown[1].latitude, shown[1].longitude = NEAR[0] + 0.001, NEAR[1]
     view = map_view(LOCATION, p, None, shown)
     assert (
         [x.number for x in view.venues] == [2]
-        and "Numbers: the places to ask" in view.note
-        and "need not sit in a warm cell" in view.note
+        and "numbers: the places to ask" in view.note
+        and view.note.count(". ") == 1
+        and "need not sit in a warm cell" in view.legend
     )
 
 

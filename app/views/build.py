@@ -137,10 +137,12 @@ def cap(text: str) -> str:
     return text[:1].upper() + text[1:]
 
 
-def and_list(items: list[str]) -> str:
+def and_list(items: list[str], serial: bool = False) -> str:
+    # A serial comma where an item holds an "and" of its own ("bookshops and pet shops").
     if len(items) <= 1:
         return "".join(items)
-    return ", ".join(items[:-1]) + " and " + items[-1]
+    last = ", and " if serial and len(items) > 2 else " and "
+    return ", ".join(items[:-1]) + last + items[-1]
 
 
 PIN_NOTE = (
@@ -723,22 +725,79 @@ def empty_venues(profile: LocationProfile, shelter: tuple[float, float] | None =
 
 
 def groups_in() -> str:
-    return and_list([f"{name} ({why})" for name, _, why in VENUE_GROUPS])
+    return and_list([f"{name} ({why})" for name, _, why in VENUE_GROUPS], serial=True)
 
 
 def groups_out() -> str:
-    return and_list([f"{name} ({why})" for name, why in LEFT_OUT_GROUPS])
+    return and_list([f"{name} ({why})" for name, why in LEFT_OUT_GROUPS], serial=True)
+
+
+def shared_places(species: str) -> str:
+    # The area's list, which a per-animal skip (decision 2) only shortens.
+    return (
+        f"Qloo's places are the area's, shared by every {species} at this shelter; the name "
+        "and the listing are this animal's."
+    )
+
+
+def left_out(profile: LocationProfile) -> str:
+    """What code leaves out of every list, as one clause: chains, and far places once a
+    place has a pin to measure (decision 40)."""
+    measured = any(v.latitude is not None for v in profile.venues)
+    return "national chains Namesake knows by name" + (
+        f" and places OpenStreetMap puts more than {MAX_VENUE_KM} km from the shelter"
+        if measured
+        else ""
+    )
+
+
+def venues_summary(profile: LocationProfile, species: str) -> str | None:
+    """The story skin's two sentences under "Places to ask" (decision 33, revised 24
+    October): what Qloo was asked for and what is left out, then that the places are the
+    area's. `venues_more`, folded under them, says the rest, never the same again."""
+    if not profile.venues:
+        return None
+    kinds = and_list([name for name, _, _ in VENUE_GROUPS], serial=True)
+    asked = {
+        True: f"Qloo was asked only for {kinds}",
+        False: "Qloo was asked for places of any kind here",
+    }.get(profile.venue_categories)
+    first = (
+        f"{asked}, and {left_out(profile)} are left out."
+        if asked
+        else f"{cap(left_out(profile))} are left out."
+    )
+    return f"{first} {shared_places(species)}"
+
+
+def venues_more(profile: LocationProfile) -> str | None:
+    """What the summary leaves out, folded under it: why each kind was asked for or not, or
+    why any kind was; and, where the AI picked, the fast-food rule. None when nothing is."""
+    if not profile.venues:
+        return None
+    parts = []
+    if profile.venue_categories:
+        parts.append(
+            f"Asked for: {groups_in()}. Not asked for: {groups_out()}; Qloo's tags are broad, "
+            "so a few others can appear."
+        )
+    elif profile.venue_categories is False:
+        parts.append(
+            "Qloo's list of the usual kinds (cafes and breweries, bookshops and pet shops, "
+            f"community places) held fewer than {MIN_CATEGORY_VENUES} places here."
+        )
+    if profile.made_by == "agent":
+        parts.append(FAST_FOOD_NOTE)
+    return " ".join(parts) or None
 
 
 def venues_note(profile: LocationProfile, species: str) -> str | None:
-    """Under "Places to ask": which kinds of place Qloo was asked for and why, which were not
-    asked for, and that the places belong to the area, not to this animal."""
+    """Under "Places to ask" in warm and classic: which kinds of place Qloo was asked for
+    and why, which were not asked for, and that the places belong to the area, not to this
+    animal."""
     if not profile.venues:
         return None
-    shared = (
-        f"The same places for every {species} at this shelter; the name and the listing are "
-        "this animal's."
-    )
+    shared = shared_places(species)
     if profile.venue_categories:
         return (
             f"Qloo was asked only for places that can host an adoption stand or take a flyer: "
@@ -849,25 +908,20 @@ def map_view(
         )
     key = (
         (
-            f"Warm: fans of pet-themed titles stand out here more than {base}. Cool: less, or "
-            "level. Grey: no comparison."
+            f"Warm: fans of pet-themed titles stand out here more than {base}; cool: less, or "
+            "level; grey: no comparison."
             if any(c.lift is not None for c in cells)
             else "Grey: no cell was scored for both, so there is no comparison here."
         )
         # The circle is drawn on every map with cells, so it is explained on every one;
         # it centres on the visitor's own spot when they picked one.
         + (
-            " Circle: around the spot you picked for the shelter."
+            " Circle: around the spot you picked for the shelter"
             if pin
-            else " Circle: around the sample shelter the animals are adopted from."
+            else " Circle: around the sample shelter the animals are adopted from"
         )
         if cells
         else None
-    )
-    swapped = (
-        f" Mapped: {titles[0].name}, in place of {profile.thin_map.title.name}."
-        if profile.thin_map and titles
-        else ""
     )
     thin = ""
     if 0 < len(cells) < MIN_CELLS:
@@ -910,9 +964,12 @@ def map_view(
         )
     # Qloo ranks places in a separate answer from the cells, so a reader should not look
     # for them inside warm cells (the author's question, 20 October).
-    numbers = (
-        " Numbers: the places to ask, as in the list. Qloo ranks them separately from the "
-        "cells, so they need not sit in a warm cell."
+    # Two sentences on the map itself (decision 33, revised 24 October): the colours, then
+    # the circle and the numbers; why a number need not sit in a warm cell is in the legend.
+    numbers = "; numbers: the places to ask, as in the list." if placed else "."
+    apart = (
+        " The numbered places are ranked by Qloo separately from the cells, so they need "
+        "not sit in a warm cell."
         if placed
         else ""
     )
@@ -953,8 +1010,9 @@ def map_view(
             if any(c.lift is not None for c in cells)
             else f"Cells: where {pets} rank high within {location.label}. No cell was also "
             f"scored for {base}, so the map shows no comparison here."
-        ),
-        note=((key + swapped + numbers) if key else None),
+        )
+        + apart,
+        note=((key + numbers) if key else None),
         empty_message=None if cells else "No map data for this area yet.",
     )
 
@@ -1907,6 +1965,8 @@ def build_result_view(
         map=map_view(location, profile, pin, shown),
         venues=[venue_view(v, location, profile, n, pin) for n, v in enumerate(shown, start=1)],
         venues_note=venues_note(profile, animal.species),
+        venues_summary=venues_summary(profile, animal.species),
+        venues_more=venues_more(profile),
         venues_empty=(
             f"Every place Namesake would suggest here mentions children, so none is suggested "
             f"for this {animal.species}."

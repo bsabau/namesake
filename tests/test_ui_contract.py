@@ -240,6 +240,8 @@ def test_the_venues_note_is_labelled_as_namesakes_reading(client, ui):
         "/result", params={"animal": "dog-02", "location": "park-slope", "ui": ui}
     ).text
     assert 'data-role="venues-note"><span>Namesake:</span>' in page
+    if ui == "story":
+        assert 'class="venues-more"><summary>How these places were chosen</summary>' in page
 
 
 def test_story_maps_take_their_tiles_from_the_view_model(client, monkeypatch):

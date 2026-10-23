@@ -229,7 +229,8 @@
           <li class="venue venue-empty">{{ view.venues_empty }}</li>
           {% endfor %}
         </ol>
-        {% if view.venues_note %}<p class="reading venues-note" data-role="venues-note"><span>Namesake:</span> {{ view.venues_note }}</p>{% endif %}
+        {% if view.venues_summary %}<p class="reading venues-note" data-role="venues-note"><span>Namesake:</span> {{ view.venues_summary }}</p>{% endif %}
+        {% if view.venues_more %}<details class="venues-more"><summary>How these places were chosen</summary><p class="reading"><span>Namesake:</span> {{ view.venues_more }}</p></details>{% endif %}
       </section>
     </div>
 

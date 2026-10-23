@@ -659,6 +659,7 @@ def test_two_sides_that_order_the_cells_alike_say_so():
         pin=(LOCATION.latitude, LOCATION.longitude),
     ).note
     assert picked.endswith("Circle: around the spot you picked for the shelter.")
+    assert picked.count(". ") == 1  # two sentences, as without the pin
 
 
 def test_one_compared_cell_has_nothing_to_compare():
