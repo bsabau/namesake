@@ -555,7 +555,7 @@ def name_badge(
                 f"Watched locally: {ordinal(place)} of {len(ids)} in Qloo's list of what "
                 "people here tend to watch"
             )
-        return "Not in the list Qloo returned of what people here tend to watch"
+        return "Not among the titles Qloo listed as what people here tend to watch"
     entity = next((e for e in profile.pet_entities if e.id == entity_id), None)
     found = (entity.found_in or entity.listed_in) if entity else None
     liked = None
@@ -579,7 +579,7 @@ def name_badge(
             f"Pet-themed title, {ordinal(place)} of {len(watched)} in Qloo's list of what "
             "people here tend to watch"
         )
-    return "Pet-themed title, not in the lists Qloo returned for this area"
+    return "Pet-themed title, not among the titles Qloo listed for this area"
 
 
 def lookalike_of(result: ListingResult | None, entity_id: str) -> Lookalike | None:
@@ -1242,8 +1242,8 @@ def who_chose(profile: LocationProfile) -> str:
         )
     elif not profile.titles_confirmed and profile.made_by == "agent":
         text += (
-            "None of the titles kept has Qloo's ranking or a place in the area's lists, so "
-            "they are Namesake's AI's own. "
+            "None of the titles kept has Qloo's ranking or a place in Qloo's pet-themed lists "
+            "for the area, so they are Namesake's AI's own. "
         )
     text += (
         "Code chose which titles the venues were asked for, by Qloo's evidence, and checked "
@@ -1625,8 +1625,8 @@ def process_steps(
             # Decision 22: with no evidence for any title, the AI's own stay, and the page
             # says so (as "Who chose" does in the Why panel).
             did.append(
-                "none of the titles has Qloo's ranking or a place in the area's lists, so "
-                "Namesake's AI's own titles were kept"
+                "none of the titles has Qloo's ranking or a place in Qloo's pet-themed lists "
+                "for the area, so Namesake's AI's own titles were kept"
             )
         checks.append("checked that every place came from Qloo")
     else:

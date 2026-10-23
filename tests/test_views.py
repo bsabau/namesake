@@ -229,10 +229,10 @@ def test_a_pet_name_claims_local_strength_only_when_qloo_ranked_it():
     assert name_badge("pet", cat, p) == "Pet-themed title, ranked 1st of 2 here by Qloo"
     p.ranked = []
     assert name_badge("pet", dog, p) == (
-        "Pet-themed title, not in the lists Qloo returned for this area"
+        "Pet-themed title, not among the titles Qloo listed for this area"
     )
     assert name_badge("local", dog, p) == (
-        "Not in the list Qloo returned of what people here tend to watch"
+        "Not among the titles Qloo listed as what people here tend to watch"
     )
     # A pet title that is also one of the area's top tastes has Qloo's evidence for the area.
     p.local_tastes = [p.pet_entities[0]]

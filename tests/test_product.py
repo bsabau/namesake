@@ -1344,6 +1344,12 @@ def test_a_picked_name_carries_its_own_label_to_the_approval_and_the_flyer(clien
     save(saved_listing())
     shown = main.result_view("dog-02", "park-slope", None)
     assert shown.listing.versions[1].label == "Local, with Qloo"
+    # The story page carries each option's lead for result.js to swap in.
+    page = client.get("/result", params={"animal": "dog-02", "location": "park-slope"}).text
+    assert (
+        html.unescape(page).count('data-lead="A name from local taste data.') == 2
+    )  # Bingo, Scout
+    assert 'data-lead="A name from a title Qloo found; not from Qloo' in html.unescape(page)
     assert build_flyer_view(shown, "local").version_label == "Local, with Qloo"
     assert build_flyer_view(shown, "local", name="Biscuit").version_label == "With Qloo"
     # A refused edit (it drops cat-03's recorded caution) keeps Biscuit's label and lead.

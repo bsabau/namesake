@@ -61,7 +61,7 @@ def test_a_local_taste_name_shows_its_place_in_qloos_list():
         "Watched locally: 2nd of 2 in Qloo's list of what people here tend to watch"
     )
     assert name_badge("local", "zzz", p) == (
-        "Not in the list Qloo returned of what people here tend to watch"
+        "Not among the titles Qloo listed as what people here tend to watch"
     )
 
 
