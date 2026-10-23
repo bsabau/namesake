@@ -407,7 +407,7 @@ def local_label(local: bool) -> str:
     return LOCAL_LABEL if local else FOUND_LABEL
 
 
-def local_choice(name: str | None, local: bool = True) -> str:
+def local_choice(name: str | None, local: bool) -> str:
     """The local version's toggle button: its label and, once there is one, its name."""
     return f"{local_label(local)} · {name}" if name else local_label(local)
 
@@ -505,8 +505,9 @@ def listing_view(
         left_out=left_out,
         versions=versions,
         toggle_note=(
-            "Both versions share the same bio. The local one adds a name drawn from Qloo "
-            "taste data near the shelter and one line saying where the name comes from."
+            "Both versions share the same bio. The one with Qloo adds a name from a title "
+            "Qloo returned and one line saying where the name comes from; it is called local "
+            "only when Qloo's data for the area backs that title."
         ),
         fallback_note=result.fallback_reason if result else None,
         refined_note=(
@@ -554,7 +555,7 @@ def name_badge(
                 f"Watched locally: {ordinal(place)} of {len(ids)} in Qloo's list of what "
                 "people here tend to watch"
             )
-        return "Not in Qloo's list of what people here tend to watch"
+        return "Not in the list Qloo returned of what people here tend to watch"
     entity = next((e for e in profile.pet_entities if e.id == entity_id), None)
     found = (entity.found_in or entity.listed_in) if entity else None
     liked = None
@@ -570,7 +571,15 @@ def name_badge(
         return f"Pet-themed title, {ranked}" + (f"; {liked}" if liked else "")
     if liked:
         return f"Pet-themed title, {liked}"
-    return "Pet-themed title, not in Qloo's lists for this area"
+    # A pet title can also be one of the area's top tastes: that is Qloo's evidence too.
+    watched = [e.id for e in profile.local_tastes]
+    if entity_id in watched:
+        place = watched.index(entity_id) + 1
+        return (
+            f"Pet-themed title, {ordinal(place)} of {len(watched)} in Qloo's list of what "
+            "people here tend to watch"
+        )
+    return "Pet-themed title, not in the lists Qloo returned for this area"
 
 
 def lookalike_of(result: ListingResult | None, entity_id: str) -> Lookalike | None:
@@ -1640,12 +1649,14 @@ def story_leads(
     profile: LocationProfile,
     location: Location,
     named_as_set: bool = False,
+    option: NameOption | None = None,
 ) -> tuple[str, str]:
     """The lead under the headline for the local version and for the generic one, each
     true of its version's state: a name backed by local taste data, a name from a title
     Qloo found with no evidence for the area, a lookalike's name (a title Qloo found,
     matched by the AI), a set name for a litter, no local name because the AI's draft
-    failed its checks, or no run yet; and the fixed-list generic name."""
+    failed its checks, or no run yet; and the fixed-list generic name. The local lead is
+    for `option` when given (the name the volunteer picked), else the draft's first."""
     them = OBJECT_PRONOUN.get(animal.sex or "", "them")
     tail = f"An introduction from the shelter's records. A plan for getting {them} seen."
     draft = listing.draft if listing else None
@@ -1658,15 +1669,13 @@ def story_leads(
         local = "No local name yet: the templated listing says why. "
     elif draft is None:
         local = "No local name yet: it needs a run of Namesake's AI. "
-    elif draft.names[0].source == "lookalike":
+    elif (option or draft.names[0]).source == "lookalike":
         local = "A name from a lookalike title Qloo found, matched by Namesake's AI. "
     else:
-        local = (
-            "A name from local taste data"
-            if is_local(draft.names[0], profile)
-            else f"A name from a title Qloo found, not from its taste data for {location.label}"
-        )
-        local += ", one of a set for the litter. " if named_as_set else ". "
+        backed = is_local(option or draft.names[0], profile)
+        local = "A name from local taste data" if backed else "A name from a title Qloo found"
+        local += ", one of a set for the litter" if named_as_set else ""
+        local += ". " if backed else f"; not from Qloo's taste data for {location.label}. "
     generic = "A common pet name from a fixed list, not from Qloo. "
     if named_as_set:
         generic = "A common pet name from a fixed list, not from Qloo and not a set. "
@@ -1722,6 +1731,11 @@ def build_result_view(
     returned, reading = looks_returned + returned, looks_read + reading
     named = [m for m in litter or [] if m.name]
     listing_ = listing_view(animal, listing, profile, generic, refined)
+    names = name_view(listing, profile, listing_.text)
+    # Each option carries the lead it reads with, so picking it swaps the lead too.
+    drafts = listing.draft.names if names.options else []
+    for option, drafted in zip(names.options, drafts, strict=True):
+        option.lead = story_leads(animal, listing, profile, location, len(named) > 1, drafted)[0]
     return ResultView(
         id=result_id(animal.id, location.id),
         animal=animal_card(animal, image_url),
@@ -1733,7 +1747,7 @@ def build_result_view(
         local_touch_generic=local_touch(location, profile, None, len(shown)),
         trial=TRIAL,
         trial_link=Link(label="How the trial would work", url=TRIAL_URL),
-        name=name_view(listing, profile, listing_.text),
+        name=names,
         listing=listing_,
         chosen_name=listing.draft.names[0].name if listing and listing.draft else None,
         map=map_view(location, profile, pin, shown),

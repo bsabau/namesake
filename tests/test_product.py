@@ -1330,3 +1330,31 @@ def test_a_litter_members_result_offers_the_litter_and_shows_its_own_steps(clien
     second = store.get_listing(members[1], "park-slope")
     starts = [s.text for s in second.steps if s.text.startswith("Litter member")]
     assert starts == [f"Litter member 2 of {len(members)}"]
+
+
+def test_a_picked_name_carries_its_own_label_to_the_approval_and_the_flyer(client, profile):
+    # Reviewers, PR #86: Bingo's title is ranked here and Biscuit's is not, so picking
+    # Biscuit must not keep "Local, with Qloo" on the approval, the flyer or the lead.
+    from app.views.build import build_flyer_view
+
+    bingo = next(e for e in profile.pet_entities if e.name == "Example Dog Show")
+    profile.ranked = [bingo.id]
+    for e in profile.pet_entities:
+        e.found_in = e.listed_in = None
+    save(saved_listing())
+    shown = main.result_view("dog-02", "park-slope", None)
+    assert shown.listing.versions[1].label == "Local, with Qloo"
+    assert build_flyer_view(shown, "local").version_label == "Local, with Qloo"
+    assert build_flyer_view(shown, "local", name="Biscuit").version_label == "With Qloo"
+    # A refused edit (it drops cat-03's recorded caution) keeps Biscuit's label and lead.
+    save(saved_listing("cat-03"))
+    refused = approve(
+        client, animal="cat-03", variant="local", local_name="Biscuit", text="She loves toys."
+    )
+    toggle = refused.text.split('data-role="version-toggle"')[1].split("</fieldset>")[0]
+    assert "With Qloo · Biscuit" in toggle
+    lead = refused.text.split('class="lead version-local">')[1].split("</p>")[0]
+    assert html.unescape(lead).startswith("A name from a title Qloo found; not from Qloo's")
+    # Approved after all: the approval page names the version Biscuit was picked in.
+    response = approve(client, variant="local", local_name="Biscuit", text="She is calm.")
+    assert "The version: with Qloo." in response.text

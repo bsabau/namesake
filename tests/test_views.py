@@ -228,8 +228,17 @@ def test_a_pet_name_claims_local_strength_only_when_qloo_ranked_it():
     cat, dog = p.pet_entities[1].id, p.pet_entities[0].id
     assert name_badge("pet", cat, p) == "Pet-themed title, ranked 1st of 2 here by Qloo"
     p.ranked = []
-    assert name_badge("pet", dog, p) == "Pet-themed title, not in Qloo's lists for this area"
-    assert name_badge("local", dog, p) == "Not in Qloo's list of what people here tend to watch"
+    assert name_badge("pet", dog, p) == (
+        "Pet-themed title, not in the lists Qloo returned for this area"
+    )
+    assert name_badge("local", dog, p) == (
+        "Not in the list Qloo returned of what people here tend to watch"
+    )
+    # A pet title that is also one of the area's top tastes has Qloo's evidence for the area.
+    p.local_tastes = [p.pet_entities[0]]
+    assert name_badge("pet", dog, p) == (
+        "Pet-themed title, 1st of 1 in Qloo's list of what people here tend to watch"
+    )
 
 
 def test_rank_band_splits_qloos_list_in_thirds():
@@ -947,7 +956,7 @@ def test_the_local_lead_follows_the_listings_state(roster):
     # A pet-themed title Qloo found, with no evidence for the area: not called local.
     view = build_result_view(animal, LOCATION, profile(), saved_listing())
     assert view.story_lead.startswith(
-        "A name from a title Qloo found, not from its taste data for Example Slope. "
+        "A name from a title Qloo found; not from Qloo's taste data for Example Slope. "
     )
     local = view.listing.versions[1]
     assert local.label == "With Qloo" and local.choice == "With Qloo · Bingo"
@@ -965,6 +974,11 @@ def test_the_local_lead_follows_the_listings_state(roster):
     # Biscuit's title is not ranked, so picking it switches the toggle's text back.
     biscuit = view.name.options[1]
     assert biscuit.version_choice == "With Qloo · Biscuit"
+    assert biscuit.version_label == "With Qloo"
+    assert view.name.options[0].version_label == "Local, with Qloo"
+    # Each option carries its own lead, so picking Biscuit does not keep "local taste data".
+    assert view.name.options[0].lead == view.story_lead
+    assert biscuit.lead.startswith("A name from a title Qloo found; not from Qloo's taste data")
     assert biscuit.why.startswith("The character is Namesake's AI's reading of the title. ")
 
 
@@ -977,6 +991,11 @@ def test_the_leads_for_a_litter_named_as_a_set(roster):
         LitterMateView(name="Bingo", url="/a", current=True),
         LitterMateView(name="Biscuit", url="/b"),
     ]
+    view = build_result_view(kitten, LOCATION, profile(), saved_listing("kitten-01"), litter=mates)
+    assert view.story_lead.startswith(
+        "A name from a title Qloo found, one of a set for the litter; not from Qloo's taste "
+        "data for Example Slope. "
+    )
     ranked = profile()
     ranked.ranked = [ranked.pet_entities[0].id]
     view = build_result_view(kitten, LOCATION, ranked, saved_listing("kitten-01"), litter=mates)

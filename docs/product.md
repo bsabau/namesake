@@ -30,7 +30,7 @@ The review found no study showing that names or wording speed adoption. Being se
 - A fact about what the animal needs from an adopter gets its own sentence, never joined to a fact about what the animal does, so the animal's behaviour is never read as the adopter's.
 - Difficult behaviour is stated plainly, as recorded. (No management suggestion is added: the bio may only restate the shelter's facts.)
 
-**Generic and local versions** share the same bio. The generic version takes a common pet name from a fixed list; the local version takes the chosen name from Qloo's titles and adds one hook line. The toggle therefore shows exactly what Qloo contributed (`docs/decisions.md` #8).
+**Generic and local versions** share the same bio. The generic version takes a common pet name from a fixed list; the local version takes the chosen name from Qloo's titles and adds one hook line. The toggle therefore shows exactly what Qloo contributed (`docs/decisions.md` #8); the local button says "Local" only when Qloo's data for the area backs the name's title, and "With Qloo" otherwise (decision 22).
 
 **Refine.** One line asks Namesake's AI for a change ("shorter sentences", "other names"). It keeps the names unless the request asks for other ones, and the note on the refined listing says which; a refine that does not finish leaves the listing as it was (`docs/decisions.md` #37).
 
@@ -44,7 +44,7 @@ Name options come from three sources. Each option carries a badge with what Qloo
 
 | Source | Where it comes from |
 |---|---|
-| Pet-themed, strong here | Pet-themed titles with Qloo's evidence for the area (decision 22): ranked here by Qloo ("ranked 1st of 8 here by Qloo"), or placed in one of the area's lists, asked with Qloo's pet tags or for fans of another pet title ("in Qloo's list for this area, asked with its pet tags", "liked here by fans of Bluey") |
+| Pet-themed, strong here | Pet-themed titles with Qloo's evidence for the area (decision 22): ranked here by Qloo ("ranked 1st of 8 here by Qloo"), or placed in one of the area's lists, asked with Qloo's pet tags or for fans of another pet title ("in Qloo's list for this area, asked with its pet tags", "liked here by fans of Bluey"). A pet-themed title the AI added with no such evidence (decision 22, when Qloo answered nothing for the area) says "not in the lists Qloo returned for this area", and its name is not called local. |
 | Loved here generally | The area's top TV shows (step E). Screened harder, because these lists lean on national hits and identity-coded titles. |
 | Title found, or Offered as a candidate (a lookalike) | One or two titles the agent looks up for this animal: a film, show or book with an animal that shares its recorded look. Qloo's line says only that it found the title, or offered it among candidates when it asked which was meant; the match ("A lookalike, matched on this animal's recorded look (brindle coat).", after the reference that names the character) is on the AI's line. Never the first name, so the local version stays local (`docs/decisions.md` #14). |
 
