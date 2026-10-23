@@ -153,6 +153,30 @@ def test_the_note_says_which_kinds_are_in_and_out_and_that_the_places_are_the_ar
     assert venues_note(LocationProfile(location_id="x"), "dog") is None
 
 
+def sentences(text: str) -> int:
+    return text.count(". ") + 1
+
+
+def test_the_story_skins_note_is_two_sentences_with_the_rest_folded():
+    # A judge read (24 October): the note under "Places to ask" was a paragraph.
+    from app.views.build import venues_more, venues_summary
+
+    kinds = profile_with(True)
+    summary = venues_summary(kinds, "dog")
+    assert sentences(summary) == 2 and summary.startswith("Qloo was asked only for places")
+    assert "more than 5 km" not in summary  # nothing pinned to measure yet
+    more = venues_more(kinds, "dog")
+    for name, why in LEFT_OUT_GROUPS:
+        assert f"{name} ({why})" in more
+    assert "The same places for every dog" not in more  # the summary says it
+    kinds.venues[0].latitude, kinds.venues[0].longitude = 40.67, -73.98
+    assert "and places more than 5 km from the shelter are left out" in venues_summary(kinds, "dog")
+    assert sentences(venues_summary(profile_with(False), "cat")) == 2
+    assert venues_summary(profile_with(None), "dog").startswith("National chains")
+    assert venues_more(profile_with(None), "dog") is None  # the summary says it all
+    assert venues_summary(LocationProfile(location_id="x"), "dog") is None
+
+
 def test_the_why_panel_reads_the_kinds_as_namesakes_choice():
     reading = kinds_reading(profile_with(True))
     assert reading.startswith("Namesake asked Qloo for these kinds only")

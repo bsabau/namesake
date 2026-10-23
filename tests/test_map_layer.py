@@ -114,6 +114,8 @@ def test_the_map_names_both_pet_shows_and_carries_a_key(roster):
     assert "Example Dog Show and Example Cat Show" in shared.label
     assert "(2 shows)" in shared.label and "this area's top shows" in shared.label
     assert view.map.note and "Warm" in view.map.note
+    # Two sentences on the map itself (24 October): the colours, then the circle.
+    assert view.map.note.count(". ") == 1
     # The key names no baseline title; the Why panel does, as Qloo returned them.
     assert "Example Drama" not in view.map.note + view.map.legend
     reading = {item.title: item.detail for item in view.our_reading}
@@ -567,10 +569,8 @@ def test_a_thin_first_map_title_is_swapped_last_for_a_better_one(roster):
         "Example Kitten Show in its place. The places to ask are for fans of Example Dog Show "
         "and Example Cat Show. "
     )
-    # The key keeps its heading's subject first: colours, then which title is mapped.
-    assert map_view(LOCATION, p).note.endswith(
-        " Mapped: Example Kitten Show, in place of Example Dog Show."
-    )
+    # The key on the map stays two sentences; the swap is said once, in the legend.
+    assert "Example Kitten Show" not in map_view(LOCATION, p).note
 
 
 def test_a_full_first_map_asks_for_no_spare():

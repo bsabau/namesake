@@ -494,6 +494,10 @@ class ResultView(BaseModel):
     # Our framing of the list: which kinds of place were asked for, and why; that the
     # places are the area's, the same for every animal of that species there.
     venues_note: str | None = None
+    # The story skin's version: two sentences, with the rest folded under them
+    # (decision 33, revised 24 October).
+    venues_summary: str | None = None
+    venues_more: str | None = None
     # What to ask the places about, as the plan words it: a flyer only for an animal whose
     # record says busy events are hard (decision 39); the printed checklist repeats it.
     venue_ask: str = "a flyer or a stand"
