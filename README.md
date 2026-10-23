@@ -143,7 +143,7 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
-Open http://localhost:8000. A fresh clone has an empty cache, so the first run for an area calls Qloo live (about 18 to 20 calls, under two minutes with the spacing) and the model. To fill the cache for the start page's examples, or to watch one run in the terminal:
+Open http://localhost:8000. A fresh clone has an empty cache, so the first run for an area calls Qloo live (about 18 to 20 calls, under two minutes with the spacing) and the model: a few minutes in all. To fill the cache for the start page's examples, or to watch one run in the terminal:
 
 ```sh
 uv run python scripts/precompute_examples.py          # live: Qloo and the model

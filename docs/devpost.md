@@ -1,6 +1,6 @@
 # Devpost submission text
 
-What was submitted on Devpost on 24 October 2026, with the same day's corrections after three reviews against the evidence, kept here so the repository and the submission say the same thing. Same claim rules as the README: no "adopted faster", no "saves lives", no "matching".
+What was submitted on Devpost on 24 October 2026, with the same day's corrections after Codex, muse and DeepSeek Flash checked it against the evidence, kept here so the repository and the submission say the same thing. Same claim rules as the README: no "adopted faster", no "saves lives", no "matching".
 
 **Project name:** Namesake
 
@@ -36,10 +36,10 @@ That set the goal: listings that stick to the facts, carefully screened names, a
 A volunteer picks an animal and the shelter's area. In about a minute for an area it already knows (a few minutes for a new one), Namesake's AI produces:
 
 - **a listing written only from the shelter's recorded facts**, with a bite history always stated (one of the five finished examples has one)
-- **name options from Qloo taste data**: pet-themed shows, films and books Qloo ranks near the shelter, plus titles with a lookalike animal that Namesake's AI finds in Qloo, each name labelled with what Qloo returned and screened for villains, tragic characters, real people and coded references
+- **name options from Qloo taste data**: pet-themed shows, films and books that Qloo ranks or lists near the shelter, shows the area watches anyway, and titles with a lookalike animal that Namesake's AI finds in Qloo, each name labelled with what Qloo returned and screened for villains, tragic characters, real people and coded references
 - **a plan to get the animal seen**: local places that fans of those titles favour, with listed national chains, theme parks and places mapped more than 5 km from the shelter left out, on a map, plus foster networks, outings (or a quiet meeting when the record says busy places are hard) and timing
 
-A Generic / Local toggle shows the listing with and without Qloo, so you can see exactly what Qloo adds; when Qloo's data for the area doesn't back a name's title, the button says With Qloo instead of Local. Qloo's data is behind the local names, the places to ask and the map: without Qloo, Namesake still writes the generic listing, but with no local names, no places and no map. A Why drawer keeps what Qloo returned separate from how the app read it. Refine, edit, approve, copy, or print a flyer.
+A Generic / Local toggle shows the listing with and without Qloo, so you can see exactly what Qloo adds; when Qloo's data for the area doesn't back a name's title, the button says With Qloo instead of Local. Qloo's data is behind the local names, the places to ask and the map: without Qloo, Namesake still writes the generic listing, but with no local names, no places and no taste layer on the map. A Why drawer keeps what Qloo returned separate from how the app read it. Refine, edit, approve, copy, or print a flyer.
 
 ## How we built it
 
