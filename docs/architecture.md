@@ -236,7 +236,7 @@ Saved listings carry the version of the checks they passed. When the checks chan
 | Memory | live runs per visitor in the last hour; runs and their step logs (an hour after they finish; past 300, the oldest finished go first) | server only, reset on restart |
 | `var/qloo-recordings/` | raw Qloo answers, for replay in development | never committed |
 | Session (memory) | the visitor's workspace while in use, and the map pin | one visitor; 2 hours after the last visit, on a restart, or when over 500 sessions are open, the workspace is read again from disk and the pin is gone |
-| `var/workspaces.sqlite` | the workspace: added animals, their photos and listings; refined listings and the refine line behind each (decision 34) | one visitor and whoever has their workspace link; 7 days after the last visit (plus up to the hour between renewals) it no longer opens, and the next write anywhere deletes it |
+| `var/workspaces.sqlite`, `workspaces` and `workspace_photos` | the workspace: added animals, their photos and listings; refined listings and the refine line behind each (decision 34) | one visitor and whoever has their workspace link; 7 days after the last visit (plus up to the hour between renewals) it no longer opens, and the next write anywhere deletes it |
 
 No account exists. The session cookie holds the workspace's random ID and nothing else. Qloo receives cultural entities and place names only; Photon receives area names, rounded points, and the names and public street addresses of venues Qloo returned (to pin them, once per saved profile); the classifier receives a title's name, kind and Qloo's description; none gets anything about a visitor. `tests/test_no_qloo_data.py` fails if real Qloo data appears in the repository.
 
