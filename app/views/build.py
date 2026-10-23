@@ -1063,33 +1063,36 @@ FEAR = (
     r"|stressed|stressful|startles?|startled|overwhelmed|panic(?:s|ked|king)?)"
 )
 NEGATION = r"(?:\bnot|n't|\bnever|\bno longer)"
+# Up to two words between a negation and what it negates ("not at all shy"), never a
+# word that turns the sentence ("not aggressive but scared").
+BETWEEN = r"(?:(?!(?:but|yet|while|though|although)\b)\w+\s+){0,2}?"
 FEAR_WORD = re.compile(rf"\b{FEAR}\b")
 NEGATED_FEAR = re.compile(
-    rf"{NEGATION}\s+(?:\w+\s+){{0,2}}?{FEAR}\b(?:\s*(?:,|\bor\b|\band\b|\bnor\b)\s*"
-    rf"(?:\w+\s+)?{FEAR}\b)*"
+    rf"{NEGATION}\s+{BETWEEN}{FEAR}\b(?:\s*(?:,|\bor\b|\band\b|\bnor\b)\s*{FEAR}\b)*"
 )
 # Noise, crowds or busy places say so only beside a difficulty in the same clause ("not
 # comfortable in crowds", "dislikes loud noises"), never alone ("has a loud bark",
 # "enjoys crowds", "calm in noisy places") nor beside a negated one ("never struggles
-# with noise"). A "crowd-pleaser" is not a crowd. Clauses split at commas and at but,
+# with noise"). A "crowd-pleaser" is not a crowd. Clauses split at commas and at but, yet,
 # and, while or though: "calm at home but scared of crowds" is two.
-CLAUSES = re.compile(r"[,;.]|\b(?:but|and|while|though|although)\b")
+CLAUSES = re.compile(r"[,;.]|\b(?:but|yet|and|while|though|although)\b")
 BUSY = re.compile(r"\b(nois(?:y|es?)|loud|crowds?(?!-)|crowded|busy)\b")
 STRUGGLE = re.compile(
     r"\b(?:dislikes?|hates?|struggles?|avoids?|cannot|can't|unable to)\b"
-    rf"|{NEGATION}\s+(?:\w+\s+)?(?:like|cope|good|comfortable|happy|handle|enjoy)\b"
+    rf"|{NEGATION}\s+{BETWEEN}(?:like|cope|good|comfortable|happy|handle|enjoy)\b"
 )
-NEGATED_STRUGGLE = re.compile(rf"{NEGATION}\s+(?:\w+\s+)?(?:dislikes?|hates?|struggles?|avoids?)\b")
+NEGATED_STRUGGLE = re.compile(rf"{NEGATION}\s+{BETWEEN}(?:dislikes?|hates?|struggles?|avoids?)\b")
+
+
+def outside(found: re.Pattern, negated: re.Pattern, text: str) -> bool:
+    """Whether `found` matches somewhere in `text` that no `negated` match covers."""
+    spans = [m.span() for m in negated.finditer(text)]
+    return any(not any(a <= m.start() < b for a, b in spans) for m in found.finditer(text))
 
 
 def busy_is_hard(line: str) -> bool:
-    negated = [m.span() for m in NEGATED_FEAR.finditer(line)]
-    for fear in FEAR_WORD.finditer(line):
-        if not any(start <= fear.start() < end for start, end in negated):
-            return True
-    return any(
-        BUSY.search(c) and STRUGGLE.search(c) and not NEGATED_STRUGGLE.search(c)
-        for c in CLAUSES.split(line)
+    return outside(FEAR_WORD, NEGATED_FEAR, line) or any(
+        BUSY.search(c) and outside(STRUGGLE, NEGATED_STRUGGLE, c) for c in CLAUSES.split(line)
     )
 
 

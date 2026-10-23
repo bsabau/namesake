@@ -1175,6 +1175,12 @@ def test_the_plan_skips_busy_events_when_the_record_says_they_are_hard(roster):
         "panicked by fireworks",
         "unable to cope with crowds",
         "never hides but is scared of crowds",
+        "not aggressive but scared of crowds",
+        "never bites but panics in crowds",
+        "does not dislike people yet struggles with crowds",
+        "never struggles with quiet walks yet cannot cope with crowds",
+        "not at all comfortable in crowds",
+        "never hides, is scared of crowds",
     ]:
         assert said(hard) == hard, hard
     assert (
