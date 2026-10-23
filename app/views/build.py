@@ -254,6 +254,9 @@ EXAMPLES = (
     ("dog-02", "astoria", "The same brindle dog in Astoria"),
     ("cat-01", "park-slope", "The shy black cat in Park Slope"),
     ("cat-01", "astoria", "The same black cat in Astoria"),
+    # A bite on record and not for children: the listing says so, and places that
+    # mention children are left out and named (decision 41).
+    ("dog-03", "park-slope", "The collie mix with a bite on record, in Park Slope"),
 )
 
 

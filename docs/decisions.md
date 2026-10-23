@@ -622,3 +622,15 @@ Revised 22 October: a refine now keeps the listing's names unless the request as
 **Why:** the plan says to ask these places in person; one across the city, or a water park, is advice a volunteer cannot use, and a judge reading the page sees the app did not check.
 
 **Follows:** Park Güell stays: it is a park a volunteer can walk to, though ticketed in part. The 5 km is a straight line from the area's centre, not a walk.
+
+## 41. A demo animal with a bite on record, not for children, as a fifth example
+
+*23 October.* A judge read asked to see how a listing handles a bite history, and no demo animal had one; the venue skip for an animal not good with children (decision 2) showed in no example either. The author chose to change `dog-03`, the border collie mix who needs an experienced, active owner, over generating a new animal and photo.
+
+- `dog-03`'s record now says "no" to good with children and "yes" to bite history. Its facts, temperament and photo are unchanged, so the listing gains the two fixed sentences, "Not for a home with children." and "He has a bite on record; ask the shelter for the details.", and keeps its names.
+- `dog-03` in Park Slope joins `EXAMPLES` as the fifth "Read a finished story" link, so a judge sees both sentences without a live run. None of the places Namesake's AI picked for dogs in Park Slope mentions children, so none is left out there; on the live site the only dog pick that does is a gift shop in Barcelona whose description lists "children's items", which the author passed over as an example (it would leave one place to ask, and reads as a crude cut).
+- A record edited after its listings were saved now reaches them. The bio as shown carries the confirmed answers as they were when saved, so a listing saved under today's checks whose shown bio differs from today's record's is rechecked like an older one on every deploy (`app/agent/recheck.py`): the agent's sentences and the names against today's record, then the fixed sentences rebuilt. One that no longer passes is not shown and runs again when opened. No live call: the saved `dog-03` listings get the bite line with their names kept.
+
+**Why:** "a bite history or guarding is stated plainly, every time" is a rule judges can only see on an animal that has one, and the author chose the New York neighbourhood the other examples share; the saved listings would otherwise have kept saying "He has no bite on record."
+
+**Follows:** the image project's copy of the roster (`../image_generation`) still has `dog-03`'s old answers; it is outside this repo and is not run.

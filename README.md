@@ -2,7 +2,7 @@
 
 **Namesake's AI writes accurate adoption listings for shelter animals, offers screened name options, and plans where to get each animal seen, using Qloo taste data near the shelter.**
 
-**Live demo:** https://namesake.bogdansabau.eu (the four "Read a finished story" links open instantly)
+**Live demo:** https://namesake.bogdansabau.eu (the five "Read a finished story" links open instantly)
 
 A volunteer picks an animal and the shelter's area. In about a minute Namesake produces:
 

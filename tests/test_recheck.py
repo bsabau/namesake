@@ -207,3 +207,41 @@ def test_an_older_draft_with_a_name_after_a_tragic_animal_runs_again(roster, tmp
     names = [{**n, "why": "A short name, easy to say."} for n in names]
     save(store, "dog-01", {**DRAFT, "names": names, "bio": DOG_01_BIO}, CHECKS_VERSION - 1)
     assert recheck(store, roster) == (0, 1)
+
+
+def with_checks(roster, animal_id: str, **checks: str):
+    """The roster with one animal's confirmed answers changed, as the author may edit them."""
+    animal = roster.get(animal_id)
+    changed = animal.model_copy(update={"checks": animal.checks.model_copy(update=checks)})
+    animals = [changed if a.id == animal_id else a for a in roster.animals]
+    return roster.model_copy(update={"animals": animals})
+
+
+def test_a_current_listing_shows_a_bite_recorded_since(roster, tmp_path):
+    # Decision 41: dog-03's record gained a bite after its listings were saved, which
+    # the bio as shown, with the old confirmed checks, never said.
+    from app.agent.listing_agent import shown_bio
+
+    store = Store(tmp_path / "store.sqlite")
+    save(store, "dog-02", DRAFT, CHECKS_VERSION)
+    draft = ListingDraft.model_validate(DRAFT)
+    saved = store.get_listing("dog-02", "x")
+    store.put_listing(saved.model_copy(update={"bio": shown_bio(roster.get("dog-02"), draft)}))
+    assert recheck(store, roster) == (0, 0)  # the record has not changed
+    bitten = with_checks(roster, "dog-02", bite_history="yes", good_with_children="no")
+    assert recheck(store, bitten) == (1, 0)
+    text = " ".join(s.text for s in store.get_listing("dog-02", "x").bio)
+    assert "She has a bite on record; ask the shelter for the details." in text
+    assert recheck(store, bitten) == (0, 0)
+
+
+def test_a_current_listing_whose_changed_record_it_no_longer_fits_runs_again(
+    roster, tmp_path, monkeypatch
+):
+    from app.agent import recheck as module
+
+    store = Store(tmp_path / "store.sqlite")
+    save(store, "dog-02", DRAFT, CHECKS_VERSION)  # its bio is not today's
+    monkeypatch.setattr(module, "record_problems", lambda animal, draft: ["too long"])
+    assert recheck(store, roster) == (0, 1)
+    assert store.get_listing("dog-02", "x") is None
