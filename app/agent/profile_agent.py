@@ -657,7 +657,7 @@ def find_venues(ctx: RunContext[ProfileDeps], entity_ids: list[str]) -> dict[str
     for rank, r in enumerate(env.results, start=1):
         props = r.get("properties") or {}
         description = props.get("short_description") or props.get("description")
-        excluded = screen(description)
+        excluded = screen(description, r["name"])
         info = {
             "entity_id": r["entity_id"],
             "name": r["name"],

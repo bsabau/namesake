@@ -75,6 +75,8 @@ def test_unsuitable_venues_are_flagged():
     assert {v.name: v.unsuitable for v in p.venues}["Hookah Corner"] == "hookah"
     assert screen("A neighbourhood arts centre.") is None
     assert screen("Upscale GENTLEMEN's club") == "gentlemen"
+    assert screen("Outdoor water park.", "Splash") == "water park"
+    assert screen("Park-side cafe with cakes.", "Blue Water") is None  # never across the join
 
 
 def test_lift_is_pet_minus_baseline_and_missing_where_unscored():
