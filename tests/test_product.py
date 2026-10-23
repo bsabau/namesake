@@ -177,6 +177,10 @@ def test_a_saved_listing_that_todays_answers_take_past_150_words_says_so(roster,
     listing = build_result_view(bitten, LOCATION, profile, saved, generic="Pepper").listing
     assert listing.word_count > 150 and "Over 150 words" in listing.short_note
     assert "She has a bite on record" in listing.text
+    # A templated listing has no saved answers to have changed, so it says nothing of it.
+    long = dog.model_copy(update={"facts": [" ".join(["word"] * 30)] * 6})
+    templated = build_result_view(long, LOCATION, profile, None, generic="Pepper").listing
+    assert templated.word_count > 150 and templated.short_note is None
 
 
 def test_the_local_version_adds_only_the_name_and_the_hook(roster, profile):

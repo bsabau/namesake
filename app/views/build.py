@@ -513,8 +513,8 @@ def listing_view(
             # A saved draft passed the bound with the answers as they were; today's may be
             # longer (decision 41), and they are never cut.
             else f"Over {MAX_WORDS} words because the shelter's confirmed answers changed "
-            "after this listing was written. Keep them, and trim another sentence when you "
-            "edit it."
+            "after this listing was written. Keep them, and trim a sentence that repeats "
+            "another when you edit it, keeping every recorded fact."
             if draft is not None and word_count > MAX_WORDS
             else None
         ),
