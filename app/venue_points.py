@@ -20,11 +20,13 @@ from app.store import Store
 from app.views.build import VENUES_SHOWN, for_children, venue_order
 
 
-def to_locate(profile: LocationProfile) -> list[Venue]:
+def to_locate(profile: LocationProfile, shelter: tuple[float, float] | None = None) -> list[Venue]:
     """The venues a page may show that are not looked up yet, in the page's order: its
     first VENUES_SHOWN, and the first VENUES_SHOWN of an animal recorded as not good with
-    children, whose page skips venues that mention children. No other venue is looked up."""
-    every = venue_order(profile)
+    children, whose page skips venues that mention children. No other venue is looked up.
+    Given the shelter's centre, a pinned venue too far from it is out of the page's order
+    (decision 40), so the next one is looked up in its place."""
+    every = venue_order(profile, shelter)
     for_any = [v for v in every if not for_children(v.name, v.description)]
     window = {v.entity_id for v in every[:VENUES_SHOWN] + for_any[:VENUES_SHOWN]}
     return [v for v in every if v.entity_id in window and not v.point_tried]
@@ -38,17 +40,20 @@ def locate_venues(
     """Look up the venues not yet tried; returns how many were placed. Stops quietly when
     Photon's allowance is spent: the rest are tried on a later save."""
     placed = 0
-    for venue in to_locate(profile):
-        try:
-            point = places.venue_point(venue.name, venue.address, near)
-        except (Throttled, LookupFailed):
-            # The allowance is spent, or Photon is down: nothing is counted against the
-            # venues, and a later save tries the rest. (An odd answer is no match.)
-            break
-        venue.point_tried = True
-        if point is not None:
-            venue.latitude, venue.longitude = point.latitude, point.longitude
-            placed += 1
+    # A venue pinned too far drops out of the page's order and lets the next one in, so
+    # look again until every venue the page may show has been tried (decision 40).
+    while todo := to_locate(profile, near):
+        for venue in todo:
+            try:
+                point = places.venue_point(venue.name, venue.address, near)
+            except (Throttled, LookupFailed):
+                # The allowance is spent, or Photon is down: nothing is counted against the
+                # venues, and a later save tries the rest. (An odd answer is no match.)
+                return placed
+            venue.point_tried = True
+            if point is not None:
+                venue.latitude, venue.longitude = point.latitude, point.longitude
+                placed += 1
     return placed
 
 
@@ -84,11 +89,12 @@ def locate_saved(
     finished meanwhile keeps its other changes. Free when done before."""
     with _lock(location.id, species):
         profile = store.get_profile(location.id, species)
-        if profile is None or not places.enabled or not to_locate(profile):
+        centre = (location.latitude, location.longitude)
+        if profile is None or not places.enabled or not to_locate(profile, centre):
             return 0
         if log is not None:
             log.add("note", "Finding the suggested places on OpenStreetMap, for the map")
-        placed = locate_venues(profile, (location.latitude, location.longitude), places)
+        placed = locate_venues(profile, centre, places)
         latest = store.get_profile(location.id, species) or profile
         carry_points(profile, latest)
         store.put_profile(latest)

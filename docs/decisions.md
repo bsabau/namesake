@@ -609,3 +609,16 @@ Revised 22 October: a refine now keeps the listing's names unless the request as
 **Why:** the plan is the one place the app tells a volunteer what to do with the animal itself, and an event for an animal that hides in noise is advice the shelter's own record contradicts. A judge reading the result for `cat-01` saw both on one page.
 
 **Follows:** a simple word check, so a record put another way ("prefers quiet rooms") keeps the event item; the item says what the record says, and the volunteer decides. The timing item still mentions events in general.
+
+## 40. Places too far from the shelter, or that cannot host anything, are left out
+
+*23 October.* A judge read found Amy's Ice Creams suggested 11.1 km from the Austin shelter, and Illa Fantasia, an outdoor water park, among Barcelona's places.
+
+- `venue_order` takes the shelter's centre and leaves out a place pinned more than `MAX_VENUE_KM` (5) from it (`too_far` in `app/views/build.py`). A volunteer does not cross a city to put up a flyer. A place OpenStreetMap could not pin keeps its slot, without a distance, as before.
+- The Why panel names each place left out this way with its distance, under "Left out as more than 5 km from the shelter", and the note under "Places to ask" says so beside the chains.
+- Pinning follows the page: when a pinned place lands too far, the next one moves into the page's first five, so `locate_venues` looks that one up too, until every place the page may show has been tried.
+- "water park", "theme park" and "amusement park" join the screen's words (`UNSUITABLE` in `app/profile.py`): too big or ticketed to take a flyer or a stand. A saved profile meets words added since: `unsuitable` reads the saved mark or today's screen.
+
+**Why:** the plan says to ask these places in person; one across the city, or a water park, is advice a volunteer cannot use, and a judge reading the page sees the app did not check.
+
+**Follows:** Park Güell stays: it is a park a volunteer can walk to, though ticketed in part. The 5 km is a straight line from the area's centre, not a walk.

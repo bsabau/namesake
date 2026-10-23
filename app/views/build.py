@@ -35,6 +35,7 @@ from app.profile import (
     chain_name,
     layer_titles,
     rank_band,
+    screen,
 )
 from app.qloo.geohash import bounds
 from app.views.models import (
@@ -81,6 +82,9 @@ VENUES_SHOWN = 5
 VENUES_IN_PLAN = 3
 # Within this, a place gets a walking estimate and the map frames its pin.
 WALKABLE_KM = 3
+# Places farther than this from the shelter's centre are left out (decision 40): a
+# volunteer does not cross a city for a flyer. Only a place with a pin can be measured.
+MAX_VENUE_KM = 5
 OBJECT_PRONOUN = {"female": "her", "male": "him"}
 POSSESSIVE = {"female": "her", "male": "his"}
 CHECK_LABELS = {
@@ -663,7 +667,10 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
 
 # What decision 23's chain rule enforces: listed chains are never suggested; fast food is
 # the AI's judgement from a place's description, so said only where the AI picked.
-CHAINS_NOTE = "National chains Namesake knows by name are left out."
+CHAINS_NOTE = (
+    "National chains Namesake knows by name are left out, and so are places more than "
+    f"{MAX_VENUE_KM} km from the shelter."
+)
 FAST_FOOD_NOTE = "Namesake's AI is asked to pass over fast food."
 
 
@@ -673,7 +680,7 @@ def chains_note(profile: LocationProfile) -> str:
 
 def empty_venues(profile: LocationProfile) -> str:
     """Why no place is suggested, as far as the profile shows it."""
-    suitable = [v for v in profile.venues if v.unsuitable is None]
+    suitable = [v for v in profile.venues if unsuitable(v) is None]
     if suitable and all(chain_name(v.name) for v in suitable):
         return (
             "Every suitable place Qloo listed here is a national chain Namesake leaves out; "
@@ -930,14 +937,35 @@ RANK_NOTES = {
 }
 
 
-def venue_order(profile: LocationProfile) -> list[Venue]:
-    """The venues to suggest, never screened ones nor national chains (decision 23).
+def unsuitable(v: Venue) -> str | None:
+    """The screen's word for a venue, as saved or under today's list, so a saved profile
+    gets words added since (decision 40)."""
+    return v.unsuitable or screen(v.description)
+
+
+def too_far(v: Venue, shelter: tuple[float, float] | None) -> float | None:
+    """How far a pinned venue is from the shelter's centre, when beyond MAX_VENUE_KM."""
+    if shelter is None or v.latitude is None or v.longitude is None:
+        return None
+    km = distance_km(shelter, (v.latitude, v.longitude))
+    return km if km > MAX_VENUE_KM else None
+
+
+def venue_order(
+    profile: LocationProfile, shelter: tuple[float, float] | None = None
+) -> list[Venue]:
+    """The venues to suggest, never screened ones nor national chains (decision 23), nor,
+    given the shelter's centre, a pinned one too far from it (decision 40).
 
     When the agent built the profile, only the places it chose: its judgement is a
     positive selection, not just the absence of a rejection. The fixed lookup has no
     judgement, so it suggests places that stand out, then the rest.
     """
-    suitable = [v for v in profile.venues if v.unsuitable is None and not chain_name(v.name)]
+    suitable = [
+        v
+        for v in profile.venues
+        if unsuitable(v) is None and not chain_name(v.name) and too_far(v, shelter) is None
+    ]
     if profile.made_by == "agent":
         return sorted((v for v in suitable if v.chosen_reason), key=lambda v: v.rank)
     return sorted(suitable, key=lambda v: (not v.distinctive, v.rank))
@@ -1421,12 +1449,25 @@ def why(location: Location, profile: LocationProfile) -> tuple[list[WhyItem], li
         )
     if profile.venues and profile.venue_categories is not None:
         reading.append(WhyItem(title="Kinds of place asked for", detail=kinds_reading(profile)))
-    chains = [v.name for v in profile.venues if v.unsuitable is None and chain_name(v.name)]
+    chains = [v.name for v in profile.venues if unsuitable(v) is None and chain_name(v.name)]
     if chains:
         reading.append(WhyItem(title="Left out as national chains", detail=and_list(chains) + "."))
-    excluded = [f"{v.name} ({v.unsuitable})" for v in profile.venues if v.unsuitable]
+    excluded = [f"{v.name} ({unsuitable(v)})" for v in profile.venues if unsuitable(v)]
     if excluded:
         reading.append(WhyItem(title="Left out as event venues", detail=and_list(excluded) + "."))
+    centre = (location.latitude, location.longitude)
+    far = [
+        f"{v.name} ({km:.1f} km)"
+        for v in profile.venues
+        if unsuitable(v) is None and (km := too_far(v, centre)) is not None
+    ]
+    if far:
+        reading.append(
+            WhyItem(
+                title=f"Left out as more than {MAX_VENUE_KM} km from the shelter",
+                detail=and_list(far) + ".",
+            )
+        )
     if profile.cells:
         returned.append(
             WhyItem(
@@ -1583,7 +1624,11 @@ def qloo_part(
         # As the cards show them: a screened pick or a listed chain is left out (decision 23).
         # The places the cards show (after the per-animal skip and the display cap), the
         # same count as the process steps; without it, every place the code would suggest.
-        picked = len(venue_order(profile)) if places_shown is None else places_shown
+        picked = (
+            len(venue_order(profile, (location.latitude, location.longitude)))
+            if places_shown is None
+            else places_shown
+        )
         if own:
             ai.append(f"proposed {plural(len(own), 'title')} for Qloo to check")
         if judged:
@@ -1674,7 +1719,11 @@ def process_steps(
         judged = [e for e in pets if e.found_in and bucket(e.verdict) != "kept"]
         # The places the cards show, as the strip counts them: never a pick the code
         # screened out or skipped for this animal.
-        picked = len(venue_order(profile)) if places_shown is None else places_shown
+        picked = (
+            len(venue_order(profile, (location.latitude, location.longitude)))
+            if places_shown is None
+            else places_shown
+        )
         ai = []
         if searches := ai_searches(profile):
             ai.append(f"searched Qloo's lists with {and_list(searches)}")
@@ -1763,7 +1812,7 @@ def build_result_view(
     image_url: str | None = None,
     pin: tuple[float, float] | None = None,
 ) -> ResultView:
-    every = venue_order(profile)
+    every = venue_order(profile, (location.latitude, location.longitude))
     ordered, skipped = venues_for_animal(animal, every)
     named_skips = skipped_shown(every, ordered, skipped)
     shown = ordered[:VENUES_SHOWN]

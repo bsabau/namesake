@@ -235,3 +235,51 @@ def test_a_point_that_is_not_a_number_is_no_point():
                          "properties": {"name": "Community Hall"}}]}  # fmt: skip
     places, _ = lookup(nan, nan)
     assert places.venue_point("Community Hall", "1 Example Street", NEAR) is None
+
+
+def test_a_place_too_far_from_the_shelter_is_left_out_and_named(roster):
+    # Decision 40: a judge read found Amy's Ice Creams 11.1 km from the Austin shelter.
+    p = profile()
+    p.venues = [Venue(entity_id=f"v{k}", name=f"Place {k}", rank=k) for k in range(1, 8)]
+    far = p.venues[0]
+    far.latitude, far.longitude = LOCATION.latitude + 0.1, LOCATION.longitude  # about 11 km
+    near = p.venues[1]
+    near.latitude, near.longitude = LOCATION.latitude + 0.01, LOCATION.longitude  # about 1 km
+    assert "Place 1" in [v.name for v in venue_order(p)]  # no centre given: not measured
+    order = [v.name for v in venue_order(p, NEAR)]
+    assert "Place 1" not in order and order[:2] == ["Place 2", "Place 3"]  # unpinned stay
+    view = build_result_view(roster.get("dog-02"), LOCATION, p)
+    assert "Place 1" not in [v.name for v in view.venues]
+    assert "more than 5 km from the shelter" in view.venues_note
+    why = {i.title: i.detail for i in view.our_reading}
+    assert why["Left out as more than 5 km from the shelter"].startswith("Place 1 (11.1 km)")
+
+
+def test_pinning_looks_up_the_next_place_when_one_lands_too_far():
+    p = profile()
+    p.venues = [Venue(entity_id=f"v{k}", name=f"Place {k}", rank=k) for k in range(1, 8)]
+    # The first lands 8 km out (inside the geocoder's own bound, beyond the page's), the
+    # rest close by: the sixth place takes the far one's slot and is looked up too.
+    answers = [{"features": [feature("Place 1", LOCATION.latitude + 0.072, LOCATION.longitude)]}]
+    answers += [
+        {"features": [feature(f"Place {k}", LOCATION.latitude + k / 1000, LOCATION.longitude)]}
+        for k in range(2, 8)
+    ]
+    places, _ = lookup(*answers)
+    placed = locate_venues(p, NEAR, places)
+    assert placed == VENUES_SHOWN + 1
+    assert [v.name for v in venue_order(p, NEAR)][:VENUES_SHOWN] == [
+        f"Place {k}" for k in range(2, 7)
+    ]
+    assert to_locate(p, NEAR) == []
+
+
+def test_a_saved_venue_meets_words_added_to_the_screen_since():
+    # Decision 40: a water park reached Barcelona's places; a saved profile is screened again.
+    p = profile()
+    p.venues = [
+        Venue(entity_id="v1", name="Splash Land", rank=1, description="Outdoor water park."),
+        Venue(entity_id="v2", name="Corner Books", rank=2),
+    ]
+    assert p.venues[0].unsuitable is None  # saved before the word was on the list
+    assert [v.name for v in venue_order(p)] == ["Corner Books"]

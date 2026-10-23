@@ -167,6 +167,10 @@ UNSUITABLE = (
     "shooting range",
     "nightclub",
     "night club",
+    # Too big, ticketed or far out to take a flyer or a stand (decision 40).
+    "water park",
+    "theme park",
+    "amusement park",
 )
 
 
