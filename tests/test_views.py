@@ -228,8 +228,17 @@ def test_a_pet_name_claims_local_strength_only_when_qloo_ranked_it():
     cat, dog = p.pet_entities[1].id, p.pet_entities[0].id
     assert name_badge("pet", cat, p) == "Pet-themed title, ranked 1st of 2 here by Qloo"
     p.ranked = []
-    assert name_badge("pet", dog, p) == "Pet-themed title"
-    assert name_badge("local", dog, p) == "Watched locally"
+    assert name_badge("pet", dog, p) == (
+        "Pet-themed title, not among the titles in Qloo's pet-themed lists for this area"
+    )
+    assert name_badge("local", dog, p) == (
+        "Not among the titles Qloo listed as what people here tend to watch"
+    )
+    # A pet title that is also one of the area's top tastes has Qloo's evidence for the area.
+    p.local_tastes = [p.pet_entities[0]]
+    assert name_badge("pet", dog, p) == (
+        "Pet-themed title, 1st of 1 in Qloo's list of what people here tend to watch"
+    )
 
 
 def test_rank_band_splits_qloos_list_in_thirds():
@@ -944,12 +953,33 @@ def test_the_local_lead_follows_the_listings_state(roster):
     listing.draft.names[0].source = "lookalike"
     view = build_result_view(animal, LOCATION, profile(), listing)
     assert view.story_lead.startswith("A name from a lookalike title Qloo found, matched by")
-    # A pet-themed title with local evidence.
+    # A pet-themed title Qloo found, with no evidence for the area: not called local.
     view = build_result_view(animal, LOCATION, profile(), saved_listing())
+    assert view.story_lead.startswith(
+        "A name from a title Qloo found; not from Qloo's taste data for Example Slope. "
+    )
+    local = view.listing.versions[1]
+    assert local.label == "With Qloo" and local.choice == "With Qloo · Bingo"
+    assert view.name.options[0].version_label == "With Qloo"
+    # A pet-themed title Qloo ranked here: local, on the lead, the toggle and the label.
+    ranked = profile()
+    ranked.ranked = [ranked.pet_entities[0].id]
+    view = build_result_view(animal, LOCATION, ranked, saved_listing())
     assert view.story_lead.startswith("A name from local taste data. ")
     assert view.story_lead_generic.startswith(
         "A common pet name from a fixed list, not from Qloo. "
     )
+    local = view.listing.versions[1]
+    assert local.label == "Local, with Qloo" and local.choice == "Local, with Qloo · Bingo"
+    # Biscuit's title is not ranked, so picking it switches the toggle's text back.
+    biscuit = view.name.options[1]
+    assert biscuit.version_choice == "With Qloo · Biscuit"
+    assert biscuit.version_label == "With Qloo"
+    assert view.name.options[0].version_label == "Local, with Qloo"
+    # Each option carries its own lead, so picking Biscuit does not keep "local taste data".
+    assert view.name.options[0].lead == view.story_lead
+    assert biscuit.lead.startswith("A name from a title Qloo found; not from Qloo's taste data")
+    assert biscuit.why.startswith("The character is Namesake's AI's reading of the title. ")
 
 
 def test_the_leads_for_a_litter_named_as_a_set(roster):
@@ -962,6 +992,13 @@ def test_the_leads_for_a_litter_named_as_a_set(roster):
         LitterMateView(name="Biscuit", url="/b"),
     ]
     view = build_result_view(kitten, LOCATION, profile(), saved_listing("kitten-01"), litter=mates)
+    assert view.story_lead.startswith(
+        "A name from a title Qloo found, one of a set for the litter; not from Qloo's taste "
+        "data for Example Slope. "
+    )
+    ranked = profile()
+    ranked.ranked = [ranked.pet_entities[0].id]
+    view = build_result_view(kitten, LOCATION, ranked, saved_listing("kitten-01"), litter=mates)
     assert view.story_lead.startswith("A name from local taste data, one of a set for the litter. ")
     assert view.story_lead_generic.startswith(
         "A common pet name from a fixed list, not from Qloo and not a set. "

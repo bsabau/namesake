@@ -208,7 +208,8 @@ def test_approving_records_the_choice_but_never_the_text(client):
     assert record.variant == "local" and record.name == "Biscuit" and record.edited
     assert "Example Cat Show" in record.name_source
     assert "She is calm" not in record.model_dump_json()
-    assert "The version: local, with Qloo." in response.text
+    # The fake profile ranks no title, so the version is not called local.
+    assert "The version: with Qloo." in response.text
 
 
 def test_the_generic_version_never_carries_a_qloo_name_or_hook(client):
@@ -1289,7 +1290,7 @@ def test_a_refused_edit_keeps_the_chosen_name_on_the_toggle(client, profile):
         client, animal="cat-03", variant="local", local_name="Biscuit", text="She loves toys."
     )
     toggle = response.text.split('data-role="version-toggle"')[1].split("</fieldset>")[0]
-    assert "Local, with Qloo · Biscuit" in toggle and "· Bingo" not in toggle
+    assert "With Qloo · Biscuit" in toggle and "· Bingo" not in toggle
 
 
 @pytest.mark.parametrize("ui", main.UIS)
@@ -1299,8 +1300,9 @@ def test_each_name_option_carries_its_toggle_text(client, ui):
         "/result", params={"animal": "dog-02", "location": "park-slope", "ui": ui}
     ).text
     toggle = page.split('data-role="version-toggle"')[1].split("</fieldset>")[0]
-    assert "Local, with Qloo · Bingo" in toggle and "Generic · " in toggle
-    assert 'data-choice="Local, with Qloo · Biscuit"' in page
+    # The fake profile ranks no title, so no name is called local (test_views has both).
+    assert "With Qloo · Bingo" in toggle and "Generic · " in toggle
+    assert 'data-choice="With Qloo · Biscuit"' in page
 
 
 def test_a_reference_taken_since_the_page_loaded_cannot_be_approved(client):
@@ -1328,3 +1330,37 @@ def test_a_litter_members_result_offers_the_litter_and_shows_its_own_steps(clien
     second = store.get_listing(members[1], "park-slope")
     starts = [s.text for s in second.steps if s.text.startswith("Litter member")]
     assert starts == [f"Litter member 2 of {len(members)}"]
+
+
+def test_a_picked_name_carries_its_own_label_to_the_approval_and_the_flyer(client, profile):
+    # Reviewers, PR #86: Bingo's title is ranked here and Biscuit's is not, so picking
+    # Biscuit must not keep "Local, with Qloo" on the approval, the flyer or the lead.
+    from app.views.build import build_flyer_view
+
+    bingo = next(e for e in profile.pet_entities if e.name == "Example Dog Show")
+    profile.ranked = [bingo.id]
+    for e in profile.pet_entities:
+        e.found_in = e.listed_in = None
+    save(saved_listing())
+    shown = main.result_view("dog-02", "park-slope", None)
+    assert shown.listing.versions[1].label == "Local, with Qloo"
+    # The story page carries each option's lead for result.js to swap in.
+    page = client.get("/result", params={"animal": "dog-02", "location": "park-slope"}).text
+    assert (
+        html.unescape(page).count('data-lead="A name from local taste data.') == 2
+    )  # Bingo, Scout
+    assert 'data-lead="A name from a title Qloo found; not from Qloo' in html.unescape(page)
+    assert build_flyer_view(shown, "local").version_label == "Local, with Qloo"
+    assert build_flyer_view(shown, "local", name="Biscuit").version_label == "With Qloo"
+    # A refused edit (it drops cat-03's recorded caution) keeps Biscuit's label and lead.
+    save(saved_listing("cat-03"))
+    refused = approve(
+        client, animal="cat-03", variant="local", local_name="Biscuit", text="She loves toys."
+    )
+    toggle = refused.text.split('data-role="version-toggle"')[1].split("</fieldset>")[0]
+    assert "With Qloo · Biscuit" in toggle
+    lead = refused.text.split('class="lead version-local">')[1].split("</p>")[0]
+    assert html.unescape(lead).startswith("A name from a title Qloo found; not from Qloo's")
+    # Approved after all: the approval page names the version Biscuit was picked in.
+    response = approve(client, variant="local", local_name="Biscuit", text="She is calm.")
+    assert "The version: with Qloo." in response.text

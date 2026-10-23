@@ -157,8 +157,9 @@ def test_with_no_evidence_anywhere_the_ais_titles_stay_and_say_so(roster):
     profile = store.get_profile(LOCATION.id, "dog")
     assert [e.id for e in profile.pet_entities] == [DOG_SHOW, CAT_SHOW]
     assert not profile.titles_confirmed and profile.left_out_titles == []
-    assert "None of the titles kept has Qloo's ranking or a place in the area's lists" in (
-        who_chose(profile)
+    assert (
+        "None of the titles kept has Qloo's ranking or a place in Qloo's pet-themed lists "
+        "for the area" in who_chose(profile)
     )
 
 

@@ -100,7 +100,7 @@
             <input type="radio" name="local_name" value="{{ option.name }}"
                    aria-labelledby="option-name-{{ loop.index }} option-title-{{ loop.index }}" aria-describedby="why-name-{{ loop.index }}"
                    data-hook="{{ option.hook }}" data-source="{{ option.header_source }}"
-                   data-copy="{{ option.copy_text }}" data-choice="{{ option.version_choice }}"
+                   data-copy="{{ option.copy_text }}" data-choice="{{ option.version_choice }}" data-lead="{{ option.lead }}"
                    {% if option.flyer_url %}data-flyer="{{ option.flyer_url }}{{ ui_query }}"{% endif %} {% if option.name == view.chosen_name %}checked{% endif %}>
             <strong class="option-name" id="option-name-{{ loop.index }}">{{ option.name }}</strong>
             <span class="option-title evidence" id="option-title-{{ loop.index }}"><span>Qloo:</span> {{ option.title }}</span>
@@ -288,7 +288,7 @@
         {% if option.audience %}<p class="evidence"><span>Qloo returned</span> {{ option.audience }}.</p>{% endif %}
       </div>
       <div class="why-ours">
-        <p class="reading"><span>Namesake selected</span> {{ option.name }}, after {{ option.reference }}. {{ option.why }}</p>
+        <p class="reading"><span>Namesake's AI picked</span> {{ option.name }}, after {{ option.reference }}. {{ option.why }}</p>
       </div>
     </div>
     {% endfor %}

@@ -250,6 +250,11 @@ class NameOptionView(BaseModel):
     hook: str
     copy_text: str
     version_choice: str
+    # The version's label with this name: "Local, with Qloo" only when the name's title has
+    # Qloo's evidence for the area, as the approval and the flyer record it.
+    version_label: str = ""
+    # The story skin's lead under the headline with this name picked (`story_leads`).
+    lead: str = ""
     # What the name refers to, for the approve route's check that no other animal at the
     # shelter is named after it (decision 26): Qloo's title ID and the character.
     entity_id: str = ""

@@ -173,8 +173,8 @@ async def agent_profile(
     if left_out:
         log.add(
             "check",
-            f"Left out {', '.join(left_out)}: Qloo neither ranks them here nor lists them for "
-            "this area",
+            f"Left out {', '.join(left_out)}: Qloo neither ranks them here nor lists them in "
+            "its pet-themed lists for this area",
         )
         chosen = {i: chosen[i] for i in keep}
     order = [i for i in (deps.rank_order or []) if i in chosen]
