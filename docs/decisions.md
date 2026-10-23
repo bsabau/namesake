@@ -597,3 +597,13 @@ Revised 22 October: a refine now keeps the listing's names unless the request as
 **Why:** the rule on ambiguity is to show candidates or pick with a stated reason. Here Qloo picked and the page said only "Portland", so a visitor could not tell which Portland the listing was tuned to without reading the map. Asking first (OpenStreetMap's places of that name as buttons, before Qloo) was closer to showing candidates, but added a step for every bare city name and more code this late.
 
 **Follows:** the region comes from OpenStreetMap's reading of Qloo's cells, not from Qloo; the step says so. A typed name with a comma that Qloo still reads as somewhere else is not caught.
+
+## 39. No busy events for an animal whose record says they are hard
+
+**Decided** (the author, 23 October, judge-read fix C: three judge reads, and Codex's in particular, found the shy cat, `cat-01`, recorded as "hides when it is noisy", told to go to a meet-and-greet at an event):
+- The plan's in-person item (an outing or event in an "Adopt Me" vest for a dog, a meet-and-greet at an event for a cat) is the research's channel, but the research is about hand-picked dogs. When the animal's record says busy, noisy places are hard, the record wins: the item becomes "Skip busy events for this cat: the record says “hides when it is noisy”. Let adopters meet her somewhere quiet instead.", labelled Our suggestion, and the places item asks about a flyer only, not an adoption event.
+- `busy_events_caution` in `app/views/build.py` reads the record only, like the children check (decision 2): the facts first, then the temperament, for words such as hides, noisy, loud, crowds, shy, timid, fearful, nervous, anxious, skittish, scared, stressed or startles. A line that also says not, never, no longer, calm, fine or relaxed ("calm in noisy places", "not shy") does not count. The words quoted are the record's own.
+
+**Why:** the plan is the one place the app tells a volunteer what to do with the animal itself, and an event for an animal that hides in noise is advice the shelter's own record contradicts. A judge reading the result for `cat-01` saw both on one page.
+
+**Follows:** a simple word check, so a record put another way ("prefers quiet rooms") keeps the event item; the item says what the record says, and the volunteer decides. The timing item still mentions events in general.

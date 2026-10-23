@@ -1107,3 +1107,38 @@ def test_the_plan_names_the_ais_picks_only_on_an_agent_profile(roster):
     )
     fixed = [i.text for i in build_result_view(roster.get("dog-02"), LOCATION, profile()).plan]
     assert not any("Namesake's AI" in t for t in fixed if t.startswith("Ask "))
+
+
+def test_the_plan_skips_busy_events_when_the_record_says_they_are_hard(roster):
+    # Decision 39: a judge read found the shy cat ("hides when it is noisy") sent to an event.
+    from app.views.build import busy_events_caution
+
+    shy = roster.get("cat-01")
+    assert busy_events_caution(shy) == "hides when it is noisy"
+    items = build_result_view(shy, LOCATION, profile()).plan
+    event = items[1]
+    assert event.basis == "Our suggestion"
+    assert event.text == (
+        "Skip busy events for this cat: the record says “hides when it is noisy”. "
+        "Let adopters meet her somewhere quiet instead."
+    )
+    assert not any("meet-and-greet" in i.text or "adoption event" in i.text for i in items)
+    assert next(i.text for i in items if i.text.startswith("Ask ")).endswith(
+        "about putting up a flyer."
+    )
+    # An animal with nothing of the kind keeps the research's outing or event.
+    assert busy_events_caution(roster.get("dog-02")) is None
+    calm = build_result_view(roster.get("dog-02"), LOCATION, profile()).plan
+    assert calm[1].basis == "Research" and "“Adopt Me” vest" in calm[1].text
+    # A record line that says the opposite does not count.
+    for fine in ["calm in noisy places", "not shy at all", "fine with crowds"]:
+        assert (
+            busy_events_caution(shy.model_copy(update={"facts": [fine], "temperament": "sweet"}))
+            is None
+        )
+    assert (
+        busy_events_caution(
+            shy.model_copy(update={"facts": [], "temperament": "nervous with strangers"})
+        )
+        == "nervous with strangers"
+    )

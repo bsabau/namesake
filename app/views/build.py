@@ -1055,15 +1055,46 @@ def venue_view(
     )
 
 
+# Words in a record saying busy, noisy places are hard for the animal (decision 39).
+BUSY_HARD = re.compile(
+    r"\b(hides?|hiding|nois(?:y|e)|loud|crowds?|crowded|shy|timid|fearful|nervous|anxious"
+    r"|skittish|scared|frightened|stressed|startles?|overwhelmed)\b"
+)
+# The same record line saying the opposite: "calm in noisy places", "not shy".
+BUSY_FINE = re.compile(
+    r"\b(not|never|no longer|isn't|doesn't mind|calm|calmly|fine|relaxed|unbothered)\b"
+)
+
+
+def busy_events_caution(animal: Animal) -> str | None:
+    """The recorded words saying a busy event would be hard for this animal, a fact before
+    the temperament, or None. Read from the record only, like the children check."""
+    for line in [*animal.facts, animal.temperament or ""]:
+        said = line.lower()
+        if BUSY_HARD.search(said) and not BUSY_FINE.search(said):
+            return line.strip()
+    return None
+
+
 def plan(
     animal: Animal, location: Location, venues: list[Venue], skipped: list[Venue] | None = None
 ) -> list[PlanItem]:
+    caution = busy_events_caution(animal)
+    them = OBJECT_PRONOUN.get(animal.sex or "", "them")
     items = [
         PlanItem(
             text="Share the listing through the personal networks of foster carers and volunteers.",
             basis="Research",
         ),
+        # Outings and events are the research's in-person channel, but not for an animal
+        # whose record says busy places are hard: the record wins (decision 39).
         PlanItem(
+            text=f"Skip busy events for this {animal.species}: the record says “{caution}”. "
+            f"Let adopters meet {them} somewhere quiet instead.",
+            basis="Our suggestion",
+        )
+        if caution
+        else PlanItem(
             text=(
                 f"Take the {animal.species} on an outing or to an event in an “Adopt Me” vest."
                 if animal.species == "dog"
@@ -1095,7 +1126,8 @@ def plan(
             PlanItem(
                 # The places are Qloo's; which of them to ask is the AI's pick when it gave
                 # reasons (an agent profile), said in words beside the Qloo pill.
-                text=f"Ask {and_list(top)}{picked_by} about hosting an adoption event or a flyer.",
+                text=f"Ask {and_list(top)}{picked_by} about "
+                + ("putting up a flyer." if caution else "hosting an adoption event or a flyer."),
                 basis="Qloo",
             )
         )
