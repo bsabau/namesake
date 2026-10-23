@@ -260,9 +260,20 @@ def test_story_maps_take_their_tiles_from_the_view_model(client, monkeypatch):
     assert "dark_all" in result and "key=test-key" in result
 
 
-def test_the_story_result_tells_the_story_in_order(client):
+def test_the_story_result_tells_the_story_in_order(client, monkeypatch):
     # The structure the skin was built to (docs/img/story-structure.png, decision 24),
     # with the outcome first and the how after the places (decision 33).
+    fake_profile = main.location_profile
+
+    def with_reasons(location, species):
+        # Places Namesake's AI gave a reason for, so the card shows its reading.
+        # The first is left without one, as on a fixed-lookup profile.
+        profile = fake_profile(location, species)
+        for v in profile.venues[1:]:
+            v.chosen_reason = "a community place"
+        return profile
+
+    monkeypatch.setattr(main, "location_profile", with_reasons)
     page = client.get(
         "/result", params={"animal": "dog-02", "location": "park-slope", "ui": "story"}
     ).text
@@ -294,11 +305,20 @@ def test_the_story_result_tells_the_story_in_order(client):
     assert "Qloo From Qloo" not in page and page.count("From Qloo taste data for") == 2
     generic = page.split('class="local-touch version-generic">')[1].split("</p>")[0]
     assert "names" not in generic and "places to ask" in generic
-    # Each place's folded detail keeps Qloo's rank and answer, each labelled.
-    fold = page.split('<details class="venue-why">')[1].split("</details>")[0]
-    assert (
-        "<span>Qloo:</span> <strong>" in fold and '<p class="evidence"><span>Qloo:</span>' in fold
-    )
+    # Each place leads with Qloo's rank, before the AI's reading of it; the fold keeps
+    # Qloo's answer, labelled (decision 33, revised 23 October).
+    cards = [c.split("</li>")[0] for c in page.split('<li class="venue">')[1:]]
+    read = [c for c in cards if "<span>Namesake's AI:</span>" in c]
+    assert read and len(read) < len(cards), "places with and without the AI's reason"
+    for card in cards:
+        rank = card.index('data-role="venue-rank"')
+        assert "<span>Qloo:</span> <strong>" in card[rank:] and rank < card.index("venue-why")
+    for card in read:
+        rank = card.index('data-role="venue-rank"')
+        assert rank < card.index("<span>Namesake's AI:</span>") < card.index('class="venue-why"')
+    card = cards[0]
+    fold = card.split('<details class="venue-why">')[1].split("</details>")[0]
+    assert '<p class="evidence"><span>Qloo:</span>' in fold and "venue-rank" not in fold
 
 
 @pytest.mark.parametrize("ui", [u for u in main.UIS if u != "story"])

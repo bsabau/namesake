@@ -214,12 +214,13 @@
             <p class="venue-head">{% if venue.number %}<span class="venue-number">{{ venue.number }}</span>{% endif %}<strong>{{ venue.name }}</strong>
               <span class="tag {{ 'tag-strong' if venue.stands_out }}">{{ venue.badge }}</span></p>
             <p class="venue-place">{{ venue.place }}</p>
+            {# Qloo's part first, as on the name cards; then Namesake's AI reading it. #}
+            <p class="evidence venue-rank rank-{{ venue.rank_band }}" data-role="venue-rank">
+              <span>Qloo:</span> <strong>{{ venue.rank }}</strong> · {{ venue.rank_note }}</p>
             {% if venue.reason %}<p class="reading"><span>Namesake's AI:</span> {{ venue.reason }}</p>{% endif %}
-            {# What Qloo returned for the place and Namesake's reading of it, one click away. #}
+            {# The rest of what Qloo returned for the place, and Namesake's reading of the map, one click away. #}
             <details class="venue-why">
               <summary>Why this place<span class="visually-hidden">: {{ venue.name }}</span></summary>
-              <p class="venue-rank rank-{{ venue.rank_band }}" data-role="venue-rank">
-                <span>Qloo:</span> <strong>{{ venue.rank }}</strong> · {{ venue.rank_note }}</p>
               <p class="evidence"><span>Qloo:</span> {% if venue.description %}{{ venue.description }} {% endif %}{{ venue.evidence }}</p>
               {% if venue.where %}<p class="reading venue-where"><span>Namesake:</span> {{ venue.where }}{% if venue.distance %} {{ venue.distance }}{% endif %}</p>{% endif %}
             </details>

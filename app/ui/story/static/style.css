@@ -841,11 +841,15 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
   flex: none;
 }
 .venue-place { color: var(--muted); font-size: 0.85rem; }
-.venue-rank { font-size: 0.85rem; margin-top: 2px; }
+/* Qloo's rank leads the card, above the AI's reading (decision 33, revised 23 October);
+   ".venue p" would otherwise set their margins to 0. */
+.venue-rank { font-size: 0.85rem; }
+.venue p.venue-rank { margin-top: 6px; }
+.venue p.venue-rank + p.reading { margin-top: 4px; }
 .venue-rank.rank-top strong { color: var(--qloo-ink); }
 .venue-rank.rank-bottom { color: var(--muted); }
 .venue-where { margin: 4px 0 0; }
-/* A place's evidence, folded under its card (decision 33). */
+/* The rest of a place's evidence, folded under its card (decision 33, revised 23 October). */
 .venue-why { margin-top: 8px; }
 .venue-why > summary { cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--primary-ink); }
 .venue-why[open] > summary { margin-bottom: 6px; }
