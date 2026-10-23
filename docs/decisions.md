@@ -516,7 +516,7 @@ Revised 22 October: a refine now keeps the listing's names unless the request as
 
 **Follows:**
 - The warm and classic skins keep their layout; the new fields are in the shared view models and the JSON API.
-- The README screenshots are retaken with the examples' rebuild. Done 22 October; due again after the 24 October revision, with the Devpost gallery.
+- The README screenshots are retaken with the examples' rebuild. Done 22 October, and again on 24 October after the revision, with the Devpost gallery.
 
 ## 34. A workspace per browser, kept 7 days, with a link; no accounts
 

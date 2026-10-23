@@ -14,7 +14,7 @@ A **generic version** of the listing sits beside the **local version**, so you c
 
 Built for the [Qloo Agentic Hackathon](https://qloo-hackathon.devpost.com/). Taste data from the Qloo API; not affiliated with Qloo.
 
-![The first screen of the result for the lead dog in Park Slope, in the story skin: her photo, the local name Loaf with its line "Named after Loaf, a dog in Dogs in Space." and the start of what the shelter recorded on the left; "Let's tell her story" with the Generic and Local version toggle; three name options (Loaf, Hercules, Chance), each with its Qloo title under it; the line saying what came from Qloo's data for Park Slope; and the start of her introduction](docs/img/result-first-screen.png)
+![The first screen of the result for the lead dog in Park Slope, in the story skin: her photo, the local name Space with its line "Named after Dogs in Space." and the start of what the shelter recorded on the left; "Let's tell her story" with the Generic and Local version toggle; three name options (Space, Scooby, Dug), each with its Qloo title under it; the line saying what came from Qloo's data for Park Slope; and the start of her introduction](docs/img/result-first-screen.png)
 
 The whole result page, with the map, the places to ask and "How Namesake made this": [`docs/img/result.png`](docs/img/result.png).
 
@@ -35,9 +35,9 @@ Namesake does **not** claim to get animals adopted faster, save lives or money, 
 
 ## How it uses Qloo
 
-The same dog, the same record, two neighbourhoods of one city. Park Slope offers Loaf, Hercules and Chance; Astoria offers Bluey, Rin Tin Tin and Scooby-Doo. The local name comes from a pet-themed title Qloo ranks in each area (Loaf from *Dogs in Space*, Bluey from *Bluey*); the other options come from the area's pet-themed titles (Rin Tin Tin) or from lookalike titles Namesake's AI proposed and found in Qloo (Hercules from *The Sandlot*, Chance from *Homeward Bound*, Scooby-Doo).
+The same dog, the same record, two neighbourhoods of one city. Park Slope offers Space, Scooby and Dug; Astoria offers Bluey, Rin Tin Tin and Scooby. The local name comes from a pet-themed title Qloo ranks in each area (Space from *Dogs in Space*, Bluey from *Bluey*); the other options come from the area's pet-themed titles (Rin Tin Tin) or from lookalike titles Namesake's AI proposed and found in Qloo (Scooby from *Scooby-Doo* in both areas, Dug from *Up*).
 
-![The lead dog's result in Park Slope, Brooklyn (top: Loaf, Hercules and Chance) and in Astoria, Queens (bottom: Bluey, Rin Tin Tin and Scooby-Doo): each with its version toggle, its name options with their Qloo titles, and its own line saying what came from Qloo's data for the area](docs/img/two-neighbourhoods.png)
+![The lead dog's result in Park Slope, Brooklyn (top: Space, Scooby and Dug) and in Astoria, Queens (bottom: Bluey, Rin Tin Tin and Scooby): each with its version toggle, its name options with their Qloo titles, and its own line saying what came from Qloo's data for the area](docs/img/two-neighbourhoods.png)
 
 Namesake's AI (two agents, one per area and one per animal) and some plain code call Qloo through the official harness (`qloo exec`, pinned at 0.1.26). Every call is cached in SQLite and spaced at least 2 seconds apart, because the hackathon key is rate-limited; a refused ranking is retried after a longer wait.
 
