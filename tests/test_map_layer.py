@@ -377,6 +377,7 @@ def test_a_map_with_no_shared_cell_says_so(roster):
     assert any("no comparison" in n for n in p.notes)
     view = build_result_view(roster.get("dog-02"), LOCATION, p)
     assert view.map.note.startswith("Grey: no cell was scored for both")
+    assert view.map.note.count(". ") == 1  # still two sentences
     assert not any(i.title == "Lift on the map" for i in view.our_reading)
 
 

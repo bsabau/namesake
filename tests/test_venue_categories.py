@@ -165,10 +165,10 @@ def test_the_story_skins_note_is_two_sentences_with_the_rest_folded():
     kinds = profile_with(True)
     summary = venues_summary(kinds, "dog")
     assert sentences(summary) == 2 and summary.startswith(
-        "Qloo was asked only for cafes and breweries, bookshops and pet shops and community "
+        "Qloo was asked only for cafes and breweries, bookshops and pet shops, and community "
         "places, and national chains Namesake knows by name are left out."
     )
-    more = venues_more(kinds, "dog")
+    more = venues_more(kinds)
     for name, why in LEFT_OUT_GROUPS:
         assert f"{name} ({why})" in more
     assert "national chains" not in more.lower() and "shared by every" not in more
@@ -176,21 +176,22 @@ def test_the_story_skins_note_is_two_sentences_with_the_rest_folded():
     assert "and places OpenStreetMap puts more than 5 km from the shelter are left out" in (
         venues_summary(kinds, "dog")
     )
-    assert "5 km" not in venues_more(kinds, "dog")
+    assert "5 km" not in venues_more(kinds)
     few = profile_with(False)
     assert sentences(venues_summary(few, "cat")) == 2
-    assert "any kind" in venues_summary(few, "cat") and "any kind" not in venues_more(few, "cat")
+    assert "any kind" in venues_summary(few, "cat") and "any kind" not in venues_more(few)
+    assert venues_more(few).startswith("Qloo's list of the usual kinds (cafes and breweries")
     assert venues_summary(profile_with(None), "dog").startswith("National chains")
     assert venues_summary(LocationProfile(location_id="x"), "dog") is None
     # The fast-food rule is the AI's, said in the fold wherever it picked, even on a
     # profile saved before the kinds (Codex, muse, Flash).
     for categories in (True, False, None):
         p = profile_with(categories)
-        assert FAST_FOOD_NOTE not in (venues_more(p, "dog") or "")
+        assert FAST_FOOD_NOTE not in (venues_more(p) or "")
         p.made_by = "agent"
-        assert FAST_FOOD_NOTE in venues_more(p, "dog")
+        assert FAST_FOOD_NOTE in venues_more(p)
         assert FAST_FOOD_NOTE not in venues_summary(p, "dog")
-    assert venues_more(profile_with(None), "dog") is None
+    assert venues_more(profile_with(None)) is None
 
 
 def test_the_why_panel_reads_the_kinds_as_namesakes_choice():

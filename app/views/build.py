@@ -755,7 +755,9 @@ def venues_summary(profile: LocationProfile, species: str) -> str | None:
     area's. `venues_more`, folded under them, says the rest, never the same again."""
     if not profile.venues:
         return None
-    kinds = and_list([name for name, _, _ in VENUE_GROUPS])
+    names = [name for name, _, _ in VENUE_GROUPS]
+    # A serial comma: two of the kinds hold an "and" of their own.
+    kinds = ", ".join(names[:-1]) + ", and " + names[-1]
     asked = {
         True: f"Qloo was asked only for {kinds}",
         False: "Qloo was asked for places of any kind here",
@@ -768,7 +770,7 @@ def venues_summary(profile: LocationProfile, species: str) -> str | None:
     return f"{first} {shared_places(species)}"
 
 
-def venues_more(profile: LocationProfile, species: str) -> str | None:
+def venues_more(profile: LocationProfile) -> str | None:
     """What the summary leaves out, folded under it: why each kind was asked for or not, or
     why any kind was; and, where the AI picked, the fast-food rule. None when nothing is."""
     if not profile.venues:
@@ -781,7 +783,8 @@ def venues_more(profile: LocationProfile, species: str) -> str | None:
         )
     elif profile.venue_categories is False:
         parts.append(
-            f"Qloo's list of the usual kinds held fewer than {MIN_CATEGORY_VENUES} places here."
+            "Qloo's list of the usual kinds (cafes and breweries, bookshops and pet shops, "
+            f"community places) held fewer than {MIN_CATEGORY_VENUES} places here."
         )
     if profile.made_by == "agent":
         parts.append(FAST_FOOD_NOTE)
@@ -1963,7 +1966,7 @@ def build_result_view(
         venues=[venue_view(v, location, profile, n, pin) for n, v in enumerate(shown, start=1)],
         venues_note=venues_note(profile, animal.species),
         venues_summary=venues_summary(profile, animal.species),
-        venues_more=venues_more(profile, animal.species),
+        venues_more=venues_more(profile),
         venues_empty=(
             f"Every place Namesake would suggest here mentions children, so none is suggested "
             f"for this {animal.species}."
