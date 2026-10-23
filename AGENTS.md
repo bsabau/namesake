@@ -360,7 +360,7 @@ Work on one milestone at a time, in order, and stop at the end of each for revie
 - Precomputed examples, built by a script into the cache database: `dog-02` and the litter in two neighbourhoods (since 22 October `cat-01` in place of the litter).
 - A per-visitor rate limit and a daily cap on live runs.
 - The "try your own" path:
-  - A custom location field. A custom location goes to Qloo as typed; on `needs_input`, show the candidates as buttons. Where the data is thin, say so instead of producing a weak listing. The field suggests area names as you type, and a spot picked on the map becomes an area's name, with the spot kept as that visit's pin (`docs/decisions.md` #17).
+  - A custom location field. A custom location goes to Qloo as typed; on `needs_input`, show the candidates as buttons. A bare name Qloo resolves on its own is shown as the place its data centres on (`docs/decisions.md` #38). Where the data is thin, say so instead of producing a weak listing. The field suggests area names as you type, and a spot picked on the map becomes an area's name, with the spot kept as that visit's pin (`docs/decisions.md` #17).
   - A form to add one animal: species, age, look, temperament, a couple of facts, the `yes`/`no`/`unknown` fields, and an optional photo. The added animal and its photo were kept for the session only; since 22 October they are kept in the visitor's workspace for 7 days (decision 34).
 
 Out of scope: accounts, an admin area, creating, editing or deleting stored animals, and reading or altering photos with a model.

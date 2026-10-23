@@ -18,6 +18,10 @@ allowances: each visitor's per minute, and one for everyone together, which keep
 Photon's fair use. At most a few calls run at once, so a slow Photon never ties up the
 server's threads. When Photon is slow, down or odd, the field works as typed; a picked
 spot says the lookup did not answer, so the visitor can pick it again.
+
+A bare typed name Qloo resolves on its own is named the same way once it passes: the
+spot looked up is the centre of Qloo's own cells, never anything the visitor picked
+(`qloo_pick`, decision 38).
 """
 
 import http.client
@@ -87,6 +91,26 @@ def same_name(asked: str, found: str) -> bool:
 
 class Throttled(Exception):
     """A lookup refused by the visitor's allowance or everyone's."""
+
+
+def qloo_pick(
+    places: "Places", text: str, latitude: float, longitude: float, visitor: str = "anyone"
+) -> tuple[str | None, str | None]:
+    """What a bare typed name ("Portland") became in Qloo, which picks one place on its
+    own and does not say which: OpenStreetMap's areas at the centre of Qloo's cells. The
+    one carrying the typed name and a wider place ("Portland, Oregon"), else the widest
+    when it is not just the typed name, as (match, near). Both None when the lookup is
+    off or did not answer; the area then keeps its name as typed (decision 38)."""
+    try:
+        areas = [place.label for place in places.at(latitude, longitude, visitor)]
+    except (Throttled, LookupFailed):
+        return None, None
+    typed = text.strip().lower()
+    # A label with no wider place ("Berlin", where the city is its own state) says no more
+    # than was typed, so it is no match.
+    match = next((a for a in areas if "," in a and a.split(",")[0].strip().lower() == typed), None)
+    near = areas[-1] if areas and areas[-1].strip().lower() != typed else None
+    return match, None if match else near
 
 
 class Place(BaseModel):

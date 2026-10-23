@@ -28,7 +28,7 @@ from app.config import Settings
 from app.custom_location import UNAVAILABLE, LocationCheck, check_location, location_id
 from app.limits import LimitReached, Limits
 from app.locations import Location
-from app.places import MAX_PIN_KM, places_for
+from app.places import MAX_PIN_KM, places_for, qloo_pick
 from app.profile import load_seeds
 from app.qloo.cache import Cache
 from app.qloo.exec import QlooClient, harness_env
@@ -223,6 +223,31 @@ def check_area(settings: Settings, text: str, visitor: str) -> LocationCheck:
     if not getattr(qloo, "live_calls", 0):
         limits.refund(visitor, "location")
     return checked
+
+
+def named_pick(settings: Settings, location: Location, visitor: str) -> tuple[Location, str | None]:
+    """A bare typed name Qloo resolves on its own, such as "Portland", passes with no
+    candidates and nothing saying which place it read (23 October walkthrough). The place
+    its cells centre on, named by OpenStreetMap, gives the area its region and the run a
+    step saying so (decision 38). Looked up once, when the area is first saved; a lookup
+    that fails, or any error here, leaves the name as typed."""
+    text = location.label
+    if "," in text:
+        return location, None
+    try:
+        places = places_for(settings.geocoder_url)
+        match, near = qloo_pick(places, text, location.latitude, location.longitude, visitor)
+    except Exception:  # noqa: BLE001 - only the area's label waits on this
+        logger.warning("naming Qloo's pick for a typed area failed", exc_info=True)
+        return location, None
+    said = f"Qloo did not say which “{text}” it read; its data centres"
+    if match is not None:
+        region = match.split(",", 1)[1].strip()
+        note = f"{said} on {match}, as OpenStreetMap names the spot"
+        return location.model_copy(update={"region": region}), note
+    if near is not None:
+        return location, f"{said} near {near}, as OpenStreetMap names the spot"
+    return location, None
 
 
 def _new_run(animal_id: str, location_id: str, session_id: str | None = None) -> Run:
@@ -467,15 +492,20 @@ async def start_area_run(
             refund(settings, visitor)
             run.log.add("error", f"The check of “{text}” did not pass, so no listing was written")
             return
-        store.put_location(checked.location)
-        run.place = checked.location
+        location, picked_note = await asyncio.to_thread(
+            named_pick, settings, checked.location, visitor
+        )
+        store.put_location(location)
+        run.place = location
         run.log.add("check", f"Qloo has enough data for “{text}”; it is saved as an area")
-        if pin is not None and not keep_pin(checked.location):
+        if picked_note:
+            run.log.add("note", picked_note)
+        if pin is not None and not keep_pin(location):
             run.log.add("note", FAR_PIN)
         if members:
-            await _litter_work(members, checked.location, settings, run)
+            await _litter_work(members, location, settings, run)
         else:
-            await _listing_work(first, checked.location, settings, run, session)
+            await _listing_work(first, location, settings, run, session)
 
     _launch(
         run,

@@ -814,7 +814,8 @@ def build_profile_agent(
     @agent.instructions
     def instructions(ctx: RunContext[ProfileDeps]) -> str:
         loc = ctx.deps.location
-        # A typed area has no region (one stored before 19 October says "Typed location").
+        # A typed area has no region (one stored before 19 October says "Typed location"),
+        # unless it is a bare name the place Qloo picked gave one (decision 38).
         typed = not loc.region or loc.region == "Typed location"
         place = loc.label if typed else f"{loc.label}, {loc.region}"
         return INSTRUCTIONS.format(species=ctx.deps.species, place=place)
