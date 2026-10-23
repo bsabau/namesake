@@ -731,41 +731,67 @@ def groups_out() -> str:
 
 
 def shared_places(species: str) -> str:
+    # The area's list, which a per-animal skip (decision 2) only shortens.
     return (
-        f"The same places for every {species} at this shelter; the name and the listing are "
-        "this animal's."
+        f"Qloo's places are the area's, shared by every {species} at this shelter; the name "
+        "and the listing are this animal's."
+    )
+
+
+def left_out(profile: LocationProfile) -> str:
+    """What code leaves out of every list, as one clause: chains, and far places once a
+    place has a pin to measure (decision 40)."""
+    measured = any(v.latitude is not None for v in profile.venues)
+    return "national chains Namesake knows by name" + (
+        f" and places OpenStreetMap puts more than {MAX_VENUE_KM} km from the shelter"
+        if measured
+        else ""
     )
 
 
 def venues_summary(profile: LocationProfile, species: str) -> str | None:
     """The story skin's two sentences under "Places to ask" (decision 33, revised 24
     October): what Qloo was asked for and what is left out, then that the places are the
-    area's. `venues_note`, folded under them, says the rest."""
+    area's. `venues_more`, folded under them, says the rest, never the same again."""
     if not profile.venues:
         return None
-    measured = any(v.latitude is not None for v in profile.venues)
-    left_out = "national chains Namesake knows by name" + (
-        f" and places more than {MAX_VENUE_KM} km from the shelter" if measured else ""
-    )
+    kinds = and_list([name for name, _, _ in VENUE_GROUPS])
     asked = {
-        True: "Qloo was asked only for places that can host an adoption stand or take a flyer",
-        False: "Qloo's list of the usual kinds was short here, so it was asked for any kind",
+        True: f"Qloo was asked only for {kinds}",
+        False: "Qloo was asked for places of any kind here",
     }.get(profile.venue_categories)
-    first = f"{asked}, and {left_out} are left out." if asked else f"{cap(left_out)} are left out."
+    first = (
+        f"{asked}, and {left_out(profile)} are left out."
+        if asked
+        else f"{cap(left_out(profile))} are left out."
+    )
     return f"{first} {shared_places(species)}"
 
 
 def venues_more(profile: LocationProfile, species: str) -> str | None:
-    """What the summary leaves out, folded under it: the kinds asked for and not, and why.
-    None when the summary already says all of it (a profile saved before the kinds)."""
-    if not profile.venues or profile.venue_categories is None:
+    """What the summary leaves out, folded under it: why each kind was asked for or not, or
+    why any kind was; and, where the AI picked, the fast-food rule. None when nothing is."""
+    if not profile.venues:
         return None
-    return venues_note(profile, species).removesuffix(" " + shared_places(species))
+    parts = []
+    if profile.venue_categories:
+        parts.append(
+            f"Asked for: {groups_in()}. Not asked for: {groups_out()}; Qloo's tags are broad, "
+            "so a few others can appear."
+        )
+    elif profile.venue_categories is False:
+        parts.append(
+            f"Qloo's list of the usual kinds held fewer than {MIN_CATEGORY_VENUES} places here."
+        )
+    if profile.made_by == "agent":
+        parts.append(FAST_FOOD_NOTE)
+    return " ".join(parts) or None
 
 
 def venues_note(profile: LocationProfile, species: str) -> str | None:
-    """Under "Places to ask": which kinds of place Qloo was asked for and why, which were not
-    asked for, and that the places belong to the area, not to this animal."""
+    """Under "Places to ask" in warm and classic: which kinds of place Qloo was asked for
+    and why, which were not asked for, and that the places belong to the area, not to this
+    animal."""
     if not profile.venues:
         return None
     shared = shared_places(species)

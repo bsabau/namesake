@@ -115,7 +115,9 @@ def test_the_map_names_both_pet_shows_and_carries_a_key(roster):
     assert "(2 shows)" in shared.label and "this area's top shows" in shared.label
     assert view.map.note and "Warm" in view.map.note
     # Two sentences on the map itself (24 October): the colours, then the circle.
-    assert view.map.note.count(". ") == 1
+    colours, rest = view.map.note.split(". ")
+    assert colours.startswith("Warm:") and "grey: no comparison" in colours
+    assert rest.startswith("Circle: around the sample shelter")
     # The key names no baseline title; the Why panel does, as Qloo returned them.
     assert "Example Drama" not in view.map.note + view.map.legend
     reading = {item.title: item.detail for item in view.our_reading}

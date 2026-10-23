@@ -143,7 +143,7 @@ def test_the_note_says_which_kinds_are_in_and_out_and_that_the_places_are_the_ar
         assert f"{name} ({why})" in note
     for name, why in LEFT_OUT_GROUPS:
         assert f"{name} ({why})" in note
-    assert "The same places for every dog at this shelter" in note
+    assert "Qloo's places are the area's, shared by every dog at this shelter" in note
     assert venues_note(profile_with(False), "cat").startswith(
         "Qloo's list here, asked for the usual kinds"
     )
@@ -158,23 +158,39 @@ def sentences(text: str) -> int:
 
 
 def test_the_story_skins_note_is_two_sentences_with_the_rest_folded():
-    # A judge read (24 October): the note under "Places to ask" was a paragraph.
-    from app.views.build import venues_more, venues_summary
+    # A judge read (24 October): the note under "Places to ask" was a paragraph. The fold
+    # holds only what the two sentences leave out.
+    from app.views.build import FAST_FOOD_NOTE, venues_more, venues_summary
 
     kinds = profile_with(True)
     summary = venues_summary(kinds, "dog")
-    assert sentences(summary) == 2 and summary.startswith("Qloo was asked only for places")
-    assert "more than 5 km" not in summary  # nothing pinned to measure yet
+    assert sentences(summary) == 2 and summary.startswith(
+        "Qloo was asked only for cafes and breweries, bookshops and pet shops and community "
+        "places, and national chains Namesake knows by name are left out."
+    )
     more = venues_more(kinds, "dog")
     for name, why in LEFT_OUT_GROUPS:
         assert f"{name} ({why})" in more
-    assert "The same places for every dog" not in more  # the summary says it
+    assert "national chains" not in more.lower() and "shared by every" not in more
     kinds.venues[0].latitude, kinds.venues[0].longitude = 40.67, -73.98
-    assert "and places more than 5 km from the shelter are left out" in venues_summary(kinds, "dog")
-    assert sentences(venues_summary(profile_with(False), "cat")) == 2
+    assert "and places OpenStreetMap puts more than 5 km from the shelter are left out" in (
+        venues_summary(kinds, "dog")
+    )
+    assert "5 km" not in venues_more(kinds, "dog")
+    few = profile_with(False)
+    assert sentences(venues_summary(few, "cat")) == 2
+    assert "any kind" in venues_summary(few, "cat") and "any kind" not in venues_more(few, "cat")
     assert venues_summary(profile_with(None), "dog").startswith("National chains")
-    assert venues_more(profile_with(None), "dog") is None  # the summary says it all
     assert venues_summary(LocationProfile(location_id="x"), "dog") is None
+    # The fast-food rule is the AI's, said in the fold wherever it picked, even on a
+    # profile saved before the kinds (Codex, muse, Flash).
+    for categories in (True, False, None):
+        p = profile_with(categories)
+        assert FAST_FOOD_NOTE not in (venues_more(p, "dog") or "")
+        p.made_by = "agent"
+        assert FAST_FOOD_NOTE in venues_more(p, "dog")
+        assert FAST_FOOD_NOTE not in venues_summary(p, "dog")
+    assert venues_more(profile_with(None), "dog") is None
 
 
 def test_the_why_panel_reads_the_kinds_as_namesakes_choice():

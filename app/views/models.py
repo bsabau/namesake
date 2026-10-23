@@ -337,7 +337,7 @@ class MapView(BaseModel):
     legend: str
     tiles: MapTiles | None = None
     # A short key drawn on the map itself; the legend under it says the rest.
-    note_heading: str = "What the colours mean"
+    note_heading: str = "What the map shows"
     note: str | None = None
     empty_message: str | None = None
 
