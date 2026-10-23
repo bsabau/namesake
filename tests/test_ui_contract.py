@@ -267,8 +267,9 @@ def test_the_story_result_tells_the_story_in_order(client, monkeypatch):
 
     def with_reasons(location, species):
         # Places Namesake's AI gave a reason for, so the card shows its reading.
+        # The first is left without one, as on a fixed-lookup profile.
         profile = fake_profile(location, species)
-        for v in profile.venues:
+        for v in profile.venues[1:]:
             v.chosen_reason = "a community place"
         return profile
 
@@ -308,7 +309,7 @@ def test_the_story_result_tells_the_story_in_order(client, monkeypatch):
     # Qloo's answer, labelled (decision 33, revised 23 October).
     cards = [c.split("</li>")[0] for c in page.split('<li class="venue">')[1:]]
     read = [c for c in cards if "<span>Namesake's AI:</span>" in c]
-    assert read, "a place the AI gave a reason for"
+    assert read and len(read) < len(cards), "places with and without the AI's reason"
     for card in cards:
         rank = card.index('data-role="venue-rank"')
         assert "<span>Qloo:</span> <strong>" in card[rank:] and rank < card.index("venue-why")
