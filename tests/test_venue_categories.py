@@ -497,3 +497,12 @@ def test_rejections_must_come_from_the_latest_search_and_not_be_picked_too():
     unknown = "00000000-0000-4000-8000-000000000999"
     assert "not among your latest" in plan_problems(d, [ids[1]], rejected=[unknown])
     assert "both picked and rejected" in plan_problems(d, [ids[1]], rejected=[ids[1]])
+
+
+def test_a_serial_comma_only_from_three_items():
+    from app.views.build import and_list
+
+    assert and_list(["a"], serial=True) == "a"
+    assert and_list(["a", "b"], serial=True) == "a and b"
+    assert and_list(["a", "b", "c"], serial=True) == "a, b, and c"
+    assert and_list(["a", "b", "c"]) == "a, b and c"

@@ -137,10 +137,12 @@ def cap(text: str) -> str:
     return text[:1].upper() + text[1:]
 
 
-def and_list(items: list[str]) -> str:
+def and_list(items: list[str], serial: bool = False) -> str:
+    # A serial comma where an item holds an "and" of its own ("bookshops and pet shops").
     if len(items) <= 1:
         return "".join(items)
-    return ", ".join(items[:-1]) + " and " + items[-1]
+    last = ", and " if serial and len(items) > 2 else " and "
+    return ", ".join(items[:-1]) + last + items[-1]
 
 
 PIN_NOTE = (
@@ -723,7 +725,7 @@ def empty_venues(profile: LocationProfile, shelter: tuple[float, float] | None =
 
 
 def groups_in() -> str:
-    return and_list([f"{name} ({why})" for name, _, why in VENUE_GROUPS])
+    return and_list([f"{name} ({why})" for name, _, why in VENUE_GROUPS], serial=True)
 
 
 def groups_out() -> str:
@@ -755,9 +757,7 @@ def venues_summary(profile: LocationProfile, species: str) -> str | None:
     area's. `venues_more`, folded under them, says the rest, never the same again."""
     if not profile.venues:
         return None
-    names = [name for name, _, _ in VENUE_GROUPS]
-    # A serial comma: two of the kinds hold an "and" of their own.
-    kinds = ", ".join(names[:-1]) + ", and " + names[-1]
+    kinds = and_list([name for name, _, _ in VENUE_GROUPS], serial=True)
     asked = {
         True: f"Qloo was asked only for {kinds}",
         False: "Qloo was asked for places of any kind here",
