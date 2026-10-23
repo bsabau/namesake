@@ -1067,10 +1067,16 @@ NEGATION = r"(?:\bnot|n't|\bnever|\bno longer)"
 # word that turns the sentence ("not aggressive but scared").
 BETWEEN = r"(?:(?!(?:but|yet|while|though|although)\b)\w+\s+){0,2}?"
 FEAR_WORD = re.compile(rf"\b{FEAR}\b")
-# A listed fear word may carry an adverb ("not nervous or easily startled"), never a verb
-# ("never hides, is scared" is two statements).
-LISTED = r"\s*(?:,\s*(?:(?:or|and|nor)\s+)?|(?:or|and|nor)\s+)(?:(?:\w+ly|very|too)\s+)?"
-NEGATED_FEAR = re.compile(rf"{NEGATION}\s+{BETWEEN}{FEAR}\b(?:{LISTED}{FEAR}\b)*")
+# A negation covers the fear words listed after it only in a list that ends in or, and or
+# nor ("not nervous or easily startled", "not anxious, fearful, or stressed"); a listed
+# word may carry an adverb. A bare comma is read as a new statement ("no longer hides,
+# visibly stressed in busy rooms"): when a record is ambiguous, the caution wins, since it
+# only quotes the record and suggests a quiet meeting.
+ADVERB = r"(?:(?:\w+ly|very|too)\s+)?"
+NEGATED_FEAR = re.compile(
+    rf"{NEGATION}\s+{BETWEEN}{FEAR}\b"
+    rf"(?:(?:\s*,\s*{ADVERB}{FEAR}\b)*\s*,?\s*(?:or|and|nor)\s+{ADVERB}{FEAR}\b)?"
+)
 # Noise, crowds or busy places say so only beside a difficulty in the same clause ("not
 # comfortable in crowds", "dislikes loud noises"), never alone ("has a loud bark",
 # "enjoys crowds", "calm in noisy places") nor beside a negated one ("never struggles
