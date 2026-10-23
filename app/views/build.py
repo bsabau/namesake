@@ -1055,38 +1055,49 @@ def venue_view(
     )
 
 
-# A record is read clause by clause (decision 39): "calm at home but scared of crowds"
-# is two clauses, and only the second says anything about crowds.
-CLAUSES = re.compile(r"[,;.]|\b(?:but|and|while|though|although)\b")
-# Fear in a clause says busy places are hard, unless the clause negates it before it
-# ("not shy at all", "never hides").
-FEAR = re.compile(
-    r"\b(hides?|hiding|shy|timid|fearful|nervous|anxious|skittish|scared|frightened"
-    r"|stressed|stressful|startles?|startled|overwhelmed|panics?)\b"
+# Fear in a record says busy places are hard (decision 39), unless a negation just before
+# it covers it, with any fear words listed after ("not shy at all", "never hides", "not
+# shy, nervous or scared"); "not house-trained yet gets scared" still counts.
+FEAR = (
+    r"(?:hides?|hiding|shy|timid|fearful|nervous|anxious|skittish|scared|frightened"
+    r"|stressed|stressful|startles?|startled|overwhelmed|panic(?:s|ked|king)?)"
 )
-NEGATION = re.compile(r"\b(?:not|never|no longer)\b|n't\b")
+NEGATION = r"(?:\bnot|n't|\bnever|\bno longer)"
+FEAR_WORD = re.compile(rf"\b{FEAR}\b")
+NEGATED_FEAR = re.compile(
+    rf"{NEGATION}\s+(?:\w+\s+){{0,2}}?{FEAR}\b(?:\s*(?:,|\bor\b|\band\b|\bnor\b)\s*"
+    rf"(?:\w+\s+)?{FEAR}\b)*"
+)
 # Noise, crowds or busy places say so only beside a difficulty in the same clause ("not
 # comfortable in crowds", "dislikes loud noises"), never alone ("has a loud bark",
-# "enjoys crowds", "calm in noisy places"). A "crowd-pleaser" is not a crowd.
+# "enjoys crowds", "calm in noisy places") nor beside a negated one ("never struggles
+# with noise"). A "crowd-pleaser" is not a crowd. Clauses split at commas and at but,
+# and, while or though: "calm at home but scared of crowds" is two.
+CLAUSES = re.compile(r"[,;.]|\b(?:but|and|while|though|although)\b")
 BUSY = re.compile(r"\b(nois(?:y|es?)|loud|crowds?(?!-)|crowded|busy)\b")
 STRUGGLE = re.compile(
-    r"\b(?:dislikes?|hates?|struggles?|avoids?|cannot|can't)\b"
-    r"|(?:\bnot|n't|\bnever)\s+(?:\w+\s+)?(?:like|cope|good|comfortable|happy|handle|enjoy)\b"
+    r"\b(?:dislikes?|hates?|struggles?|avoids?|cannot|can't|unable to)\b"
+    rf"|{NEGATION}\s+(?:\w+\s+)?(?:like|cope|good|comfortable|happy|handle|enjoy)\b"
 )
+NEGATED_STRUGGLE = re.compile(rf"{NEGATION}\s+(?:\w+\s+)?(?:dislikes?|hates?|struggles?|avoids?)\b")
 
 
-def busy_is_hard(clause: str) -> bool:
-    fear = FEAR.search(clause)
-    if fear and not NEGATION.search(clause[: fear.start()]):
-        return True
-    return bool(BUSY.search(clause) and STRUGGLE.search(clause))
+def busy_is_hard(line: str) -> bool:
+    negated = [m.span() for m in NEGATED_FEAR.finditer(line)]
+    for fear in FEAR_WORD.finditer(line):
+        if not any(start <= fear.start() < end for start, end in negated):
+            return True
+    return any(
+        BUSY.search(c) and STRUGGLE.search(c) and not NEGATED_STRUGGLE.search(c)
+        for c in CLAUSES.split(line)
+    )
 
 
 def busy_events_caution(animal: Animal) -> str | None:
     """The recorded line saying a busy event would be hard for this animal, a fact before
     the temperament, or None. Read from the record only, like the children check."""
     for line in [*animal.facts, animal.temperament or ""]:
-        if any(busy_is_hard(c) for c in CLAUSES.split(line.lower())):
+        if busy_is_hard(line.lower().replace("’", "'")):
             return line.strip()
     return None
 

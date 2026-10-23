@@ -1152,6 +1152,11 @@ def test_the_plan_skips_busy_events_when_the_record_says_they_are_hard(roster):
         "doesn't mind noise",
         "never hides",
         "fearless with new people",
+        "never struggles with noise",
+        "does not dislike crowds",
+        "no longer avoids busy places",
+        "not shy, nervous or scared around crowds",
+        "is not at all shy",
     ]:
         assert said(fine) is None, fine
     for hard in [
@@ -1164,6 +1169,12 @@ def test_the_plan_skips_busy_events_when_the_record_says_they_are_hard(roster):
         "finds busy rooms stressful",
         "scared of loud noises, not good with kids",
         "nervous around strangers, fine with dogs",
+        "not house-trained yet gets scared of loud noises",
+        "doesn’t like crowds",
+        "no longer comfortable with crowds",
+        "panicked by fireworks",
+        "unable to cope with crowds",
+        "never hides but is scared of crowds",
     ]:
         assert said(hard) == hard, hard
     assert (
