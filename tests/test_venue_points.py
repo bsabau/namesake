@@ -320,3 +320,17 @@ def test_a_far_chain_is_named_once_and_a_name_is_screened_too(roster):
     assert "Left out as more than 5 km from the shelter" not in why
     assert why["Left out as event venues"] == "Splash Water Park (water park)."
     assert [v.name for v in view.venues] == ["Corner Books"]
+
+
+def test_an_ai_pick_left_out_as_too_far_is_not_called_no_pick(roster):
+    # Flash's re-check of PR 89: the AI picked one place, too far; the rest it passed over.
+    p = profile()
+    p.made_by = "agent"
+    p.venues = [
+        Venue(entity_id="v1", name="Far Pick", rank=1, chosen_reason="a place to ask",
+              latitude=LOCATION.latitude + 0.1, longitude=LOCATION.longitude),
+        Venue(entity_id="v2", name="Unpicked", rank=2),
+    ]  # fmt: skip
+    view = build_result_view(roster.get("dog-02"), LOCATION, p)
+    assert view.venues == []
+    assert view.venues_empty.startswith("Every place Namesake would suggest here is more than 5 km")

@@ -82,7 +82,7 @@ VENUES_SHOWN = 5
 VENUES_IN_PLAN = 3
 # Within this, a place gets a walking estimate and the map frames its pin.
 WALKABLE_KM = 3
-# Places farther than this from the shelter's centre are left out (decision 40): a
+# Places farther than this from the shelter's point are left out (decision 40): a
 # volunteer does not cross a city for a flyer. Only a place with a pin can be measured.
 MAX_VENUE_KM = 5
 OBJECT_PRONOUN = {"female": "her", "male": "him"}
@@ -669,8 +669,8 @@ def name_view(result: ListingResult | None, profile: LocationProfile, text: str)
 # the AI's judgement from a place's description, so said only where the AI picked.
 CHAINS_NOTE = "National chains Namesake knows by name are left out."
 FAR_NOTE = (
-    "National chains Namesake knows by name are left out, and so are places found more "
-    f"than {MAX_VENUE_KM} km from the shelter."
+    "National chains Namesake knows by name are left out, and so are places OpenStreetMap "
+    f"puts more than {MAX_VENUE_KM} km from the shelter."
 )
 FAST_FOOD_NOTE = "Namesake's AI is asked to pass over fast food."
 
@@ -691,11 +691,17 @@ def empty_venues(profile: LocationProfile, shelter: tuple[float, float] | None =
             "Every suitable place Qloo listed here is a national chain Namesake leaves out; "
             "the Why panel names them."
         )
-    near = [v for v in suitable if not chain_name(v.name) and too_far(v, shelter) is None]
-    if suitable and not near:
+    # The places venue_order would suggest but for the distance: the AI's picks when it
+    # picked (decision 23), else every suitable one that is not a chain.
+    candidates = [
+        v
+        for v in suitable
+        if not chain_name(v.name) and (profile.made_by != "agent" or v.chosen_reason)
+    ]
+    if candidates and all(too_far(v, shelter) is not None for v in candidates):
         return (
-            f"Every suitable place Qloo listed here is more than {MAX_VENUE_KM} km from the "
-            "shelter or a national chain; the Why panel names them."
+            f"Every place Namesake would suggest here is more than {MAX_VENUE_KM} km from the "
+            "shelter; the Why panel names them."
         )
     if profile.venues and not suitable:
         return "Every place Qloo listed here was screened out; the Why panel names them."
@@ -951,11 +957,11 @@ RANK_NOTES = {
 def unsuitable(v: Venue) -> str | None:
     """The screen's word for a venue, as saved or under today's list, so a saved profile
     gets words added since (decision 40)."""
-    return v.unsuitable or screen(f"{v.name} {v.description or ''}")
+    return v.unsuitable or screen(v.description, v.name)
 
 
 def too_far(v: Venue, shelter: tuple[float, float] | None) -> float | None:
-    """How far a pinned venue is from the shelter's centre, when beyond MAX_VENUE_KM."""
+    """How far a pinned venue is from the shelter's point, when beyond MAX_VENUE_KM."""
     if shelter is None or v.latitude is None or v.longitude is None:
         return None
     km = distance_km(shelter, (v.latitude, v.longitude))
@@ -966,7 +972,8 @@ def venue_order(
     profile: LocationProfile, shelter: tuple[float, float] | None = None
 ) -> list[Venue]:
     """The venues to suggest, never screened ones nor national chains (decision 23), nor,
-    given the shelter's centre, a pinned one too far from it (decision 40).
+    given the shelter's point (the visitor's pin, else the area's centre), a pinned one too
+    far from it (decision 40).
 
     When the agent built the profile, only the places it chose: its judgement is a
     positive selection, not just the absence of a rejection. The fixed lookup has no

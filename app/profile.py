@@ -682,9 +682,10 @@ class _Builder:
         ]
 
 
-def screen(description: str | None) -> str | None:
-    """Why a venue is unsuitable for an adoption event, or None."""
-    text = (description or "").lower()
+def screen(description: str | None, name: str | None = None) -> str | None:
+    """Why a venue is unsuitable for an adoption event, from its Qloo description and its
+    name (decision 40), or None."""
+    text = f"{name or ''} {description or ''}".lower()
     return next((word for word in UNSUITABLE if word in text), None)
 
 
@@ -976,7 +977,7 @@ def assemble_profile(
                     for x in explained
                     if x.get("entity_id") in pet_names
                 },
-                unsuitable=screen(description),
+                unsuitable=screen(description, r["name"]),
             )
         )
     if pet_venues and base_venues is None:
