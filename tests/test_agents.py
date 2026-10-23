@@ -195,13 +195,22 @@ def test_full_run_uses_the_agents_choices(roster):
     assert saved.references[1] == "Biscuit, a cat in Example Cat Show"
     kinds = [s.kind for s in log.steps]
     assert "qloo" in kinds and kinds[-1] == "done"
+    # The calls Namesake's AI chose are credited to it, and so are its answers.
+    by_ai = [s.text for s in log.steps if s.actor == "ai"]
+    assert any(t.startswith("Namesake's AI asks Qloo to rank") for t in by_ai)
+    assert any(t.startswith("Namesake's AI asks Qloo for places near") for t in by_ai)
+    assert any(t.startswith("Namesake's AI answered:") for t in by_ai)
 
 
 def test_invented_ids_are_sent_back_once_then_accepted_when_fixed(roster):
     bad = {**PLAN, "venues": [{"entity_id": venue_id(99), "reason": "made up"}]}
     result, store, log = run(Script([bad, PLAN], [DRAFT]), roster)
     assert store.get_profile(LOCATION.id, "dog").made_by == "agent"
-    assert any("was not returned by find_venues" in s.text for s in log.steps)
+    # The log words it plainly (tool names reworded); the model got the original.
+    assert any("was not among the places Qloo returned" in s.text for s in log.steps)
+    sent_back = next(s.text for s in log.steps if "was not among the places" in s.text)
+    assert sent_back.startswith("Code sent the answer back to Namesake's AI to fix")
+    assert "find_venues" not in sent_back and venue_id(99) not in sent_back
 
 
 def test_a_screened_venue_cannot_be_picked(roster):
@@ -800,3 +809,22 @@ def test_no_names_are_offered_to_keep_without_a_refine_or_a_draft(roster):
         update={"draft": first.draft.model_copy(update={"names": names}), "lookalikes": [found]}
     )
     assert kept_names("warmer", earlier, titles) == names
+
+
+def test_a_fix_request_is_logged_in_plain_words():
+    from app.agent.steps import fix_request
+
+    known = "00000000-0000-4000-8000-000000000001"
+    unknown = "00000000-0000-4000-8000-0000000000ff"
+    text = fix_request(
+        [
+            f"title {known} came back as candidates; give choice_reason",
+            f"venue {unknown} is not among your latest find_venues results",
+        ],
+        {known: "Example Dog Show"},
+    )
+    assert text == (
+        "Code sent the answer back to Namesake's AI to fix: title “Example Dog Show” came "
+        "back as candidates; say which one you meant, and why; venue with an ID Qloo never "
+        "returned is not among the places Qloo returned last"
+    )

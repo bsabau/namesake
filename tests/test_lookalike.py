@@ -142,6 +142,14 @@ def test_a_lookalike_name_is_offered_with_its_own_badge_and_why(roster):
     # The local version keeps a name from the area's titles.
     assert result.hook == "Named after Bingo, a dog in Example Dog Show."
     assert any("Rex shares this dog's look (brindle coat)" in s.text for s in log.steps)
+    # The lookup is the AI's choice, credited to it; Qloo's answer stays Qloo's.
+    asked = next(s for s in log.steps if "Rex shares this dog's look" in s.text)
+    assert asked.actor == "ai" and asked.text.startswith("Namesake's AI looks up")
+    assert any(s.actor == "qloo" and s.text.startswith("Found") for s in log.steps)
+    assert any(
+        s.actor == "ai" and s.text.startswith("Namesake's AI answered: the names")
+        for s in log.steps
+    )
 
     profile = store.get_profile(LOCATION.id, "dog")
     view = build_result_view(roster.get("dog-02"), LOCATION, profile, result)
