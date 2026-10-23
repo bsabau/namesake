@@ -841,7 +841,8 @@ body:has(input[name="variant"][value="generic"]:checked) .why-name { display: no
   flex: none;
 }
 .venue-place { color: var(--muted); font-size: 0.85rem; }
-.venue-rank { font-size: 0.85rem; margin-top: 2px; }
+/* Qloo's rank leads the card, above the AI's reading (decision 33, revised 23 October). */
+.venue-rank { font-size: 0.85rem; margin-top: 8px; }
 .venue-rank.rank-top strong { color: var(--qloo-ink); }
 .venue-rank.rank-bottom { color: var(--muted); }
 .venue-where { margin: 4px 0 0; }

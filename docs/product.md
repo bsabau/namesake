@@ -89,7 +89,7 @@ The result screen must be legible in a single screenshot. It shows:
 - the exposure checklist
 - a "Why" drawer with two columns, "Qloo returned" and "How Namesake read it", the Qloo calls behind the result listed under Qloo's
 - in the story skin, the saved run's own step log, folded, each step marked by who did it; and, where the animal has no listing yet, a button that starts a run (for a litter member, the litter's) (decision 27)
-- in the story skin, the outcome first: the listing, then the map and the places to ask, then "How Namesake made this", which ends with the trial the local version would need; each place's evidence and the names' Qloo answers are folded one click away (decision 33)
+- in the story skin, the outcome first: the listing, then the map and the places to ask, then "How Namesake made this", which ends with the trial the local version would need; each place shows Qloo's rank before the AI's reason, and the rest of each place's evidence and the names' Qloo answers are folded one click away (decision 33)
 - in the story skin, "Print a flyer" under the copy button, for the version and name shown (decision 35)
 
 The skins that render this screen are a separate choice (`docs/decisions.md` #21 for warm and classic, #24 for story); each keeps every item above, except the three marked as the story skin's.
