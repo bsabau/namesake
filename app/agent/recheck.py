@@ -2,12 +2,11 @@
 
     python -m app.agent.recheck
 
-A draft saved under older checks, or before its animal's record changed, is checked again
-against the record (the bio and the names' reasons) and the name screen, with the titles
-from the saved area profile.
+A draft saved under older checks is checked again against the animal's record (the bio
+and the names' reasons) and the name screen, with the titles from the saved area profile.
 One that passes is saved as current, with the confirmed checks
 rebuilt from today's fixed sentences; one that fails, or that a
-recheck of the record cannot cover (see app/agent/results.py), is no longer shown and runs
+recheck of the record cannot cover (see app/agent/results.py), is left as it is and runs
 again when next opened. deploy/deploy.sh runs this on every deploy.
 """
 
@@ -91,15 +90,10 @@ def recheck(store: Store, roster: Roster) -> tuple[int, int]:
     """Saved drafts made current, and saved drafts left to run again."""
     kept = rerun = 0
     for result in store.saved_listings():
-        if result.draft is None:
+        if result.draft is None or result.checks_version == CHECKS_VERSION:
             continue
         # An animal added in a session is not in the roster; its listing runs again.
         animal = roster.get(result.animal_id)
-        current = result.checks_version == CHECKS_VERSION
-        # A current draft is held to today's record only when the record changed since it
-        # was saved (a confirmed answer, decision 41), which the bio as shown tells.
-        if current and (animal is None or result.bio == shown_bio(animal, result.draft)):
-            continue
         if (
             animal
             and recheckable(result)
@@ -118,9 +112,6 @@ def recheck(store: Store, roster: Roster) -> tuple[int, int]:
             store.put_listing(result.model_copy(update=update))
             kept += 1
         else:
-            if current:
-                # Saved under no checks, so it is not shown and runs again when opened.
-                store.put_listing(result.model_copy(update={"checks_version": 0}))
             rerun += 1
     return kept, rerun
 

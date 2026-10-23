@@ -239,7 +239,7 @@ Twelve fictional animals plus one group photo of a litter, all AI-generated. The
 
 - Fields per animal: `id`, `species`, `group`, `sex`, `age`, `look`, `temperament`, `facts` (a list), `history`, `checks` (the five `yes`/`no`/`unknown` answers listed in `docs/product.md`), `image`. The four kittens share `litter: "litter-a"`. The `litter-group` entry has `members` and no profile.
 - Animals have no names on purpose. Naming them is the app's job.
-- `dog-02` leads the demo and `cat-01` is the second example; `docs/product.md` says why. The litter stays in the app, out of the examples (decision 30, revised 22 October).
+- `dog-02` leads the demo, `cat-01` is the second example and `dog-03`, with a bite on record and not for a home with children, the third (decision 41); `docs/product.md` says why. The litter stays in the app, out of the examples (decision 30, revised 22 October).
 - The photos and JSON were produced by a separate project outside this repo (`../image_generation`, which also holds `ANIMALS.md` with each animal's role in the demo). It is not part of this app; do not import from it or run it.
 - The app serves web-sized copies from `app/static/animals`, made by `scripts/make_web_photos.py`. The UI labels the photos as AI-generated, and the app never edits or generates animal images.
 

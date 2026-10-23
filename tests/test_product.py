@@ -15,7 +15,7 @@ from pydantic_ai.models.function import FunctionModel
 import app.main as main
 import app.runs as runs
 from app.agent import checks
-from app.agent.listing_agent import ListingDraft
+from app.agent.listing_agent import ListingDraft, shown_bio
 from app.agent.pipeline import run_litter, run_pipeline
 from app.agent.results import CHECKS_VERSION, ListingResult
 from app.agent.steps import Step, StepLog
@@ -147,6 +147,21 @@ def test_without_an_agent_listing_only_the_generic_version_is_available(roster, 
     assert generic.selected and generic.name == "Pepper" and generic.hook is None
     assert generic.copy_text.startswith("Meet Pepper.\n\n")
     assert not local.available and not local.selected and local.note
+
+
+def test_a_saved_listing_shows_todays_confirmed_answers(roster, profile):
+    # Decision 41: dog-03 gained a bite after his listings were saved, a visitor's
+    # refined one in a workspace included; the page states today's record.
+    dog = roster.get("dog-02")
+    saved = saved_listing()
+    saved.bio = shown_bio(dog, saved.draft)  # as saved, with no bite on record
+    bitten = dog.model_copy(
+        update={"checks": dog.checks.model_copy(update={"bite_history": "yes"})}
+    )
+    view = build_result_view(bitten, LOCATION, profile, saved, generic="Pepper")
+    local = next(v for v in view.listing.versions if v.variant == "local")
+    assert "She has a bite on record; ask the shelter for the details." in local.copy_text
+    assert "no bite on record" not in local.copy_text.lower()
 
 
 def test_the_local_version_adds_only_the_name_and_the_hook(roster, profile):

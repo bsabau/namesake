@@ -56,7 +56,7 @@ The demo must stay up, unattended, through judging: 2 November 12:00 to 5 Novemb
 NAMESAKE_HOST=deploy@host NAMESAKE_URL=https://namesake.example.com deploy/deploy.sh
 ```
 
-Only committed changes are deployed. Every deploy re-checks the saved listings against today's checks and today's animal records (`app/agent/recheck.py`): one that passes stays, one that fails runs again when next opened. The source, `compose.yml`, `.env` and the image change together. If any step fails, the check through the proxy included, all four come back (the image as `namesake-app:prev`, the one the running container used): before the restart the running container is untouched, and after it the previous version is started again. To roll back on purpose, check out the earlier commit and deploy again.
+Only committed changes are deployed. Every deploy re-checks the saved listings against today's checks (`app/agent/recheck.py`): one that passes stays, one that fails runs again when next opened. The source, `compose.yml`, `.env` and the image change together. If any step fails, the check through the proxy included, all four come back (the image as `namesake-app:prev`, the one the running container used): before the restart the running container is untouched, and after it the previous version is started again. To roll back on purpose, check out the earlier commit and deploy again.
 
 ## Who tends to like each name's title
 
