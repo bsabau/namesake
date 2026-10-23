@@ -47,7 +47,7 @@ def test_a_dogs_venues_rest_on_dog_and_pet_titles_before_cat_ones():
 
 def test_a_title_whose_own_name_does_not_suit_a_listing_gives_no_names():
     problems = checks.check_title("Smokey", "cat", "My Cat from Hell", "A reality series.")
-    assert problems and "does not suit an adoption listing" in problems[0]
+    assert any("does not suit an adoption listing" in p for p in problems)
     assert not open_title(Entity(id="x", name="My Cat from Hell", type="urn:entity:tv_show"))
     assert checks.check_title("Bingo", "dog", "Bluey", "A puppy and her family.") == []
     # The description may mention a villain; only the title's own name counts.
@@ -258,6 +258,25 @@ def test_a_litter_mate_awaiting_a_rerun_still_holds_the_litters_title():
     store = Store(_tmp_db())
     store.put_listing(saved("kitten-02", "Bing", "Bingo", version=CHECKS_VERSION - 1))
     assert litter_theme(LOCATION, store, {"kitten-02"}) == DOG_SHOW
+
+
+def test_a_litter_mate_awaiting_a_rerun_gives_up_a_title_todays_screen_closed():
+    # Review of PR #80: a litter named from a reality show that names no animals would
+    # otherwise keep that title on every rerun and fall to the template each time.
+    from app.agent.pipeline import litter_theme
+    from app.profile import LocationProfile
+
+    store = Store(_tmp_db())
+    store.put_listing(saved("kitten-02", "Bing", "Bingo", version=CHECKS_VERSION - 1))
+    show = Entity(id=DOG_SHOW, name="Example Vet", type="urn:entity:tv_show")
+    reality = show.model_copy(update={"description": "A reality series about a vet."})
+    for entity, theme in ((show, DOG_SHOW), (reality, None)):
+        profile = LocationProfile(location_id=LOCATION.id, pet_entities=[entity])
+        assert litter_theme(LOCATION, store, {"kitten-02"}, profile) == theme
+    # A mate saved under today's checks keeps its title: its names passed this screen.
+    store.put_listing(saved("kitten-02", "Bing", "Bingo"))
+    profile = LocationProfile(location_id=LOCATION.id, pet_entities=[reality])
+    assert litter_theme(LOCATION, store, {"kitten-02"}, profile) == DOG_SHOW
 
 
 def test_a_seeds_own_reason_says_which_animal_and_a_recheck_finds_a_twin(roster):

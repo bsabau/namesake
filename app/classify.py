@@ -50,7 +50,7 @@ QUESTIONS: dict[str, dict[str, Any]] = {
 KEEP_PETS = 0.8
 DROP_PETS = 0.3
 KEEP_FAMILY = 0.6
-# Above this, a title counts as about real people, so only animals' names come from it.
+# Above this, a title counts as about real people, so only animals it names give names.
 REAL_PEOPLE = 0.8
 # Per request; a run stops asking after the first failure (app/agent/profile_agent.py).
 TIMEOUT = 10

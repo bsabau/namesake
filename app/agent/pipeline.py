@@ -25,6 +25,7 @@ from app.agent.listing_agent import (
     NameOption,
     Source,
     build_listing_agent,
+    open_title,
     reference_for,
     shown_bio,
 )
@@ -355,14 +356,25 @@ def taken_references(
     return refs
 
 
-def litter_theme(location: Location, store: Store, mates: set[str]) -> str | None:
+def litter_theme(
+    location: Location, store: Store, mates: set[str], profile: LocationProfile | None = None
+) -> str | None:
     """The title a litter's saved members were named from, if any have been."""
+    open_ids = (
+        {k for k, (e, _) in name_titles(profile).items() if open_title(e)} if profile else None
+    )
     for mate in sorted(mates):
         # Saved before the checks last changed too, as for the names taken: a mate whose
-        # listing awaits a rerun still holds the litter's title.
+        # listing awaits a rerun still holds the litter's title, while today's screen
+        # leaves the title open. One it closed (a reality show naming no animals, decision
+        # 19 revised 23 October) would name the whole litter after nothing.
         saved = store.get_listing(mate, location.id, current_only=False)
-        if saved is not None and saved.draft is not None:
-            return saved.draft.names[0].entity_id
+        if saved is None or saved.draft is None:
+            continue
+        theme = saved.draft.names[0].entity_id
+        current = saved.checks_version == CHECKS_VERSION
+        if current or open_ids is None or theme in open_ids:
+            return theme
     return None
 
 
@@ -549,7 +561,7 @@ async def run_pipeline(
         fallbacks=fallbacks,
     )
     async with _listing_locks[(id(asyncio.get_running_loop()), location.id)]:
-        theme = litter_theme(location, store, litter_mates or set())
+        theme = litter_theme(location, store, litter_mates or set(), profile)
         result = await write_listing(
             animal,
             location,
@@ -616,7 +628,7 @@ async def run_litter(
         if force:
             for m in members:
                 store.delete_listing(m.id, location.id)
-        theme = litter_theme(location, store, ids)
+        theme = litter_theme(location, store, ids, profile)
         for i, animal in enumerate(members, 1):
             saved = store.get_listing(animal.id, location.id)
             if saved is not None:

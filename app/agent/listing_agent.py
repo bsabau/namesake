@@ -162,7 +162,8 @@ Rules:
   that dies in the story is tragic), weapons, real people, names coded to a race,
   religion or political identity, or names that put an animal down (dirt, waste, pests,
   insults: "Garbage", "Scat"). From a title about real people (a talk show, reality
-  show, documentary or biopic), only an animal's name.
+  show, documentary or biopic), only an animal its title or description names, by that
+  name or its first words; if they name none, it gives no names.
 - Take each option from a different title; repeat a title only once every title you may
   name from is used, since a listing needs three names. A litter named as a set is the
   exception.
@@ -228,10 +229,20 @@ def facts_block(animal: Animal) -> str:
 
 
 def titles_block(titles: dict[str, tuple[Entity, Source]]) -> str:
+    """A title about real people shows its whole description: an animal it names is the
+    only name it may give (checks.check_title), so the model sees what the check reads."""
     return "\n".join(
-        f"- {e.id} ({source}): {e.name}. {(e.description or '')[:160]}"
+        f"- {e.id} ({source}): {e.name}. "
+        f"{(e.description or '') if about_real_people(e) else (e.description or '')[:160]}"
         for e, source in titles.values()
     )
+
+
+def about_real_people(entity: Entity) -> bool:
+    """By the classifier or by Qloo's own name and description, as checks.check_title
+    reads them."""
+    real = entity.verdict is not None and entity.verdict.real_people >= REAL_PEOPLE
+    return real or checks.real_people_phrase(entity.name, entity.description) is not None
 
 
 def look_words(text: str) -> set[str]:
@@ -520,7 +531,7 @@ def twin_references(names: list[NameOption]) -> list[str]:
 
 def open_title(entity: Entity) -> bool:
     """A title any character's name may come from: not about real people (which gives only
-    animals' names) and not identity-coded (which gives none), by the name screen's rules."""
+    animals it names) and not identity-coded (which gives none), by the name screen's rules."""
     real = entity.verdict is not None and entity.verdict.real_people >= REAL_PEOPLE
     return not checks.check_title(
         "X", "character", entity.name, entity.description, real_people=real
@@ -579,7 +590,12 @@ def screen_names(names: list[NameOption], titles: dict[str, Entity], strict: boo
         if title is not None:
             real = title.verdict is not None and title.verdict.real_people >= REAL_PEOPLE
             problems += checks.check_title(
-                option.name, option.role, title.name, title.description, real_people=real
+                option.name,
+                option.role,
+                title.name,
+                title.description,
+                real_people=real,
+                character=option.character,
             )
             problems += checks.check_tragic(option.name, option.character, title.name)
     return problems

@@ -85,8 +85,7 @@ FAMOUS_PEOPLE = (
     "serena williams", "parton",
 )  # fmt: skip
 # Phrases in a title's name or description that mark it as about real people: a name
-# from one must be an animal's own (Marley in "Marley & Me" is a dog; the author is not
-# a name option).
+# from one must be an animal the title or description names, never a person (check_title).
 REAL_PEOPLE_TITLES = (
     "talk show", "late-night talk", "late-night show", "news program", "news show",
     "news satire", "newsmagazine", "reality show", "reality series", "reality television",
@@ -284,20 +283,42 @@ def check_tragic(name: str, character: str, title: str) -> list[str]:
 
 
 def check_title(
-    name: str, role: str, title: str, description: str | None, *, real_people: bool = False
+    name: str,
+    role: str,
+    title: str,
+    description: str | None,
+    *,
+    real_people: bool = False,
+    character: str | None = None,
 ) -> list[str]:
     """The title a name comes from, as Qloo returned it: about real people (by its
     description, or by the classifier when `real_people`), or coded to a religion, race or
-    political identity."""
+    political identity. A title about real people gives only an animal Qloo's own text
+    names (a vet's show whose description names its clinic cat): nothing else shows the
+    show has such an animal, so
+    "Max, a cat in" a vet's reality show was a common pet name under a caption no one
+    checked (23 October walkthrough)."""
     problems = []
     text = f"{title} {description or ''}"
-    phrase = find_word(text, REAL_PEOPLE_TITLES)
-    if (phrase or real_people) and role not in ANIMAL_ROLES:
+    phrase = real_people_phrase(title, description)
+    if phrase or real_people:
         why = f"its description says {phrase!r}" if phrase else "the classifier scores it so"
-        problems.append(
-            f"name {name!r}: {title} is about real people ({why}), so a name from it "
-            "must be an animal's own"
-        )
+        if role not in ANIMAL_ROLES:
+            problems.append(
+                f"name {name!r}: {title} is about real people ({why}), so a name from it "
+                "must be an animal's own"
+            )
+        elif not shortens_to(name, character or name):
+            problems.append(
+                f"name {name!r}: {title} is about real people ({why}), so the name must be "
+                f"the animal's own, {character!r}, or its first words"
+            )
+        elif not names_animal(text, name, character or name):
+            problems.append(
+                f"name {name!r}: {title} is about real people ({why}), and Qloo's title and "
+                f"description name no animal {character or name!r}; take the name from "
+                "another title"
+            )
     if identity_coded(title, description):
         problems.append(
             f"name {name!r}: {title} is coded to a religion, race or political identity; "
@@ -310,6 +331,38 @@ def check_title(
             "does not suit an adoption listing; use another title"
         )
     return problems
+
+
+def real_people_phrase(title: str, description: str | None) -> str | None:
+    """The phrase in Qloo's name or description that marks a title as about real people.
+    The prompt (listing_agent.titles_block) and check_title both read it from here."""
+    return find_word(f"{title} {description or ''}", REAL_PEOPLE_TITLES)
+
+
+def name_words(text: str) -> list[str]:
+    """Letters and digits only, so "Mr. Pickles" and "Mr Pickles" read alike, with a
+    possessive dropped ("Biscuit's Journey" says Biscuit) and other apostrophes joined
+    ("O'Malley")."""
+    text = re.sub(r"'s(?![a-z])", "", text.lower().translate(APOSTROPHES))
+    return re.findall(r"[a-z0-9]+", text.replace("'", ""))
+
+
+def shortens_to(name: str, character: str) -> bool:
+    """The name is the character's own or its first words ("Scooby" for "Scooby-Doo")."""
+    said, own = name_words(name), name_words(character)
+    return bool(said) and own[: len(said)] == said
+
+
+def names_animal(text: str, name: str, character: str) -> bool:
+    """Qloo's text names this animal: the text says the character or the name, whatever
+    the punctuation. check_title has made sure the name is the character's own first."""
+    words = name_words(text)
+
+    def says(phrase: list[str]) -> bool:
+        n = len(phrase)
+        return bool(phrase) and any(words[i : i + n] == phrase for i in range(len(words) - n + 1))
+
+    return says(name_words(character)) or says(name_words(name))
 
 
 STOPWORDS = frozenset((

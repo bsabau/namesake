@@ -477,7 +477,26 @@ def test_a_title_the_classifier_marks_as_about_real_people_gives_only_animal_nam
     problems = screen_names([host], {DOG_DOCS: show_}, False)
     assert any("the classifier scores it so" in p for p in problems)
     dog = NameOption(**{**DRAFT["names"][0], "source": "pet", "entity_id": DOG_DOCS})
-    assert screen_names([dog], {DOG_DOCS: show_}, False) == []
+    # Only an animal Qloo's text names: this description names none.
+    assert any("name no animal 'Bingo'" in p for p in screen_names([dog], {DOG_DOCS: show_}, False))
+    named = show_.model_copy(update={"description": "A made-up series about Bingo, a dog."})
+    assert screen_names([dog], {DOG_DOCS: named}, False) == []
+
+
+def test_a_title_about_real_people_shows_its_whole_description():
+    # Review of PR #80: the check reads the whole description, so the model sees it too.
+    from app.agent.listing_agent import titles_block
+
+    tail = "x " * 100 + "and Bingo, the clinic dog."
+    reality = Entity(
+        id=DOG_DOCS,
+        name="Example Vet",
+        type="urn:entity:tv_show",
+        description="A reality series " + tail,
+    )
+    fiction = reality.model_copy(update={"id": PUPPY_SCHOOL, "description": "A cartoon " + tail})
+    block = titles_block({DOG_DOCS: (reality, "pet"), PUPPY_SCHOOL: (fiction, "pet")})
+    assert block.count("Bingo, the clinic dog") == 1
 
 
 def test_a_ranked_found_title_shows_both_badges():

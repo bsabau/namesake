@@ -172,7 +172,42 @@ def test_only_an_animal_role_may_come_from_a_title_about_real_people(role):
 
 
 def test_an_animal_from_a_title_about_real_people_passes():
-    assert check_title("Marley", "dog", "Example Memoir", "A memoir about a family dog.") == []
+    assert check_title("Biscuit", "dog", "Example Memoir", "A memoir about Biscuit, a dog.") == []
+    assert check_title("Biscuit", "dog", "Biscuit & Example", "A memoir.") == []
+
+
+def test_an_animal_a_title_about_real_people_does_not_name_fails():
+    # 23 October: "Max, a cat in" a vet's reality show, where nothing names a Max.
+    problems = check_title("Max", "cat", "Example Vet", "A reality series about a vet.")
+    assert len(problems) == 1 and "name no animal 'Max'" in problems[0]
+    # A fictional title still gives any animal in it.
+    assert check_title("Max", "cat", "Example Cats", "An animated series.") == []
+
+
+def test_a_named_animal_is_found_whatever_the_punctuation_or_a_shortening():
+    vet = "A documentary about Mr Pickles, a cat, and Scooby-Doo, a dog."
+    for name, character in (("Mr Pickles", "Mr. Pickles"), ("Mr. Pickles", "Mr. Pickles")):
+        assert check_title(name, "cat", "Example Vet", vet, character=character) == []
+    assert check_title("Scooby", "dog", "Example Vet", vet, character="Scooby Doo") == []
+    # The short form alone in the text names the animal too.
+    short = "A documentary about Scooby, a dog."
+    assert check_title("Scooby", "dog", "Example Vet", short, character="Scooby-Doo") == []
+
+
+def test_a_possessive_names_the_animal():
+    # Re-check of PR #80: "Biscuit's" read as "biscuits".
+    assert check_title("Biscuit", "dog", "Biscuit’s Journey", "A memoir about a dog.") == []
+    named = "A documentary about Biscuit's recovery."
+    assert check_title("Biscuit", "dog", "Example Vet", named) == []
+    # A plural or another spelling still is not the animal's name.
+    assert check_title("Biscuits", "dog", "Example Vet", named) != []
+
+
+def test_a_name_unrelated_to_the_animal_the_text_names_fails():
+    # Review of PR #80: the character is named, but the animal would be called Max.
+    named = "A reality show about a vet and Biscuit, their cat."
+    problems = check_title("Max", "cat", "Example Vet", named, character="Biscuit")
+    assert len(problems) == 1 and "the animal's own, 'Biscuit'" in problems[0]
 
 
 def test_a_fiction_title_passes():
