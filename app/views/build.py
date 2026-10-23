@@ -729,7 +729,7 @@ def groups_in() -> str:
 
 
 def groups_out() -> str:
-    return and_list([f"{name} ({why})" for name, why in LEFT_OUT_GROUPS])
+    return and_list([f"{name} ({why})" for name, why in LEFT_OUT_GROUPS], serial=True)
 
 
 def shared_places(species: str) -> str:
