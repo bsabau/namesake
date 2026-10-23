@@ -1244,7 +1244,7 @@ FOR_CHILDREN = re.compile(
 
 def for_children(name: str | None, description: str | None = None) -> str | None:
     """The word in a venue's name or description that is about children, or None."""
-    match = FOR_CHILDREN.search(f"{name or ''} {description or ''}".lower())
+    match = FOR_CHILDREN.search(f"{name or ''}\n{description or ''}".lower())
     return match.group(1) if match else None
 
 

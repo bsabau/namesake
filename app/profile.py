@@ -685,7 +685,9 @@ class _Builder:
 def screen(description: str | None, name: str | None = None) -> str | None:
     """Why a venue is unsuitable for an adoption event, from its Qloo description and its
     name (decision 40), or None."""
-    text = f"{name or ''} {description or ''}".lower()
+    # A newline between them, so a name's end and a description's start never join into
+    # one of the phrases ("Blue Water" and "Park-side cafe").
+    text = f"{name or ''}\n{description or ''}".lower()
     return next((word for word in UNSUITABLE if word in text), None)
 
 
