@@ -18,7 +18,7 @@ This is an entry for the Qloo Agentic Hackathon on Devpost. The author is one de
 
 These shape most decisions below, so keep them in mind when making trade-offs. Checked against the Devpost rules on 15 October 2026, and the dates and the list of what to submit again on 22 October.
 
-- **Dates:** submissions close 30 October 2026, 23:45 US Eastern; aim to submit on the 29th. Judging runs 2 November 12:00 to 5 November 09:00 Eastern (18:00 to 15:00 GMT+1), and the demo and the Qloo key must stay live throughout. Winners are announced on 5 November at 15:00 Eastern. Dates checked against the Devpost schedule on 22 October.
+- **Dates:** submissions close 30 October 2026, 23:45 US Eastern; aim to submit on the 29th. Judging runs 2 November 12:00 to 5 November 23:45 Eastern (18:00 on the 2nd to 05:45 on the 6th, GMT+1), and the demo and the Qloo key must stay live and free to use throughout. Winners are announced on or around 5 November at 15:00 Eastern. Dates checked against the Devpost schedule on 22 October; the judging end against the Official Rules on 23 October, which prevail over the rest of the site (this line said 09:00 before). The rules allow AI coding tools as long as the entry is the entrant's own ideas and owned by them, and a prize is paid only after Qloo verifies the entrant's role in making it.
 - **Required:**
   - a link to a working demo that judges can try end to end, hosted and fully published (nothing that runs only locally or needs private access)
   - a public GitHub, GitLab or Bitbucket repo holding all the source code, assets and instructions needed to run the project
