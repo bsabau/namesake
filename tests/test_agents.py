@@ -200,6 +200,9 @@ def test_full_run_uses_the_agents_choices(roster):
     assert any(t.startswith("Namesake's AI asks Qloo to rank") for t in by_ai)
     assert any(t.startswith("Namesake's AI asks Qloo for places near") for t in by_ai)
     assert any(t.startswith("Namesake's AI answered:") for t in by_ai)
+    # Code's fixed calls stay Qloo's: the baseline and what the area tends to watch.
+    fixed = [s for s in log.steps if s.text.startswith(("Baseline:", "Looking up what people"))]
+    assert len(fixed) == 2 and all(s.actor == "qloo" for s in fixed)
 
 
 def test_invented_ids_are_sent_back_once_then_accepted_when_fixed(roster):
@@ -827,7 +830,7 @@ def test_a_fix_request_is_logged_in_plain_words():
         names,
     )
     assert text == (
-        "Code sent the answer back to Namesake's AI, asking: “title “Example Dog Show” came "
+        "Code sent the answer back to Namesake's AI, asking: “title ‘Example Dog Show’ came "
         "back as candidates; say which one you meant, and why; venue with an ID this run's "
         "results do not name is not among the places Qloo returned last”"
     )
@@ -842,5 +845,10 @@ def test_a_fix_request_is_logged_in_plain_words():
         names,
     )
     assert "(Example Cafe)" in text and "set each aside with a reason" in text
-    assert "venues “Example Dog Show” and “Example Cafe” are both" in text
+    assert "venues ‘Example Dog Show’ and ‘Example Cafe’ are both" in text
+    # An item with an apostrophe comes as a double-quoted repr; it prints as words too.
+    looks = ["broad head", "cat's eyes"]
+    assert fix_request([f"not in the record: {looks}"]).endswith(
+        "not in the record: broad head and cat's eyes”"
+    )
     assert "rejected_venues" not in text and "[" not in text and cafe not in text
