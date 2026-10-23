@@ -579,7 +579,7 @@ def name_badge(
             f"Pet-themed title, {ordinal(place)} of {len(watched)} in Qloo's list of what "
             "people here tend to watch"
         )
-    return "Pet-themed title, not among the titles Qloo listed for this area"
+    return "Pet-themed title, not among the titles in Qloo's pet-themed lists for this area"
 
 
 def lookalike_of(result: ListingResult | None, entity_id: str) -> Lookalike | None:
@@ -1238,7 +1238,8 @@ def who_chose(profile: LocationProfile) -> str:
         text += (
             f"Code left out {and_list(profile.left_out_titles)}: Qloo neither ranks "
             f"{'them' if len(profile.left_out_titles) > 1 else 'it'} here nor lists "
-            f"{'them' if len(profile.left_out_titles) > 1 else 'it'} for this area. "
+            f"{'them' if len(profile.left_out_titles) > 1 else 'it'} in its pet-themed lists "
+            "for this area. "
         )
     elif not profile.titles_confirmed and profile.made_by == "agent":
         text += (
