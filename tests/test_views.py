@@ -1107,3 +1107,88 @@ def test_the_plan_names_the_ais_picks_only_on_an_agent_profile(roster):
     )
     fixed = [i.text for i in build_result_view(roster.get("dog-02"), LOCATION, profile()).plan]
     assert not any("Namesake's AI" in t for t in fixed if t.startswith("Ask "))
+
+
+def test_the_plan_skips_busy_events_when_the_record_says_they_are_hard(roster):
+    # Decision 39: a judge read found the shy cat ("hides when it is noisy") sent to an event.
+    from app.views.build import busy_events_caution
+
+    shy = roster.get("cat-01")
+    assert busy_events_caution(shy) == "hides when it is noisy"
+    items = build_result_view(shy, LOCATION, profile()).plan
+    event = items[1]
+    assert event.basis == "Our suggestion"
+    assert event.text == (
+        "Skip busy events for this cat: the record says “hides when it is noisy”. "
+        "Let adopters meet her somewhere quiet instead."
+    )
+    assert not any("meet-and-greet" in i.text or "adoption event" in i.text for i in items)
+    assert next(i.text for i in items if i.text.startswith("Ask ")).endswith(
+        "about putting up a flyer."
+    )
+    # The printed checklist asks about a flyer only, too.
+    from app.views.build import build_flyer_view
+
+    flyer = build_flyer_view(build_result_view(shy, LOCATION, profile()), None)
+    assert flyer.checklist_note.endswith("once you have asked about a flyer.")
+    # An animal with nothing of the kind keeps the research's outing or event.
+    assert busy_events_caution(roster.get("dog-02")) is None
+    calm = build_result_view(roster.get("dog-02"), LOCATION, profile()).plan
+    assert calm[1].basis == "Research" and "“Adopt Me” vest" in calm[1].text
+
+    # Read clause by clause: noise or crowds count only beside a difficulty, fear unless
+    # negated before it (the PR 88 reviews' cases).
+    def said(line):
+        return busy_events_caution(shy.model_copy(update={"facts": [line], "temperament": ""}))
+
+    for fine in [
+        "calm in noisy places",
+        "not shy at all",
+        "fine with crowds",
+        "enjoys crowds and loud music",
+        "comfortable in crowds",
+        "has a loud bark",
+        "a real crowd-pleaser",
+        "doesn't mind noise",
+        "never hides",
+        "fearless with new people",
+        "never struggles with noise",
+        "does not dislike crowds",
+        "no longer avoids busy places",
+        "not shy, nervous or scared around crowds",
+        "is not at all shy",
+        "not nervous or easily startled by noise",
+        "not anxious, fearful, or stressed in noisy places",
+    ]:
+        assert said(fine) is None, fine
+    for hard in [
+        "not comfortable in crowds",
+        "does not cope with loud noises",
+        "calm at home but scared of crowds",
+        "isn't good with crowds",
+        "doesn't like busy places",
+        "easily startled",
+        "finds busy rooms stressful",
+        "scared of loud noises, not good with kids",
+        "nervous around strangers, fine with dogs",
+        "not house-trained yet gets scared of loud noises",
+        "doesn’t like crowds",
+        "no longer comfortable with crowds",
+        "panicked by fireworks",
+        "unable to cope with crowds",
+        "never hides but is scared of crowds",
+        "not aggressive but scared of crowds",
+        "never bites but panics in crowds",
+        "does not dislike people yet struggles with crowds",
+        "never struggles with quiet walks yet cannot cope with crowds",
+        "not at all comfortable in crowds",
+        "never hides, is scared of crowds",
+        "no longer hides, visibly stressed in busy rooms",
+    ]:
+        assert said(hard) == hard, hard
+    assert (
+        busy_events_caution(
+            shy.model_copy(update={"facts": [], "temperament": "nervous with strangers"})
+        )
+        == "nervous with strangers"
+    )

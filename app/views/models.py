@@ -493,6 +493,9 @@ class ResultView(BaseModel):
     # Our framing of the list: which kinds of place were asked for, and why; that the
     # places are the area's, the same for every animal of that species there.
     venues_note: str | None = None
+    # What to ask the places about, as the plan words it: a flyer only for an animal whose
+    # record says busy events are hard (decision 39); the printed checklist repeats it.
+    venue_ask: str = "a flyer or a stand"
     # Shown in place of the venue list when it is empty.
     venues_empty: str = "No venues for this area yet."
     plan_heading: str

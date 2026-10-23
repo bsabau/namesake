@@ -1055,15 +1055,82 @@ def venue_view(
     )
 
 
+# Fear in a record says busy places are hard (decision 39), unless a negation just before
+# it covers it, with any fear words listed after ("not shy at all", "never hides", "not
+# shy, nervous or scared"); "not house-trained yet gets scared" still counts.
+FEAR = (
+    r"(?:hides?|hiding|shy|timid|fearful|nervous|anxious|skittish|scared|frightened"
+    r"|stressed|stressful|startles?|startled|overwhelmed|panic(?:s|ked|king)?)"
+)
+NEGATION = r"(?:\bnot|n't|\bnever|\bno longer)"
+# Up to two words between a negation and what it negates ("not at all shy"), never a
+# word that turns the sentence ("not aggressive but scared").
+BETWEEN = r"(?:(?!(?:but|yet|while|though|although)\b)\w+\s+){0,2}?"
+FEAR_WORD = re.compile(rf"\b{FEAR}\b")
+# A negation covers the fear words listed after it only in a list that ends in or, and or
+# nor ("not nervous or easily startled", "not anxious, fearful, or stressed"); a listed
+# word may carry an adverb. A bare comma is read as a new statement ("no longer hides,
+# visibly stressed in busy rooms"): when a record is ambiguous, the caution wins, since it
+# only quotes the record and suggests a quiet meeting.
+ADVERB = r"(?:(?:\w+ly|very|too)\s+)?"
+NEGATED_FEAR = re.compile(
+    rf"{NEGATION}\s+{BETWEEN}{FEAR}\b"
+    rf"(?:(?:\s*,\s*{ADVERB}{FEAR}\b)*\s*,?\s*(?:or|and|nor)\s+{ADVERB}{FEAR}\b)?"
+)
+# Noise, crowds or busy places say so only beside a difficulty in the same clause ("not
+# comfortable in crowds", "dislikes loud noises"), never alone ("has a loud bark",
+# "enjoys crowds", "calm in noisy places") nor beside a negated one ("never struggles
+# with noise"). A "crowd-pleaser" is not a crowd. Clauses split at commas and at but, yet,
+# and, while or though: "calm at home but scared of crowds" is two.
+CLAUSES = re.compile(r"[,;.]|\b(?:but|yet|and|while|though|although)\b")
+BUSY = re.compile(r"\b(nois(?:y|es?)|loud|crowds?(?!-)|crowded|busy)\b")
+STRUGGLE = re.compile(
+    r"\b(?:dislikes?|hates?|struggles?|avoids?|cannot|can't|unable to)\b"
+    rf"|{NEGATION}\s+{BETWEEN}(?:like|cope|good|comfortable|happy|handle|enjoy)\b"
+)
+NEGATED_STRUGGLE = re.compile(rf"{NEGATION}\s+{BETWEEN}(?:dislikes?|hates?|struggles?|avoids?)\b")
+
+
+def outside(found: re.Pattern, negated: re.Pattern, text: str) -> bool:
+    """Whether `found` matches somewhere in `text` that no `negated` match covers."""
+    spans = [m.span() for m in negated.finditer(text)]
+    return any(not any(a <= m.start() < b for a, b in spans) for m in found.finditer(text))
+
+
+def busy_is_hard(line: str) -> bool:
+    return outside(FEAR_WORD, NEGATED_FEAR, line) or any(
+        BUSY.search(c) and outside(STRUGGLE, NEGATED_STRUGGLE, c) for c in CLAUSES.split(line)
+    )
+
+
+def busy_events_caution(animal: Animal) -> str | None:
+    """The recorded line saying a busy event would be hard for this animal, a fact before
+    the temperament, or None. Read from the record only, like the children check."""
+    for line in [*animal.facts, animal.temperament or ""]:
+        if busy_is_hard(line.lower().replace("’", "'")):
+            return line.strip()
+    return None
+
+
 def plan(
     animal: Animal, location: Location, venues: list[Venue], skipped: list[Venue] | None = None
 ) -> list[PlanItem]:
+    caution = busy_events_caution(animal)
+    them = OBJECT_PRONOUN.get(animal.sex or "", "them")
     items = [
         PlanItem(
             text="Share the listing through the personal networks of foster carers and volunteers.",
             basis="Research",
         ),
+        # Outings and events are the research's in-person channel, but not for an animal
+        # whose record says busy places are hard: the record wins (decision 39).
         PlanItem(
+            text=f"Skip busy events for this {animal.species}: the record says “{caution}”. "
+            f"Let adopters meet {them} somewhere quiet instead.",
+            basis="Our suggestion",
+        )
+        if caution
+        else PlanItem(
             text=(
                 f"Take the {animal.species} on an outing or to an event in an “Adopt Me” vest."
                 if animal.species == "dog"
@@ -1095,7 +1162,8 @@ def plan(
             PlanItem(
                 # The places are Qloo's; which of them to ask is the AI's pick when it gave
                 # reasons (an agent profile), said in words beside the Qloo pill.
-                text=f"Ask {and_list(top)}{picked_by} about hosting an adoption event or a flyer.",
+                text=f"Ask {and_list(top)}{picked_by} about "
+                + ("putting up a flyer." if caution else "hosting an adoption event or a flyer."),
                 basis="Qloo",
             )
         )
@@ -1762,6 +1830,7 @@ def build_result_view(
         ),
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
         plan=plan(animal, location, ordered, named_skips),
+        venue_ask="a flyer" if busy_events_caution(animal) else "a flyer or a stand",
         story_heading=f"Let's tell {POSSESSIVE.get(animal.sex or '', 'their')} story.",
         story_lead=story_leads(animal, listing, profile, location, len(named) > 1)[0],
         story_lead_generic=story_leads(animal, listing, profile, location, len(named) > 1)[1],
@@ -1954,7 +2023,7 @@ def build_flyer_view(
         checklist_note=(
             "Places near the shelter that Qloo returned for fans of pet-themed titles. Each "
             "says what Namesake found when it compared Qloo's list with a baseline, or that "
-            "it could not. Tick each one once you have asked about a flyer or a stand."
+            f"it could not. Tick each one once you have asked about {result.venue_ask}."
             if result.venues
             # The flyer has no Why panel to point to.
             else result.venues_empty.replace("; the Why panel names them.", ".")
