@@ -1055,23 +1055,38 @@ def venue_view(
     )
 
 
-# Words in a record saying busy, noisy places are hard for the animal (decision 39).
-BUSY_HARD = re.compile(
-    r"\b(hides?|hiding|nois(?:y|e)|loud|crowds?|crowded|shy|timid|fearful|nervous|anxious"
-    r"|skittish|scared|frightened|stressed|startles?|overwhelmed)\b"
+# A record is read clause by clause (decision 39): "calm at home but scared of crowds"
+# is two clauses, and only the second says anything about crowds.
+CLAUSES = re.compile(r"[,;.]|\b(?:but|and|while|though|although)\b")
+# Fear in a clause says busy places are hard, unless the clause negates it before it
+# ("not shy at all", "never hides").
+FEAR = re.compile(
+    r"\b(hides?|hiding|shy|timid|fearful|nervous|anxious|skittish|scared|frightened"
+    r"|stressed|stressful|startles?|startled|overwhelmed|panics?)\b"
 )
-# The same record line saying the opposite: "calm in noisy places", "not shy".
-BUSY_FINE = re.compile(
-    r"\b(not|never|no longer|isn't|doesn't mind|calm|calmly|fine|relaxed|unbothered)\b"
+NEGATION = re.compile(r"\b(?:not|never|no longer)\b|n't\b")
+# Noise, crowds or busy places say so only beside a difficulty in the same clause ("not
+# comfortable in crowds", "dislikes loud noises"), never alone ("has a loud bark",
+# "enjoys crowds", "calm in noisy places"). A "crowd-pleaser" is not a crowd.
+BUSY = re.compile(r"\b(nois(?:y|es?)|loud|crowds?(?!-)|crowded|busy)\b")
+STRUGGLE = re.compile(
+    r"\b(?:dislikes?|hates?|struggles?|avoids?|cannot|can't)\b"
+    r"|(?:\bnot|n't|\bnever)\s+(?:\w+\s+)?(?:like|cope|good|comfortable|happy|handle|enjoy)\b"
 )
+
+
+def busy_is_hard(clause: str) -> bool:
+    fear = FEAR.search(clause)
+    if fear and not NEGATION.search(clause[: fear.start()]):
+        return True
+    return bool(BUSY.search(clause) and STRUGGLE.search(clause))
 
 
 def busy_events_caution(animal: Animal) -> str | None:
-    """The recorded words saying a busy event would be hard for this animal, a fact before
+    """The recorded line saying a busy event would be hard for this animal, a fact before
     the temperament, or None. Read from the record only, like the children check."""
     for line in [*animal.facts, animal.temperament or ""]:
-        said = line.lower()
-        if BUSY_HARD.search(said) and not BUSY_FINE.search(said):
+        if any(busy_is_hard(c) for c in CLAUSES.split(line.lower())):
             return line.strip()
     return None
 
@@ -1794,6 +1809,7 @@ def build_result_view(
         ),
         plan_heading=f"Get {OBJECT_PRONOUN.get(animal.sex or '', 'them')} seen",
         plan=plan(animal, location, ordered, named_skips),
+        venue_ask="a flyer" if busy_events_caution(animal) else "a flyer or a stand",
         story_heading=f"Let's tell {POSSESSIVE.get(animal.sex or '', 'their')} story.",
         story_lead=story_leads(animal, listing, profile, location, len(named) > 1)[0],
         story_lead_generic=story_leads(animal, listing, profile, location, len(named) > 1)[1],
@@ -1986,7 +2002,7 @@ def build_flyer_view(
         checklist_note=(
             "Places near the shelter that Qloo returned for fans of pet-themed titles. Each "
             "says what Namesake found when it compared Qloo's list with a baseline, or that "
-            "it could not. Tick each one once you have asked about a flyer or a stand."
+            f"it could not. Tick each one once you have asked about {result.venue_ask}."
             if result.venues
             # The flyer has no Why panel to point to.
             else result.venues_empty.replace("; the Why panel names them.", ".")

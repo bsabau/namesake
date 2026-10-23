@@ -1126,16 +1126,46 @@ def test_the_plan_skips_busy_events_when_the_record_says_they_are_hard(roster):
     assert next(i.text for i in items if i.text.startswith("Ask ")).endswith(
         "about putting up a flyer."
     )
+    # The printed checklist asks about a flyer only, too.
+    from app.views.build import build_flyer_view
+
+    flyer = build_flyer_view(build_result_view(shy, LOCATION, profile()), None)
+    assert flyer.checklist_note.endswith("once you have asked about a flyer.")
     # An animal with nothing of the kind keeps the research's outing or event.
     assert busy_events_caution(roster.get("dog-02")) is None
     calm = build_result_view(roster.get("dog-02"), LOCATION, profile()).plan
     assert calm[1].basis == "Research" and "“Adopt Me” vest" in calm[1].text
-    # A record line that says the opposite does not count.
-    for fine in ["calm in noisy places", "not shy at all", "fine with crowds"]:
-        assert (
-            busy_events_caution(shy.model_copy(update={"facts": [fine], "temperament": "sweet"}))
-            is None
-        )
+
+    # Read clause by clause: noise or crowds count only beside a difficulty, fear unless
+    # negated before it (the PR 88 reviews' cases).
+    def said(line):
+        return busy_events_caution(shy.model_copy(update={"facts": [line], "temperament": ""}))
+
+    for fine in [
+        "calm in noisy places",
+        "not shy at all",
+        "fine with crowds",
+        "enjoys crowds and loud music",
+        "comfortable in crowds",
+        "has a loud bark",
+        "a real crowd-pleaser",
+        "doesn't mind noise",
+        "never hides",
+        "fearless with new people",
+    ]:
+        assert said(fine) is None, fine
+    for hard in [
+        "not comfortable in crowds",
+        "does not cope with loud noises",
+        "calm at home but scared of crowds",
+        "isn't good with crowds",
+        "doesn't like busy places",
+        "easily startled",
+        "finds busy rooms stressful",
+        "scared of loud noises, not good with kids",
+        "nervous around strangers, fine with dogs",
+    ]:
+        assert said(hard) == hard, hard
     assert (
         busy_events_caution(
             shy.model_copy(update={"facts": [], "temperament": "nervous with strangers"})
