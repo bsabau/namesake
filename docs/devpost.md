@@ -8,7 +8,7 @@ What was submitted on Devpost on 24 October 2026, with the same day's correction
 
 **Demo:** https://namesake.bogdansabau.eu
 **Code:** https://github.com/bsabau/namesake (MIT)
-**Began:** October 15, 2026
+**Began:** October 3, 2026 (the first Qloo probes; the code from 15 October)
 **Created by (solo):** I chose the problem, read the research behind the design, made the product and design decisions, and directed the AI coding agents (Claude Code building, Codex and other models reviewing), checking and merging every change. I also run the deployment.
 
 **Gallery** (five images at 1800 × 1200, taken from the live demo on 24 October; the README's screenshots in `docs/img/` show the same result pages, though not the start page):
