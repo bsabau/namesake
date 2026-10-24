@@ -27,7 +27,7 @@ What was submitted on Devpost on 24 October 2026, with the same day's correction
 
 US shelters and rescues took in about 5.8 million dogs and cats in 2025, and volunteers write a listing for every animal, usually in a hurry, and AI bio writers are already everywhere. None of them has evidence that it helps, and one is known for inventing backstories.
 
-So before writing any code, I read the research. No study shows that a name speeds up adoption. The clearest risk is overselling: adopters who found a dog harder than expected had about ten times the odds of returning it. The largest associations, though only observational, are with being seen: in person, and through foster carers' own networks. And nobody had tested whether local taste data helps at all.
+So before writing any code, I read the research. No controlled study shows that a name speeds up adoption. The clearest risk is overselling: adopters who found a dog harder than expected had about ten times the odds of returning it. The largest associations, though only observational, are with being seen: in person, and through foster carers' own networks. And nobody had tested whether local taste data helps at all.
 
 That set the goal: listings that stick to the facts, carefully screened names, and Qloo used for what it can plausibly do, which is finding the pet-themed titles people near a shelter tend to like, and the places their fans favour.
 
@@ -36,7 +36,7 @@ That set the goal: listings that stick to the facts, carefully screened names, a
 A volunteer picks an animal and the shelter's area. In about a minute for an area it already knows (a few minutes for a new one), Namesake's AI produces:
 
 - **a listing written only from the shelter's recorded facts**, with a bite history always stated (one of the five finished examples has one)
-- **name options from Qloo taste data**: pet-themed shows, films and books that Qloo ranks or lists near the shelter, shows the area watches anyway, and titles with a lookalike animal that Namesake's AI finds in Qloo, each name labelled with what Qloo returned and screened for villains, tragic characters, real people and coded references
+- **name options from Qloo taste data**: pet-themed shows, films and books that Qloo ranks or lists near the shelter, shows the area watches anyway, and titles with a lookalike animal that Namesake's AI finds in Qloo, each name labelled with what Qloo returned and screened for villains, violent or tragic characters (famous animals that die in their story among them), aggression and weapon words, words that put an animal down, real people and references coded to a race, religion or political identity
 - **a plan to get the animal seen**: local places that fans of those titles favour, with listed national chains, theme parks and places mapped more than 5 km from the shelter left out, on a map, plus foster networks, outings (or a quiet meeting when the record says busy places are hard) and timing
 
 A Generic / Local toggle shows the listing with and without Qloo, so you can see exactly what Qloo adds; when Qloo's data for the area doesn't back a name's title, the button says With Qloo instead of Local. Qloo's data is behind the local names, the places to ask and the map: without Qloo, Namesake still writes the generic listing, but with no local names, no places and no taste layer on the map. A Why drawer keeps what Qloo returned separate from how the app read it. Refine, edit, approve, copy, or print a flyer.
