@@ -25,3 +25,7 @@ var/
 
 # Claude Code agent worktrees: full copies of the checkout, never part of the repo
 .claude/worktrees/
+
+# Internal working notes, kept locally: the mid-build audits and the unused video script
+docs/audit-*.md
+docs/video-script.md
