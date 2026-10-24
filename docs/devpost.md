@@ -4,7 +4,7 @@ What was submitted on Devpost on 24 October 2026, with the same day's correction
 
 **Project name:** Namesake
 
-**Elevator pitch:** Namesake's AI writes accurate shelter-animal listings, screened names and a plan to get each animal seen, using Qloo taste data near the shelter, with a generic version beside it.
+**Elevator pitch:** Namesake's AI drafts shelter-animal listings from recorded facts only, plus screened names and a plan to get each animal seen, using Qloo taste data near the shelter, beside a generic version.
 
 **Demo:** https://namesake.bogdansabau.eu
 **Code:** https://github.com/bsabau/namesake (MIT)
