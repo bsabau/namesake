@@ -35,7 +35,7 @@ These shape most decisions below, so keep them in mind when making trade-offs. C
 
   **Ties are broken on technological implementation.**
 - **Key test from the brief:** if the app would work the same without Qloo, it is the wrong app. The generic-versus-local comparison exists to answer this.
-- Judges are expected to use the live demo, so it must work end to end for a newcomer, within the caps on live runs, through the judging days. Judging may still be partly automated, and some judges may read only the description and screenshots, so the result screen must be legible in a single screenshot, and the README and description must state plainly what the app does.
+- Judges are expected to use the live demo, so it must work end to end for a newcomer, within the caps on live runs, through the judging days. Judging may still be partly automated, and some judges may read only the description and screenshots, so the result screen must be legible in a single screenshot, and the README and description must state plainly what the app does. Qloo Support confirmed on Discord on 26 October that judges have no Qloo keys of their own, that an entry must give them working access free and without restriction with clear testing instructions in the submission, and that they may judge from the submission materials alone; the Devpost text and the README carry a "How to try it" section for this (27 October).
 
 ## Rules that always apply
 
