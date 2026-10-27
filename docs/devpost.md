@@ -1,6 +1,6 @@
 # Devpost submission text
 
-What was submitted on Devpost on 24 October 2026, with the same day's corrections after Codex, muse and DeepSeek Flash checked it against the evidence, kept here so the repository and the submission say the same thing. On 27 October the "How to try it" section and the two sentences on what the model chooses were added, after Qloo Support said on Discord (26 October) that judges have no Qloo keys of their own, need working access with clear testing instructions, and may judge from the submission materials alone. Same claim rules as the README: no "adopted faster", no "saves lives", no "matching".
+What was submitted on Devpost on 24 October 2026, with the same day's corrections after Codex, muse and DeepSeek Flash checked it against the evidence, kept here so the repository and the submission say the same thing. On 27 October the "How to try it" section and the sentences on which Qloo calls the model chooses and which code fixes were added, after Qloo Support said on Discord (26 October) that judges have no Qloo keys of their own, need working access with clear testing instructions, and may judge from the submission materials alone. Same claim rules as the README: no "adopted faster", no "saves lives", no "matching".
 
 **Project name:** Namesake
 
