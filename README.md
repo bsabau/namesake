@@ -2,7 +2,9 @@
 
 **Namesake's AI writes accurate adoption listings for shelter animals, offers screened name options, and plans where to get each animal seen, using Qloo taste data near the shelter.**
 
-**Live demo:** https://namesake.bogdansabau.eu (the five "Read a finished story" links open instantly)
+**Live demo:** https://namesake.bogdansabau.eu. Nothing to install, sign up for or pay: it runs on the author's Qloo key and model accounts, with the everyday usage caps raised far above their defaults for judging.
+
+**Try it:** open one of the five "Read a finished story" links (instant; each one's step log is under "How Namesake made this"). The preset animals' results in the four preset areas are precomputed, so for a live run add an animal of your own in one of them and open it (about a minute), or open the "Shelter area" bar with Change and type a new area, then pick an animal and start the run (a few minutes, since Qloo calls are spaced 2 seconds apart). On the result, switch between the Generic and the Local, with Qloo versions, open "How Namesake made this" and "Everything Qloo returned, and how Namesake read it" to see what Qloo returned apart from how Namesake read it, refine with a line such as "other names", then expand "Edit and approve" or follow "Print a flyer".
 
 A volunteer picks an animal and the shelter's area. In about a minute Namesake produces:
 
@@ -103,7 +105,7 @@ The decisions behind each row, with their evidence, are in [`docs/decisions.md`]
 
 ## From request to result
 
-1. **Start.** Pick one of twelve fictional animals, or the litter of four kittens, or add your own animal, kept in a workspace in your browser for 7 days, with a link to open it elsewhere and no sign-up. Pick a shelter area: Park Slope or Astoria in New York, Austin, Barcelona, or type one.
+1. **Start.** Pick one of twelve fictional animals, or the litter of four kittens, or add your own animal, kept in a workspace tied to your browser for 7 days after your last visit, with a link to open it elsewhere and no sign-up. Pick a shelter area: Park Slope or Astoria in New York, Austin, Barcelona, or type one.
 2. **Working.** A live log streams each step: Qloo's pet-themed lists for the area, titles proposed, each one looked up in Qloo, which were ambiguous and how they were settled, the venues found and how many stand out against the baseline, and the checks on the answer from Namesake's AI.
 3. **Result**, legible as one screen, told as the animal's story:
    - a **Generic / Local, with Qloo** toggle whose buttons show each version's name; both share the same bio, and the local one adds a name from Qloo's titles and one line saying where it comes from. The button says "Local" only when Qloo's data for the area backs the name's title; otherwise it reads **With Qloo**, and the headline says the title was found but not in Qloo's data for the area

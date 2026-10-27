@@ -1,6 +1,6 @@
 # Devpost submission text
 
-What was submitted on Devpost on 24 October 2026, with the same day's corrections after Codex, muse and DeepSeek Flash checked it against the evidence, kept here so the repository and the submission say the same thing. Same claim rules as the README: no "adopted faster", no "saves lives", no "matching".
+What was submitted on Devpost on 24 October 2026, with the same day's corrections after Codex, muse and DeepSeek Flash checked it against the evidence, kept here so the repository and the submission say the same thing. On 27 October the "How to try it" section and the sentences on which Qloo calls the model chooses and which code fixes were added, after Qloo Support said on Discord (26 October) that judges have no Qloo keys of their own, need working access with clear testing instructions, and may judge from the submission materials alone. Same claim rules as the README: no "adopted faster", no "saves lives", no "matching".
 
 **Project name:** Namesake
 
@@ -23,6 +23,16 @@ What was submitted on Devpost on 24 October 2026, with the same day's correction
 
 ---
 
+## How to try it
+
+Nothing to install, sign up for or pay: the demo runs on my Qloo key and my model accounts, with the everyday usage caps raised far above their defaults for judging. Open https://namesake.bogdansabau.eu.
+
+1. **Read a finished story** (instant). The start page links five precomputed results: the brindle dog in Park Slope (the one in the gallery) and the same dog in Astoria, where the names change with the area; the shy black cat in both; and the border collie-type mix with a bite on record, which the listing states. Each one's own step log is under "How Namesake made this".
+2. **Run one live** (about a minute). The twelve animals' results in the four preset areas, Park Slope, Astoria, Austin and Barcelona, are precomputed and open at once, so to watch the AI work, add an animal of your own in one of them and open it: the area's Qloo work is saved and shared, and the page streams the listing run, with the lookalike titles the AI looks up in Qloo and the checks on its answer. Refine on any result is a live run too.
+3. **Type a new shelter area** (a few minutes, since Qloo calls are spaced 2 seconds apart): open the "Shelter area" bar with Change, type the area, then pick an animal and start the run. This is the full run: the page streams Qloo's lists for the area, the titles the AI proposes and looks up in Qloo, the places found, and the checks on its answer. A name Qloo can't settle shows its candidates as buttons, or asks for the city or state when they can't be told apart; an area with too little data is refused with a message.
+4. **On the result**, switch between the Generic and the Local, with Qloo versions, open "How Namesake made this" and "Everything Qloo returned, and how Namesake read it" to see what Qloo returned apart from how Namesake read it, type a Refine request such as "other names", then expand "Edit and approve", or follow "Print a flyer".
+5. An animal you add is kept for 7 days after your last visit, in a workspace tied to your browser, with no account. The same data the screens show is served as JSON: `/api/start` for the start screen and `/api/results/dog-02@park-slope` for a result.
+
 ## Inspiration
 
 US shelters and rescues took in about 5.8 million dogs and cats in 2025, and volunteers write a listing for every animal, usually in a hurry, and AI bio writers are already everywhere. None of them has evidence that it helps, and one is known for inventing backstories.
@@ -43,7 +53,7 @@ A Generic / Local toggle shows the listing with and without Qloo, so you can see
 
 ## How we built it
 
-Two PydanticAI agents do the open-ended work. One finds pet-themed titles popular in the area, settles which *Bluey* is meant, ranks them and asks Qloo for places their fans go. The other writes the listing and the names. Plain code makes the fixed Qloo calls and checks everything the agents return: every title and place must be one Qloo returned, every bio sentence must trace to the recorded facts, and every name must pass the screen. A draft that fails gets one repair round, then falls back to a template.
+Two PydanticAI agents do the open-ended work. One finds pet-themed titles popular in the area, settles which *Bluey* is meant, ranks them and asks Qloo for places their fans go. The other writes the listing and the names. The model chooses the Qloo calls: which titles of its own to try, which title and which of TV shows, films or books to search the area's lists with, which of Qloo's candidates an ambiguous name means, which places suit an adoption event, and which lookalike titles to check for each animal. It reads each answer and adapts. Code sends the kept titles with the strongest Qloo evidence as the venue signals and fixes the kinds of place asked for, and a title the model proposes for the area is kept only with Qloo's evidence for it whenever any title has that evidence (otherwise the AI's own stay, and the page says so); a lookalike title need only be found in Qloo, and the resemblance is labelled as the AI's reading. Plain code makes the fixed Qloo calls and checks everything the agents return: every title and place must be one Qloo returned, every bio sentence must trace to the recorded facts, and every name must pass the screen. A draft that fails gets one repair round, then falls back to a template.
 
 It's FastAPI and Jinja, Leaflet for the map, SQLite caching every Qloo answer, and one Docker image on a VM. AI agents built and reviewed it under my direction: one wrote the code, and two or three other models reviewed every change before it merged.
 
