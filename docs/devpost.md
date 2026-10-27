@@ -11,13 +11,16 @@ What was submitted on Devpost on 24 October 2026, with the same day's correction
 **Began:** October 3, 2026 (the first Qloo probes; the code from 15 October)
 **Created by (solo):** I chose the problem, read the research behind the design, made the product and design decisions, and directed the AI coding agents (Claude Code building, Codex and other models reviewing), checking and merging every change. I also run the deployment.
 
-**Gallery** (five images at 1800 × 1200, taken from the live demo on 24 October; the README's screenshots in `docs/img/` show the same result pages, though not the start page):
+**Gallery** (eight images at 1800 × 1200 from the live demo: five taken on 24 October, three added on 27 October after Qloo Support said judges may judge from the submission materials alone; the README's screenshots in `docs/img/` show the same result pages, though not the start page, the working page or the flyer):
 
 1. The same dog in Park Slope and Astoria: each area gets its own names, each labelled with the Qloo title it comes from.
-2. Places to ask, each with Qloo's rank and why Namesake's AI picked it; the map compares pet-title fans with fans of top local shows.
-3. The result: name options labelled with their Qloo titles, a Generic / Local toggle, and a listing written only from recorded facts.
-4. How Namesake made this: what Qloo returned, kept apart from what Namesake's AI did with it and what code checked.
-5. Start: pick a shelter area and an animal, add your own, or open one of five finished stories. Photos are AI-generated.
+2. The result: name options labelled with their Qloo titles, a Generic / Local toggle, and a listing written only from recorded facts.
+3. Namesake's AI at work on a typed area: Qloo's lists, the classifier, titles it looks up, ambiguities settled; each step says who did it. (Added 27 October: the working page of a live run for a typed area, "Richmond", which Qloo accepted without saying which Richmond it read; OpenStreetMap names the centre of its cells Richmond, British Columbia (decision 38); the only image showing the model choosing Qloo calls.)
+4. Places to ask, each with Qloo's rank and why Namesake's AI picked it; the map compares pet-title fans with fans of top local shows.
+5. A dog with a bite on record: the listing states it plainly and is written from the record only; each name is labelled with its Qloo title. (Added 27 October: the border collie-type mix in Park Slope, the fifth example.)
+6. How Namesake made this: what Qloo returned, kept apart from what Namesake's AI did with it and what code checked.
+7. Print a flyer: the listing, the name's Qloo title and a contact line to fill in; page 2 is the checklist of places to ask. (Added 27 October: the lead dog in Park Slope, local version.)
+8. Start: pick a shelter area and an animal, add your own, or open one of five finished stories. Photos are AI-generated.
 
 **Built with:** python, fastapi, pydantic-ai, qloo, sqlite, jinja, javascript, leaflet, openstreetmap, carto, docker, caddy, uv, github-actions, muse-spark, claude, deepseek, opencode, claude-code, codex
 
