@@ -14,7 +14,7 @@ A volunteer picks an animal and the shelter's area. In about a minute Namesake p
 
 A **generic version** of the listing sits beside the **local version**, so you can see exactly what Qloo adds. Every Qloo answer is shown apart from how Namesake read it.
 
-Built for the [Qloo Agentic Hackathon](https://qloo-hackathon.devpost.com/). Taste data from the Qloo API; not affiliated with Qloo.
+Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/). Taste data from the Qloo API; not affiliated with Qloo.
 
 ![The first screen of the result for the lead dog in Park Slope, in the story skin: her photo, the local name Space with its line "Named after Dogs in Space." and the start of what the shelter recorded on the left; "Let's tell her story" with the Generic and Local version toggle; three name options (Space, Scooby, Dug), each with its Qloo title under it; the line saying what came from Qloo's data for Park Slope; and the start of her introduction](docs/img/result-first-screen.png)
 
