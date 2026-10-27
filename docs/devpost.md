@@ -15,7 +15,7 @@ What was submitted on Devpost on 24 October 2026, with the same day's correction
 
 1. The same dog in Park Slope and Astoria: each area gets its own names, each labelled with the Qloo title it comes from.
 2. The result: name options labelled with their Qloo titles, a Generic / Local toggle, and a listing written only from recorded facts.
-3. Namesake's AI at work on a typed area: Qloo's lists, the classifier, titles it looks up, ambiguities settled; each step says who did it. (Added 27 October: the working page of a live run for a typed area, "Richmond", which Qloo resolved on its own to Richmond, British Columbia; the only image showing the model choosing Qloo calls.)
+3. Namesake's AI at work on a typed area: Qloo's lists, the classifier, titles it looks up, ambiguities settled; each step says who did it. (Added 27 October: the working page of a live run for a typed area, "Richmond", which Qloo accepted without saying which Richmond it read; OpenStreetMap names the centre of its cells Richmond, British Columbia (decision 38); the only image showing the model choosing Qloo calls.)
 4. Places to ask, each with Qloo's rank and why Namesake's AI picked it; the map compares pet-title fans with fans of top local shows.
 5. A dog with a bite on record: the listing states it plainly and is written from the record only; each name is labelled with its Qloo title. (Added 27 October: the border collie-type mix in Park Slope, the fifth example.)
 6. How Namesake made this: what Qloo returned, kept apart from what Namesake's AI did with it and what code checked.
