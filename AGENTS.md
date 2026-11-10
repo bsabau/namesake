@@ -75,7 +75,7 @@ Several coding agents work in this repo, and all of them read this file. Each ha
 | Agent | Job |
 | --- | --- |
 | Claude Code | Builds. Owns the milestone in progress: the design, the implementation, and the tests that go with it. |
-| Codex | Reviews. Reads a diff and reports what is wrong with it. It does not change files. |
+| Reviewers (Gemini Argon, muse, DeepSeek Flash, through OpenCode) | Review. Each reads a diff and reports what is wrong with it. None changes files. `CLAUDE.md` says which review what. |
 | OpenCode | Small, bounded tasks handed over by name: tests written against existing fixtures, typed models for a recorded response, docstrings, README sections. |
 
 - One agent writes at a time. If the working tree holds changes you did not make, leave them alone and say so.
@@ -109,14 +109,13 @@ Then ordinary correctness: logic errors, unhandled failures of the `qloo` subpro
 
 Leave style to ruff. For each finding give the file and line, what goes wrong, and how serious it is. If nothing is wrong, say so in one line.
 
-To run a review from the repo root:
+To run a review from the repo root, read-only and unattended, with the brief naming the diff (for example `git diff main...<branch>`) and pointing at this section:
 
 ```sh
-codex review --uncommitted     # staged, unstaged and untracked changes
-codex review --base main       # a branch against main
+opencode run --standalone --model opencode-go/gemini-4-argon --agent plan --auto "<brief>"
 ```
 
-These flags cannot be combined with a custom prompt, which is why the guidelines live in this file.
+The guidelines live in this file so that every reviewer reads the same ones.
 
 ## Stack
 
