@@ -4,7 +4,7 @@ Prints the file to stdout, which deploy.sh pipes straight to the server; it neve
 prints a value anywhere else. A missing or empty value stops it with the variable's
 name only, before anything is sent.
 
-    uv run python deploy/make_env.py --subnet 172.18.0.0/16 --network proxy_default
+    uv run python deploy/make_env.py --subnet 172.30.0.0/24 --network proxy --address 172.30.0.2
 """
 
 import argparse
@@ -64,8 +64,57 @@ def proxy_subnet(subnets: str) -> str:
     raise MissingValue(f"FORWARDED_ALLOW_IPS: no IPv4 subnet in {subnets!r}")
 
 
-def build_env(local_env: Path, qloo_config: Path, subnet: str, network: str) -> dict[str, str]:
+def proxy_address(address: str, subnet: str) -> str:
+    """The proxy's own fixed address, checked to lie on its network. Trusting it alone
+    means no other container on that network can forge a visitor's address."""
+    try:
+        ip = ipaddress.ip_address(address.strip())
+    except ValueError:
+        raise MissingValue(f"PROXY_ADDRESS: not an IP address: {address!r}") from None
+    if ip.version != 4 or ip not in ipaddress.ip_network(subnet):
+        raise MissingValue(f"PROXY_ADDRESS: {ip} is not on the proxy network {subnet}")
+    return str(ip)
+
+
+def proxy_holder(members: str, address: str) -> str:
+    """The container that holds the proxy's address, refused unless it is the proxy: running
+    and publishing HTTPS on the host. A mistyped address that lands on another app would
+    otherwise make Namesake trust that app's forged visitor addresses.
+
+    `members` is one line per container on the network, as deploy.sh reads it from the
+    server: name, address/prefix, running (true or false), published ports ("443/tcp,...")."""
+    for line in members.splitlines():
+        name, cidr, running, ports = [*line.split(), "", "", "", ""][:4]
+        if cidr.split("/")[0] != address:
+            continue
+        if running != "true":
+            raise MissingValue(
+                f"PROXY_ADDRESS: {name} holds {address} but is not running, or is gone"
+            )
+        if "443/tcp" not in ports.split(","):
+            raise MissingValue(
+                f"PROXY_ADDRESS: {name} holds {address} but publishes no HTTPS port: not the proxy"
+            )
+        return name
+    raise MissingValue(f"PROXY_ADDRESS: no container on the proxy network holds {address}")
+
+
+def build_env(
+    local_env: Path,
+    qloo_config: Path,
+    subnet: str,
+    network: str,
+    address: str = "",
+    members: str = "",
+) -> dict[str, str]:
     subnet = proxy_subnet(subnet)
+    # The proxy's fixed address when it has one (host-proxy gives Caddy 172.30.0.2),
+    # else the whole subnet, for a proxy whose address changes when it restarts.
+    # An address is trusted only once proxy_holder has found the proxy holding it.
+    trusted = {}
+    if address.strip():
+        trusted["PROXY_ADDRESS"] = proxy_address(address, subnet)
+        proxy_holder(members, trusted["PROXY_ADDRESS"])
     local = {
         k: v
         for k, v in dotenv_values(local_env).items()
@@ -78,9 +127,10 @@ def build_env(local_env: Path, qloo_config: Path, subnet: str, network: str) -> 
         **{k: v for k, v in local.items() if k.startswith("AGENT_") or k in SHARED},
         "ALLOW_LIVE_QLOO": "true",
         # Caddy reaches the app from this Docker network; trust its forwarded client
-        # address from there (deploy/README.md says why the whole subnet).
-        "FORWARDED_ALLOW_IPS": subnet,
+        # address from Caddy alone, or from the network (deploy/README.md says when).
+        "FORWARDED_ALLOW_IPS": trusted.get("PROXY_ADDRESS", subnet),
         "PROXY_NETWORK": network,
+        **trusted,
     }
     # Anthropic's own API needs no base URL (decision 25).
     required = [
@@ -107,14 +157,28 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--subnet", required=True, help="the network's subnets, space-separated")
     parser.add_argument("--network", required=True)
+    parser.add_argument("--address", default="", help="the proxy's fixed IPv4 address, if any")
+    parser.add_argument("--members", default="", help="the network's containers (see proxy_holder)")
     parser.add_argument("--local-env", type=Path, default=Path(".env"))
     parser.add_argument("--qloo-config", type=Path, default=Path.home() / ".qloo" / "config")
     args = parser.parse_args()
+    address = args.address.strip()
     try:
-        text = render(build_env(args.local_env, args.qloo_config, args.subnet, args.network))
+        text = render(
+            build_env(
+                args.local_env, args.qloo_config, args.subnet, args.network, address, args.members
+            )
+        )
+        holder = proxy_holder(args.members, address) if address else ""
     except MissingValue as exc:
         print(f"✗ {exc}", file=sys.stderr)
         return 1
+    if holder:
+        print(
+            f"→ Trusting forwarded client addresses from {holder} ({address}) only", file=sys.stderr
+        )
+    else:
+        print(f"⚠ No PROXY_ADDRESS: trusting every container on {args.network}", file=sys.stderr)
     sys.stdout.write(text)
     return 0
 

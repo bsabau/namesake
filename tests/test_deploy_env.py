@@ -30,6 +30,13 @@ def files(tmp_path, local=LOCAL, qloo="api_key = fake-qloo-key\nbase_url = https
     return tmp_path / ".env", tmp_path / "config"
 
 
+MEMBERS = """\
+proxy-caddy-1 172.30.0.2/24 true 80/tcp,443/tcp,443/udp,
+mexicoproj-app-1 172.30.0.129/24 true
+namesake-app-1 172.30.0.130/24 true
+"""
+
+
 def test_quotes_and_comments_are_not_baked_into_values(tmp_path):
     env = make_env.build_env(*files(tmp_path), "172.18.0.0/16", "proxy_default")
     assert env["AGENT_API_KEY"] == "fake-agent-key"
@@ -123,3 +130,61 @@ def test_a_cap_that_is_not_a_positive_number_stops_the_deploy(tmp_path):
         with pytest.raises(make_env.MissingValue, match="LIVE_RUNS_PER_DAY") as err:
             make_env.build_env(local, qloo, "172.18.0.0/16", "proxy_default")
         assert value not in str(err.value).replace("LIVE_RUNS_PER_DAY", "")
+
+
+def test_a_fixed_proxy_address_is_the_only_one_trusted(tmp_path):
+    # host-proxy gives Caddy 172.30.0.2, so other apps on its network cannot forge a visitor.
+    env = make_env.build_env(
+        *files(tmp_path), "172.30.0.0/24 fd00::/64", "proxy", " 172.30.0.2 ", MEMBERS
+    )
+    assert env["FORWARDED_ALLOW_IPS"] == "172.30.0.2" and env["PROXY_ADDRESS"] == "172.30.0.2"
+    assert "PROXY_ADDRESS=172.30.0.2\n" in make_env.render(env)
+    # Without one, the whole subnet is trusted and no PROXY_ADDRESS is written.
+    env = make_env.build_env(*files(tmp_path), "172.18.0.0/16", "proxy_default", "")
+    assert env["FORWARDED_ALLOW_IPS"] == "172.18.0.0/16" and "PROXY_ADDRESS" not in env
+
+
+@pytest.mark.parametrize("address", ["172.31.0.2", "fd00::2", "caddy", "172.30.0.0/24"])
+def test_a_proxy_address_off_the_network_stops_the_deploy(tmp_path, address):
+    with pytest.raises(make_env.MissingValue, match="PROXY_ADDRESS"):
+        make_env.build_env(*files(tmp_path), "172.30.0.0/24", "proxy", address, MEMBERS)
+
+
+def test_only_the_running_proxy_publishing_https_is_trusted(tmp_path):
+    # Flash: a mistyped PROXY_ADDRESS on SOSPI's app passed the first check and was trusted.
+    assert make_env.proxy_holder(MEMBERS, "172.30.0.2") == "proxy-caddy-1"
+    for app in ("172.30.0.129", "172.30.0.130"):
+        with pytest.raises(make_env.MissingValue, match="publishes no HTTPS port"):
+            make_env.proxy_holder(MEMBERS, app)
+    with pytest.raises(make_env.MissingValue, match="no container .* holds 172.30.0.13$"):
+        make_env.proxy_holder(MEMBERS, "172.30.0.13")  # a prefix of .130, never a match
+    stopped = MEMBERS.replace("172.30.0.2/24 true", "172.30.0.2/24 false")
+    with pytest.raises(make_env.MissingValue, match="not running, or is gone"):
+        make_env.proxy_holder(stopped, "172.30.0.2")
+    with pytest.raises(make_env.MissingValue, match="no container"):
+        make_env.proxy_holder("", "172.30.0.2")
+    # build_env refuses an address without the proxy behind it, so no caller skips the check.
+    with pytest.raises(make_env.MissingValue, match="no container"):
+        make_env.build_env(*files(tmp_path), "172.30.0.0/24", "proxy", "172.30.0.2")
+
+
+def test_the_script_says_whom_it_trusts(tmp_path, capsys, monkeypatch):
+    local, qloo = files(tmp_path)
+    base = ["make_env.py", "--subnet", "172.30.0.0/24", "--network", "proxy",
+            "--local-env", str(local), "--qloo-config", str(qloo)]  # fmt: skip
+    monkeypatch.setattr("sys.argv", [*base, "--address", "172.30.0.2", "--members", MEMBERS])
+    assert make_env.main() == 0
+    out, err = capsys.readouterr()
+    assert (
+        "FORWARDED_ALLOW_IPS=172.30.0.2\n" in out and "from proxy-caddy-1 (172.30.0.2) only" in err
+    )
+    monkeypatch.setattr("sys.argv", [*base, "--address", "172.30.0.129", "--members", MEMBERS])
+    assert make_env.main() == 1
+    out, err = capsys.readouterr()
+    assert out == "" and "mexicoproj-app-1" in err
+    monkeypatch.setattr("sys.argv", base)
+    assert make_env.main() == 0
+    out, err = capsys.readouterr()
+    assert (
+        "FORWARDED_ALLOW_IPS=172.30.0.0/24\n" in out and "trusting every container on proxy" in err
+    )

@@ -174,7 +174,7 @@ The refusal keeps the edit and names the missing words.
 - Only work that can reach Qloo or a model is counted. With no model and Qloo in replay, a run is a free fallback.
 - A location check is tried against the cache first. An answer Qloo gave before, even a thin or ambiguous one, is free. A check that needs Qloo reserves its slot before the call, so two at once cannot both pass a cap. The slot is given back if no live call was made.
 - Reopening an added animal's result, kept in the session, is free like any saved result.
-- uvicorn runs with `--proxy-headers`. `FORWARDED_ALLOW_IPS` is the IPv4 subnet of the proxy's Docker network, so the client address is the real visitor's. Revised 17 October: Caddy's own address changes when its container restarts, so the whole subnet is trusted; any container on that network could forge a visitor address and dodge the per-visitor limit, while the daily caps still hold. Acceptable on a host with one operator (`deploy/README.md`).
+- uvicorn runs with `--proxy-headers`. `FORWARDED_ALLOW_IPS` is the IPv4 subnet of the proxy's Docker network, so the client address is the real visitor's. Revised 17 October: Caddy's own address changes when its container restarts, so the whole subnet is trusted; any container on that network could forge a visitor address and dodge the per-visitor limit, while the daily caps still hold. Acceptable on a host with one operator (`deploy/README.md`). Revised 10 November: the host's Caddy now has a fixed address, and the app trusts that address alone (decision 42).
 
 ## 12. A typed location goes to Qloo as typed, and is checked once before any run
 
@@ -637,3 +637,19 @@ Revised 22 October: a refine now keeps the listing's names unless the request as
 - With today's answers a saved bio can pass 150 words (it passed the bound with the answers as they were). The answers are never cut; the page says the listing is over 150 words and asks the volunteer to trim a sentence that repeats another when editing, keeping every recorded fact.
 
 **Follows:** only the confirmed answers reach saved listings this way, in today's pronouns. An edit to an animal's facts, temperament, look, age or sex leaves the agent's saved sentences as written, so that animal's listings are rebuilt (`scripts/precompute_examples.py --force`). The image project's copy of the roster (`../image_generation`) still has `dog-03`'s old answers; it is outside this repo and is not run. The first review of this change (Codex, muse) found that a recheck on deploy missed visitors' refined listings, which is why the answers are rebuilt where pages are drawn instead.
+
+## 42. The host's Caddy belongs to no app
+
+*10 November.* Since 17 October, Namesake's site block sat in the Caddyfile of another project on the same VM (SOSPI México), whose compose file ran the host's only Caddy; a third site's container sat on that project's network too. Every edit to that file was a local change in another project's git checkout, which stops its `git pull`, and Namesake trusted forwarded addresses from that project's whole subnet. On 31 October an access log was added there for the judging days, to be removed after.
+
+- The Caddy moves to a compose project of its own in `/opt/caddy`, from a private repository (`host-proxy`). It holds ports 80 and 443, imports one file per site from `sites/`, and keeps no access logs.
+- It creates the `proxy` network (`172.30.0.0/24`) and has the fixed address `172.30.0.2`. Docker gives apps automatic addresses from `172.30.0.128/25` only, so one that joins before Caddy starts is never given Caddy's address.
+- Namesake joins `proxy` as `namesake`. `deploy.sh --env` takes `PROXY_ADDRESS` and sets `FORWARDED_ALLOW_IPS` to that one address, after checking it lies on the network; without it the subnet is trusted as before (decision 11).
+- `deploy/Caddyfile.snippet` stays as the site block for anyone deploying Namesake elsewhere; on the demo host it is `sites/namesake.caddy` in `host-proxy`.
+- The access log from 31 October is not carried over, and its file is left out when the certificates are copied to the new Caddy.
+
+**Why:** the author asked for the cleanest arrangement once judging was over. A proxy that no app owns means no app's repository carries another's routing, and a fixed address lets each app trust the proxy alone.
+
+- `deploy.sh --env` trusts `PROXY_ADDRESS` only if the container holding it is running and publishes port 443 on the host, that is, the proxy and no app (`make_env.proxy_holder`), and says so when it falls back to the whole subnet. The re-check (DeepSeek Flash) found that the first version refused only Namesake's own address, so a mistyped address on SOSPI's app would have been trusted.
+
+**Follows:** the switch runs with every site stopped, in order: the old Caddy stops, the certificates are copied without the access log, the new Caddy starts, then SOSPI and Namesake are each redeployed onto `proxy` once. Doing it in that order leaves no window in which an app trusts the wrong proxy or a visitor counts as the proxy's address, at the cost of a few minutes of downtime, which the author accepted. The steps and the way back are in `host-proxy`'s README; the way back lasts until its cleanup step. The first review (DeepSeek Flash, GLM 5.3 Flash) found that the first runbook, which joined the apps to `proxy` by hand ahead of a one-minute switch, left both of those windows open and lost its rollback before SOSPI's deploy had passed.

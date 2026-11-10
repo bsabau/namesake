@@ -7,6 +7,8 @@
 #
 # Optional: NAMESAKE_DIR (default /opt/namesake), PROXY_NETWORK (the Caddy container's
 # Docker network; needed on the first deploy, read from the server's .env after),
+# PROXY_ADDRESS (Caddy's fixed address on that network, the only one the app then trusts
+# for forwarded client addresses; read for --env, from the server's .env when not given),
 # NAMESAKE_URL (checked over HTTPS at the end, once Caddy has the site),
 # NAMESAKE_PREV_FROM_TAG=1 (see the swap below).
 # First-time setup, the Caddy site block and rolling back are in deploy/README.md.
@@ -94,12 +96,27 @@ if [ -n "$ENV" ]; then
   echo "→ Writing .env (values not shown)"
   subnets=$(ssh "$HOST" "docker network inspect $NET --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}'" 2>/dev/null) || subnets=""
   [ -n "$subnets" ] || { echo "✗ Docker network $PROXY_NETWORK not found on the server"; exit 1; }
+  # The proxy's fixed address: as given (empty means none), else the one the server's .env names.
+  if [ -z "${PROXY_ADDRESS+set}" ]; then
+    PROXY_ADDRESS=$(ssh "$HOST" "if [ -f $D/.env ]; then sed -n '/^PROXY_ADDRESS=/{s///p;q;}' $D/.env; fi" </dev/null) \
+      || { echo "✗ could not read PROXY_ADDRESS from the server's .env"; exit 1; }
+  fi
+  PROXY_ADDRESS=$(printf %s "$PROXY_ADDRESS" | tr -d '[:space:]')
+  members=""
+  if [ -n "$PROXY_ADDRESS" ]; then
+    # Each container on the network: name, address, running, published ports. make_env.py
+    # trusts the address only if it is the proxy's (running, publishing 443), so a mistyped
+    # address never makes the app trust another app.
+    members=$(ssh "$HOST" "set -o pipefail; docker network inspect $NET --format '{{range .Containers}}{{.Name}} {{.IPv4Address}}{{println}}{{end}}' | while read -r n ip; do if [ -n \"\$n\" ]; then echo \"\$n \$ip \$(docker inspect --format '{{.State.Running}} {{range \$p, \$b := .HostConfig.PortBindings}}{{\$p}},{{end}}' \"\$n\")\"; fi; done" </dev/null) \
+      || { echo "✗ could not list the containers on $PROXY_NETWORK"; exit 1; }
+  fi
   # Built and checked locally first, so a missing value stops here with nothing sent.
-  (umask 077; uv run --quiet python deploy/make_env.py --subnet "$subnets" --network "$PROXY_NETWORK" > "$work/env")
+  (umask 077; uv run --quiet python deploy/make_env.py --subnet "$subnets" --network "$PROXY_NETWORK" --address "$PROXY_ADDRESS" --members "$members" > "$work/env")
   put .env.new "$work/env"
   # A cut-off transfer fails put() above, so a complete file is one with every key.
   # AGENT_BASE_URL is left out: Anthropic's own API needs none, and make_env.py checks it.
-  remote "for k in QLOO_API_KEY AGENT_API_KEY AGENT_MODEL AGENT_API FORWARDED_ALLOW_IPS PROXY_NETWORK; do grep -q \"^\$k=.\" .env.new; done; chmod 600 .env.new"
+  want="QLOO_API_KEY AGENT_API_KEY AGENT_MODEL AGENT_API FORWARDED_ALLOW_IPS PROXY_NETWORK${PROXY_ADDRESS:+ PROXY_ADDRESS}"
+  remote "for k in $want; do grep -q \"^\$k=.\" .env.new; done; chmod 600 .env.new"
 fi
 remote "test -s .env || test -s .env.new" || { echo "✗ no .env on the server; run once with --env"; exit 1; }
 

@@ -1,5 +1,5 @@
-# Production: one Namesake container behind a Caddy that already serves the host's
-# ports 80 and 443 (see deploy/README.md). Lives on the server as /opt/namesake/compose.yml,
+# Production: one Namesake container behind the host's Caddy, which serves ports 80 and
+# 443 for every site on the host (see deploy/README.md). Lives on the server as /opt/namesake/compose.yml,
 # next to src/ (the committed source), var/ (the private cache) and .env (keys, mode 600).
 name: namesake
 
