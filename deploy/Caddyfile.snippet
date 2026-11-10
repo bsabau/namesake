@@ -1,4 +1,6 @@
-# Added to the host's existing Caddyfile. Caddy gets and renews the certificate itself.
+# Namesake's site block. On the demo host it is sites/namesake.caddy in the host-proxy
+# repository (decision 42); elsewhere, add it to the proxy's config. Caddy gets and renews
+# the certificate itself.
 namesake.bogdansabau.eu {
 	encode zstd gzip
 	header Strict-Transport-Security "max-age=31536000"

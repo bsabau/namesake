@@ -7,6 +7,8 @@
 #
 # Optional: NAMESAKE_DIR (default /opt/namesake), PROXY_NETWORK (the Caddy container's
 # Docker network; needed on the first deploy, read from the server's .env after),
+# PROXY_ADDRESS (Caddy's fixed address on that network, the only one the app then trusts
+# for forwarded client addresses; read for --env, from the server's .env when not given),
 # NAMESAKE_URL (checked over HTTPS at the end, once Caddy has the site),
 # NAMESAKE_PREV_FROM_TAG=1 (see the swap below).
 # First-time setup, the Caddy site block and rolling back are in deploy/README.md.
@@ -95,7 +97,11 @@ if [ -n "$ENV" ]; then
   subnets=$(ssh "$HOST" "docker network inspect $NET --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}'" 2>/dev/null) || subnets=""
   [ -n "$subnets" ] || { echo "✗ Docker network $PROXY_NETWORK not found on the server"; exit 1; }
   # Built and checked locally first, so a missing value stops here with nothing sent.
-  (umask 077; uv run --quiet python deploy/make_env.py --subnet "$subnets" --network "$PROXY_NETWORK" > "$work/env")
+  if [ -z "${PROXY_ADDRESS+set}" ]; then
+    PROXY_ADDRESS=$(ssh "$HOST" "if [ -f $D/.env ]; then sed -n '/^PROXY_ADDRESS=/{s///p;q;}' $D/.env; fi" </dev/null | tr -d '[:space:]') \
+      || { echo "✗ could not read PROXY_ADDRESS from the server's .env"; exit 1; }
+  fi
+  (umask 077; uv run --quiet python deploy/make_env.py --subnet "$subnets" --network "$PROXY_NETWORK" --address "$PROXY_ADDRESS" > "$work/env")
   put .env.new "$work/env"
   # A cut-off transfer fails put() above, so a complete file is one with every key.
   # AGENT_BASE_URL is left out: Anthropic's own API needs none, and make_env.py checks it.

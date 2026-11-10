@@ -4,7 +4,7 @@ Prints the file to stdout, which deploy.sh pipes straight to the server; it neve
 prints a value anywhere else. A missing or empty value stops it with the variable's
 name only, before anything is sent.
 
-    uv run python deploy/make_env.py --subnet 172.18.0.0/16 --network proxy_default
+    uv run python deploy/make_env.py --subnet 172.30.0.0/24 --network proxy --address 172.30.0.2
 """
 
 import argparse
@@ -64,8 +64,25 @@ def proxy_subnet(subnets: str) -> str:
     raise MissingValue(f"FORWARDED_ALLOW_IPS: no IPv4 subnet in {subnets!r}")
 
 
-def build_env(local_env: Path, qloo_config: Path, subnet: str, network: str) -> dict[str, str]:
+def proxy_address(address: str, subnet: str) -> str:
+    """The proxy's own fixed address, checked to lie on its network. Trusting it alone
+    means no other container on that network can forge a visitor's address."""
+    try:
+        ip = ipaddress.ip_address(address.strip())
+    except ValueError:
+        raise MissingValue(f"PROXY_ADDRESS: not an IP address: {address!r}") from None
+    if ip.version != 4 or ip not in ipaddress.ip_network(subnet):
+        raise MissingValue(f"PROXY_ADDRESS: {ip} is not on the proxy network {subnet}")
+    return str(ip)
+
+
+def build_env(
+    local_env: Path, qloo_config: Path, subnet: str, network: str, address: str = ""
+) -> dict[str, str]:
     subnet = proxy_subnet(subnet)
+    # The proxy's fixed address when it has one (host-proxy gives Caddy 172.30.0.2),
+    # else the whole subnet, for a proxy whose address changes when it restarts.
+    trusted = {"PROXY_ADDRESS": proxy_address(address, subnet)} if address.strip() else {}
     local = {
         k: v
         for k, v in dotenv_values(local_env).items()
@@ -78,9 +95,10 @@ def build_env(local_env: Path, qloo_config: Path, subnet: str, network: str) -> 
         **{k: v for k, v in local.items() if k.startswith("AGENT_") or k in SHARED},
         "ALLOW_LIVE_QLOO": "true",
         # Caddy reaches the app from this Docker network; trust its forwarded client
-        # address from there (deploy/README.md says why the whole subnet).
-        "FORWARDED_ALLOW_IPS": subnet,
+        # address from Caddy alone, or from the network (deploy/README.md says when).
+        "FORWARDED_ALLOW_IPS": trusted.get("PROXY_ADDRESS", subnet),
         "PROXY_NETWORK": network,
+        **trusted,
     }
     # Anthropic's own API needs no base URL (decision 25).
     required = [
@@ -107,11 +125,14 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--subnet", required=True, help="the network's subnets, space-separated")
     parser.add_argument("--network", required=True)
+    parser.add_argument("--address", default="", help="the proxy's fixed IPv4 address, if any")
     parser.add_argument("--local-env", type=Path, default=Path(".env"))
     parser.add_argument("--qloo-config", type=Path, default=Path.home() / ".qloo" / "config")
     args = parser.parse_args()
     try:
-        text = render(build_env(args.local_env, args.qloo_config, args.subnet, args.network))
+        text = render(
+            build_env(args.local_env, args.qloo_config, args.subnet, args.network, args.address)
+        )
     except MissingValue as exc:
         print(f"✗ {exc}", file=sys.stderr)
         return 1

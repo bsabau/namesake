@@ -123,3 +123,19 @@ def test_a_cap_that_is_not_a_positive_number_stops_the_deploy(tmp_path):
         with pytest.raises(make_env.MissingValue, match="LIVE_RUNS_PER_DAY") as err:
             make_env.build_env(local, qloo, "172.18.0.0/16", "proxy_default")
         assert value not in str(err.value).replace("LIVE_RUNS_PER_DAY", "")
+
+
+def test_a_fixed_proxy_address_is_the_only_one_trusted(tmp_path):
+    # host-proxy gives Caddy 172.30.0.2, so other apps on its network cannot forge a visitor.
+    env = make_env.build_env(*files(tmp_path), "172.30.0.0/24 fd00::/64", "proxy", " 172.30.0.2 ")
+    assert env["FORWARDED_ALLOW_IPS"] == "172.30.0.2" and env["PROXY_ADDRESS"] == "172.30.0.2"
+    assert "PROXY_ADDRESS=172.30.0.2\n" in make_env.render(env)
+    # Without one, the whole subnet is trusted and no PROXY_ADDRESS is written.
+    env = make_env.build_env(*files(tmp_path), "172.18.0.0/16", "proxy_default", "")
+    assert env["FORWARDED_ALLOW_IPS"] == "172.18.0.0/16" and "PROXY_ADDRESS" not in env
+
+
+@pytest.mark.parametrize("address", ["172.31.0.2", "fd00::2", "caddy", "172.30.0.0/24"])
+def test_a_proxy_address_off_the_network_stops_the_deploy(tmp_path, address):
+    with pytest.raises(make_env.MissingValue, match="PROXY_ADDRESS"):
+        make_env.build_env(*files(tmp_path), "172.30.0.0/24", "proxy", address)

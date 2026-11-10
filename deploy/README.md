@@ -1,6 +1,6 @@
 # Deploying Namesake
 
-The demo runs as one container on a long-lived Linux host with Docker, behind a Caddy that already serves the host's ports 80 and 443 for another project. On the host:
+The demo runs as one container on a long-lived Linux host with Docker, behind the host's one Caddy. That Caddy belongs to no app: it lives in its own compose project in `/opt/caddy` (a separate private repository, `host-proxy`), holds ports 80 and 443 for every site on the host, has the fixed address `172.30.0.2` on a Docker network called `proxy`, and reads one file per site. Until 10 November 2026 it ran inside another project's compose file, with Namesake's site block appended to that project's Caddyfile (decision 42). On the host:
 
 ```
 /opt/namesake/
@@ -19,20 +19,18 @@ The Qloo cache in `var/` holds Qloo response data. It stays on this host and is 
 3. **Ship it**, from a clean checkout of the commit you want live:
 
    ```sh
-   NAMESAKE_HOST=user@host PROXY_NETWORK=<the Caddy network> deploy/deploy.sh --env --seed
+   NAMESAKE_HOST=user@host PROXY_NETWORK=proxy PROXY_ADDRESS=172.30.0.2 deploy/deploy.sh --env --seed
    ```
 
    Leave `NAMESAKE_URL` out this first time: Caddy doesn't know the site until step 4. `--env` writes the host's `.env` from your local `.env` (the `AGENT_*` values, and `GEOCODER_URL`, `QLOO_MIN_INTERVAL`, the `TYPESAFE_*` settings, `MAP_TILES_KEY` and the three caps on live work if set) and `~/.qloo/config` (the Qloo key). `--seed` installs your local cache, so the start page's examples open instantly; it does so only while the host's cache holds no rows, and refuses after that. The script builds the image on the host, re-checks saved listings against today's checks, starts the container, and checks that `/health` answers and the cache is writable. Files inside the private `var/` are handled by `deploy/prepare_var.py` in a one-off root container, so the ssh user needs no root after step 2.
-4. **Caddy.** Append `deploy/Caddyfile.snippet` (with your domain) to the host's Caddyfile, then reload Caddy without restarting it:
+4. **Caddy.** Add `deploy/Caddyfile.snippet` (with your domain) as the site's own file in the proxy's `sites/` folder (on the demo host, `caddy/sites/namesake.caddy` in `host-proxy`, then `git pull` in `/opt/caddy`), and reload Caddy without restarting it:
 
    ```sh
-   cp Caddyfile Caddyfile.bak-$(date +%Y%m%d%H%M%S)
-   cat Caddyfile.snippet >> Caddyfile
    docker exec <caddy-container> caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
    docker exec <caddy-container> caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
    ```
 
-   Caddy gets the certificate on the first request. If the Caddyfile belongs to another project's git checkout, that project's `git pull` stops whenever its own Caddyfile changes, until the local edit is merged; note it in that project.
+   Caddy gets the certificate on the first request. On a host whose Caddy reads a single Caddyfile, append the snippet instead, after a backup. Keep that file out of another project's git checkout if you can: a local edit there stops that project's `git pull` whenever its own Caddyfile changes.
 5. Run `deploy.sh` once more with `NAMESAKE_URL` set: it now also checks the site through the proxy.
 
 ## Automatic deploys
@@ -106,7 +104,8 @@ ssh deploy@host 'cd /opt/namesake && docker compose exec -T app python -m app.ve
 
 ## Settings worth knowing
 
-- **`PROXY_NETWORK`**: the Caddy container's Docker network, which the app joins as `namesake`. It has no published port, so only the proxy reaches it. The first deploy needs it; later deploys (CI's included) read it from the server's `.env`, where `--env` writes it.
-- **`FORWARDED_ALLOW_IPS`** is set to that network's subnet, so the app trusts the visitor address Caddy forwards and per-visitor limits see real visitors. Caddy's own address changes when its container restarts, so a single IP would break silently. The cost: any container on that network could forge a visitor address and dodge the per-visitor limit; the daily caps still hold. On a host with one operator that is acceptable; on a shared host, give Caddy a fixed IP and use it instead.
+- **`PROXY_NETWORK`**: the Caddy container's Docker network (`proxy` on the demo host), which the app joins as `namesake`. It has no published port, so only the proxy reaches it. The first deploy needs it; later deploys (CI's included) read it from the server's `.env`, where `--env` writes it.
+- **`PROXY_ADDRESS`**: Caddy's fixed address on that network (`172.30.0.2` on the demo host). With it, `FORWARDED_ALLOW_IPS` is that one address, so the app trusts the visitor address Caddy forwards and nothing else: another app on the same network cannot forge a visitor's address to dodge the per-visitor limit. `--env` checks that it lies on the network and writes it to the server's `.env`, and later `--env` runs read it from there; `PROXY_ADDRESS=` (empty) goes back to the subnet.
+- **`FORWARDED_ALLOW_IPS`** is the proxy's address when `PROXY_ADDRESS` is set, else the network's whole subnet, for a proxy whose address changes when its container restarts (where a single IP would break silently). With the subnet, any container on that network could forge a visitor address and dodge the per-visitor limit; the daily caps still hold.
 - **The model and the Qloo key** come from `.env`. To change the model or its fallbacks, edit the `AGENT_*` values (`AGENT_FALLBACK_1_*`, `AGENT_FALLBACK_2_*` for the fallbacks) in your local `.env` and deploy with `--env`.
 - **`MAP_TILES_KEY`** (optional) is a CARTO basemap key for the story skin's maps. It reaches the visitor's browser, which is where tile requests come from, so restrict it to the site's domain in CARTO's dashboard. Without it the maps use OpenStreetMap's standard tiles.
