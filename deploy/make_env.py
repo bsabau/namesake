@@ -76,6 +76,27 @@ def proxy_address(address: str, subnet: str) -> str:
     return str(ip)
 
 
+def proxy_holder(members: str, address: str) -> str:
+    """The container that holds the proxy's address, refused unless it is the proxy: running
+    and publishing HTTPS on the host. A mistyped address that lands on another app would
+    otherwise make Namesake trust that app's forged visitor addresses.
+
+    `members` is one line per container on the network, as deploy.sh reads it from the
+    server: name, address/prefix, running (true or false), published ports ("443/tcp,...")."""
+    for line in members.splitlines():
+        name, cidr, running, ports = [*line.split(), "", "", "", ""][:4]
+        if cidr.split("/")[0] != address:
+            continue
+        if running != "true":
+            raise MissingValue(f"PROXY_ADDRESS: {name} holds {address} but is not running")
+        if "443/tcp" not in ports.split(","):
+            raise MissingValue(
+                f"PROXY_ADDRESS: {name} holds {address} but publishes no HTTPS port: not the proxy"
+            )
+        return name
+    raise MissingValue(f"PROXY_ADDRESS: no container on the proxy network holds {address}")
+
+
 def build_env(
     local_env: Path, qloo_config: Path, subnet: str, network: str, address: str = ""
 ) -> dict[str, str]:
@@ -126,16 +147,25 @@ def main() -> int:
     parser.add_argument("--subnet", required=True, help="the network's subnets, space-separated")
     parser.add_argument("--network", required=True)
     parser.add_argument("--address", default="", help="the proxy's fixed IPv4 address, if any")
+    parser.add_argument("--members", default="", help="the network's containers (see proxy_holder)")
     parser.add_argument("--local-env", type=Path, default=Path(".env"))
     parser.add_argument("--qloo-config", type=Path, default=Path.home() / ".qloo" / "config")
     args = parser.parse_args()
+    address = args.address.strip()
     try:
         text = render(
-            build_env(args.local_env, args.qloo_config, args.subnet, args.network, args.address)
+            build_env(args.local_env, args.qloo_config, args.subnet, args.network, address)
         )
+        holder = proxy_holder(args.members, address) if address else ""
     except MissingValue as exc:
         print(f"✗ {exc}", file=sys.stderr)
         return 1
+    if holder:
+        print(
+            f"→ Trusting forwarded client addresses from {holder} ({address}) only", file=sys.stderr
+        )
+    else:
+        print(f"⚠ No PROXY_ADDRESS: trusting every container on {args.network}", file=sys.stderr)
     sys.stdout.write(text)
     return 0
 
