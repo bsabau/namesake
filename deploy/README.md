@@ -19,18 +19,20 @@ The Qloo cache in `var/` holds Qloo response data. It stays on this host and is 
 3. **Ship it**, from a clean checkout of the commit you want live:
 
    ```sh
-   NAMESAKE_HOST=user@host PROXY_NETWORK=proxy PROXY_ADDRESS=172.30.0.2 deploy/deploy.sh --env --seed
+   NAMESAKE_HOST=user@host PROXY_NETWORK=<the Caddy network> PROXY_ADDRESS=<Caddy's fixed address, if it has one> deploy/deploy.sh --env --seed
    ```
 
+   On the demo host these are `PROXY_NETWORK=proxy PROXY_ADDRESS=172.30.0.2`, and Caddy must be running, since `--env` checks that a running container other than Namesake holds that address. Leave `PROXY_ADDRESS` out for a proxy whose address changes on restart: the app then trusts the whole network.
+
    Leave `NAMESAKE_URL` out this first time: Caddy doesn't know the site until step 4. `--env` writes the host's `.env` from your local `.env` (the `AGENT_*` values, and `GEOCODER_URL`, `QLOO_MIN_INTERVAL`, the `TYPESAFE_*` settings, `MAP_TILES_KEY` and the three caps on live work if set) and `~/.qloo/config` (the Qloo key). `--seed` installs your local cache, so the start page's examples open instantly; it does so only while the host's cache holds no rows, and refuses after that. The script builds the image on the host, re-checks saved listings against today's checks, starts the container, and checks that `/health` answers and the cache is writable. Files inside the private `var/` are handled by `deploy/prepare_var.py` in a one-off root container, so the ssh user needs no root after step 2.
-4. **Caddy.** Add `deploy/Caddyfile.snippet` (with your domain) as the site's own file in the proxy's `sites/` folder (on the demo host, `caddy/sites/namesake.caddy` in `host-proxy`, then `git pull` in `/opt/caddy`), and reload Caddy without restarting it:
+4. **Caddy.** Add `deploy/Caddyfile.snippet` (with your domain) to the proxy's config, then validate and reload it without a restart:
 
    ```sh
    docker exec <caddy-container> caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
    docker exec <caddy-container> caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
    ```
 
-   Caddy gets the certificate on the first request. On a host whose Caddy reads a single Caddyfile, append the snippet instead, after a backup. Keep that file out of another project's git checkout if you can: a local edit there stops that project's `git pull` whenever its own Caddyfile changes.
+   On the demo host the snippet is `caddy/sites/namesake.caddy` in the private `host-proxy` repository, and its README has the commands (`git pull` in `/opt/caddy`, then `docker compose exec caddy caddy reload …`). Caddy asks for the certificate as soon as it loads the site, so the DNS record must already point at the host. Keep the site block out of another project's git checkout if you can: a local edit there stops that project's `git pull` whenever its own Caddyfile changes.
 5. Run `deploy.sh` once more with `NAMESAKE_URL` set: it now also checks the site through the proxy.
 
 ## Automatic deploys

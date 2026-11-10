@@ -650,4 +650,6 @@ Revised 22 October: a refine now keeps the listing's names unless the request as
 
 **Why:** the author asked for the cleanest arrangement once judging was over. A proxy that no app owns means no app's repository carries another's routing, and a fixed address lets each app trust the proxy alone.
 
-**Follows:** the switch takes every site on the host down for about a minute; its steps and the way back are in `host-proxy`'s README. A Namesake deploy between joining the apps to `proxy` by hand and rewriting the host's `.env` would drop that connection, so nothing is merged in between.
+- `deploy.sh --env` trusts `PROXY_ADDRESS` only if a running container on the network other than Namesake holds it, and says so when it falls back to the whole subnet.
+
+**Follows:** the switch runs with every site stopped, in order: the old Caddy stops, the certificates are copied without the access log, the new Caddy starts, then SOSPI and Namesake are each redeployed onto `proxy` once. Doing it in that order leaves no window in which an app trusts the wrong proxy or a visitor counts as the proxy's address, at the cost of a few minutes of downtime, which the author accepted. The steps and the way back are in `host-proxy`'s README; the way back lasts until its cleanup step. The first review (DeepSeek Flash, GLM 5.3 Flash) found that the first runbook, which joined the apps to `proxy` by hand ahead of a one-minute switch, left both of those windows open and lost its rollback before SOSPI's deploy had passed.

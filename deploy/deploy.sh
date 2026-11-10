@@ -96,16 +96,30 @@ if [ -n "$ENV" ]; then
   echo "→ Writing .env (values not shown)"
   subnets=$(ssh "$HOST" "docker network inspect $NET --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}'" 2>/dev/null) || subnets=""
   [ -n "$subnets" ] || { echo "✗ Docker network $PROXY_NETWORK not found on the server"; exit 1; }
-  # Built and checked locally first, so a missing value stops here with nothing sent.
+  # The proxy's fixed address: as given (empty means none), else the one the server's .env names.
   if [ -z "${PROXY_ADDRESS+set}" ]; then
-    PROXY_ADDRESS=$(ssh "$HOST" "if [ -f $D/.env ]; then sed -n '/^PROXY_ADDRESS=/{s///p;q;}' $D/.env; fi" </dev/null | tr -d '[:space:]') \
+    PROXY_ADDRESS=$(ssh "$HOST" "if [ -f $D/.env ]; then sed -n '/^PROXY_ADDRESS=/{s///p;q;}' $D/.env; fi" </dev/null) \
       || { echo "✗ could not read PROXY_ADDRESS from the server's .env"; exit 1; }
   fi
+  PROXY_ADDRESS=$(printf %s "$PROXY_ADDRESS" | tr -d '[:space:]')
+  if [ -n "$PROXY_ADDRESS" ]; then
+    # Trust it only if a running container on the network holds it, and that is not this app:
+    # a mistyped address would otherwise make the app trust another app, or nobody.
+    holder=$(ssh "$HOST" "docker network inspect $NET --format '{{range .Containers}}{{.Name}} {{.IPv4Address}}{{println}}{{end}}'" </dev/null \
+      | awk -v a="$PROXY_ADDRESS/" 'index($2, a) == 1 { print $1 }') || holder=""
+    [ -n "$holder" ] || { echo "✗ no running container on $PROXY_NETWORK holds $PROXY_ADDRESS: start the proxy first, or set PROXY_ADDRESS= to trust the whole network"; exit 1; }
+    case "$holder" in namesake*) echo "✗ $PROXY_ADDRESS is Namesake's own address ($holder), not the proxy's"; exit 1 ;; esac
+    echo "→ Trusting forwarded client addresses from $holder ($PROXY_ADDRESS) only"
+  else
+    echo "⚠ No PROXY_ADDRESS: trusting forwarded client addresses from every container on $PROXY_NETWORK"
+  fi
+  # Built and checked locally first, so a missing value stops here with nothing sent.
   (umask 077; uv run --quiet python deploy/make_env.py --subnet "$subnets" --network "$PROXY_NETWORK" --address "$PROXY_ADDRESS" > "$work/env")
   put .env.new "$work/env"
   # A cut-off transfer fails put() above, so a complete file is one with every key.
   # AGENT_BASE_URL is left out: Anthropic's own API needs none, and make_env.py checks it.
-  remote "for k in QLOO_API_KEY AGENT_API_KEY AGENT_MODEL AGENT_API FORWARDED_ALLOW_IPS PROXY_NETWORK; do grep -q \"^\$k=.\" .env.new; done; chmod 600 .env.new"
+  want="QLOO_API_KEY AGENT_API_KEY AGENT_MODEL AGENT_API FORWARDED_ALLOW_IPS PROXY_NETWORK${PROXY_ADDRESS:+ PROXY_ADDRESS}"
+  remote "for k in $want; do grep -q \"^\$k=.\" .env.new; done; chmod 600 .env.new"
 fi
 remote "test -s .env || test -s .env.new" || { echo "✗ no .env on the server; run once with --env"; exit 1; }
 
