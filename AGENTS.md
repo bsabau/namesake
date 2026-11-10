@@ -75,7 +75,7 @@ Several coding agents work in this repo, and all of them read this file. Each ha
 | Agent | Job |
 | --- | --- |
 | Claude Code | Builds. Owns the milestone in progress: the design, the implementation, and the tests that go with it. |
-| Reviewers (Gemini Argon, muse, DeepSeek Flash, through OpenCode) | Review. Each reads a diff and reports what is wrong with it. None changes files. `CLAUDE.md` says which review what. |
+| Reviewers (Gemini Argon through Antigravity's `agy`; muse and DeepSeek Flash through OpenCode) | Review. Each reads a diff and reports what is wrong with it. None changes files. `CLAUDE.md` says which review what. |
 | OpenCode | Small, bounded tasks handed over by name: tests written against existing fixtures, typed models for a recorded response, docstrings, README sections. |
 
 - One agent writes at a time. If the working tree holds changes you did not make, leave them alone and say so.
@@ -112,7 +112,8 @@ Leave style to ruff. For each finding give the file and line, what goes wrong, a
 To run a review from the repo root, read-only and unattended, with the brief naming the diff (for example `git diff main...<branch>`) and pointing at this section:
 
 ```sh
-opencode run --standalone --model opencode-go/gemini-4-argon --agent plan --auto "<brief>"
+agy -p "<brief>" --model gemini-4-argon-high --mode plan --sandbox --output-format json
+opencode run --standalone --model opencode-go/muse-spark-1.3-contributor --agent plan --auto "<brief>"
 ```
 
 The guidelines live in this file so that every reviewer reads the same ones.
