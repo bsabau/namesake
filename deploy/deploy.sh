@@ -107,7 +107,7 @@ if [ -n "$ENV" ]; then
     # Each container on the network: name, address, running, published ports. make_env.py
     # trusts the address only if it is the proxy's (running, publishing 443), so a mistyped
     # address never makes the app trust another app.
-    members=$(ssh "$HOST" "docker network inspect $NET --format '{{range .Containers}}{{.Name}} {{.IPv4Address}}{{println}}{{end}}' | while read -r n ip; do if [ -n \"\$n\" ]; then echo \"\$n \$ip \$(docker inspect --format '{{.State.Running}} {{range \$p, \$b := .HostConfig.PortBindings}}{{\$p}},{{end}}' \"\$n\")\"; fi; done" </dev/null) \
+    members=$(ssh "$HOST" "set -o pipefail; docker network inspect $NET --format '{{range .Containers}}{{.Name}} {{.IPv4Address}}{{println}}{{end}}' | while read -r n ip; do if [ -n \"\$n\" ]; then echo \"\$n \$ip \$(docker inspect --format '{{.State.Running}} {{range \$p, \$b := .HostConfig.PortBindings}}{{\$p}},{{end}}' \"\$n\")\"; fi; done" </dev/null) \
       || { echo "✗ could not list the containers on $PROXY_NETWORK"; exit 1; }
   fi
   # Built and checked locally first, so a missing value stops here with nothing sent.

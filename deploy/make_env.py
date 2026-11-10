@@ -88,7 +88,9 @@ def proxy_holder(members: str, address: str) -> str:
         if cidr.split("/")[0] != address:
             continue
         if running != "true":
-            raise MissingValue(f"PROXY_ADDRESS: {name} holds {address} but is not running")
+            raise MissingValue(
+                f"PROXY_ADDRESS: {name} holds {address} but is not running, or is gone"
+            )
         if "443/tcp" not in ports.split(","):
             raise MissingValue(
                 f"PROXY_ADDRESS: {name} holds {address} but publishes no HTTPS port: not the proxy"
@@ -98,12 +100,21 @@ def proxy_holder(members: str, address: str) -> str:
 
 
 def build_env(
-    local_env: Path, qloo_config: Path, subnet: str, network: str, address: str = ""
+    local_env: Path,
+    qloo_config: Path,
+    subnet: str,
+    network: str,
+    address: str = "",
+    members: str = "",
 ) -> dict[str, str]:
     subnet = proxy_subnet(subnet)
     # The proxy's fixed address when it has one (host-proxy gives Caddy 172.30.0.2),
     # else the whole subnet, for a proxy whose address changes when it restarts.
-    trusted = {"PROXY_ADDRESS": proxy_address(address, subnet)} if address.strip() else {}
+    # An address is trusted only once proxy_holder has found the proxy holding it.
+    trusted = {}
+    if address.strip():
+        trusted["PROXY_ADDRESS"] = proxy_address(address, subnet)
+        proxy_holder(members, trusted["PROXY_ADDRESS"])
     local = {
         k: v
         for k, v in dotenv_values(local_env).items()
@@ -154,7 +165,9 @@ def main() -> int:
     address = args.address.strip()
     try:
         text = render(
-            build_env(args.local_env, args.qloo_config, args.subnet, args.network, address)
+            build_env(
+                args.local_env, args.qloo_config, args.subnet, args.network, address, args.members
+            )
         )
         holder = proxy_holder(args.members, address) if address else ""
     except MissingValue as exc:
