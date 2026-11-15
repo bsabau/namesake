@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 45
     environment:
       name: production
-      url: https://namesake.bogdansabau.eu
+      url: https://namesake.eightycolumn.eu
     steps:
       # Pinned to a commit: this job holds a key that is as good as root on the host.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -67,5 +67,5 @@ jobs:
         if: steps.fresh.outputs.skip != '1'
         env:
           NAMESAKE_HOST: ${{ secrets.DEPLOY_HOST }}
-          NAMESAKE_URL: https://namesake.bogdansabau.eu
+          NAMESAKE_URL: https://namesake.eightycolumn.eu
         run: deploy/deploy.sh

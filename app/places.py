@@ -42,7 +42,7 @@ from pydantic import BaseModel
 from app.custom_location import clean
 
 LAYERS = ("city", "district", "locality")
-USER_AGENT = "Namesake/0.1 (Qloo hackathon demo; https://namesake.bogdansabau.eu)"
+USER_AGENT = "Namesake/0.1 (Qloo hackathon demo; https://namesake.eightycolumn.eu)"
 TIMEOUT = 4
 MAX_RESULTS = 5
 MIN_QUERY = 3

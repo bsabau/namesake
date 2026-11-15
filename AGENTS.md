@@ -328,7 +328,7 @@ uv run python scripts/precompute_examples.py --all --dry-run   # every preset an
 uv run python -m app.venue_points             # pin saved profiles' venues from OpenStreetMap, once
 uv run python -m app.limits                   # live runs and new areas per day, against the caps
 uv run python -m app.audience                 # who tends to like each saved listing's titles, live, once
-python3 deploy/watch.py https://namesake.bogdansabau.eu --examples 5   # the hourly check of the live demo
+python3 deploy/watch.py https://namesake.eightycolumn.eu --examples 5   # the hourly check of the live demo
 uv run pytest
 uv run pytest tests/test_app.py::test_health   # one test (-k <expr> also works)
 uv run ruff check . && uv run ruff format --check .

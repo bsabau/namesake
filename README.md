@@ -2,7 +2,7 @@
 
 **Namesake's AI writes accurate adoption listings for shelter animals, offers screened name options, and plans where to get each animal seen, using Qloo taste data near the shelter.**
 
-**Live demo:** https://namesake.bogdansabau.eu. Nothing to install, sign up for or pay: it runs on the author's Qloo key and model accounts, with the everyday usage caps raised far above their defaults for judging.
+**Live demo:** https://namesake.eightycolumn.eu. Nothing to install, sign up for or pay: it runs on the author's Qloo key and model accounts, with the everyday usage caps raised far above their defaults for judging.
 
 **Try it:** open one of the five "Read a finished story" links (instant; each one's step log is under "How Namesake made this"). The preset animals' results in the four preset areas are precomputed, so for a live run add an animal of your own in one of them and open it (about a minute), or open the "Shelter area" bar with Change and type a new area, then pick an animal and start the run (a few minutes, since Qloo calls are spaced 2 seconds apart). On the result, switch between the Generic and the Local, with Qloo versions, open "How Namesake made this" and "Everything Qloo returned, and how Namesake read it" to see what Qloo returned apart from how Namesake read it, refine with a line such as "other names", then expand "Edit and approve" or follow "Print a flyer".
 
